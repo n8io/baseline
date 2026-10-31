@@ -35,6 +35,38 @@ Source: npm registry (`registry.npmjs.org/effect`, `/@effect/*`), [Effect README
   - **Stay Zod.** Keep `@hono/zod-openapi` (#7). Declare errors with `Data.TaggedError`. Ban `Schema` imports from `effect` in app code with a lint rule, because agents following LLMS.md will reach for it.
   - **Move to Effect Schema.** Models, errors (`Schema.TaggedError`) and request validation all use it. Drop Zod and `@hono/zod-openapi` for `hono-openapi` (untested) or Effect's `HttpApi` (replaces Hono routing, which the user has said stays at the edge).
 
+## Where things live
+
+Per the user (2026-10-31): the domain (`models/`, `rules/`, `use-cases/`, `ports.ts`, `foo-errors.ts`, `index.ts`) knows nothing about the API or SPI. `src/domains/foo/index.ts` exports use cases and port types only. `api/index.ts` and `spi/index.ts` are separate entries. The composition root (`src/server.ts`, `src/worker.ts`) provides SPI Layers and mounts the API. Models carry no OpenAPI metadata and errors carry no HTTP status; the API adds both.
+
+```ts
+// src/domains/foo/index.ts
+export type { FooRepository } from "./ports.ts"
+export { fooCreate } from "./use-cases/foo-create.ts"
+export { fooGet } from "./use-cases/foo-get.ts"
+
+// src/domains/foo/api/index.ts
+export { fooRoutes } from "./foo-routes.ts"
+
+// src/domains/foo/spi/index.ts
+export { fooRepositoryMemory } from "./foo-repository.memory.ts"
+```
+
+```ts
+// src/domains/foo/models/foo.ts (plain Zod, no OpenAPI)
+import { z } from "zod"
+
+export const Foo = z.object({ id: z.uuid(), name: z.string().min(1) })
+export type Foo = z.infer<typeof Foo>
+
+export const FooCreateInput = Foo.omit({ id: true })
+export type FooCreateInput = z.infer<typeof FooCreateInput>
+```
+
+The port is a type to the outside: Effect needs `FooRepository` as a value only where a Layer is built (`spi/`) or the service is read (`use-cases/`), and both import `ports.ts` directly. The composition root needs only its type, for the runtime.
+
+**Catch: `@hono/zod-openapi` adds `.openapi()` to Zod's types globally.** `Foo.openapi("Foo")` type-checks inside the domain, but throws `Foo.openapi is not a function` at runtime unless `@hono/zod-openapi` was imported first (verified). So the type checker will not keep OpenAPI metadata out of models. The architecture test needs a rule that bans `.openapi(` and `@hono/zod-openapi` imports outside `api/`.
+
 ## Ports as services, adapters as Layers
 
 The idiomatic v4 shape is a class that extends `Context.Service`, with the interface as a type parameter and a string key ([LLMS.md, Writing Effect services](https://github.com/Effect-TS/effect/blob/main/LLMS.md)). A use case reads the service with `yield*`, and the service shows up in the use case's third type parameter (`R`). Leaving it unprovided is a compile error. That is the "required services" the user wants.
@@ -110,7 +142,26 @@ export const fooCreate = Effect.fn("fooCreate")(function* (
 Effect's documented bridge is one `ManagedRuntime` built from the app's Layer, then `runtime.runPromise(effect)` in each handler ([LLMS.md, Integrating Effect into existing applications](https://github.com/Effect-TS/effect/blob/main/LLMS.md); [Hono example](https://github.com/Effect-TS/effect/blob/main/ai-docs/src/04_integration/10_managed-runtime.ts)). Map each tagged error to a response inside the effect with `Effect.catchTag`, so the HTTP status sits in `api/`, not in the use case:
 
 ```ts
-// api/foo-routes.ts (route definitions with createRoute as usual)
+// src/domains/foo/api/foo-routes.ts
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { Effect, type ManagedRuntime } from "effect"
+import { fooCreate, fooGet, type FooRepository } from "../index.ts"
+import { Foo, FooCreateInput } from "../models/foo.ts"
+
+// OpenAPI metadata and HTTP statuses live here, not in the domain.
+const FooResponse = Foo.openapi("Foo")
+const Problem = z.object({ message: z.string() }).openapi("Problem")
+
+const fooGetRoute = createRoute({
+  method: "get", path: "/foos/{id}",
+  request: { params: z.object({ id: z.uuid() }) },
+  responses: {
+    200: { content: { "application/json": { schema: FooResponse } }, description: "The foo" },
+    404: { content: { "application/json": { schema: Problem } }, description: "No such foo" },
+  },
+})
+// fooCreateRoute is the same shape, with FooCreateInput.openapi("FooCreateInput") as the body and 201/409.
+
 export const fooRoutes = (runtime: ManagedRuntime.ManagedRuntime<FooRepository, never>) =>
   new OpenAPIHono()
     .openapi(fooGetRoute, (c) =>
@@ -124,14 +175,18 @@ export const fooRoutes = (runtime: ManagedRuntime.ManagedRuntime<FooRepository, 
 ```
 
 ```ts
-// server.ts (composition root)
+// src/server.ts (composition root: provides SPI Layers, mounts the API)
 import * as OtelTracer from "@effect/opentelemetry/OtelTracer"
 import { Layer, ManagedRuntime } from "effect"
-import { fooRepositoryMemory, fooRoutes } from "./domains/foo/index.ts"
+import { fooRoutes } from "./domains/foo/api/index.ts"
+import { fooRepositoryMemory } from "./domains/foo/spi/index.ts"
 
 const runtime = ManagedRuntime.make(Layer.mergeAll(fooRepositoryMemory, OtelTracer.layerGlobal))
 const app = fooRoutes(runtime)
+app.doc("/openapi.json", { openapi: "3.1.0", info: { title: "app", version: "0.0.0" } })
 ```
+
+The generated `/openapi.json` listed `Foo`, `FooCreateInput` and `Problem` as components, all named in `api/` (verified).
 
 - If a handler forgets a `catchTag`, the type still checks, because `runPromise` accepts any error type and rejects the promise. Hono then returns its default 500 (not tested). Nothing forces every error to be mapped. #23 should decide whether routes use `catchTags` with an exhaustive object, or a shared helper that requires `E = never`.
 - On an uncaught failure, `runPromise` rejects with the original error instance (verified: `instanceof FooNotFoundError` is true). So a Hono `onError` fallback could also map tagged errors, but that would be a second place for the mapping.
@@ -162,6 +217,8 @@ describe("fooCreate", () => {
 ```
 
 Plain Vitest also works (`await Effect.runPromise(...)`), which would avoid one unstable dependency.
+
+This test file sits in `use-cases/` and imports from `spi/`. Under the rule that the domain knows nothing about the SPI, the architecture test must either exempt `*.test.ts` files or the tests must move (for example next to the adapter, or under a test folder). #23 should decide.
 
 ## OpenTelemetry
 
@@ -216,10 +273,10 @@ Last week: effect 66.8M (4.x 42.8M, 3.x 26.1M), zod 443M, hono 101M. Growth is s
 
 Adopt Effect 4 in the domain and adapters, with these limits so there is one pattern per concern:
 
-1. Models stay Zod with `@hono/zod-openapi`. Errors use `Data.TaggedError`. App code may not import `Schema` from `effect` (lint rule).
-2. Ports are `Context.Service` classes in `ports.ts` with no static layers. Adapters are Layers exported from `spi/` (`fooRepositoryMemory`, `fooRepositoryPostgres`).
+1. Models are plain Zod (`zod`), with no OpenAPI metadata; `api/` adds it with `@hono/zod-openapi`. Errors use `Data.TaggedError` and carry no HTTP status. App code may not import `Schema` from `effect`, and only `api/` may call `.openapi(` (architecture test).
+2. Ports are `Context.Service` classes in `ports.ts` with no static layers. Adapters are Layers exported from `spi/index.ts` (`fooRepositoryMemory`, `fooRepositoryPostgres`). `domains/foo/index.ts` exports use cases and port types only.
 3. Use cases are `Effect.fn("fooCreate")` with an explicit `Effect.fn.Return<A, E, R>`. Rules stay pure functions.
-4. One `ManagedRuntime` per composition root (`server.ts`, `worker.ts`). Routes map every tagged error with `Effect.catchTag`/`catchTags`, through a helper that will not compile with errors left over.
+4. One `ManagedRuntime` per composition root (`src/server.ts`, `src/worker.ts`), built from the SPI Layers; the root mounts `api/` routes. Routes map every tagged error with `Effect.catchTag`/`catchTags`, through a helper that will not compile with errors left over.
 5. Tracing joins NodeSDK via `@effect/opentelemetry/OtelTracer` `layerGlobal` (subpath import). Pin `@effect/*` exactly, since they are `@stability unstable`.
 6. Use `@effect/vitest` for tests, or plain Vitest with `Effect.runPromise` if the user wants one fewer unstable dependency.
 
@@ -236,6 +293,7 @@ A probe project with `effect` 4.1.1, `@effect/vitest` 4.1.1, `@effect/openteleme
 - Server run as native `.ts` with the OTel preload and loader hook: POST 201, GET 200, unknown id 404, duplicate name 409, empty name 400 (Zod).
 - Spans: Effect spans nested under http spans; the OTel active span inside Effect was the Effect span.
 - `CurrentUser` per request: correct user per concurrent request; missing service is a compile error.
+- After the user's layout update: plain-Zod models, split `index.ts` / `api/index.ts` / `spi/index.ts`, composition root wiring. Type check, tests, the five status codes and the span nesting all passed again; `/openapi.json` listed the three components.
 - Biome recommended: no findings.
 
 **Not verified:** React Router loaders, a real `pg` query span, Effect logs through the OTel logger bridge, `hono-openapi` with Effect Schema, `@effect/tsgo` on this tsconfig and its time cost, how much of Effect's download count is transitive, and the named companies' use beyond Effect's own site.
