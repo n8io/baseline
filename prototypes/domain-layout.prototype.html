@@ -1,0 +1,321 @@
+<title>Widgets Domain Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one narrow reading column; three sections (layout, flow, dependencies), each with a variant switcher. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --fg:#17202a; --muted:#5b6774; --line:#d6dde4;
+  --accent:#0b6e7f; --accent-soft:#dceff2; --code-bg:#eaeef2; --rec:#1d7a3e; --rec-soft:#dff2e5;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161b; --surface:#192028; --fg:#e4e9ee; --muted:#96a3b0; --line:#2b3540;
+  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b; --surface:#192028; --fg:#e4e9ee; --muted:#96a3b0; --line:#2b3540;
+  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+h1{font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
+h2{font-size:1.2rem;margin:0;text-wrap:balance}
+h3{font-size:1rem;margin:0}
+p{margin:0;max-width:65ch}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+header{display:flex;flex-direction:column;gap:10px}
+.note{color:var(--muted);font-size:.9rem}
+section{display:flex;flex-direction:column;gap:14px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--fg);font-weight:600}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.pill{display:inline-block;font-family:var(--mono);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--rec-soft);color:var(--rec);vertical-align:middle;margin-left:6px}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;color:var(--fg)}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 4px;border-radius:3px}
+pre code{background:none;padding:0;font-size:inherit}
+.c{color:var(--muted)}
+ul.pc{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px;max-width:65ch}
+ol.flow{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px;counter-reset:s}
+ol.flow>li{display:flex;flex-direction:column;gap:8px;min-width:0;border-left:2px solid var(--line);padding-left:14px}
+ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--accent);font-family:var(--mono)}
+.layer{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.qs{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.qs ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Prototype · Baseline template architecture</span>
+  <h1>What a domain looks like on disk</h1>
+  <p>An example <code>widgets</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
+  <p class="note">Terms follow the glossary: a <b>domain</b> is one entity and its operations, a <b>port</b> is an interface the domain declares, the <b>SPI</b> is the adapters that implement ports. The route layer has no glossary term yet; it is called <code>http/</code> below.</p>
+</header>
+
+<section>
+  <span class="eyebrow">Decided</span>
+  <h2>The layout we picked</h2>
+  <p>Layout A, flattened: business logic sits at the domain's root. Routes moved to <code>api/</code>, because requests may arrive over HTTP, a message bus or gRPC. Use cases get their ports from a factory. The API and the SPI hold no business rules.</p>
+  <pre><code>apps/app/src/domains/widgets/
+├─ index.ts                    <span class="c"># createWidgetsDomain(ports); the only import from outside</span>
+├─ widget.ts                   <span class="c"># Widget entity: Zod schemas + types</span>
+├─ widget-errors.ts
+├─ ports.ts                    <span class="c"># WidgetRepository, WidgetPorts</span>
+├─ use-cases/                  <span class="c"># all business rules live here and in the root files</span>
+│  ├─ create-widget.ts         <span class="c"># createWidget = (ports) => async (input) => ...</span>
+│  ├─ create-widget.test.ts
+│  └─ get-, list-, update-, delete-widget.ts
+├─ api/                        <span class="c"># inbound: HTTP routes today; may add consumers, gRPC</span>
+│  ├─ routes.ts
+│  └─ routes.test.ts
+└─ spi/                        <span class="c"># outbound adapters that implement ports</span>
+   ├─ widgets-table.ts
+   ├─ widget-repository.postgres.ts
+   └─ widget-repository.memory.ts</code></pre>
+  <ul class="pc">
+    <li>Root files and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>.</li>
+    <li><code>api/</code> imports the root files and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only the root files (<code>ports.ts</code>, entity types).</li>
+    <li>Nothing outside the domain imports past <code>index.ts</code>. No domain imports another domain.</li>
+  </ul>
+  <p class="note">The options below are kept for the record.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Decision 1</span>
+  <h2>Folder layout</h2>
+  <div class="seg" data-group="layout">
+    <button aria-pressed="true" data-v="a">A · By layer</button>
+    <button aria-pressed="false" data-v="b">B · By use case</button>
+    <button aria-pressed="false" data-v="c">C · Flat files</button>
+  </div>
+
+  <div class="panel" data-group="layout" data-v="a">
+    <h3>A · Folders by layer <span class="pill">Recommended</span></h3>
+    <pre><code>apps/app/src/domains/widgets/
+├─ index.ts                    <span class="c"># the only import other code may use</span>
+├─ core/                       <span class="c"># no imports from spi/ or http/</span>
+│  ├─ widget.ts                <span class="c"># Widget entity: Zod schemas + types</span>
+│  ├─ widget-errors.ts         <span class="c"># WidgetNotFoundError, ...</span>
+│  ├─ ports.ts                 <span class="c"># WidgetRepository (port)</span>
+│  └─ use-cases/
+│     ├─ create-widget.ts
+│     ├─ create-widget.test.ts <span class="c"># runs against the memory adapter</span>
+│     ├─ get-widget.ts
+│     ├─ list-widgets.ts
+│     ├─ update-widget.ts
+│     └─ delete-widget.ts
+├─ spi/                        <span class="c"># may import core/ports, never use-cases</span>
+│  ├─ widgets-table.ts         <span class="c"># Drizzle table</span>
+│  ├─ widget-repository.postgres.ts
+│  ├─ widget-repository.postgres.test.ts  <span class="c"># Testcontainers</span>
+│  └─ widget-repository.memory.ts
+└─ http/                       <span class="c"># may import core, never spi/</span>
+   ├─ routes.ts                <span class="c"># @hono/zod-openapi route definitions</span>
+   └─ routes.test.ts</code></pre>
+    <ul class="pc">
+      <li>Each folder is one layer, so the dependency-cruiser rules are three lines: <code>core</code> imports nothing outside itself; <code>spi</code> and <code>http</code> import <code>core</code>; nothing outside the domain reaches past <code>index.ts</code>.</li>
+      <li>An agent adding an operation copies one file in <code>use-cases/</code> and one route. The place is obvious.</li>
+      <li>Cost: one operation touches two folders.</li>
+    </ul>
+  </div>
+
+  <div class="panel" data-group="layout" data-v="b" hidden>
+    <h3>B · Folders by use case</h3>
+    <pre><code>apps/app/src/domains/widgets/
+├─ index.ts
+├─ widget.ts
+├─ widget-errors.ts
+├─ ports.ts
+├─ create-widget/
+│  ├─ create-widget.ts         <span class="c"># use case</span>
+│  ├─ create-widget.route.ts   <span class="c"># its route</span>
+│  └─ create-widget.test.ts
+├─ get-widget/ ...
+├─ list-widgets/ ...
+├─ update-widget/ ...
+├─ delete-widget/ ...
+└─ spi/
+   ├─ widgets-table.ts
+   ├─ widget-repository.postgres.ts
+   └─ widget-repository.memory.ts</code></pre>
+    <ul class="pc">
+      <li>One operation lives in one folder, so adding one is a single copy.</li>
+      <li>Layer rules depend on file suffixes (<code>*.route.ts</code> may not import <code>spi/</code>), which are easier to get wrong.</li>
+      <li>For a CRUD-sized domain, five near-identical folders is a lot of nesting for five functions.</li>
+    </ul>
+  </div>
+
+  <div class="panel" data-group="layout" data-v="c" hidden>
+    <h3>C · Flat files with suffixes</h3>
+    <pre><code>apps/app/src/domains/widgets/
+├─ index.ts
+├─ widget.entity.ts
+├─ widget.errors.ts
+├─ widget.ports.ts
+├─ widget.use-cases.ts         <span class="c"># all five operations</span>
+├─ widget.use-cases.test.ts
+├─ widget.routes.ts
+├─ widget.repository.postgres.ts
+├─ widget.repository.memory.ts
+└─ widget.table.ts</code></pre>
+    <ul class="pc">
+      <li>Fewest files; reads well while the domain is small.</li>
+      <li>One use-cases file grows without limit as real business rules arrive, and agents tend to keep appending to it.</li>
+      <li>Layer rules depend on suffixes, the same weakness as B.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Decision 2</span>
+  <h2>How a use case gets its ports</h2>
+  <div class="seg" data-group="di">
+    <button aria-pressed="true" data-v="a">A · Factory</button>
+    <button aria-pressed="false" data-v="b">B · Function arguments</button>
+    <button aria-pressed="false" data-v="c">C · Container</button>
+  </div>
+
+  <div class="panel" data-group="di" data-v="a">
+    <h3>A · A factory per use case, bound once per domain <span class="pill">Recommended</span></h3>
+    <pre><code><span class="c">// core/use-cases/create-widget.ts</span>
+import type { WidgetPorts } from "../ports.ts";
+import { NewWidget, type Widget } from "../widget.ts";
+
+export const createWidget =
+  ({ widgets }: WidgetPorts) =>
+  async (input: NewWidget): Promise&lt;Widget&gt; => {
+    const data = NewWidget.parse(input);
+    return widgets.insert({ ...data, id: crypto.randomUUID() });
+  };
+
+<span class="c">// index.ts</span>
+export const createWidgetsDomain = (ports: WidgetPorts) => {
+  const useCases = {
+    createWidget: createWidget(ports),
+    getWidget: getWidget(ports),
+    listWidgets: listWidgets(ports),
+    updateWidget: updateWidget(ports),
+    deleteWidget: deleteWidget(ports),
+  };
+  return { useCases, routes: widgetRoutes(useCases) };
+};
+
+<span class="c">// a test</span>
+const { createWidget } = createWidgetsDomain({ widgets: memoryWidgetRepository() }).useCases;</code></pre>
+    <ul class="pc">
+      <li>Plain functions and closures. No library, nothing for an agent to learn.</li>
+      <li>Routes call <code>useCases.createWidget(body)</code> and never see a port.</li>
+      <li>Wiring happens in one place per domain, so it is obvious where a new port gets passed in.</li>
+    </ul>
+  </div>
+
+  <div class="panel" data-group="di" data-v="b" hidden>
+    <h3>B · Ports as the first argument on every call</h3>
+    <pre><code><span class="c">// core/use-cases/create-widget.ts</span>
+export const createWidget = async (
+  { widgets }: WidgetPorts,
+  input: NewWidget,
+): Promise&lt;Widget&gt; => { ... };
+
+<span class="c">// http/routes.ts</span>
+app.openapi(createRoute, async (c) => {
+  const widget = await createWidget(c.var.ports, c.req.valid("json"));
+  return c.json(widget, 201);
+});</code></pre>
+    <ul class="pc">
+      <li>The simplest possible function shape.</li>
+      <li>Every route needs the ports, so they ride on Hono's context. That puts adapters in the http layer's reach and weakens the boundary rule.</li>
+    </ul>
+  </div>
+
+  <div class="panel" data-group="di" data-v="c" hidden>
+    <h3>C · A dependency-injection container (Awilix or similar)</h3>
+    <pre><code>container.register({
+  widgets: asFunction(postgresWidgetRepository).singleton(),
+  createWidget: asFunction(createWidget),
+});
+const createWidget = container.resolve("createWidget");</code></pre>
+    <ul class="pc">
+      <li>Scales to many dependencies and scoped lifetimes.</li>
+      <li>Wiring is resolved by name at runtime, so a missing port fails at startup instead of in the type checker.</li>
+      <li>Adds a library and a concept agents have to understand. More than a CRUD domain needs.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">How a request moves</span>
+  <h2>POST /widgets, start to finish</h2>
+  <p class="note">Shown with layout A and factory A. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
+  <ol class="flow">
+    <li>
+      <span class="layer">apps/app/src/server.ts · composition root</span>
+      <h3>Startup wires adapters to the domain</h3>
+      <pre><code>const db = createDatabase(config.DATABASE_URL); <span class="c">// adapter picked from URL scheme</span>
+const widgets = createWidgetsDomain({
+  widgets: db.kind === "postgres"
+    ? postgresWidgetRepository(db)
+    : memoryWidgetRepository(),
+});
+app.route("/widgets", widgets.routes);</code></pre>
+    </li>
+    <li>
+      <span class="layer">widgets/http/routes.ts</span>
+      <h3>The route validates input and calls one use case</h3>
+      <pre><code>export const widgetRoutes = (u: WidgetUseCases) =>
+  new OpenAPIHono().openapi(createWidgetRoute, async (c) => {
+    const widget = await u.createWidget(c.req.valid("json"));
+    return c.json(widget, 201);
+  });</code></pre>
+    </li>
+    <li>
+      <span class="layer">widgets/core/use-cases/create-widget.ts</span>
+      <h3>The use case applies the business rules and calls a port</h3>
+      <pre><code>const data = NewWidget.parse(input);
+return widgets.insert({ ...data, id: crypto.randomUUID() });</code></pre>
+    </li>
+    <li>
+      <span class="layer">widgets/core/ports.ts</span>
+      <h3>The port says what the domain needs, not how</h3>
+      <pre><code>export interface WidgetRepository {
+  insert(widget: Widget): Promise&lt;Widget&gt;;
+  findById(id: WidgetId): Promise&lt;Widget | undefined&gt;;
+  list(query: WidgetQuery): Promise&lt;Widget[]&gt;;
+  update(id: WidgetId, patch: WidgetPatch): Promise&lt;Widget | undefined&gt;;
+  remove(id: WidgetId): Promise&lt;boolean&gt;;
+}
+export type WidgetPorts = { widgets: WidgetRepository };</code></pre>
+    </li>
+    <li>
+      <span class="layer">widgets/spi/widget-repository.postgres.ts</span>
+      <h3>The adapter does the real work</h3>
+      <pre><code>export const postgresWidgetRepository = (db: PostgresDatabase): WidgetRepository => ({
+  insert: async (w) => (await db.insert(widgetsTable).values(w).returning())[0],
+  ...
+});</code></pre>
+    </li>
+  </ol>
+</section>
+
+<section class="qs">
+  <span class="eyebrow">What I need from you</span>
+  <ol>
+    <li>Folder layout: A, B or C.</li>
+    <li>Dependencies: A, B or C.</li>
+    <li>A name for the route layer (<code>http/</code>, <code>api/</code>, or something else).</li>
+  </ol>
+  <p class="note">I'll ask these in the chat too.</p>
+</section>
+</div>
+
+<script>
+document.querySelectorAll(".seg").forEach(seg=>{
+  const g=seg.dataset.group;
+  seg.addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));
+    document.querySelectorAll('.panel[data-group="'+g+'"]').forEach(p=>{p.hidden=p.dataset.v!==b.dataset.v});
+  });
+});
+</script>
