@@ -59,10 +59,11 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
   <p>Layout A, flattened: business logic sits at the domain's root. Routes moved to <code>api/</code>, because requests may arrive over HTTP, a message bus or gRPC. Use cases get their ports from a factory. The API and the SPI hold no business rules.</p>
   <pre><code>apps/app/src/domains/widgets/
 ├─ index.ts                    <span class="c"># createWidgetsDomain(ports); the only import from outside</span>
-├─ widget.ts                   <span class="c"># Widget entity: Zod schemas + types</span>
+├─ models/                     <span class="c"># every model in this domain: Zod schemas + types</span>
+│  └─ widget.ts                <span class="c"># Widget, NewWidget, WidgetPatch, WidgetId</span>
 ├─ widget-errors.ts
 ├─ ports.ts                    <span class="c"># WidgetRepository, WidgetPorts</span>
-├─ use-cases/                  <span class="c"># all business rules live here and in the root files</span>
+├─ use-cases/                  <span class="c"># all business rules live here, in models/ and the root files</span>
 │  ├─ create-widget.ts         <span class="c"># createWidget = (ports) => async (input) => ...</span>
 │  ├─ create-widget.test.ts
 │  └─ get-, list-, update-, delete-widget.ts
@@ -74,8 +75,8 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
    ├─ widget-repository.postgres.ts
    └─ widget-repository.memory.ts</code></pre>
   <ul class="pc">
-    <li>Root files and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>.</li>
-    <li><code>api/</code> imports the root files and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only the root files (<code>ports.ts</code>, entity types).</li>
+    <li>Root files, <code>models/</code> and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>.</li>
+    <li><code>api/</code> imports <code>models/</code> and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only <code>ports.ts</code> and <code>models/</code>.</li>
     <li>Nothing outside the domain imports past <code>index.ts</code>. No domain imports another domain.</li>
   </ul>
   <p class="note">The options below are kept for the record.</p>
