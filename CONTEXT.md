@@ -13,7 +13,7 @@ A business object a domain defines in its `models/` folder, as a Zod schema and 
 _Avoid_: Schema, DTO
 
 **Use case**:
-One operation a domain performs, such as creating a widget. A use case loads what it needs through ports and applies the domain's rules. Each gets its ports from a factory: `createWidget(ports)` returns the function.
+One operation a domain performs, such as creating a foo. A use case loads what it needs through ports and applies the domain's rules. Each gets its ports from a factory: `createFoo(ports)` returns the function.
 _Avoid_: Service, handler, interactor
 
 **Rule**:
