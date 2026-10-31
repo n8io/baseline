@@ -3,19 +3,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
 <style>
-/* Layout: one narrow reading column; three sections (layout, flow, dependencies), each with a variant switcher. */
+/* Layout: one narrow reading column. The open question comes first with a two-way switcher; settled parts follow. */
 :root{
   --bg:#f3f5f7; --surface:#ffffff; --fg:#17202a; --muted:#5b6774; --line:#d6dde4;
   --accent:#0b6e7f; --accent-soft:#dceff2; --code-bg:#eaeef2; --rec:#1d7a3e; --rec-soft:#dff2e5;
+  --warn:#9a5b00; --warn-soft:#fbeed6;
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#11161b; --surface:#192028; --fg:#e4e9ee; --muted:#96a3b0; --line:#2b3540;
-  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222; color-scheme:dark}}
+  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222;
+  --warn:#e8b25c; --warn-soft:#33270f; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#11161b; --surface:#192028; --fg:#e4e9ee; --muted:#96a3b0; --line:#2b3540;
-  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222; color-scheme:dark}
+  --accent:#5cc3d3; --accent-soft:#163238; --code-bg:#0d1216; --rec:#6fd08f; --rec-soft:#163222;
+  --warn:#e8b25c; --warn-soft:#33270f; color-scheme:dark}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.55}
 .wrap{max-width:760px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
 h1{font-size:1.65rem;line-height:1.2;margin:0;text-wrap:balance}
@@ -28,230 +31,191 @@ header{display:flex;flex-direction:column;gap:10px}
 section{display:flex;flex-direction:column;gap:14px}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:7px 12px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--fg);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
 .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
 .pill{display:inline-block;font-family:var(--mono);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--rec-soft);color:var(--rec);vertical-align:middle;margin-left:6px}
+.pill.open{background:var(--warn-soft);color:var(--warn)}
 pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;color:var(--fg)}
 code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 4px;border-radius:3px}
 pre code{background:none;padding:0;font-size:inherit}
 .c{color:var(--muted)}
+.hit{color:var(--accent);font-weight:600}
 ul.pc{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px;max-width:65ch}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.88rem}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+th{font-size:.75rem;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.g{font-weight:600;white-space:nowrap}
+td.win{background:var(--rec-soft)}
 ol.flow{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px;counter-reset:s}
 ol.flow>li{display:flex;flex-direction:column;gap:8px;min-width:0;border-left:2px solid var(--line);padding-left:14px}
 ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--accent);font-family:var(--mono)}
 .layer{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
 .qs{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px}
-.qs ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
 </style>
 
 <div class="wrap">
 <header>
   <span class="eyebrow">Prototype · Baseline template architecture</span>
   <h1>What a domain looks like on disk</h1>
-  <p>An example <code>foo</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
-  <p class="note">Terms follow the glossary: a <b>domain</b> is one entity and its operations, a <b>port</b> is an interface the domain declares, the <b>SPI</b> is the adapters that implement ports. The route layer has no glossary term yet; it is called <code>http/</code> below.</p>
+  <p>Reopened to choose between two ways to arrange the app's folders: each domain holds its own layers (domain-first), or each layer holds every domain (layer-first). Both are judged against the template's goals, in priority order: <b>Obvious &gt; Enforced &gt; Swappable &gt; Short</b>.</p>
+  <p class="note">Everything below the open question was settled earlier and holds either way. Throwaway page; only the decision moves forward.</p>
 </header>
 
 <section>
-  <span class="eyebrow">Decided</span>
-  <h2>The layout we picked</h2>
-  <p>Layout A, flattened: business logic sits at the domain's root. Routes moved to <code>api/</code>, because requests may arrive over HTTP, a message bus or gRPC. Use cases get their ports from a factory. The API and the SPI hold no business rules.</p>
-  <pre><code>apps/app/src/domains/foo/
-├─ index.ts                    <span class="c"># fooDomainCreate(ports); the only import from outside</span>
-├─ models/                     <span class="c"># every model in this domain: Zod schemas + types</span>
-│  └─ foo.ts                <span class="c"># Foo, FooCreateInput, FooUpdateInput, FooId</span>
-├─ rules/                      <span class="c"># every business rule: pure functions over models</span>
-│  ├─ foo-name-unique.ts
-│  └─ foo-name-unique.test.ts
-├─ foo-errors.ts
-├─ ports.ts                    <span class="c"># FooRepository, FooPorts</span>
-├─ use-cases/                  <span class="c"># each operation: loads data, applies rules, calls ports</span>
-│  ├─ foo-create.ts         <span class="c"># fooCreate = (ports) => async (input) => ...</span>
-│  ├─ foo-create.test.ts
-│  └─ foo-get, -list, -update, -delete.ts
-├─ api/                        <span class="c"># inbound: HTTP routes today; may add consumers, gRPC</span>
-│  ├─ routes.ts
-│  └─ routes.test.ts
-└─ spi/                        <span class="c"># outbound adapters that implement ports</span>
-   ├─ foo-table.ts
-   ├─ foo-repository.postgres.ts
-   └─ foo-repository.memory.ts</code></pre>
-  <ul class="pc">
-    <li>Root files, <code>models/</code>, <code>rules/</code> and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>. Rules import only <code>models/</code> and do no I/O.</li>
-    <li><code>api/</code> imports <code>models/</code> and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only <code>ports.ts</code> and <code>models/</code>.</li>
-    <li>Nothing outside the domain imports past <code>index.ts</code>. No domain imports another domain.</li>
-  </ul>
-  <p class="note">The options below are kept for the record.</p>
-</section>
-
-<section>
-  <span class="eyebrow">Decision 1</span>
-  <h2>Folder layout</h2>
+  <span class="eyebrow">Open question <span class="pill open">Deciding</span></span>
+  <h2>Domain-first or layer-first?</h2>
   <div class="seg" data-group="layout">
-    <button aria-pressed="true" data-v="a">A · By layer</button>
-    <button aria-pressed="false" data-v="b">B · By use case</button>
-    <button aria-pressed="false" data-v="c">C · Flat files</button>
+    <button aria-pressed="true" data-v="d">Domain-first</button>
+    <button aria-pressed="false" data-v="l">Layer-first</button>
   </div>
 
-  <div class="panel" data-group="layout" data-v="a">
-    <h3>A · Folders by layer <span class="pill">Recommended</span></h3>
-    <pre><code>apps/app/src/domains/foo/
-├─ index.ts                    <span class="c"># the only import other code may use</span>
-├─ core/                       <span class="c"># no imports from spi/ or http/</span>
-│  ├─ foo.ts                <span class="c"># Foo entity: Zod schemas + types</span>
-│  ├─ foo-errors.ts         <span class="c"># FooNotFoundError, ...</span>
-│  ├─ ports.ts                 <span class="c"># FooRepository (port)</span>
-│  └─ use-cases/
-│     ├─ foo-create.ts
-│     ├─ foo-create.test.ts <span class="c"># runs against the memory adapter</span>
-│     ├─ foo-get.ts
-│     ├─ foo-list.ts
-│     ├─ foo-update.ts
-│     └─ foo-delete.ts
-├─ spi/                        <span class="c"># may import core/ports, never use-cases</span>
-│  ├─ foo-table.ts         <span class="c"># Drizzle table</span>
-│  ├─ foo-repository.postgres.ts
-│  ├─ foo-repository.postgres.test.ts  <span class="c"># Testcontainers</span>
-│  └─ foo-repository.memory.ts
-└─ http/                       <span class="c"># may import core, never spi/</span>
-   ├─ routes.ts                <span class="c"># @hono/zod-openapi route definitions</span>
-   └─ routes.test.ts</code></pre>
-    <ul class="pc">
-      <li>Each folder is one layer, so the dependency-cruiser rules are three lines: <code>core</code> imports nothing outside itself; <code>spi</code> and <code>http</code> import <code>core</code>; nothing outside the domain reaches past <code>index.ts</code>.</li>
-      <li>An agent adding an operation copies one file in <code>use-cases/</code> and one route. The place is obvious.</li>
-      <li>Cost: one operation touches two folders.</li>
-    </ul>
+  <div class="panel" data-group="layout" data-v="d">
+    <h3>Domain-first: <code>domains/foo/</code> holds every layer <span class="pill">Recommended</span></h3>
+    <pre><code>apps/app/src/
+├─ server.ts                       <span class="c"># composition root for the HTTP process</span>
+├─ worker.ts                       <span class="c"># composition root for the worker process</span>
+└─ domains/
+   └─ foo/
+      ├─ index.ts                  <span class="c"># fooDomainCreate(ports); the only import from outside</span>
+      ├─ foo-errors.ts
+      ├─ ports.ts                  <span class="c"># FooRepository, FooEventPublisher, FooPorts</span>
+      ├─ models/foo.ts
+      ├─ rules/foo-name-unique.ts  <span class="c">(+ .test.ts)</span>
+      ├─ use-cases/foo-create.ts   <span class="c">(+ .test.ts), foo-get, -list, -update, -delete</span>
+      ├─ api/                      <span class="c"># every way a request arrives</span>
+      │  ├─ foo-routes.ts          <span class="c"># HTTP</span>
+      │  ├─ foo-consumer.ts        <span class="c"># messages from the bus or queue</span>
+      │  ├─ foo-schedule.ts        <span class="c"># timer calls a use case</span>
+      │  └─ foo-socket.ts          <span class="c"># real-time push</span>
+      └─ spi/
+         ├─ foo-table.ts
+         ├─ foo-repository.postgres.ts
+         ├─ foo-repository.memory.ts
+         └─ foo-event-publisher.memory.ts</code></pre>
+
+    <h3>Add one operation, <code>fooArchive</code></h3>
+    <pre><code>domains/foo/
+├─ rules/<span class="hit">foo-archivable.ts</span>       <span class="c">+ test</span>
+├─ use-cases/<span class="hit">foo-archive.ts</span>      <span class="c">+ test</span>
+├─ api/<span class="hit">foo-routes.ts</span>             <span class="c">one new route</span>
+├─ <span class="hit">ports.ts</span>                    <span class="c">one new repository method</span>
+└─ spi/<span class="hit">foo-repository.*.ts</span>      <span class="c">implement it</span>
+<span class="c">→ 1 folder open. Every file to copy sits next to its neighbour.</span></code></pre>
+
+    <h3>Add a new domain, <code>bar</code></h3>
+    <pre><code>cp -r domains/foo domains/bar   <span class="c"># or a generator; rename foo → bar</span>
+<span class="c">→ 1 folder. A domain missing spi/ is visible next to foo/ in one listing.</span></code></pre>
+
+    <h3>The architecture test (Vitest + es-module-lexer)</h3>
+    <pre><code><span class="c">// the layer of a file is the segment after domains/&lt;name&gt;/</span>
+const mayImport = {
+  models:      ["models"],
+  rules:       ["models", "rules"],
+  "use-cases": ["models", "rules", "ports", "errors"],
+  api:         ["models", "use-cases", "errors"],
+  spi:         ["models", "ports"],
+};
+<span class="c">// plus: outside a domain, import only domains/&lt;name&gt;/index.ts
+//       inside a domain, never import domains/&lt;other&gt;/</span>
+
+<span class="c">// a failure reads:</span>
+domains/foo/api/foo-routes.ts imports domains/foo/spi/foo-repository.postgres.ts.
+api/ may import models/, use-cases/ and foo-errors.ts. Call a use case instead;
+the use case reaches the repository through FooPorts.</code></pre>
   </div>
 
-  <div class="panel" data-group="layout" data-v="b" hidden>
-    <h3>B · Folders by use case</h3>
-    <pre><code>apps/app/src/domains/foo/
-├─ index.ts
-├─ foo.ts
-├─ foo-errors.ts
-├─ ports.ts
-├─ foo-create/
-│  ├─ foo-create.ts         <span class="c"># use case</span>
-│  ├─ foo-create.route.ts   <span class="c"># its route</span>
-│  └─ foo-create.test.ts
-├─ foo-get/ ...
-├─ foo-list/ ...
-├─ foo-update/ ...
-├─ foo-delete/ ...
+  <div class="panel" data-group="layout" data-v="l" hidden>
+    <h3>Layer-first: each layer holds a folder per domain</h3>
+    <pre><code>apps/app/src/
+├─ server.ts
+├─ worker.ts
+├─ api/
+│  └─ foo/
+│     ├─ index.ts                  <span class="c"># fooApiCreate(useCases)</span>
+│     ├─ foo-routes.ts
+│     ├─ foo-consumer.ts
+│     ├─ foo-schedule.ts
+│     └─ foo-socket.ts
+├─ core/                           <span class="c"># cannot be named domain/: a Domain includes its API and SPI</span>
+│  └─ foo/
+│     ├─ index.ts                  <span class="c"># fooCoreCreate(ports)</span>
+│     ├─ foo-errors.ts
+│     ├─ ports.ts
+│     ├─ models/foo.ts
+│     ├─ rules/foo-name-unique.ts
+│     └─ use-cases/foo-create.ts, ...
 └─ spi/
-   ├─ foo-table.ts
-   ├─ foo-repository.postgres.ts
-   └─ foo-repository.memory.ts</code></pre>
-    <ul class="pc">
-      <li>One operation lives in one folder, so adding one is a single copy.</li>
-      <li>Layer rules depend on file suffixes (<code>*.route.ts</code> may not import <code>spi/</code>), which are easier to get wrong.</li>
-      <li>For a CRUD-sized domain, five near-identical folders is a lot of nesting for five functions.</li>
-    </ul>
-  </div>
+   └─ foo/
+      ├─ index.ts                  <span class="c"># fooSpiCreate(db)</span>
+      ├─ foo-table.ts
+      ├─ foo-repository.postgres.ts
+      ├─ foo-repository.memory.ts
+      └─ foo-event-publisher.memory.ts</code></pre>
 
-  <div class="panel" data-group="layout" data-v="c" hidden>
-    <h3>C · Flat files with suffixes</h3>
-    <pre><code>apps/app/src/domains/foo/
-├─ index.ts
-├─ foo.entity.ts
-├─ foo.errors.ts
-├─ foo.ports.ts
-├─ foo.use-cases.ts         <span class="c"># all five operations</span>
-├─ foo.use-cases.test.ts
-├─ foo.routes.ts
-├─ foo.repository.postgres.ts
-├─ foo.repository.memory.ts
-└─ foo.table.ts</code></pre>
-    <ul class="pc">
-      <li>Fewest files; reads well while the domain is small.</li>
-      <li>One use-cases file grows without limit as real business rules arrive, and agents tend to keep appending to it.</li>
-      <li>Layer rules depend on suffixes, the same weakness as B.</li>
-    </ul>
+    <h3>Add one operation, <code>fooArchive</code></h3>
+    <pre><code>core/foo/rules/<span class="hit">foo-archivable.ts</span>
+core/foo/use-cases/<span class="hit">foo-archive.ts</span>
+core/foo/<span class="hit">ports.ts</span>
+api/foo/<span class="hit">foo-routes.ts</span>
+spi/foo/<span class="hit">foo-repository.*.ts</span>
+<span class="c">→ 3 folders open, in three places in the tree.</span></code></pre>
+
+    <h3>Add a new domain, <code>bar</code></h3>
+    <pre><code>cp -r api/foo  api/bar
+cp -r core/foo core/bar
+cp -r spi/foo  spi/bar
+<span class="c">→ 3 copies. Forgetting spi/bar breaks no import rule; it needs a separate
+  structure check that every name appears in all three layers.</span></code></pre>
+
+    <h3>The architecture test (Vitest + es-module-lexer)</h3>
+    <pre><code><span class="c">// the layer of a file is the first segment under src/; the domain is the second</span>
+const mayImport = {
+  "core/models":    ["core/models"],
+  "core/rules":     ["core/models", "core/rules"],
+  "core/use-cases": ["core/models", "core/rules", "core/ports", "core/errors"],
+  api:              ["core/models", "core/use-cases", "core/errors"],
+  spi:              ["core/models", "core/ports"],
+};
+<span class="c">// plus: the second segment must match on both sides (no cross-domain)
+// no single public entry: server.ts must reach into api/foo, core/foo and spi/foo</span></code></pre>
   </div>
 </section>
 
 <section>
-  <span class="eyebrow">Decision 2</span>
-  <h2>How a use case gets its ports</h2>
-  <div class="seg" data-group="di">
-    <button aria-pressed="true" data-v="a">A · Factory</button>
-    <button aria-pressed="false" data-v="b">B · Function arguments</button>
-    <button aria-pressed="false" data-v="c">C · Container</button>
-  </div>
+  <span class="eyebrow">Against the goals</span>
+  <h2>How each layout scores</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Goal</th><th>Domain-first</th><th>Layer-first</th></tr></thead>
+    <tbody>
+      <tr><td class="g">1 · Obvious</td><td class="win">One folder per domain. An agent working on foo opens <code>domains/foo/</code> and every file it copies is a sibling. <code>ls domains/</code> lists the business areas.</td><td><code>ls src/</code> shows the hexagon at once. But one operation spans three trees, and the agent must know to look in all three.</td></tr>
+      <tr><td class="g">2 · Enforced</td><td class="win">One rule table keyed on the folder name. One public entry per domain (<code>index.ts</code>), checked by one rule. A structure test compares each domain to a fixed list of folders.</td><td>Same layer rules. No single public entry. A missing <code>spi/bar/</code> needs a cross-layer structure check.</td></tr>
+      <tr><td class="g">3 · Swappable</td><td class="win">A domain can move to its own service as one folder; its imports already stop at the folder edge.</td><td>Splitting a domain out means collecting three folders and building a boundary that did not exist.</td></tr>
+      <tr><td class="g">4 · Short</td><td class="win">Imports stay inside one folder: <code>../models/foo.ts</code>.</td><td>Imports cross trees: <code>../../core/foo/models/foo.ts</code>. One <code>index.ts</code> per layer per domain.</td></tr>
+      <tr><td class="g">New scope</td><td>Consumers, schedules and sockets are more files in <code>api/</code>; the publisher is another port and adapter. Nothing new at the top level.</td><td>Same files, spread across <code>api/foo/</code> and <code>spi/foo/</code>.</td></tr>
+      <tr><td class="g">Glossary</td><td class="win"><code>domains/foo/</code> is exactly one Domain.</td><td>Needs <code>core/</code> and a new glossary term, because a top-level <code>domain/</code> would hold only part of a Domain.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">The strongest case for layer-first: changes that touch one layer everywhere (rate limits on every route, spans on every adapter) stay in one folder, and the two most-starred clean-architecture templates use it. Here those changes live in shared packages and Hono middleware instead, and those templates each hold one service, which is one of our Domains.</p>
+</section>
 
-  <div class="panel" data-group="di" data-v="a">
-    <h3>A · A factory per use case, bound once per domain <span class="pill">Recommended</span></h3>
-    <pre><code><span class="c">// core/use-cases/foo-create.ts</span>
-import type { FooPorts } from "../ports.ts";
-import { FooCreateInput, type Foo } from "../foo.ts";
-
-export const fooCreate =
-  ({ fooRepository }: FooPorts) =>
-  async (input: FooCreateInput): Promise&lt;Foo&gt; => {
-    const data = FooCreateInput.parse(input);
-    return fooRepository.insert({ ...data, id: crypto.randomUUID() });
-  };
-
-<span class="c">// index.ts</span>
-export const fooDomainCreate = (ports: FooPorts) => {
-  const useCases = {
-    fooCreate: fooCreate(ports),
-    fooGet: fooGet(ports),
-    fooList: fooList(ports),
-    fooUpdate: fooUpdate(ports),
-    fooDelete: fooDelete(ports),
-  };
-  return { useCases, routes: fooRoutes(useCases) };
-};
-
-<span class="c">// a test</span>
-const { fooCreate } = fooDomainCreate({ fooRepository: fooRepositoryMemory() }).useCases;</code></pre>
-    <ul class="pc">
-      <li>Plain functions and closures. No library, nothing for an agent to learn.</li>
-      <li>Routes call <code>useCases.fooCreate(body)</code> and never see a port.</li>
-      <li>Wiring happens in one place per domain, so it is obvious where a new port gets passed in.</li>
-    </ul>
-  </div>
-
-  <div class="panel" data-group="di" data-v="b" hidden>
-    <h3>B · Ports as the first argument on every call</h3>
-    <pre><code><span class="c">// core/use-cases/foo-create.ts</span>
-export const fooCreate = async (
-  { fooRepository }: FooPorts,
-  input: FooCreateInput,
-): Promise&lt;Foo&gt; => { ... };
-
-<span class="c">// http/routes.ts</span>
-app.openapi(createRoute, async (c) => {
-  const foo = await fooCreate(c.var.ports, c.req.valid("json"));
-  return c.json(foo, 201);
-});</code></pre>
-    <ul class="pc">
-      <li>The simplest possible function shape.</li>
-      <li>Every route needs the ports, so they ride on Hono's context. That puts adapters in the http layer's reach and weakens the boundary rule.</li>
-    </ul>
-  </div>
-
-  <div class="panel" data-group="di" data-v="c" hidden>
-    <h3>C · A dependency-injection container (Awilix or similar)</h3>
-    <pre><code>container.register({
-  fooRepository: asFunction(fooRepositoryPostgres).singleton(),
-  fooCreate: asFunction(fooCreate),
-});
-const fooCreate = container.resolve("fooCreate");</code></pre>
-    <ul class="pc">
-      <li>Scales to many dependencies and scoped lifetimes.</li>
-      <li>Wiring is resolved by name at runtime, so a missing port fails at startup instead of in the type checker.</li>
-      <li>Adds a library and a concept agents have to understand. More than a CRUD domain needs.</li>
-    </ul>
-  </div>
+<section>
+  <span class="eyebrow">Settled earlier · holds either way</span>
+  <h2>Inside a domain</h2>
+  <ul class="pc">
+    <li>Business logic (<code>models/</code>, <code>rules/</code>, <code>use-cases/</code>, <code>ports.ts</code>, <code>foo-errors.ts</code>) has no business with <code>api/</code> or <code>spi/</code>. Rules import only models and do no I/O.</li>
+    <li><code>api/</code> holds every inbound adapter and calls use cases, never <code>spi/</code>. <code>spi/</code> implements ports and imports only <code>ports.ts</code> and <code>models/</code>. Neither holds business rules.</li>
+    <li>A factory per use case: <code>fooCreate = (ports: FooPorts) =&gt; async (input) =&gt; …</code>, bound once in <code>fooDomainCreate</code>. Routes see use cases, never ports. No container.</li>
+    <li>No domain imports another domain.</li>
+  </ul>
 </section>
 
 <section>
   <span class="eyebrow">How a request moves</span>
   <h2>POST /foo, start to finish</h2>
-  <p class="note">Shown with layout A and factory A. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
+  <p class="note">Shown domain-first. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
   <ol class="flow">
     <li>
       <span class="layer">apps/app/src/server.ts · composition root</span>
@@ -265,7 +229,7 @@ const foo = fooDomainCreate({
 app.route("/foo", foo.routes);</code></pre>
     </li>
     <li>
-      <span class="layer">foo/http/routes.ts</span>
+      <span class="layer">domains/foo/api/foo-routes.ts</span>
       <h3>The route validates input and calls one use case</h3>
       <pre><code>export const fooRoutes = (u: FooUseCases) =>
   new OpenAPIHono().openapi(fooCreateRoute, async (c) => {
@@ -274,13 +238,17 @@ app.route("/foo", foo.routes);</code></pre>
   });</code></pre>
     </li>
     <li>
-      <span class="layer">foo/core/use-cases/foo-create.ts</span>
-      <h3>The use case applies the business rules and calls a port</h3>
-      <pre><code>const data = FooCreateInput.parse(input);
-return fooRepository.insert({ ...data, id: crypto.randomUUID() });</code></pre>
+      <span class="layer">domains/foo/use-cases/foo-create.ts</span>
+      <h3>The use case applies the rules and calls a port</h3>
+      <pre><code>export const fooCreate =
+  ({ fooRepository }: FooPorts) =>
+  async (input: FooCreateInput): Promise&lt;Foo&gt; => {
+    const data = FooCreateInput.parse(input);
+    return fooRepository.insert({ ...data, id: crypto.randomUUID() });
+  };</code></pre>
     </li>
     <li>
-      <span class="layer">foo/core/ports.ts</span>
+      <span class="layer">domains/foo/ports.ts</span>
       <h3>The port says what the domain needs, not how</h3>
       <pre><code>export interface FooRepository {
   insert(foo: Foo): Promise&lt;Foo&gt;;
@@ -292,7 +260,7 @@ return fooRepository.insert({ ...data, id: crypto.randomUUID() });</code></pre>
 export type FooPorts = { fooRepository: FooRepository };</code></pre>
     </li>
     <li>
-      <span class="layer">foo/spi/foo-repository.postgres.ts</span>
+      <span class="layer">domains/foo/spi/foo-repository.postgres.ts</span>
       <h3>The adapter does the real work</h3>
       <pre><code>export const fooRepositoryPostgres = (db: PostgresDatabase): FooRepository => ({
   insert: async (w) => (await db.insert(fooTable).values(w).returning())[0],
@@ -304,12 +272,7 @@ export type FooPorts = { fooRepository: FooRepository };</code></pre>
 
 <section class="qs">
   <span class="eyebrow">What I need from you</span>
-  <ol>
-    <li>Folder layout: A, B or C.</li>
-    <li>Dependencies: A, B or C.</li>
-    <li>A name for the route layer (<code>http/</code>, <code>api/</code>, or something else).</li>
-  </ol>
-  <p class="note">I'll ask these in the chat too.</p>
+  <p>Domain-first or layer-first? I recommend domain-first. I'll ask in the chat too.</p>
 </section>
 </div>
 
