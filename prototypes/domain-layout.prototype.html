@@ -79,18 +79,20 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 ├─ worker.ts                       <span class="c"># composition root for the worker process</span>
 └─ domains/
    └─ foo/
-      ├─ index.ts                  <span class="c"># fooDomainCreate(ports); the only import from outside</span>
-      ├─ foo-errors.ts
+      ├─ index.ts                  <span class="c"># domain entry: use cases + port types only</span>
+      ├─ foo-errors.ts             <span class="c"># no HTTP status codes</span>
       ├─ ports.ts                  <span class="c"># FooRepository, FooEventPublisher, FooPorts</span>
-      ├─ models/foo.ts
+      ├─ models/foo.ts             <span class="c"># no OpenAPI metadata</span>
       ├─ rules/foo-name-unique.ts  <span class="c">(+ .test.ts)</span>
       ├─ use-cases/foo-create.ts   <span class="c">(+ .test.ts), foo-get, -list, -update, -delete</span>
-      ├─ api/                      <span class="c"># every way a request arrives</span>
-      │  ├─ foo-routes.ts          <span class="c"># HTTP</span>
+      ├─ api/                      <span class="c"># every way a request arrives; the domain never imports it</span>
+      │  ├─ index.ts               <span class="c"># API entry: fooRoutes, fooConsumer, ...</span>
+      │  ├─ foo-routes.ts          <span class="c"># HTTP; maps FooNotFoundError → 404</span>
       │  ├─ foo-consumer.ts        <span class="c"># messages from the bus or queue</span>
       │  ├─ foo-schedule.ts        <span class="c"># timer calls a use case</span>
       │  └─ foo-socket.ts          <span class="c"># real-time push</span>
-      └─ spi/
+      └─ spi/                      <span class="c"># implements ports; the domain never imports it</span>
+         ├─ index.ts               <span class="c"># SPI entry: fooRepositoryPostgres, fooRepositoryMemory, ...</span>
          ├─ foo-table.ts
          ├─ foo-repository.postgres.ts
          ├─ foo-repository.memory.ts
@@ -118,8 +120,11 @@ const mayImport = {
   api:         ["models", "use-cases", "errors"],
   spi:         ["models", "ports"],
 };
-<span class="c">// plus: outside a domain, import only domains/&lt;name&gt;/index.ts
-//       inside a domain, never import domains/&lt;other&gt;/</span>
+<span class="c">// plus: outside a domain folder, import only its three entries:
+//       domains/&lt;name&gt;/index.ts, api/index.ts, spi/index.ts
+//       the domain (index.ts included) never imports api/ or spi/
+//       models/ and foo-errors.ts never import @hono/* or carry HTTP fields
+//       inside a domain folder, never import domains/&lt;other&gt;/</span>
 
 <span class="c">// a failure reads:</span>
 domains/foo/api/foo-routes.ts imports domains/foo/spi/foo-repository.postgres.ts.
@@ -207,7 +212,9 @@ const mayImport = {
   <ul class="pc">
     <li>Business logic (<code>models/</code>, <code>rules/</code>, <code>use-cases/</code>, <code>ports.ts</code>, <code>foo-errors.ts</code>) has no business with <code>api/</code> or <code>spi/</code>. Rules import only models and do no I/O.</li>
     <li><code>api/</code> holds every inbound adapter and calls use cases, never <code>spi/</code>. <code>spi/</code> implements ports and imports only <code>ports.ts</code> and <code>models/</code>. Neither holds business rules.</li>
-    <li>A factory per use case: <code>fooCreate = (ports: FooPorts) =&gt; async (input) =&gt; …</code>, bound once in <code>fooDomainCreate</code>. Routes see use cases, never ports. No container.</li>
+    <li>The domain defines ports (interfaces), never their implementations, and knows nothing about how routes are set up. Its <code>index.ts</code> exports use cases and port types only. <code>api/</code> and <code>spi/</code> have their own entries, and the composition root wires all three.</li>
+    <li>Models carry no OpenAPI metadata and errors carry no HTTP status. The API maps domain errors to status codes and wraps models in its own OpenAPI schemas.</li>
+    <li>A factory per use case: <code>fooCreate = (ports: FooPorts) =&gt; async (input) =&gt; …</code>. Routes see use cases, never ports. No container. <i>Being re-decided for Effect.</i></li>
     <li>No domain imports another domain.</li>
   </ul>
 </section>
@@ -244,14 +251,18 @@ const mayImport = {
   <ol class="flow">
     <li>
       <span class="layer">apps/app/src/server.ts · composition root</span>
-      <h3>Startup wires adapters to the domain</h3>
-      <pre><code>const db = createDatabase(config.DATABASE_URL); <span class="c">// adapter picked from URL scheme</span>
-const foo = fooDomainCreate({
+      <h3>Startup wires SPI, domain and API</h3>
+      <pre><code>import { fooDomainCreate } from "#domains/foo/index.ts";
+import { fooRoutes } from "#domains/foo/api/index.ts";
+import { fooRepositoryMemory, fooRepositoryPostgres } from "#domains/foo/spi/index.ts";
+
+const db = createDatabase(config.DATABASE_URL); <span class="c">// adapter picked from URL scheme</span>
+const fooUseCases = fooDomainCreate({
   fooRepository: db.kind === "postgres"
     ? fooRepositoryPostgres(db)
     : fooRepositoryMemory(),
 });
-app.route("/foo", foo.routes);</code></pre>
+app.route("/foo", fooRoutes(fooUseCases)); <span class="c">// worker.ts skips this line</span></code></pre>
     </li>
     <li>
       <span class="layer">domains/foo/api/foo-routes.ts</span>
