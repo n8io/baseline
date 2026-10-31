@@ -49,7 +49,7 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 <header>
   <span class="eyebrow">Prototype · Baseline template architecture</span>
   <h1>What a domain looks like on disk</h1>
-  <p>An example <code>foos</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
+  <p>An example <code>foo</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
   <p class="note">Terms follow the glossary: a <b>domain</b> is one entity and its operations, a <b>port</b> is an interface the domain declares, the <b>SPI</b> is the adapters that implement ports. The route layer has no glossary term yet; it is called <code>http/</code> below.</p>
 </header>
 
@@ -57,24 +57,24 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
   <span class="eyebrow">Decided</span>
   <h2>The layout we picked</h2>
   <p>Layout A, flattened: business logic sits at the domain's root. Routes moved to <code>api/</code>, because requests may arrive over HTTP, a message bus or gRPC. Use cases get their ports from a factory. The API and the SPI hold no business rules.</p>
-  <pre><code>apps/app/src/domains/foos/
-├─ index.ts                    <span class="c"># createFoosDomain(ports); the only import from outside</span>
+  <pre><code>apps/app/src/domains/foo/
+├─ index.ts                    <span class="c"># fooDomainCreate(ports); the only import from outside</span>
 ├─ models/                     <span class="c"># every model in this domain: Zod schemas + types</span>
-│  └─ foo.ts                <span class="c"># Foo, NewFoo, FooPatch, FooId</span>
+│  └─ foo.ts                <span class="c"># Foo, FooCreateInput, FooUpdateInput, FooId</span>
 ├─ rules/                      <span class="c"># every business rule: pure functions over models</span>
-│  ├─ foo-name-is-unique.ts
-│  └─ foo-name-is-unique.test.ts
+│  ├─ foo-name-unique.ts
+│  └─ foo-name-unique.test.ts
 ├─ foo-errors.ts
 ├─ ports.ts                    <span class="c"># FooRepository, FooPorts</span>
 ├─ use-cases/                  <span class="c"># each operation: loads data, applies rules, calls ports</span>
-│  ├─ create-foo.ts         <span class="c"># createFoo = (ports) => async (input) => ...</span>
-│  ├─ create-foo.test.ts
-│  └─ get-, list-, update-, delete-foo.ts
+│  ├─ foo-create.ts         <span class="c"># fooCreate = (ports) => async (input) => ...</span>
+│  ├─ foo-create.test.ts
+│  └─ foo-get, -list, -update, -delete.ts
 ├─ api/                        <span class="c"># inbound: HTTP routes today; may add consumers, gRPC</span>
 │  ├─ routes.ts
 │  └─ routes.test.ts
 └─ spi/                        <span class="c"># outbound adapters that implement ports</span>
-   ├─ foos-table.ts
+   ├─ foo-table.ts
    ├─ foo-repository.postgres.ts
    └─ foo-repository.memory.ts</code></pre>
   <ul class="pc">
@@ -96,21 +96,21 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="a">
     <h3>A · Folders by layer <span class="pill">Recommended</span></h3>
-    <pre><code>apps/app/src/domains/foos/
+    <pre><code>apps/app/src/domains/foo/
 ├─ index.ts                    <span class="c"># the only import other code may use</span>
 ├─ core/                       <span class="c"># no imports from spi/ or http/</span>
 │  ├─ foo.ts                <span class="c"># Foo entity: Zod schemas + types</span>
 │  ├─ foo-errors.ts         <span class="c"># FooNotFoundError, ...</span>
 │  ├─ ports.ts                 <span class="c"># FooRepository (port)</span>
 │  └─ use-cases/
-│     ├─ create-foo.ts
-│     ├─ create-foo.test.ts <span class="c"># runs against the memory adapter</span>
-│     ├─ get-foo.ts
-│     ├─ list-foos.ts
-│     ├─ update-foo.ts
-│     └─ delete-foo.ts
+│     ├─ foo-create.ts
+│     ├─ foo-create.test.ts <span class="c"># runs against the memory adapter</span>
+│     ├─ foo-get.ts
+│     ├─ foo-list.ts
+│     ├─ foo-update.ts
+│     └─ foo-delete.ts
 ├─ spi/                        <span class="c"># may import core/ports, never use-cases</span>
-│  ├─ foos-table.ts         <span class="c"># Drizzle table</span>
+│  ├─ foo-table.ts         <span class="c"># Drizzle table</span>
 │  ├─ foo-repository.postgres.ts
 │  ├─ foo-repository.postgres.test.ts  <span class="c"># Testcontainers</span>
 │  └─ foo-repository.memory.ts
@@ -126,21 +126,21 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="b" hidden>
     <h3>B · Folders by use case</h3>
-    <pre><code>apps/app/src/domains/foos/
+    <pre><code>apps/app/src/domains/foo/
 ├─ index.ts
 ├─ foo.ts
 ├─ foo-errors.ts
 ├─ ports.ts
-├─ create-foo/
-│  ├─ create-foo.ts         <span class="c"># use case</span>
-│  ├─ create-foo.route.ts   <span class="c"># its route</span>
-│  └─ create-foo.test.ts
-├─ get-foo/ ...
-├─ list-foos/ ...
-├─ update-foo/ ...
-├─ delete-foo/ ...
+├─ foo-create/
+│  ├─ foo-create.ts         <span class="c"># use case</span>
+│  ├─ foo-create.route.ts   <span class="c"># its route</span>
+│  └─ foo-create.test.ts
+├─ foo-get/ ...
+├─ foo-list/ ...
+├─ foo-update/ ...
+├─ foo-delete/ ...
 └─ spi/
-   ├─ foos-table.ts
+   ├─ foo-table.ts
    ├─ foo-repository.postgres.ts
    └─ foo-repository.memory.ts</code></pre>
     <ul class="pc">
@@ -152,7 +152,7 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="c" hidden>
     <h3>C · Flat files with suffixes</h3>
-    <pre><code>apps/app/src/domains/foos/
+    <pre><code>apps/app/src/domains/foo/
 ├─ index.ts
 ├─ foo.entity.ts
 ├─ foo.errors.ts
@@ -182,49 +182,49 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="di" data-v="a">
     <h3>A · A factory per use case, bound once per domain <span class="pill">Recommended</span></h3>
-    <pre><code><span class="c">// core/use-cases/create-foo.ts</span>
+    <pre><code><span class="c">// core/use-cases/foo-create.ts</span>
 import type { FooPorts } from "../ports.ts";
-import { NewFoo, type Foo } from "../foo.ts";
+import { FooCreateInput, type Foo } from "../foo.ts";
 
-export const createFoo =
-  ({ foos }: FooPorts) =>
-  async (input: NewFoo): Promise&lt;Foo&gt; => {
-    const data = NewFoo.parse(input);
-    return foos.insert({ ...data, id: crypto.randomUUID() });
+export const fooCreate =
+  ({ fooRepository }: FooPorts) =>
+  async (input: FooCreateInput): Promise&lt;Foo&gt; => {
+    const data = FooCreateInput.parse(input);
+    return fooRepository.insert({ ...data, id: crypto.randomUUID() });
   };
 
 <span class="c">// index.ts</span>
-export const createFoosDomain = (ports: FooPorts) => {
+export const fooDomainCreate = (ports: FooPorts) => {
   const useCases = {
-    createFoo: createFoo(ports),
-    getFoo: getFoo(ports),
-    listFoos: listFoos(ports),
-    updateFoo: updateFoo(ports),
-    deleteFoo: deleteFoo(ports),
+    fooCreate: fooCreate(ports),
+    fooGet: fooGet(ports),
+    fooList: fooList(ports),
+    fooUpdate: fooUpdate(ports),
+    fooDelete: fooDelete(ports),
   };
   return { useCases, routes: fooRoutes(useCases) };
 };
 
 <span class="c">// a test</span>
-const { createFoo } = createFoosDomain({ foos: memoryFooRepository() }).useCases;</code></pre>
+const { fooCreate } = fooDomainCreate({ fooRepository: fooRepositoryMemory() }).useCases;</code></pre>
     <ul class="pc">
       <li>Plain functions and closures. No library, nothing for an agent to learn.</li>
-      <li>Routes call <code>useCases.createFoo(body)</code> and never see a port.</li>
+      <li>Routes call <code>useCases.fooCreate(body)</code> and never see a port.</li>
       <li>Wiring happens in one place per domain, so it is obvious where a new port gets passed in.</li>
     </ul>
   </div>
 
   <div class="panel" data-group="di" data-v="b" hidden>
     <h3>B · Ports as the first argument on every call</h3>
-    <pre><code><span class="c">// core/use-cases/create-foo.ts</span>
-export const createFoo = async (
-  { foos }: FooPorts,
-  input: NewFoo,
+    <pre><code><span class="c">// core/use-cases/foo-create.ts</span>
+export const fooCreate = async (
+  { fooRepository }: FooPorts,
+  input: FooCreateInput,
 ): Promise&lt;Foo&gt; => { ... };
 
 <span class="c">// http/routes.ts</span>
 app.openapi(createRoute, async (c) => {
-  const foo = await createFoo(c.var.ports, c.req.valid("json"));
+  const foo = await fooCreate(c.var.ports, c.req.valid("json"));
   return c.json(foo, 201);
 });</code></pre>
     <ul class="pc">
@@ -236,10 +236,10 @@ app.openapi(createRoute, async (c) => {
   <div class="panel" data-group="di" data-v="c" hidden>
     <h3>C · A dependency-injection container (Awilix or similar)</h3>
     <pre><code>container.register({
-  foos: asFunction(postgresFooRepository).singleton(),
-  createFoo: asFunction(createFoo),
+  fooRepository: asFunction(fooRepositoryPostgres).singleton(),
+  fooCreate: asFunction(fooCreate),
 });
-const createFoo = container.resolve("createFoo");</code></pre>
+const fooCreate = container.resolve("fooCreate");</code></pre>
     <ul class="pc">
       <li>Scales to many dependencies and scoped lifetimes.</li>
       <li>Wiring is resolved by name at runtime, so a missing port fails at startup instead of in the type checker.</li>
@@ -250,52 +250,52 @@ const createFoo = container.resolve("createFoo");</code></pre>
 
 <section>
   <span class="eyebrow">How a request moves</span>
-  <h2>POST /foos, start to finish</h2>
+  <h2>POST /foo, start to finish</h2>
   <p class="note">Shown with layout A and factory A. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
   <ol class="flow">
     <li>
       <span class="layer">apps/app/src/server.ts · composition root</span>
       <h3>Startup wires adapters to the domain</h3>
       <pre><code>const db = createDatabase(config.DATABASE_URL); <span class="c">// adapter picked from URL scheme</span>
-const foos = createFoosDomain({
-  foos: db.kind === "postgres"
-    ? postgresFooRepository(db)
-    : memoryFooRepository(),
+const foo = fooDomainCreate({
+  fooRepository: db.kind === "postgres"
+    ? fooRepositoryPostgres(db)
+    : fooRepositoryMemory(),
 });
-app.route("/foos", foos.routes);</code></pre>
+app.route("/foo", foo.routes);</code></pre>
     </li>
     <li>
-      <span class="layer">foos/http/routes.ts</span>
+      <span class="layer">foo/http/routes.ts</span>
       <h3>The route validates input and calls one use case</h3>
       <pre><code>export const fooRoutes = (u: FooUseCases) =>
-  new OpenAPIHono().openapi(createFooRoute, async (c) => {
-    const foo = await u.createFoo(c.req.valid("json"));
+  new OpenAPIHono().openapi(fooCreateRoute, async (c) => {
+    const foo = await u.fooCreate(c.req.valid("json"));
     return c.json(foo, 201);
   });</code></pre>
     </li>
     <li>
-      <span class="layer">foos/core/use-cases/create-foo.ts</span>
+      <span class="layer">foo/core/use-cases/foo-create.ts</span>
       <h3>The use case applies the business rules and calls a port</h3>
-      <pre><code>const data = NewFoo.parse(input);
-return foos.insert({ ...data, id: crypto.randomUUID() });</code></pre>
+      <pre><code>const data = FooCreateInput.parse(input);
+return fooRepository.insert({ ...data, id: crypto.randomUUID() });</code></pre>
     </li>
     <li>
-      <span class="layer">foos/core/ports.ts</span>
+      <span class="layer">foo/core/ports.ts</span>
       <h3>The port says what the domain needs, not how</h3>
       <pre><code>export interface FooRepository {
   insert(foo: Foo): Promise&lt;Foo&gt;;
   findById(id: FooId): Promise&lt;Foo | undefined&gt;;
   list(query: FooQuery): Promise&lt;Foo[]&gt;;
-  update(id: FooId, patch: FooPatch): Promise&lt;Foo | undefined&gt;;
+  update(id: FooId, patch: FooUpdateInput): Promise&lt;Foo | undefined&gt;;
   remove(id: FooId): Promise&lt;boolean&gt;;
 }
-export type FooPorts = { foos: FooRepository };</code></pre>
+export type FooPorts = { fooRepository: FooRepository };</code></pre>
     </li>
     <li>
-      <span class="layer">foos/spi/foo-repository.postgres.ts</span>
+      <span class="layer">foo/spi/foo-repository.postgres.ts</span>
       <h3>The adapter does the real work</h3>
-      <pre><code>export const postgresFooRepository = (db: PostgresDatabase): FooRepository => ({
-  insert: async (w) => (await db.insert(foosTable).values(w).returning())[0],
+      <pre><code>export const fooRepositoryPostgres = (db: PostgresDatabase): FooRepository => ({
+  insert: async (w) => (await db.insert(fooTable).values(w).returning())[0],
   ...
 });</code></pre>
     </li>
