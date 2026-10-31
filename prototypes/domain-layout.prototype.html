@@ -1,4 +1,4 @@
-<title>Widgets Domain Layout</title>
+<title>Foos Domain Layout</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
@@ -49,7 +49,7 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 <header>
   <span class="eyebrow">Prototype · Baseline template architecture</span>
   <h1>What a domain looks like on disk</h1>
-  <p>An example <code>widgets</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
+  <p>An example <code>foos</code> domain, sketched three ways. Pick a folder layout and a way for use cases to get their ports. The marked option is my recommendation. Everything here is throwaway; only the decision moves forward.</p>
   <p class="note">Terms follow the glossary: a <b>domain</b> is one entity and its operations, a <b>port</b> is an interface the domain declares, the <b>SPI</b> is the adapters that implement ports. The route layer has no glossary term yet; it is called <code>http/</code> below.</p>
 </header>
 
@@ -57,26 +57,26 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
   <span class="eyebrow">Decided</span>
   <h2>The layout we picked</h2>
   <p>Layout A, flattened: business logic sits at the domain's root. Routes moved to <code>api/</code>, because requests may arrive over HTTP, a message bus or gRPC. Use cases get their ports from a factory. The API and the SPI hold no business rules.</p>
-  <pre><code>apps/app/src/domains/widgets/
-├─ index.ts                    <span class="c"># createWidgetsDomain(ports); the only import from outside</span>
+  <pre><code>apps/app/src/domains/foos/
+├─ index.ts                    <span class="c"># createFoosDomain(ports); the only import from outside</span>
 ├─ models/                     <span class="c"># every model in this domain: Zod schemas + types</span>
-│  └─ widget.ts                <span class="c"># Widget, NewWidget, WidgetPatch, WidgetId</span>
+│  └─ foo.ts                <span class="c"># Foo, NewFoo, FooPatch, FooId</span>
 ├─ rules/                      <span class="c"># every business rule: pure functions over models</span>
-│  ├─ widget-name-is-unique.ts
-│  └─ widget-name-is-unique.test.ts
-├─ widget-errors.ts
-├─ ports.ts                    <span class="c"># WidgetRepository, WidgetPorts</span>
+│  ├─ foo-name-is-unique.ts
+│  └─ foo-name-is-unique.test.ts
+├─ foo-errors.ts
+├─ ports.ts                    <span class="c"># FooRepository, FooPorts</span>
 ├─ use-cases/                  <span class="c"># each operation: loads data, applies rules, calls ports</span>
-│  ├─ create-widget.ts         <span class="c"># createWidget = (ports) => async (input) => ...</span>
-│  ├─ create-widget.test.ts
-│  └─ get-, list-, update-, delete-widget.ts
+│  ├─ create-foo.ts         <span class="c"># createFoo = (ports) => async (input) => ...</span>
+│  ├─ create-foo.test.ts
+│  └─ get-, list-, update-, delete-foo.ts
 ├─ api/                        <span class="c"># inbound: HTTP routes today; may add consumers, gRPC</span>
 │  ├─ routes.ts
 │  └─ routes.test.ts
 └─ spi/                        <span class="c"># outbound adapters that implement ports</span>
-   ├─ widgets-table.ts
-   ├─ widget-repository.postgres.ts
-   └─ widget-repository.memory.ts</code></pre>
+   ├─ foos-table.ts
+   ├─ foo-repository.postgres.ts
+   └─ foo-repository.memory.ts</code></pre>
   <ul class="pc">
     <li>Root files, <code>models/</code>, <code>rules/</code> and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>. Rules import only <code>models/</code> and do no I/O.</li>
     <li><code>api/</code> imports <code>models/</code> and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only <code>ports.ts</code> and <code>models/</code>.</li>
@@ -96,24 +96,24 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="a">
     <h3>A · Folders by layer <span class="pill">Recommended</span></h3>
-    <pre><code>apps/app/src/domains/widgets/
+    <pre><code>apps/app/src/domains/foos/
 ├─ index.ts                    <span class="c"># the only import other code may use</span>
 ├─ core/                       <span class="c"># no imports from spi/ or http/</span>
-│  ├─ widget.ts                <span class="c"># Widget entity: Zod schemas + types</span>
-│  ├─ widget-errors.ts         <span class="c"># WidgetNotFoundError, ...</span>
-│  ├─ ports.ts                 <span class="c"># WidgetRepository (port)</span>
+│  ├─ foo.ts                <span class="c"># Foo entity: Zod schemas + types</span>
+│  ├─ foo-errors.ts         <span class="c"># FooNotFoundError, ...</span>
+│  ├─ ports.ts                 <span class="c"># FooRepository (port)</span>
 │  └─ use-cases/
-│     ├─ create-widget.ts
-│     ├─ create-widget.test.ts <span class="c"># runs against the memory adapter</span>
-│     ├─ get-widget.ts
-│     ├─ list-widgets.ts
-│     ├─ update-widget.ts
-│     └─ delete-widget.ts
+│     ├─ create-foo.ts
+│     ├─ create-foo.test.ts <span class="c"># runs against the memory adapter</span>
+│     ├─ get-foo.ts
+│     ├─ list-foos.ts
+│     ├─ update-foo.ts
+│     └─ delete-foo.ts
 ├─ spi/                        <span class="c"># may import core/ports, never use-cases</span>
-│  ├─ widgets-table.ts         <span class="c"># Drizzle table</span>
-│  ├─ widget-repository.postgres.ts
-│  ├─ widget-repository.postgres.test.ts  <span class="c"># Testcontainers</span>
-│  └─ widget-repository.memory.ts
+│  ├─ foos-table.ts         <span class="c"># Drizzle table</span>
+│  ├─ foo-repository.postgres.ts
+│  ├─ foo-repository.postgres.test.ts  <span class="c"># Testcontainers</span>
+│  └─ foo-repository.memory.ts
 └─ http/                       <span class="c"># may import core, never spi/</span>
    ├─ routes.ts                <span class="c"># @hono/zod-openapi route definitions</span>
    └─ routes.test.ts</code></pre>
@@ -126,23 +126,23 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="b" hidden>
     <h3>B · Folders by use case</h3>
-    <pre><code>apps/app/src/domains/widgets/
+    <pre><code>apps/app/src/domains/foos/
 ├─ index.ts
-├─ widget.ts
-├─ widget-errors.ts
+├─ foo.ts
+├─ foo-errors.ts
 ├─ ports.ts
-├─ create-widget/
-│  ├─ create-widget.ts         <span class="c"># use case</span>
-│  ├─ create-widget.route.ts   <span class="c"># its route</span>
-│  └─ create-widget.test.ts
-├─ get-widget/ ...
-├─ list-widgets/ ...
-├─ update-widget/ ...
-├─ delete-widget/ ...
+├─ create-foo/
+│  ├─ create-foo.ts         <span class="c"># use case</span>
+│  ├─ create-foo.route.ts   <span class="c"># its route</span>
+│  └─ create-foo.test.ts
+├─ get-foo/ ...
+├─ list-foos/ ...
+├─ update-foo/ ...
+├─ delete-foo/ ...
 └─ spi/
-   ├─ widgets-table.ts
-   ├─ widget-repository.postgres.ts
-   └─ widget-repository.memory.ts</code></pre>
+   ├─ foos-table.ts
+   ├─ foo-repository.postgres.ts
+   └─ foo-repository.memory.ts</code></pre>
     <ul class="pc">
       <li>One operation lives in one folder, so adding one is a single copy.</li>
       <li>Layer rules depend on file suffixes (<code>*.route.ts</code> may not import <code>spi/</code>), which are easier to get wrong.</li>
@@ -152,17 +152,17 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="layout" data-v="c" hidden>
     <h3>C · Flat files with suffixes</h3>
-    <pre><code>apps/app/src/domains/widgets/
+    <pre><code>apps/app/src/domains/foos/
 ├─ index.ts
-├─ widget.entity.ts
-├─ widget.errors.ts
-├─ widget.ports.ts
-├─ widget.use-cases.ts         <span class="c"># all five operations</span>
-├─ widget.use-cases.test.ts
-├─ widget.routes.ts
-├─ widget.repository.postgres.ts
-├─ widget.repository.memory.ts
-└─ widget.table.ts</code></pre>
+├─ foo.entity.ts
+├─ foo.errors.ts
+├─ foo.ports.ts
+├─ foo.use-cases.ts         <span class="c"># all five operations</span>
+├─ foo.use-cases.test.ts
+├─ foo.routes.ts
+├─ foo.repository.postgres.ts
+├─ foo.repository.memory.ts
+└─ foo.table.ts</code></pre>
     <ul class="pc">
       <li>Fewest files; reads well while the domain is small.</li>
       <li>One use-cases file grows without limit as real business rules arrive, and agents tend to keep appending to it.</li>
@@ -182,50 +182,50 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 
   <div class="panel" data-group="di" data-v="a">
     <h3>A · A factory per use case, bound once per domain <span class="pill">Recommended</span></h3>
-    <pre><code><span class="c">// core/use-cases/create-widget.ts</span>
-import type { WidgetPorts } from "../ports.ts";
-import { NewWidget, type Widget } from "../widget.ts";
+    <pre><code><span class="c">// core/use-cases/create-foo.ts</span>
+import type { FooPorts } from "../ports.ts";
+import { NewFoo, type Foo } from "../foo.ts";
 
-export const createWidget =
-  ({ widgets }: WidgetPorts) =>
-  async (input: NewWidget): Promise&lt;Widget&gt; => {
-    const data = NewWidget.parse(input);
-    return widgets.insert({ ...data, id: crypto.randomUUID() });
+export const createFoo =
+  ({ foos }: FooPorts) =>
+  async (input: NewFoo): Promise&lt;Foo&gt; => {
+    const data = NewFoo.parse(input);
+    return foos.insert({ ...data, id: crypto.randomUUID() });
   };
 
 <span class="c">// index.ts</span>
-export const createWidgetsDomain = (ports: WidgetPorts) => {
+export const createFoosDomain = (ports: FooPorts) => {
   const useCases = {
-    createWidget: createWidget(ports),
-    getWidget: getWidget(ports),
-    listWidgets: listWidgets(ports),
-    updateWidget: updateWidget(ports),
-    deleteWidget: deleteWidget(ports),
+    createFoo: createFoo(ports),
+    getFoo: getFoo(ports),
+    listFoos: listFoos(ports),
+    updateFoo: updateFoo(ports),
+    deleteFoo: deleteFoo(ports),
   };
-  return { useCases, routes: widgetRoutes(useCases) };
+  return { useCases, routes: fooRoutes(useCases) };
 };
 
 <span class="c">// a test</span>
-const { createWidget } = createWidgetsDomain({ widgets: memoryWidgetRepository() }).useCases;</code></pre>
+const { createFoo } = createFoosDomain({ foos: memoryFooRepository() }).useCases;</code></pre>
     <ul class="pc">
       <li>Plain functions and closures. No library, nothing for an agent to learn.</li>
-      <li>Routes call <code>useCases.createWidget(body)</code> and never see a port.</li>
+      <li>Routes call <code>useCases.createFoo(body)</code> and never see a port.</li>
       <li>Wiring happens in one place per domain, so it is obvious where a new port gets passed in.</li>
     </ul>
   </div>
 
   <div class="panel" data-group="di" data-v="b" hidden>
     <h3>B · Ports as the first argument on every call</h3>
-    <pre><code><span class="c">// core/use-cases/create-widget.ts</span>
-export const createWidget = async (
-  { widgets }: WidgetPorts,
-  input: NewWidget,
-): Promise&lt;Widget&gt; => { ... };
+    <pre><code><span class="c">// core/use-cases/create-foo.ts</span>
+export const createFoo = async (
+  { foos }: FooPorts,
+  input: NewFoo,
+): Promise&lt;Foo&gt; => { ... };
 
 <span class="c">// http/routes.ts</span>
 app.openapi(createRoute, async (c) => {
-  const widget = await createWidget(c.var.ports, c.req.valid("json"));
-  return c.json(widget, 201);
+  const foo = await createFoo(c.var.ports, c.req.valid("json"));
+  return c.json(foo, 201);
 });</code></pre>
     <ul class="pc">
       <li>The simplest possible function shape.</li>
@@ -236,10 +236,10 @@ app.openapi(createRoute, async (c) => {
   <div class="panel" data-group="di" data-v="c" hidden>
     <h3>C · A dependency-injection container (Awilix or similar)</h3>
     <pre><code>container.register({
-  widgets: asFunction(postgresWidgetRepository).singleton(),
-  createWidget: asFunction(createWidget),
+  foos: asFunction(postgresFooRepository).singleton(),
+  createFoo: asFunction(createFoo),
 });
-const createWidget = container.resolve("createWidget");</code></pre>
+const createFoo = container.resolve("createFoo");</code></pre>
     <ul class="pc">
       <li>Scales to many dependencies and scoped lifetimes.</li>
       <li>Wiring is resolved by name at runtime, so a missing port fails at startup instead of in the type checker.</li>
@@ -250,52 +250,52 @@ const createWidget = container.resolve("createWidget");</code></pre>
 
 <section>
   <span class="eyebrow">How a request moves</span>
-  <h2>POST /widgets, start to finish</h2>
+  <h2>POST /foos, start to finish</h2>
   <p class="note">Shown with layout A and factory A. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
   <ol class="flow">
     <li>
       <span class="layer">apps/app/src/server.ts · composition root</span>
       <h3>Startup wires adapters to the domain</h3>
       <pre><code>const db = createDatabase(config.DATABASE_URL); <span class="c">// adapter picked from URL scheme</span>
-const widgets = createWidgetsDomain({
-  widgets: db.kind === "postgres"
-    ? postgresWidgetRepository(db)
-    : memoryWidgetRepository(),
+const foos = createFoosDomain({
+  foos: db.kind === "postgres"
+    ? postgresFooRepository(db)
+    : memoryFooRepository(),
 });
-app.route("/widgets", widgets.routes);</code></pre>
+app.route("/foos", foos.routes);</code></pre>
     </li>
     <li>
-      <span class="layer">widgets/http/routes.ts</span>
+      <span class="layer">foos/http/routes.ts</span>
       <h3>The route validates input and calls one use case</h3>
-      <pre><code>export const widgetRoutes = (u: WidgetUseCases) =>
-  new OpenAPIHono().openapi(createWidgetRoute, async (c) => {
-    const widget = await u.createWidget(c.req.valid("json"));
-    return c.json(widget, 201);
+      <pre><code>export const fooRoutes = (u: FooUseCases) =>
+  new OpenAPIHono().openapi(createFooRoute, async (c) => {
+    const foo = await u.createFoo(c.req.valid("json"));
+    return c.json(foo, 201);
   });</code></pre>
     </li>
     <li>
-      <span class="layer">widgets/core/use-cases/create-widget.ts</span>
+      <span class="layer">foos/core/use-cases/create-foo.ts</span>
       <h3>The use case applies the business rules and calls a port</h3>
-      <pre><code>const data = NewWidget.parse(input);
-return widgets.insert({ ...data, id: crypto.randomUUID() });</code></pre>
+      <pre><code>const data = NewFoo.parse(input);
+return foos.insert({ ...data, id: crypto.randomUUID() });</code></pre>
     </li>
     <li>
-      <span class="layer">widgets/core/ports.ts</span>
+      <span class="layer">foos/core/ports.ts</span>
       <h3>The port says what the domain needs, not how</h3>
-      <pre><code>export interface WidgetRepository {
-  insert(widget: Widget): Promise&lt;Widget&gt;;
-  findById(id: WidgetId): Promise&lt;Widget | undefined&gt;;
-  list(query: WidgetQuery): Promise&lt;Widget[]&gt;;
-  update(id: WidgetId, patch: WidgetPatch): Promise&lt;Widget | undefined&gt;;
-  remove(id: WidgetId): Promise&lt;boolean&gt;;
+      <pre><code>export interface FooRepository {
+  insert(foo: Foo): Promise&lt;Foo&gt;;
+  findById(id: FooId): Promise&lt;Foo | undefined&gt;;
+  list(query: FooQuery): Promise&lt;Foo[]&gt;;
+  update(id: FooId, patch: FooPatch): Promise&lt;Foo | undefined&gt;;
+  remove(id: FooId): Promise&lt;boolean&gt;;
 }
-export type WidgetPorts = { widgets: WidgetRepository };</code></pre>
+export type FooPorts = { foos: FooRepository };</code></pre>
     </li>
     <li>
-      <span class="layer">widgets/spi/widget-repository.postgres.ts</span>
+      <span class="layer">foos/spi/foo-repository.postgres.ts</span>
       <h3>The adapter does the real work</h3>
-      <pre><code>export const postgresWidgetRepository = (db: PostgresDatabase): WidgetRepository => ({
-  insert: async (w) => (await db.insert(widgetsTable).values(w).returning())[0],
+      <pre><code>export const postgresFooRepository = (db: PostgresDatabase): FooRepository => ({
+  insert: async (w) => (await db.insert(foosTable).values(w).returning())[0],
   ...
 });</code></pre>
     </li>
