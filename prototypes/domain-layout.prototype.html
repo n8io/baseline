@@ -61,9 +61,12 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
 ├─ index.ts                    <span class="c"># createWidgetsDomain(ports); the only import from outside</span>
 ├─ models/                     <span class="c"># every model in this domain: Zod schemas + types</span>
 │  └─ widget.ts                <span class="c"># Widget, NewWidget, WidgetPatch, WidgetId</span>
+├─ rules/                      <span class="c"># every business rule: pure functions over models</span>
+│  ├─ widget-name-is-unique.ts
+│  └─ widget-name-is-unique.test.ts
 ├─ widget-errors.ts
 ├─ ports.ts                    <span class="c"># WidgetRepository, WidgetPorts</span>
-├─ use-cases/                  <span class="c"># all business rules live here, in models/ and the root files</span>
+├─ use-cases/                  <span class="c"># each operation: loads data, applies rules, calls ports</span>
 │  ├─ create-widget.ts         <span class="c"># createWidget = (ports) => async (input) => ...</span>
 │  ├─ create-widget.test.ts
 │  └─ get-, list-, update-, delete-widget.ts
@@ -75,7 +78,7 @@ ol.flow>li h3::before{counter-increment:s;content:counter(s) ". ";color:var(--ac
    ├─ widget-repository.postgres.ts
    └─ widget-repository.memory.ts</code></pre>
   <ul class="pc">
-    <li>Root files, <code>models/</code> and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>.</li>
+    <li>Root files, <code>models/</code>, <code>rules/</code> and <code>use-cases/</code> import nothing from <code>api/</code> or <code>spi/</code>. Rules import only <code>models/</code> and do no I/O.</li>
     <li><code>api/</code> imports <code>models/</code> and <code>use-cases/</code>, never <code>spi/</code>. <code>spi/</code> imports only <code>ports.ts</code> and <code>models/</code>.</li>
     <li>Nothing outside the domain imports past <code>index.ts</code>. No domain imports another domain.</li>
   </ul>
