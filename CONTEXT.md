@@ -13,8 +13,12 @@ A business object a domain defines in its `models/` folder, as a Zod schema and 
 _Avoid_: Schema, DTO
 
 **Use case**:
-One operation a domain performs, such as creating a widget. Use cases hold the business rules. Each gets its ports from a factory: `createWidget(ports)` returns the function.
+One operation a domain performs, such as creating a widget. A use case loads what it needs through ports and applies the domain's rules. Each gets its ports from a factory: `createWidget(ports)` returns the function.
 _Avoid_: Service, handler, interactor
+
+**Rule**:
+One business rule a domain enforces, defined in its `rules/` folder as a pure function over models. Use cases apply rules; the API and the SPI never do.
+_Avoid_: Policy, validator, business role
 
 **API**:
 The layer of inbound adapters that receive requests from outside a domain (HTTP routes, message consumers, gRPC) and call its use cases. It holds no business rules.
