@@ -213,6 +213,31 @@ const mayImport = {
 </section>
 
 <section>
+  <span class="eyebrow">Settled earlier · naming</span>
+  <h2>Naming across two domains</h2>
+  <p>Example: a document is signed, then the signer is notified. Entity first, then the business verb. Each use case is named for what its own domain does, never for the whole chain.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Thing</th><th>Name</th><th>File</th></tr></thead>
+    <tbody>
+      <tr><td>Use case</td><td><code>documentSign</code></td><td><code>document/use-cases/document-sign.ts</code></td></tr>
+      <tr><td>Its input</td><td><code>DocumentSignInput</code></td><td><code>document/models/document.ts</code></td></tr>
+      <tr><td>Rule</td><td><code>documentSignable</code></td><td><code>document/rules/document-signable.ts</code></td></tr>
+      <tr><td>Error</td><td><code>DocumentAlreadySignedError</code></td><td><code>document/document-errors.ts</code></td></tr>
+      <tr><td>Event it publishes</td><td><code>DocumentSigned</code></td><td><code>document/models/document.ts</code></td></tr>
+      <tr><td>Use case, other domain</td><td><code>notificationSend</code></td><td><code>notification/use-cases/notification-send.ts</code></td></tr>
+      <tr><td>Consumer linking them</td><td><code>notificationConsumer</code></td><td><code>notification/api/notification-consumer.ts</code></td></tr>
+    </tbody>
+  </table></div>
+  <ul class="pc">
+    <li>No compound names: <code>documentSign</code>, not <code>documentSignAndNotify</code>. Reactions belong to the domains that react.</li>
+    <li>Business verbs from the glossary, not CRUD verbs: <code>documentSign</code>, not <code>documentUpdate</code>.</li>
+    <li>A child entity goes between entity and verb: <code>documentSignerAdd</code>.</li>
+    <li>Events are past tense, entity first, no suffix: <code>DocumentSigned</code> is a model. Only errors and ports keep suffixes.</li>
+    <li>The receiving use case stays generic. The consumer maps <code>DocumentSigned</code> to <code>NotificationSendInput</code>. Never <code>notificationOnDocumentSigned</code>.</li>
+  </ul>
+</section>
+
+<section>
   <span class="eyebrow">How a request moves</span>
   <h2>POST /foo, start to finish</h2>
   <p class="note">Shown domain-first. Error mapping and the database adapter's shape are drafts; separate tickets decide them.</p>
