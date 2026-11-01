@@ -214,7 +214,10 @@ const mayImport = {
     <li><code>api/</code> holds every inbound adapter and calls use cases, never <code>spi/</code>. <code>spi/</code> implements ports and imports only <code>ports.ts</code> and <code>models/</code>. Neither holds business rules.</li>
     <li>The domain defines ports (interfaces), never their implementations, and knows nothing about how routes are set up. Its <code>index.ts</code> exports use cases and port types only. <code>api/</code> and <code>spi/</code> have their own entries, and the composition root wires all three.</li>
     <li>Models carry no OpenAPI metadata and errors carry no HTTP status. The API maps domain errors to status codes and wraps models in its own OpenAPI schemas.</li>
-    <li>A factory per use case: <code>fooCreate = (ports: FooPorts) =&gt; async (input) =&gt; …</code>. Routes see use cases, never ports. No container. <i>Being re-decided for Effect.</i></li>
+    <li>A factory per use case: <code>fooCreate = (ports: FooPorts) =&gt; async (input) =&gt; …</code>. Routes see use cases, never ports. No container. Effect was considered and not adopted.</li>
+    <li>Use cases return a plain <code>Result&lt;T, E&gt;</code> union for expected business errors. Infrastructure failures and bugs throw to one error middleware (500).</li>
+    <li>Errors are classes extending <code>Error</code> with a literal <code>type</code> tag. Each domain's API maps them in one typed status table, so a new error fails the build until it is mapped.</li>
+    <li>Only <code>*.test.ts</code> files in the domain may import <code>spi/*.memory.ts</code>.</li>
     <li>No domain imports another domain.</li>
   </ul>
 </section>
@@ -267,10 +270,18 @@ app.route("/foo", fooRoutes(fooUseCases)); <span class="c">// worker.ts skips th
     <li>
       <span class="layer">domains/foo/api/foo-routes.ts</span>
       <h3>The route validates input and calls one use case</h3>
-      <pre><code>export const fooRoutes = (u: FooUseCases) =>
+      <pre><code><span class="c">// domains/foo/api/foo-error-status.ts</span>
+export const fooErrorStatus = {
+  FooNameTaken: 409,
+  FooNotFound: 404,
+} as const satisfies Record&lt;FooError["type"], ContentfulStatusCode&gt;;
+
+<span class="c">// domains/foo/api/foo-routes.ts</span>
+export const fooRoutes = (u: FooUseCases) =>
   new OpenAPIHono().openapi(fooCreateRoute, async (c) => {
-    const foo = await u.fooCreate(c.req.valid("json"));
-    return c.json(foo, 201);
+    const result = await u.fooCreate(c.req.valid("json"));
+    if (!result.ok) return c.json(errorBody(result.error), fooErrorStatus[result.error.type]);
+    return c.json(result.value, 201);
   });</code></pre>
     </li>
     <li>
@@ -278,10 +289,22 @@ app.route("/foo", fooRoutes(fooUseCases)); <span class="c">// worker.ts skips th
       <h3>The use case applies the rules and calls a port</h3>
       <pre><code>export const fooCreate =
   ({ fooRepository }: FooPorts) =>
-  async (input: FooCreateInput): Promise&lt;Foo&gt; => {
+  async (input: FooCreateInput): Promise&lt;Result&lt;Foo, FooNameTakenError&gt;&gt; => {
     const data = FooCreateInput.parse(input);
-    return fooRepository.insert({ ...data, id: crypto.randomUUID() });
-  };</code></pre>
+    if (await fooRepository.findByName(data.name)) return err(new FooNameTakenError(data.name));
+    return ok(await fooRepository.insert({ ...data, id: crypto.randomUUID() }));
+  };
+
+<span class="c">// domains/foo/foo-errors.ts</span>
+export class FooNameTakenError extends Error {
+  readonly type = "FooNameTaken";
+  readonly fooName: string; <span class="c">// not `name`: that would shadow Error.name</span>
+  constructor(fooName: string) {
+    super(`A foo named ${fooName} already exists`);
+    this.fooName = fooName;
+  }
+}
+export type FooError = FooNameTakenError | FooNotFoundError;</code></pre>
     </li>
     <li>
       <span class="layer">domains/foo/ports.ts</span>
