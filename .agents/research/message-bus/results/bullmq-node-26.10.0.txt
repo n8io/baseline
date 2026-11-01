@@ -1,0 +1,13 @@
+{
+  "pgJobsAfterOurRollback": 1,
+  "pgAttempts": 3,
+  "pgFinalState": "failed",
+  "pgCloseMs": 2236,
+  "pgInFlightFinished": true,
+  "redisMaxmemoryPolicy": {
+    "maxmemory-policy": "noeviction"
+  },
+  "redisNodeRedisProcessed": {
+    "id": "redis"
+  }
+}

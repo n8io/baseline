@@ -1,0 +1,66 @@
+step 1 {}
+step 2 {"outboxJobsAfterRollbackAndCommit":["commit"]}
+step 3 {"outboxJobsAfterRollbackAndCommit":["commit"],"producerTraceId":"b187e1e2fd72df6f66fc2b2ca7f11d7b","storedTraceContext":{"traceparent":"00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"},"consumerTraceIdMatches":true,"consumerActor":{"id":"u1","type":"user"}}
+step 4 {"outboxJobsAfterRollbackAndCommit":["commit"],"producerTraceId":"b187e1e2fd72df6f66fc2b2ca7f11d7b","storedTraceContext":{"traceparent":"00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"},"consumerTraceIdMatches":true,"consumerActor":{"id":"u1","type":"user"},"attemptsBeforeDeadLetter":3,"deadLetterJob":{"data":{"id":"flaky"},"source":"foo-flaky"}}
+step 5 {"outboxJobsAfterRollbackAndCommit":["commit"],"producerTraceId":"b187e1e2fd72df6f66fc2b2ca7f11d7b","storedTraceContext":{"traceparent":"00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"},"consumerTraceIdMatches":true,"consumerActor":{"id":"u1","type":"user"},"attemptsBeforeDeadLetter":3,"deadLetterJob":{"data":{"id":"flaky"},"source":"foo-flaky"},"fanOutQueues":["bar-foo-created","baz-foo-created"]}
+step 6 {"outboxJobsAfterRollbackAndCommit":["commit"],"producerTraceId":"b187e1e2fd72df6f66fc2b2ca7f11d7b","storedTraceContext":{"traceparent":"00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"},"consumerTraceIdMatches":true,"consumerActor":{"id":"u1","type":"user"},"attemptsBeforeDeadLetter":3,"deadLetterJob":{"data":{"id":"flaky"},"source":"foo-flaky"},"fanOutQueues":["bar-foo-created","baz-foo-created"],"delayedRanAfterMs":2022}
+step 7 {"outboxJobsAfterRollbackAndCommit":["commit"],"producerTraceId":"b187e1e2fd72df6f66fc2b2ca7f11d7b","storedTraceContext":{"traceparent":"00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"},"consumerTraceIdMatches":true,"consumerActor":{"id":"u1","type":"user"},"attemptsBeforeDeadLetter":3,"deadLetterJob":{"data":{"id":"flaky"},"source":"foo-flaky"},"fanOutQueues":["bar-foo-created","baz-foo-created"],"delayedRanAfterMs":2022,"gracefulStopMs":3022,"inFlightFinishedBeforeStopResolved":true,"slowJobState":"completed"}
+(node:86327) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+{
+  "outboxJobsAfterRollbackAndCommit": [
+    "commit"
+  ],
+  "producerTraceId": "b187e1e2fd72df6f66fc2b2ca7f11d7b",
+  "storedTraceContext": {
+    "traceparent": "00-b187e1e2fd72df6f66fc2b2ca7f11d7b-48dc8c1079fd35d2-01"
+  },
+  "consumerTraceIdMatches": true,
+  "consumerActor": {
+    "id": "u1",
+    "type": "user"
+  },
+  "attemptsBeforeDeadLetter": 3,
+  "deadLetterJob": {
+    "data": {
+      "id": "flaky"
+    },
+    "source": "foo-flaky"
+  },
+  "fanOutQueues": [
+    "bar-foo-created",
+    "baz-foo-created"
+  ],
+  "delayedRanAfterMs": 2022,
+  "gracefulStopMs": 3022,
+  "inFlightFinishedBeforeStopResolved": true,
+  "slowJobState": "completed",
+  "cronJobsIn5MinWith2Instances": 6,
+  "spanNames": [
+    "complete __pgboss__send-it",
+    "complete foo-created",
+    "complete foo-slow",
+    "fail foo-flaky",
+    "fooCreate",
+    "insert __pgboss__send-it",
+    "process __pgboss__send-it",
+    "process foo-created",
+    "process foo-flaky",
+    "process foo-slow",
+    "publish foo.created",
+    "send bar-foo-created",
+    "send baz-foo-created",
+    "send foo-created",
+    "send foo-flaky",
+    "send foo-nightly",
+    "send foo-slow"
+  ]
+}
+
+# Cron jobs per minute after the run (two instances, TestClock ticked 5 minutes):
+ 2026-11-01 00:00:00+00 |     1
+ 2026-11-01 00:01:00+00 |     1
+ 2026-11-01 00:02:00+00 |     1
+ 2026-11-01 00:03:00+00 |     1
+ 2026-11-01 00:04:00+00 |     1
+ 2026-11-01 00:05:00+00 |     1
