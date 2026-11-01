@@ -1,0 +1,12 @@
+Pool options (connectionString only): {"max":10,"idleTimeoutMillis":10000,"maxLifetimeSeconds":0,"allowExitOnIdle":false,"maxUses":null,"min":0}
+Client params: {"statement_timeout":false,"query_timeout":false,"connect_timeout":0,"lock_timeout":false,"idle_in_transaction_session_timeout":false} client._connectionTimeoutMillis 0 keepAlive (socket) Socket
+?connect_timeout=7 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?connectionTimeoutMillis=7000 -> {"connect_timeout":7,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?statement_timeout=1234 -> {"connect_timeout":0,"statement_timeout":"1234","query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?query_timeout=4321 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":"4321","lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?keepalives=0 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?idle_in_transaction_session_timeout=999 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":"999","poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?lock_timeout=555 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":"555","idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?max=3 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+?idleTimeoutMillis=5 -> {"connect_timeout":0,"statement_timeout":false,"query_timeout":false,"lock_timeout":false,"idle_in_tx":false,"poolMax":10,"poolIdle":10000,"clientConnTimeout":0}
+pg-connection-string parse of ?connect_timeout=7: {"connect_timeout":"7","user":"u","password":"p","host":"h","port":"5432","database":"d"}

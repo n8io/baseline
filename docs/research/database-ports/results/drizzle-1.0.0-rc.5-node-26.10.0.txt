@@ -1,0 +1,16 @@
+PASS [1] ok result commits foo and its tags (both tables)
+PASS [1] err result after a write rolls back
+PASS [1] throw after a write rolls back and rethrows
+PASS [1] SQL error mid-transaction (tag check constraint) rolls back the foo row
+PASS [1] closed-scope guard: a repository kept after the transaction throws and writes nothing
+PASS [1] control: WITHOUT the guard a kept Drizzle instance writes on the released client
+PASS [1] 400 mixed transactions on a pool of 2: no leaked or idle-in-transaction sessions
+  class DrizzleQueryError, instanceof DrizzleQueryError true, instanceof Error true
+  message: "Failed query: insert into \"foo\" (\"id\", \"name\") values ($1, $2)"
+  own keys: query,params,cause,name; query: insert into "foo" ("id", "name") values ($1, $2); params: undefined
+  cause class DatabaseError; cause.code 23505; cause.constraint foo_name_unique; cause.table foo; cause.detail Key (name)=(shape) already exists.; cause.message "duplicate key value violates unique constraint \"foo_name_unique\""
+PASS [2] exact shape of a Drizzle unique violation
+PASS [2] duplicate id (primary key, other constraint) is NOT mapped to FooNameTakenError
+PASS [2] 10 concurrent creates of one name: exactly one ok, nine FooNameTakenError
+PASS [2] two inserts both in flight before either commits (barrier): one ok, one FooNameTakenError
+PASS [3] FooReadRepository on the pool: runs outside any transaction and does not see uncommitted rows

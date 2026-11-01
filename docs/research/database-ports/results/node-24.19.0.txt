@@ -1,0 +1,80 @@
+node v24.19.0
+
+# tests/drizzle-bound.test.ts
+PASS [1] ok result commits foo and its tags (both tables)
+PASS [1] err result after a write rolls back
+PASS [1] throw after a write rolls back and rethrows
+PASS [1] SQL error mid-transaction (tag check constraint) rolls back the foo row
+PASS [1] closed-scope guard: a repository kept after the transaction throws and writes nothing
+PASS [1] control: WITHOUT the guard a kept Drizzle instance writes on the released client
+  outcomes {"ok":80,"throw":80,"sqlerror":80,"dup":80,"err":80}
+  sessions [{"state":"idle","n":2}], pool total 2 idle 2
+PASS [1] 400 mixed transactions on a pool of 2: no leaked or idle-in-transaction sessions
+  class DrizzleQueryError, instanceof DrizzleQueryError true, instanceof Error true
+  message: "Failed query: insert into \"foo\" (\"id\", \"name\") values ($1, $2)\nparams: c9bf0066-6457-4252-b57a-1bdffcbea965,shape"
+  own keys: query,params,cause; query: insert into "foo" ("id", "name") values ($1, $2); params: ["c9bf0066-6457-4252-b57a-1bdffcbea965","shape"]
+  cause class DatabaseError; cause.code 23505; cause.constraint foo_name_unique; cause.table foo; cause.detail Key (name)=(shape) already exists.; cause.message "duplicate key value violates unique constraint \"foo_name_unique\""
+PASS [2] exact shape of a Drizzle unique violation
+PASS [2] duplicate id (primary key, other constraint) is NOT mapped to FooNameTakenError
+PASS [2] 10 concurrent creates of one name: exactly one ok, nine FooNameTakenError
+PASS [2] two inserts both in flight before either commits (barrier): one ok, one FooNameTakenError
+  during an open transaction: pool-query transaction_timeout=0, sessions idle in transaction=1 (the writer, waiting in sleep)
+PASS [3] FooReadRepository on the pool: runs outside any transaction and does not see uncommitted rows
+
+# tests/otel.test.ts
+  span names for one request: pg-pool.connect | pg.query:BEGIN postgres | pg.query:SET postgres | pg.query:INSERT postgres | pg.query:INSERT postgres | pg.query:COMMIT postgres | pg-pool.connect | pg.query:SELECT postgres
+  insert span attributes: {"db.system.name":"postgresql","db.namespace":"postgres","server.address":"127.0.0.1","server.port":55433,"db.query.text":"insert into \"foo\" (\"id\", \"name\") values ($1, $2)"}
+  pg spans total 80, in a trace other than a request's: 0
+PASS [4] every pg span of fooCreate (Drizzle on the checked-out client) sits in its own request's trace, 10 requests on a pool of 1
+
+# tests/pool.test.ts
+  outcomes [{"ok":true,"ms":1026},{"ok":true,"ms":1025},{"ok":true,"ms":2032}]
+  pg-pool.connect spans: [{"ms":14,"status":0,"events":[],"attrs":{}},{"ms":16,"status":0,"events":[],"attrs":{}},{"ms":1021,"status":0,"events":[],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 1000 ms, connectionTimeoutMillis unset
+  outcomes [{"ok":true,"ms":1030},{"ok":true,"ms":1029},{"ok":false,"ms":1005,"name":"Error","message":"timeout exceeded when trying to connect"}]
+  pg-pool.connect spans: [{"ms":18,"status":0,"events":[],"attrs":{}},{"ms":18,"status":0,"events":[],"attrs":{}},{"ms":1003,"status":2,"message":"timeout exceeded when trying to connect","events":["exception"],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 1000 ms, connectionTimeoutMillis 1000
+  outcomes [{"ok":true,"ms":1028},{"ok":true,"ms":1028},{"ok":true,"ms":2034}]
+  pg-pool.connect spans: [{"ms":14,"status":0,"events":[],"attrs":{}},{"ms":16,"status":0,"events":[],"attrs":{}},{"ms":1019,"status":0,"events":[],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 1000 ms, connectionTimeoutMillis 5000
+  outcomes [{"ok":true,"ms":2015},{"ok":true,"ms":2015},{"ok":true,"ms":4024}]
+  pg-pool.connect spans: [{"ms":10,"status":0,"events":[],"attrs":{}},{"ms":10,"status":0,"events":[],"attrs":{}},{"ms":2014,"status":0,"events":[],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 2000 ms, connectionTimeoutMillis unset
+  outcomes [{"ok":true,"ms":2028},{"ok":true,"ms":2028},{"ok":false,"ms":1006,"name":"Error","message":"timeout exceeded when trying to connect"}]
+  pg-pool.connect spans: [{"ms":19,"status":0,"events":[],"attrs":{}},{"ms":22,"status":0,"events":[],"attrs":{}},{"ms":1001,"status":2,"message":"timeout exceeded when trying to connect","events":["exception"],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 2000 ms, connectionTimeoutMillis 1000
+  outcomes [{"ok":true,"ms":2034},{"ok":true,"ms":2035},{"ok":true,"ms":4047}]
+  pg-pool.connect spans: [{"ms":24,"status":0,"events":[],"attrs":{}},{"ms":25,"status":0,"events":[],"attrs":{}},{"ms":2033,"status":0,"events":[],"attrs":{}}]
+  after: total 2 idle 2 waiting 0
+PASS [8] pool max 2, 3 transactions hold 2000 ms, connectionTimeoutMillis 5000
+  before end(): total 1 idle 0 waiting 2
+  connect() after end(): {"ok":false,"ms":0,"name":"Error","message":"Cannot use a pool after calling end on the pool","stack":"at BoundPool.connect (/Users/n8/code/n8io/baseline-wt-database-ports/docs/research/database-ports/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:192:19)"}
+  holder: {"ok":true,"ms":1017}
+  end() promise: {"settled":true,"value":1022}
+  waiters 6203 ms after start (end() was called at ~200 ms): [{"settled":false},{"settled":false}]; pool waiting 2, total 0
+PASS [8] pgPool.end() with 2 callers waiting for a connection (pool of 1, connectionTimeoutMillis unset)
+  before end(): total 1 idle 0 waiting 2
+  connect() after end(): {"ok":false,"ms":1,"name":"Error","message":"Cannot use a pool after calling end on the pool","stack":"at BoundPool.connect (/Users/n8/code/n8io/baseline-wt-database-ports/docs/research/database-ports/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:192:19)"}
+  holder: {"ok":true,"ms":1033}
+  end() promise: {"settled":true,"value":1041}
+  waiters 6203 ms after start (end() was called at ~200 ms): [{"settled":true,"value":{"ok":false,"ms":5058,"name":"Error","message":"timeout exceeded when trying to connect","stack":"at /Users/n8/code/n8io/baseline-wt-database-ports/docs/research/database-ports/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:45:11"}},{"settled":true,"value":{"ok":false,"ms":5058,"name":"Error","message":"timeout exceeded when trying to connect","stack":"at /Users/n8/code/n8io/baseline-wt-database-ports/docs/research/database-ports/node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.1/node_modules/pg-pool/index.js:45:11"}}]; pool waiting 0, total 0
+PASS [8] pgPool.end() with 2 callers waiting for a connection (pool of 1, connectionTimeoutMillis 5000)
+
+# tests/bench.test.ts
+drizzle(client)                          : 25.9 ms for 10000, 2.59 us each
+drizzle(scoped proxy(client))            : 4.4 ms for 10000, 0.44 us each
+reuse one instance (property read only)  : 0.2 ms for 10000, 0.02 us each
+build a select query (no run), reused db : 154.3 ms for 10000, 15.43 us each
+heap per drizzle(client) instance: {"bytesEach":759}
+own keys of a drizzle instance: query,$with,$cache,authToken,dialect,session,_,$client
+session own keys: dialect,logger,cache,client,schema,options
+
+# tests/plain-pg.test.ts
+PASS [7] plain pg: ok commits both tables; read returns tags
+PASS [7] plain pg: 10 concurrent creates of one name give one ok, nine FooNameTakenError
+PASS [7] plain pg: err after a write rolls back
