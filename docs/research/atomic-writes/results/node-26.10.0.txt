@@ -1,0 +1,47 @@
+node v26.10.0
+
+# tests/memory.test.ts
+PASS [memory] ok commits the foo and its tags
+PASS [memory] err after a write rolls back and returns the err
+PASS [memory] a throw after a write rolls back and rethrows the same error
+PASS [memory] a repository kept past the end of its transaction throws
+PASS [memory] fooCreate returns FooNameTakenError for a taken name
+
+# tests/postgres.test.ts
+PASS [postgres] ok commits the foo and its tags
+PASS [postgres] err after a write rolls back and returns the err
+PASS [postgres] a throw after a write rolls back and rethrows the same error
+PASS [postgres] a repository kept past the end of its transaction throws
+PASS [postgres] fooCreate returns FooNameTakenError for a taken name
+PASS [postgres] 300 mixed ok/err/throw transactions leave the pool clean (max 2)
+PASS [postgres] an SQL error mid-transaction rolls back the earlier write and the pool stays usable
+PASS [postgres] a connection killed mid-transaction is destroyed, not returned to the pool
+PASS [postgres] HAZARD: a pool-bound write inside the callback is not rolled back
+PASS [postgres] HAZARD: a nested transaction with a full pool waits forever (shown with a 500 ms timeout)
+PASS [postgres] a transaction does not stop the check-then-insert race (read committed)
+PASS [postgres] with a unique index the race loser throws 23505 (not an err)
+PASS [postgres] option 5: one aggregate insert is atomic inside the adapter
+  server ended the session: terminating connection due to idle-in-transaction timeout; Connection terminated unexpectedly
+PASS [postgres] SET LOCAL idle_in_transaction_session_timeout ends a transaction held by a slow outside call
+  server ended the session: terminating connection due to transaction timeout; Connection terminated unexpectedly
+PASS [postgres] SET LOCAL transaction_timeout ends a transaction that runs too long
+
+# tests/als.test.ts
+PASS [als] the store survives awaits on pool.connect, client.query and pool.query with 25 callers queued on a pool of 1
+  72 of 75 callbacks saw another caller's store, e.g. "connect cb req-1 saw req-0"
+PASS [als] FINDING: the callback forms pool.connect(cb), client.query(text, cb) and pool.query(text, cb) run callbacks in another caller's store
+PASS [option 3] the implicit transaction holds across awaits and an err rolls back
+PASS [option 3] HAZARD: a forgotten transaction is silent; the write autocommits
+PASS [option 3] HAZARD: a write started in one transaction and not awaited lands in the next caller's transaction
+PASS [option 1] the same late write throws instead, because the bound repository is closed
+
+# tests/otel.test.ts
+  span names for one request: pg-pool.connect | pg.query:BEGIN postgres | pg.query:SELECT postgres | pg.query:INSERT postgres | pg.query:INSERT postgres | pg.query:COMMIT postgres
+  pg spans total 60, outside any request 0
+PASS [otel] every pg span of fooCreate sits in its own request's trace, 10 requests on a pool of 1
+
+# tests/drizzle.test.ts
+PASS [drizzle] returning an err from db.transaction COMMITS the writes
+PASS [drizzle] tx.rollback() throws TransactionRollbackError out of db.transaction
+PASS [drizzle] a small wrapper makes err roll back and still return the err
+PASS [drizzle] tx.transaction nests with a savepoint; inner rollback keeps the outer write

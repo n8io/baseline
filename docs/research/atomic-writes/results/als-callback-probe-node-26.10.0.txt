@@ -1,0 +1,7 @@
+  pool.connect(cb), 20 callers on a pool of 1: 19/20 callbacks saw another caller's store
+  pool.query(text, cb), 20 callers on a pool of 1: 19/20 callbacks saw another caller's store
+(node:85074) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  client.query(text, cb), 20 callers on one client: 19/20 callbacks saw another caller's store
+  pool.query(text, cb), 20 callers on a warm pool of 25: 20/20 callbacks saw another caller's store
+{"poolConnectQueued":19,"poolQueryQueued":19,"clientQueryQueued":19,"poolQueryNotQueued":20}

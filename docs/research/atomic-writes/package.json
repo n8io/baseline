@@ -1,0 +1,23 @@
+{
+  "name": "atomic-writes-research",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run-all.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/context-async-hooks": "3.0.0",
+    "@opentelemetry/instrumentation": "0.300.0",
+    "@opentelemetry/instrumentation-pg": "0.77.0",
+    "@opentelemetry/sdk-trace": "3.0.0",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "drizzle-orm": "0.45.4",
+    "typescript": "^7.0.2"
+  }
+}
