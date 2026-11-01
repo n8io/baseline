@@ -1,0 +1,220 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "95cb2737-a9b1-4a65-b331-efae3680bef6",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "bar"
+      ],
+      "writes": [
+        "s|sch|bar",
+        "n|sch|bar",
+        "e|sch|bar"
+      ]
+    },
+    {
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "foo"
+      ],
+      "writes": [
+        "s|sch|foo",
+        "n|sch|foo",
+        "e|sch|foo"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "bar",
+        "bar"
+      ],
+      "writes": [
+        "s|tbl|bar.bar",
+        "n|tbl|bar.bar",
+        "e|tbl|bar.bar",
+        "n|rel|bar.bar",
+        "n|type|bar.bar",
+        "n|rel|bar.bar_pkey"
+      ],
+      "reads": [
+        "n|sch|bar"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "foo",
+        "foo"
+      ],
+      "writes": [
+        "s|tbl|foo.foo",
+        "n|tbl|foo.foo",
+        "e|tbl|foo.foo",
+        "n|rel|foo.foo",
+        "n|type|foo.foo",
+        "n|rel|foo.foo_pkey"
+      ],
+      "reads": [
+        "n|sch|foo"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "bar",
+        "bar"
+      ],
+      "writes": [
+        "s|fk|bar.bar.bar_foo_id_foo_id_fkey",
+        "n|fk|bar.bar.bar_foo_id_foo_id_fkey",
+        "e|fk|bar.bar.bar_foo_id_foo_id_fkey",
+        "n|con|bar.bar.bar_foo_id_foo_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|bar.bar",
+        "n|sch|bar",
+        "n|tbl|foo.foo",
+        "n|sch|foo",
+        "n|col|bar.bar.foo_id",
+        "n|col|foo.foo.id",
+        "e|uniqueness|foo.foo.id"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "name": "bar",
+      "entityType": "schemas"
+    },
+    {
+      "name": "foo",
+      "entityType": "schemas"
+    },
+    {
+      "schema": "bar",
+      "name": "bar",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "foo",
+      "name": "foo",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "bar",
+      "table": "bar",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "bar",
+      "table": "bar",
+      "name": "foo_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "bar",
+      "table": "bar",
+      "name": "label",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "name",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "bar",
+      "table": "bar",
+      "name": "bar_foo_id_foo_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "foo_id"
+      ],
+      "schemaTo": "foo",
+      "tableTo": "foo",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "bar",
+      "table": "bar",
+      "name": "bar_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "foo_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ]
+}

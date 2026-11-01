@@ -1,0 +1,48 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fa32b764-ee87-40d0-be9d-298e6374bb74",
+  "prevIds": [
+    "bfd64b08-44af-48b3-9874-e7e542436642",
+    "be4aa228-95b6-4b1f-b39f-146b066eee27"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "a",
+        "age"
+      ],
+      "writes": [
+        "s|col|public.a.age",
+        "n|col|public.a.age",
+        "e|col|public.a.age"
+      ],
+      "reads": [
+        "n|tbl|public.a",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "a",
+        "name": "age",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

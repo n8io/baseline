@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "bfd64b08-44af-48b3-9874-e7e542436642",
+  "prevIds": [
+    "f3efb4c1-b96c-4eb8-9cf1-1ccf860d0c80"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "b",
+        "extra"
+      ],
+      "writes": [
+        "s|col|public.b.extra",
+        "n|col|public.b.extra",
+        "e|col|public.b.extra"
+      ],
+      "reads": [
+        "n|tbl|public.b",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "b",
+        "name": "extra",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

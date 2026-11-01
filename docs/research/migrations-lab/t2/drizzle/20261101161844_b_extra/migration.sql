@@ -1,0 +1,1 @@
+ALTER TABLE "b" ADD COLUMN "extra" text;
