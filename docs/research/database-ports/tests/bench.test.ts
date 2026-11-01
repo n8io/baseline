@@ -15,9 +15,9 @@ const time = (label: string, fn: () => unknown) => {
   const ns = Number(process.hrtime.bigint() - start);
   console.log(`${label}: ${(ns / 1e6).toFixed(1)} ms for ${N}, ${(ns / N / 1000).toFixed(2)} us each`);
 };
-const shared = drizzle(pgClient);
-time("drizzle(client)                          ", () => drizzle(pgClient));
-time("drizzle(scoped proxy(client))            ", () => drizzle(postgresClientScoped(pgClient, scope)));
+const shared = drizzle({ client: pgClient });
+time("drizzle(client)                          ", () => drizzle({ client: pgClient }));
+time("drizzle(scoped proxy(client))            ", () => drizzle({ client: postgresClientScoped(pgClient, scope) }));
 time("reuse one instance (property read only)  ", () => shared.$client);
 time("build a select query (no run), reused db ", () => shared.select().from(fooTable).where(eq(fooTable.name, "x")).toSQL());
 const mem = (make: () => unknown) => {
@@ -27,6 +27,6 @@ const mem = (make: () => unknown) => {
   globalThis.gc?.();
   return { bytesEach: Math.round((process.memoryUsage().heapUsed - before) / keep.length) };
 };
-console.log("heap per drizzle(client) instance:", JSON.stringify(mem(() => drizzle(pgClient))));
+console.log("heap per drizzle(client) instance:", JSON.stringify(mem(() => drizzle({ client: pgClient }))));
 console.log("own keys of a drizzle instance:", Object.keys(shared).join(","));
 console.log("session own keys:", Object.keys((shared as any).session).join(","));

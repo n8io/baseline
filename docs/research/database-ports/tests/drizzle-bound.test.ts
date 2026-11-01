@@ -82,7 +82,7 @@ await check("[1] closed-scope guard: a repository kept after the transaction thr
 await check("[1] control: WITHOUT the guard a kept Drizzle instance writes on the released client", async () => {
   let kept!: NodePgDatabase;
   const pgClient = await pgPool.connect();
-  kept = drizzle(pgClient);
+  kept = drizzle({ client: pgClient });
   pgClient.release();
   const { fooTable } = await import("../foo/spi/foo-table.ts");
   await kept.insert(fooTable).values({ id: crypto.randomUUID(), name: "unguarded" });
@@ -121,7 +121,7 @@ await check("[1] 400 mixed transactions on a pool of 2: no leaked or idle-in-tra
 
 await check("[2] exact shape of a Drizzle unique violation", async () => {
   await fooTransaction(({ fooRepository }) => fooRepository.insert(foo("shape")));
-  const db = drizzle(pgPool);
+  const db = drizzle({ client: pgPool });
   const { fooTable } = await import("../foo/spi/foo-table.ts");
   let caught: any;
   try { await db.insert(fooTable).values({ id: crypto.randomUUID(), name: "shape" }); } catch (e) { caught = e; }
@@ -169,8 +169,8 @@ await check("[2] two inserts both in flight before either commits (barrier): one
 
 await check("[3] FooReadRepository on the pool: runs outside any transaction and does not see uncommitted rows", async () => {
   const read = fooReadRepositoryPostgres(pgPool);
-  const db = drizzle(pgPool);
-  const probe = async () => (await db.execute(sql`select current_setting('transaction_timeout') as t, (pg_current_xact_id_if_assigned() is null) as no_xact`)).rows[0] as any;
+  const db = drizzle({ client: pgPool });
+  const probe = () => (() => db.execute(sql`select current_setting('transaction_timeout') as t, (pg_current_xact_id_if_assigned() is null) as no_xact`).then((r) => (Array.isArray(r) ? r[0]! : r).rows[0] as { t: string; no_xact: boolean }))();
   const inside = fooTransaction(async ({ fooRepository }) => {
     const result = await fooRepository.insert(foo("uncommitted"));
     await sleep(300);

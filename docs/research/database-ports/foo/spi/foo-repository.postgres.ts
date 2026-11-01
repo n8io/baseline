@@ -7,7 +7,8 @@ import { FooNameTakenError } from "../foo-errors.ts";
 import type { FooReadRepository, FooRepository, FooTransaction } from "../ports.ts";
 import { fooTable, fooTagTable } from "./foo-table.ts";
 
-type Database = NodePgDatabase;
+// db.transaction() is removed from the type: inside a client-bound repository it would issue a nested BEGIN.
+type Database = Omit<NodePgDatabase, "transaction">;
 
 // Drizzle wraps a driver error in DrizzleQueryError with the driver error in `cause`.
 // Walk the cause chain so the code also works if a version stops wrapping.
@@ -52,13 +53,13 @@ const fooRepository = (db: Database): FooRepository => ({
   },
 });
 
-export const fooReadRepositoryPostgres = (pgPool: Pool): FooReadRepository => fooRead(drizzle(pgPool));
+export const fooReadRepositoryPostgres = (pgPool: Pool): FooReadRepository => fooRead(drizzle({ client: pgPool }));
 
 export const fooTransactionPostgres =
   (pgPool: Pool, options?: { timeoutMs?: number }): FooTransaction =>
   (work) =>
     postgresTransaction(
       pgPool,
-      (pgClient: PoolClient, scope) => work({ fooRepository: fooRepository(drizzle(postgresClientScoped(pgClient, scope))) }),
+      (pgClient: PoolClient, scope) => work({ fooRepository: fooRepository(drizzle({ client: postgresClientScoped(pgClient, scope) })) }),
       options,
     );

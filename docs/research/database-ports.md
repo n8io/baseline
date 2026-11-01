@@ -2,7 +2,7 @@
 
 Follow-up to [atomic-writes.md](atomic-writes.md). Researched 2026-11-01. Evidence tags: **[tested]** I ran it, **[source]** read in the owner's docs or source, **[inferred]** reasoned, not run.
 
-Code: [`database-ports/`](database-ports/). Output: [`database-ports/results/`](database-ports/results/). Versions: `drizzle-orm` 0.45.4 (npm `latest`), `drizzle-kit` 0.31.11, `pg` 8.23.1, `pg-pool` 3.14.0, `instrumentation-pg` 0.77.0, TypeScript 7.0.2, Postgres 18.6. Node 26.10.0 and 24.19.0 both pass all 24 checks.
+Code: [`database-ports/`](database-ports/). Output: [`database-ports/results/`](database-ports/results/). **The sections below were written against stable `drizzle-orm` 0.45.4** (code at commit 5907ce5). The code on this branch tip now runs on Drizzle 1.0 rc.5; read [Drizzle 1.0 rc](#drizzle-10-rc) first. Versions for the 0.45.4 runs: `drizzle-orm` 0.45.4 (npm `latest`), `drizzle-kit` 0.31.11, `pg` 8.23.1, `pg-pool` 3.14.0, `instrumentation-pg` 0.77.0, TypeScript 7.0.2, Postgres 18.6. Node 26.10.0 and 24.19.0 both pass all 24 checks.
 
 ## Short answer
 
@@ -17,7 +17,54 @@ Drizzle works on the checked-out client. Build `drizzle(guardedClient)` inside `
 - Recommendation for the pool: set `connectionTimeoutMillis` to about 3000 (never above 5000), keep `max` explicit, set `keepAlive: true`. Reasons under Q8.
 - The cost of `drizzle(client)` per transaction is 0.43 microseconds. Create it per transaction. [tested]
 
-## Checks
+## Drizzle 1.0 rc
+
+The user chose 1.0. Newest rc on npm today (2026-11-01): `drizzle-orm` and `drizzle-kit` both `1.0.0-rc.5` (the `rc` tag; `latest` is still 0.45.4 and 0.31.11). Branch tip runs on them. Full suite, 24 checks, on Node 26.10.0 and 24.19.0 against Postgres 18.6: **all pass** ([26.10.0](database-ports/results/drizzle-1.0.0-rc.5/node-26.10.0.txt), [24.19.0](database-ports/results/drizzle-1.0.0-rc.5/node-24.19.0.txt)). [tested]
+
+| Check | Result on rc.5 |
+|---|---|
+| Commit, err rollback, throw rollback, SQL error rollback | pass |
+| Closed-scope guard (Proxy) | pass; error still wrapped in `DrizzleQueryError`, text in `.cause.message` |
+| 400 mixed transactions on a pool of 2 | pass: 80 of each kind, 2 idle sessions, none idle in transaction |
+| 23505 shape | still `DrizzleQueryError` with `.cause` = pg `DatabaseError` (`code`, `constraint`, `table`, `detail`). The detection code is unchanged |
+| 10 concurrent same name, and the barrier case | 1 ok, rest `FooNameTakenError` |
+| Pool reads, OTel (80 spans, 0 foreign), pool exhaustion, `end()`, plain `pg` | pass, same numbers |
+| `drizzle({ client })` cost | 0.43 us; with Proxy 0.25 us; about 1,010 bytes per instance |
+| Typecheck, TS 7.0.2 with `exactOptionalPropertyTypes` | clean |
+| drizzle-kit with `schema: "./src/domains/*/spi/*-table.ts"` | generate runs, finds both tables, ignores `bar-repository.ts`, follows `../../foo/spi/foo-table.ts` imports, works with `--no-experimental-strip-types` ([output](database-ports/results/drizzle-1.0.0-rc.5/kit-output/)) |
+
+**Repository parameter type.** `type Database = NodePgDatabase` works (it now has a default `EmptyRelations` generic). `ReturnType<typeof drizzle>` no longer works, as before. A `PoolClient` is accepted by `drizzle({ client })`: the option is `client: TClient extends NodePgClient` (`Pool | PoolClient | Client`). [tested, source]
+
+**(a) Narrowing out `transaction`.** `type Database = Omit<NodePgDatabase, "transaction">` type-checks, the full instance is assignable to it, and `select`, `insert` and `execute` still type-check and run: the whole suite passes with the repository using it. A call to `db.transaction(...)` on it is a compile error ([compile-checks/database-type.compile.ts](database-ports/compile-checks/database-type.compile.ts), `@ts-expect-error` holds). It is a type-level block only; the method still exists at run time. [tested]
+
+**(b) `drizzle(pgPool)` for reads.** No change in behavior. Queries go through `client.query({ text, ... }, params)` on the pool (a pool query, no checkout by Drizzle). Only `db.transaction()` checks a client out of a pool (`NodePgSession.transaction`). Reads ran outside any transaction and did not see uncommitted rows. The constructor is `drizzle({ client: pgPool })`; the `Pool` type is the default for the `client` option. [tested, source]
+
+**(c) API differences from 0.45.4 that a repository or table file hits**
+
+| Area | 0.45.4 | 1.0.0-rc.5 | Tag |
+|---|---|---|---|
+| Constructor with a client or pool | `drizzle(pgPool)`, `drizzle(pgClient)` | `drizzle({ client })`. The positional form is a type error, and at run time the client is read as a config object (`ERR_INVALID_ARG_TYPE`) | tested |
+| Error params | `DrizzleQueryError.params` set, message ends with `params: ...` | `params` is `undefined` and absent from the message unless `drizzle({ client, paramsInErrors: true })` | tested, [docs](https://orm.drizzle.team/docs/v0-v1-changes) |
+| Error shape | own keys `query, params, cause` | `query, params, cause, name`; `.cause` still the driver error | tested |
+| `db.execute()` result | `QueryResult` with `.rows` | typed as `QueryResult \| QueryResult[]` (`NodePgRawExecuteResult`), so `.rows` needs narrowing | tested |
+| `$client` type | pool-typed unless set | `PoolClient` when you pass one | tested |
+| Table file | `pgTable(name, cols, (t) => [...])`, `uuid().primaryKey()`, `uniqueIndex().on()`, `primaryKey({ columns })`, `.references(() => t.id)` | unchanged; the same `foo-table.ts` compiles and generates | tested |
+| Query builder | `select().from().leftJoin().where().groupBy()`, `insert().values()`, `eq`, `sql<T>` | unchanged for all calls in the repository | tested |
+| Generated SQL (drizzle-kit) | `"id" uuid PRIMARY KEY NOT NULL`, `foo_tag_foo_id_tag_pk`, `..._fk`, `"public"."foo"`, `ON DELETE no action` | `"id" uuid PRIMARY KEY`, `foo_tag_pkey`, `..._fkey`, `"foo"`, no `ON DELETE` clause. Primary key columns drop the explicit `NOT NULL` (implied) | tested |
+| Migration folder | `drizzle/0000_init.sql` plus `meta/_journal.json` | `drizzle/<timestamp>_init/migration.sql` and `snapshot.json`; no journal; `drizzle-kit drop` removed | tested, source |
+| Upgrade existing migrations | n/a | `drizzle-kit up` | source |
+| Cost of building one select | 15 us | 1.6 us | tested |
+| Relational queries | RQB v1 (`db.query`) | v1 removed; `defineRelations()` and `relations` on the driver (`NodePgDatabase<TRelations>`). The repository does not use them | source |
+| Other documented breaks that this repository does not hit | | `getTableColumns` is deprecated for `getColumns`; `.enableRLS()` for `pgTable.withRLS`; `.array()` is not chainable; `generatedAlwaysAs` takes `sql`; `casing` option replaced by `snakeCase`/`camelCase` helpers; validators move into `drizzle-orm/zod` etc.; `schemaFilter` default is now all schemas; `push --strict` removed | source ([v0 to v1 changes](https://orm.drizzle.team/docs/v0-v1-changes), [upgrade](https://orm.drizzle.team/docs/upgrade-v1)) |
+
+**Surprises**
+1. `params` are now left out of `DrizzleQueryError` by default. Good for logs, but anything that read `error.params` gets `undefined`.
+2. drizzle-kit 1.0 emits different constraint names (`_pkey`, `_fkey`) and a new migration folder layout, so a project moving from 0.31 gets rename statements unless it runs `drizzle-kit up` and checks the diff. Not tested.
+3. It is a release candidate: the typings and the migration format changed between beta.22 and rc.5 per the docs, and can change again.
+
+Not verified on rc.5: `paramsInErrors: true` at run time (read in source only), `drizzle-kit up` on 0.31 output, `push` and `migrate` against a database.
+
+## Checks (stable 0.45.4)
 
 | # | Check | Result | Tag |
 |---|---|---|---|
@@ -61,7 +108,7 @@ The guard is a `Proxy` around the `PoolClient` whose `query` throws once `scope.
 
 ### Q2. 23505 through Drizzle
 
-Exact shape on 0.45.4 ([drizzle-bound.test.ts](database-ports/tests/drizzle-bound.test.ts), output in [results](database-ports/results/node-26.10.0.txt)):
+Exact shape on 0.45.4 ([drizzle-bound.test.ts](database-ports/tests/drizzle-bound.test.ts), output in [results](database-ports/results/drizzle-0.45.4/node-26.10.0.txt)):
 
 ```
 class DrizzleQueryError (extends Error)
@@ -178,7 +225,7 @@ Run: `schema: "./src/domains/*/spi/*-table.ts"` with `foo` and `bar` domains ([k
 - Postgres versions other than 18.6, and any pool behavior against a real network drop (the earlier research covered a killed backend).
 - `keepAlive: true` effect on real NAT timeouts.
 - `pg` `connectionTimeoutMillis` while opening a new connection (as opposed to waiting in the queue). Read in source only.
-- Drizzle 1.0 rc.5 for everything beyond the checks in `results/drizzle-1.0.0-rc.5-node-26.10.0.txt`, plus OTel and bench. I did not run the pool tests or drizzle-kit on it; its API can still change before stable.
+- Drizzle 1.0 rc.5 for everything beyond the checks in `results/drizzle-0.45.4/rc5-partial-node-26.10.0.txt`, plus OTel and bench. I did not run the pool tests or drizzle-kit on it; its API can still change before stable.
 - Zod parse of rows. Not added.
 - `db.transaction()` misuse inside a client-bound repository is not blocked or tested.
 - Docs pages were read through a summarizing fetch; the exact numbers come from the installed source.

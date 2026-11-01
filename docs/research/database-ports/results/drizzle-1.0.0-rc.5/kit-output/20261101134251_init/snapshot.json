@@ -1,0 +1,331 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "512a9750-b664-41a2-937a-08881b8cff5b",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "bar"
+      ],
+      "writes": [
+        "s|tbl|public.bar",
+        "n|tbl|public.bar",
+        "e|tbl|public.bar",
+        "n|rel|public.bar",
+        "n|type|public.bar",
+        "n|rel|public.bar_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "foo"
+      ],
+      "writes": [
+        "s|tbl|public.foo",
+        "n|tbl|public.foo",
+        "e|tbl|public.foo",
+        "n|rel|public.foo",
+        "n|type|public.foo",
+        "n|rel|public.foo_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "foo_tag"
+      ],
+      "writes": [
+        "s|tbl|public.foo_tag",
+        "n|tbl|public.foo_tag",
+        "e|tbl|public.foo_tag",
+        "n|rel|public.foo_tag",
+        "n|type|public.foo_tag",
+        "n|rel|public.foo_tag_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "foo",
+        "foo_name_unique"
+      ],
+      "writes": [
+        "s|idx|public.foo_name_unique",
+        "n|idx|public.foo_name_unique",
+        "e|idx|public.foo_name_unique",
+        "n|rel|public.foo_name_unique"
+      ],
+      "reads": [
+        "n|tbl|public.foo",
+        "n|sch|public",
+        "n|col|public.foo.name"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "bar"
+      ],
+      "writes": [
+        "s|fk|public.bar.bar_foo_id_foo_id_fkey",
+        "n|fk|public.bar.bar_foo_id_foo_id_fkey",
+        "e|fk|public.bar.bar_foo_id_foo_id_fkey",
+        "n|con|public.bar.bar_foo_id_foo_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.bar",
+        "n|sch|public",
+        "n|tbl|public.foo",
+        "n|sch|public",
+        "n|col|public.bar.foo_id",
+        "n|col|public.foo.id",
+        "e|uniqueness|public.foo.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "foo_tag"
+      ],
+      "writes": [
+        "s|fk|public.foo_tag.foo_tag_foo_id_foo_id_fkey",
+        "n|fk|public.foo_tag.foo_tag_foo_id_foo_id_fkey",
+        "e|fk|public.foo_tag.foo_tag_foo_id_foo_id_fkey",
+        "n|con|public.foo_tag.foo_tag_foo_id_foo_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.foo_tag",
+        "n|sch|public",
+        "n|tbl|public.foo",
+        "n|sch|public",
+        "n|col|public.foo_tag.foo_id",
+        "n|col|public.foo.id",
+        "e|uniqueness|public.foo.id"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "schema": "public",
+      "name": "bar",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "foo",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "foo_tag",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "table": "bar",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "bar",
+      "name": "foo_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "bar",
+      "name": "label",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "foo",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "foo",
+      "name": "name",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "foo_tag",
+      "name": "foo_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "foo_tag",
+      "name": "tag",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "foo",
+      "name": "foo_name_unique",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "name",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "bar",
+      "name": "bar_foo_id_foo_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "foo_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "foo",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "foo_tag",
+      "name": "foo_tag_foo_id_foo_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "foo_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "foo",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "foo_tag",
+      "name": "foo_tag_pkey",
+      "columns": [
+        "foo_id",
+        "tag"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "bar",
+      "name": "bar_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "foo",
+      "name": "foo_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ]
+}
