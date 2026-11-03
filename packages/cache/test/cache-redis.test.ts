@@ -14,6 +14,11 @@ import { cacheContract } from "./cache-contract.ts";
 const cacheTestUrl = process.env.CACHE_TEST_URL;
 
 describe("cacheRedisClientCreate", () => {
+	// Load redis first so the timing tests measure the connect, not the import.
+	beforeAll(async () => {
+		await import("redis");
+	});
+
 	test.each(["memory://", "http://localhost:6379", "not a url"])(
 		"refuses %s, listing the valid schemes",
 		async (cacheUrl) => {
