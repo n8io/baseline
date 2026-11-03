@@ -1,0 +1,73 @@
+{
+	"name": "@n8io/baseline-telemetry",
+	"version": "0.0.0",
+	"description": "The OpenTelemetry preload and use-case spans every baseline app starts with.",
+	"type": "module",
+	"license": "UNLICENSED",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n8io/baseline.git",
+		"directory": "packages/telemetry"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./register": "./src/register.ts"
+	},
+	"publishConfig": {
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"./register": {
+				"types": "./dist/register.d.ts",
+				"default": "./dist/register.js"
+			}
+		},
+		"registry": "https://npm.pkg.github.com"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz && attw dist/package.tgz --profile esm-only",
+		"prepack": "tsdown",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@n8io/baseline-logger": "workspace:^",
+		"@n8io/baseline-result": "workspace:^",
+		"@opentelemetry/exporter-logs-otlp-grpc": "0.300.0",
+		"@opentelemetry/exporter-logs-otlp-http": "0.300.0",
+		"@opentelemetry/exporter-logs-otlp-proto": "0.300.0",
+		"@opentelemetry/exporter-trace-otlp-grpc": "0.300.0",
+		"@opentelemetry/exporter-trace-otlp-http": "0.300.0",
+		"@opentelemetry/exporter-trace-otlp-proto": "0.300.0",
+		"@opentelemetry/instrumentation": "0.300.0",
+		"@opentelemetry/instrumentation-http": "0.300.0",
+		"@opentelemetry/instrumentation-pg": "0.77.0",
+		"@opentelemetry/instrumentation-pino": "0.70.0",
+		"@opentelemetry/instrumentation-redis": "0.72.0",
+		"@opentelemetry/instrumentation-runtime-node": "0.37.0",
+		"@opentelemetry/instrumentation-undici": "0.34.0",
+		"@opentelemetry/sdk-logs": "3.0.0",
+		"@opentelemetry/sdk-node": "0.300.0",
+		"@opentelemetry/sdk-trace": "3.0.0"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.5",
+		"@opentelemetry/api": "^1.10.0",
+		"@opentelemetry/context-async-hooks": "3.0.0",
+		"@opentelemetry/sdk-metrics": "3.0.0",
+		"@types/node": "^26.6.6",
+		"publint": "^0.3.25",
+		"tsdown": "0.23.4"
+	},
+	"peerDependencies": {
+		"@opentelemetry/api": "^1.10.0"
+	}
+}
