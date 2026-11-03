@@ -1,5 +1,7 @@
+import { ok } from "@n8io/baseline-result";
 import type pg from "pg";
 import type { PgBoss } from "pg-boss";
+import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 
 // Which consumer handled which event. The use case's transaction port inserts it beside its rows.
@@ -33,11 +35,16 @@ export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
 		missed: "once",
 		tz: "UTC",
 	});
-	await boss.work(queueInboxPruneName, async () => {
-		await boss
-			.getDb()
-			.executeSql(
-				"DELETE FROM queue.inbox WHERE created_at < now() - interval '30 days'",
-			);
+	await boss.work(queueInboxPruneName, async (jobs) => {
+		for (const job of jobs) {
+			await queueJobRun(queueInboxPruneName, job, async () => {
+				await boss
+					.getDb()
+					.executeSql(
+						"DELETE FROM queue.inbox WHERE created_at < now() - interval '30 days'",
+					);
+				return ok(undefined);
+			});
+		}
 	});
 };

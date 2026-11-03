@@ -5,33 +5,28 @@ export type QueueEvents<M> = {
 	publish<K extends keyof M & string>(name: K, data: M[K]): Promise<void>;
 };
 
-// pg-boss sends to every subscribed queue at once; one client runs one query at a time, so the
-// calls are chained rather than queued inside pg (which warns, and pg 9 removes).
-const clientSerialized = (
-	pgClient: pg.PoolClient,
-): {
-	executeSql: (text: string, values?: unknown[]) => Promise<pg.QueryResult>;
-} => {
-	let tail: Promise<unknown> = Promise.resolve();
-	return {
-		executeSql: (text, values) => {
-			const run = tail.then(() => pgClient.query(text, values));
-			tail = run.catch(() => undefined);
-			return run;
-		},
-	};
-};
-
 // Publishes on the transaction's client, so each job commits or rolls back with the rows (outbox).
+// pg-boss's own publish() reads the subscriptions through the pool, which would hold a second
+// connection per transaction; here they are read on the transaction's client, and each subscribed
+// queue gets its job one send at a time (one client runs one query at a time).
 export const queueEventsPgBoss = <M extends Record<string, unknown>>(
 	queue: Queue,
 	pgClient: pg.PoolClient,
 ): QueueEvents<M> => {
 	const boss = queueBoss(queue);
-	const db = clientSerialized(pgClient);
+	const db = {
+		executeSql: (text: string, values?: unknown[]): Promise<pg.QueryResult> =>
+			pgClient.query(text, values),
+	};
 	return {
 		publish: async (name, data) => {
-			await boss.publish(name, data as object, { db });
+			const subscribed = await pgClient.query<{ name: string }>(
+				"SELECT name FROM queue.subscription WHERE event = $1 ORDER BY name",
+				[name],
+			);
+			for (const { name: queueName } of subscribed.rows) {
+				await boss.send(queueName, data as object, { db });
+			}
 		},
 	};
 };

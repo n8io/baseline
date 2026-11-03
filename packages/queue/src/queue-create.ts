@@ -52,6 +52,16 @@ export const queueCreate = async (options: {
 		logger.warn({ queueWarning: warning.data }, warning.message);
 	});
 	await boss.start();
+	try {
+		return await queueStarted(boss, worker);
+	} catch (error) {
+		// A half-started worker would keep polling the pool with nothing left to stop it.
+		await boss.stop({ graceful: false });
+		throw error;
+	}
+};
+
+const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 	const startedAt = Date.now();
 	const queue: Queue = {
 		isAlive: () => {

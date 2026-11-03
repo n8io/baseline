@@ -16,6 +16,31 @@ const queueUrlAssert = (databaseUrl: string): void => {
 	);
 };
 
+// Waits for pg-boss's background index builds (bam) to finish. A build that failed, in this run or
+// an earlier one, is retried by the next migrate run; the schema version is already current, so it
+// only costs speed, and boot goes on with a warning.
+const queueMigrateIndexesWait = async (boss: PgBoss): Promise<void> => {
+	// The first bam poll starts on the next turn of the event loop after start().
+	await setTimeout(100);
+	for (;;) {
+		const status = await boss.getBamStatus();
+		const busy = status.some((row) =>
+			["pending", "in_progress"].includes(row.status),
+		);
+		if (!busy && !boss.isBamWorking()) {
+			const failed = status.find((row) => row.status === "failed");
+			if (failed) {
+				logger.warn(
+					{ queueIndexBuildsFailed: failed.count },
+					"Queue index builds failed; the next migrate retries them",
+				);
+			}
+			return;
+		}
+		await setTimeout(1_000);
+	}
+};
+
 // Installs or upgrades pg-boss in schema `queue`, waits for its background index builds, deletes
 // the queues of consumers removed in an earlier release, and creates queue.inbox. Runs from the
 // migrate entry, before any server or worker starts with `migrate: false`.
@@ -37,22 +62,9 @@ export const queueMigrate = async (options: {
 	boss.on("error", (error) => {
 		logger.error({ err: error }, "Queue migrate error");
 	});
-	await boss.start();
 	try {
-		for (;;) {
-			const status = await boss.getBamStatus();
-			const failed = status.find((row) => row.status === "failed");
-			if (failed) {
-				throw new Error(`pg-boss migration failed: ${failed.count} command(s)`);
-			}
-			if (
-				!boss.isBamWorking() &&
-				!status.some((row) => ["pending", "in_progress"].includes(row.status))
-			) {
-				break;
-			}
-			await setTimeout(1_000);
-		}
+		await boss.start();
+		await queueMigrateIndexesWait(boss);
 		for (const name of options.queuesRemoved ?? []) {
 			await boss.deleteQueue(name);
 			await boss.deleteQueue(`${name}.dead`);
