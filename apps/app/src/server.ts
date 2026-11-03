@@ -103,6 +103,7 @@ export default await createHonoServer({
 	defaultLogger: false,
 	getLoadContext: (c) =>
 		loadContextCreate(c, {
+			fooUseCases,
 			// domain-create: context
 		}),
 	listeningListener: ({ port }) => logger.info({ port }, "Server listening"),
