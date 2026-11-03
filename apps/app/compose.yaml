@@ -1,0 +1,71 @@
+# Local services: `docker compose up -d` for Postgres and Redis.
+# `--profile telemetry` adds a local trace and log viewer (Grafana on http://localhost:3001).
+# `--profile image` runs the production image's server and worker against these services.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: baseline
+      POSTGRES_PASSWORD: baseline
+      POSTGRES_USER: baseline
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baseline"]
+      interval: 2s
+      retries: 15
+
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 15
+
+  otel:
+    image: grafana/otel-lgtm
+    profiles: [telemetry]
+    ports:
+      - "3001:3000"
+      - "4317:4317"
+      - "4318:4318"
+
+  server:
+    build: .
+    profiles: [image]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment: &image-env
+      APP_ENV: test
+      DATABASE_URL: postgres://baseline:baseline@postgres:5432/baseline
+      CACHE_URL: redis://redis:6379
+      OTEL_SERVICE_NAME: app-server
+    ports:
+      - "3000:3000"
+      - "9000:9000"
+    # The shutdown deadline is 25 s; Docker's default 10 s would cut it off.
+    stop_grace_period: 30s
+
+  worker:
+    build: .
+    profiles: [image]
+    command:
+      [
+        "node",
+        "--import",
+        "varlock/auto-load",
+        "--import",
+        "@n8io/baseline-telemetry/register",
+        "--experimental-loader=@opentelemetry/instrumentation/hook.mjs",
+        "src/worker.ts",
+      ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    environment:
+      <<: *image-env
+      OTEL_SERVICE_NAME: app-worker
+    stop_grace_period: 30s

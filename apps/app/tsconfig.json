@@ -1,0 +1,23 @@
+{
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"erasableSyntaxOnly": true,
+		"exactOptionalPropertyTypes": true,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"noEmit": true,
+		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": true,
+		"rootDirs": [".", "./.react-router/types"],
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "esnext",
+		"types": ["node", "vite/client"],
+		"verbatimModuleSyntax": true
+	},
+	"files": ["src/env.d.ts"],
+	"include": ["*.ts", "src", "test", ".react-router/types/**/*"]
+}
