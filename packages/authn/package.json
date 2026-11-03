@@ -45,6 +45,8 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
+		"@hono/zod-openapi": "^1.6.3",
+		"@n8io/baseline-http": "workspace:^",
 		"@opentelemetry/api": "^1.10.0",
 		"@types/node": "^26.6.6",
 		"hono": "^4.13.16",

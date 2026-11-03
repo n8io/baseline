@@ -139,8 +139,11 @@ const tokensRefresh = async (
 			refreshToken: tokens.refresh_token ?? refreshToken,
 		};
 	} catch (error) {
-		if (!isProviderRefusal(error)) throw error;
-		return undefined;
+		// Only the provider saying no (`invalid_grant` and other 4xx answers) signs the user out;
+		// an outage or a 5xx throws, so a provider hiccup never signs everyone out.
+		if (error instanceof ResponseBodyError && error.status < 500)
+			return undefined;
+		throw error;
 	}
 };
 
