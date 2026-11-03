@@ -1,0 +1,7 @@
+// A3: api/ imports the domain index.ts, models/ and use-cases/ types, never spi/
+// expect: src/domains/bar/api/bar-routes.ts imports ../spi/index.ts: api/ never imports spi/
+// @file src/domains/bar/api/bar-routes.ts
+import { barUseCasesCreate } from "../index.ts";
+import { barPortsCreate } from "../spi/index.ts";
+
+export const barRoutes = () => barUseCasesCreate(barPortsCreate());

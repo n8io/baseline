@@ -1,0 +1,6 @@
+// A5: outside a domain, code imports only its index.ts, api/index.ts and spi/index.ts
+// expect: src/server.ts imports #domains/bar/use-cases/bar-get.ts: outside a domain, import only src/domains/bar/index.ts
+// @file src/server.ts
+import { barGet } from "#domains/bar/use-cases/bar-get.ts";
+
+export const get = barGet;

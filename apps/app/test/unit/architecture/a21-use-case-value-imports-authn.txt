@@ -1,0 +1,6 @@
+// A21: business code imports only result and id at runtime, plus type-only Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/
+// expect: src/domains/bar/use-cases/bar-get.ts imports @n8io/baseline-authn: business code imports only @n8io/baseline-result and @n8io/baseline-id
+// @file src/domains/bar/use-cases/bar-get.ts
+import { authnActorRequire } from "@n8io/baseline-authn";
+
+export const barGet = authnActorRequire;

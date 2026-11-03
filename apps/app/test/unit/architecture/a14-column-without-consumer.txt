@@ -1,0 +1,11 @@
+// A14: a column named <other domain>_id requires an api/*-consumer.ts consuming "<other domain>.deleted"
+// expect: src/domains/bar/spi/bar-table.ts: a baz_id column needs src/domains/bar/api/bar-baz-deleted-consumer.ts consuming "baz.deleted"
+// @file src/domains/bar/spi/bar-table.ts
+import { pgSchema, text } from "drizzle-orm/pg-core";
+
+export const barSchema = pgSchema("bar");
+export const bar = barSchema.table("bar", { bazId: text("baz_id").notNull() });
+// @file src/domains/bar/api/bar-baz-created-consumer.ts
+export const barBazCreatedConsumer = "baz.created";
+// @file src/domains/baz/index.ts
+export const bazScopes = [];

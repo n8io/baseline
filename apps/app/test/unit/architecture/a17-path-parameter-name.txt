@@ -1,0 +1,6 @@
+// A17: path parameter names in api/*-routes.ts, api/*-live.ts and src/ui/routes.ts end in Id
+// expect: src/domains/bar/api/bar-routes.ts: path parameter bar in "/:bar" must end in Id
+// @file src/domains/bar/api/bar-routes.ts
+import { httpRouterCreate } from "@n8io/baseline-http";
+
+export const barRoutes = () => httpRouterCreate().get("/:bar", (c) => c.json({}));

@@ -1,0 +1,6 @@
+// A6: no domain imports another domain, except api/*-consumer.ts importing event schemas from its index.ts
+// expect: src/domains/bar/use-cases/bar-get.ts imports ../../baz/index.ts: domains never import each other
+// @file src/domains/bar/use-cases/bar-get.ts
+import { bazGet } from "../../baz/index.ts";
+
+export const barGet = bazGet;
