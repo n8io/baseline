@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import {
 	type DomainNames,
+	filesRead,
 	fooBlocksFind,
 	fooPathRename,
 	fooRename,
@@ -20,7 +21,6 @@ import {
 	type TemplateFile,
 	templateFetch,
 	templateJsonRead,
-	templateWorkingTree,
 	zeroDomainEditsApply,
 } from "./template-render.ts";
 
@@ -132,12 +132,19 @@ export const domainFilesCreate = (
 		readdirSync(domains, { withFileTypes: true }).every(
 			(d) => !d.isDirectory(),
 		);
+	const copied = (path: string) =>
+		copiedPaths.some((p) => p.test(path)) ||
+		(firstDomain && path === "src/ui/routes/home.tsx");
+	// Checked before anything is built, so a refusal writes nothing.
+	for (const file of template.filter((f) => copied(f.path))) {
+		const path = fooPathRename(file.path, names);
+		if (existsSync(join(appDirectory, path))) {
+			throw new Error(`${path} already exists; move it aside first`);
+		}
+	}
 	const files: TemplateFile[] = [];
 	for (const file of template) {
-		const copied =
-			copiedPaths.some((p) => p.test(file.path)) ||
-			(firstDomain && file.path === "src/ui/routes/home.tsx");
-		if (copied) {
+		if (copied(file.path)) {
 			files.push({
 				path: fooPathRename(file.path, names),
 				text: fooRename(file.text, names, file.path),
@@ -183,7 +190,7 @@ const main = () => {
 		process.exit(1);
 	}
 	const template = monorepoAppIs(appDirectory)
-		? templateWorkingTree(appDirectory)
+		? filesRead(appDirectory)
 		: templateFetch(templateJsonRead(appDirectory).release);
 	let files: TemplateFile[];
 	try {
@@ -207,7 +214,7 @@ const main = () => {
 			},
 		);
 		for (const script of ["check", "test"]) {
-			execStep(appDirectory, script);
+			run("pnpm", ["run", script], { cwd: appDirectory, inherit: true });
 		}
 	} catch {
 		console.error(
@@ -218,10 +225,6 @@ const main = () => {
 	console.log(
 		`Done. Edit the ${kebab} model, delete what it does not need, then run pnpm codegen for its migration.`,
 	);
-};
-
-const execStep = (cwd: string, script: string) => {
-	run("pnpm", ["run", script], { cwd, inherit: true });
 };
 
 if (import.meta.main) main();

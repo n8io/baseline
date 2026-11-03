@@ -61,13 +61,17 @@ export const fooLineIs = (line: string): boolean => {
 
 type Mode = "code" | "string" | "comment";
 
-const regexCanStart = /[(,=:[!&|?{};+\-*%<>~^]/;
+const codeFileIs = (path: string): boolean => /\.(ts|tsx|js|mjs)$/.test(path);
+
+const regexCanStart = /[(,=:[!&|?{};+\-*%~^]/;
+const regexKeywords =
+	/\b(return|typeof|case|do|else|in|of|void|yield|await|throw)\s*$/;
 
 // A small lexer: the mode of every character, so renames and bracket counts can tell
 // code from strings and comments. JSX text reads as code; fooProseIs handles it.
 export const modesRead = (text: string, path: string): Mode[] => {
 	const modes: Mode[] = new Array(text.length);
-	if (!/\.(ts|tsx|js|mjs)$/.test(path)) return modes.fill("comment");
+	if (!codeFileIs(path)) return modes.fill("comment");
 	const templateDepths: number[] = [];
 	let braceDepth = 0;
 	let i = 0;
@@ -110,7 +114,12 @@ export const modesRead = (text: string, path: string): Mode[] => {
 			mark(i, to, "string");
 			i = to;
 			previous = c;
-		} else if (c === "/" && (previous === "" || regexCanStart.test(previous))) {
+		} else if (
+			c === "/" &&
+			(previous === "" ||
+				regexCanStart.test(previous) ||
+				regexKeywords.test(text.slice(Math.max(0, i - 12), i)))
+		) {
 			let k = i + 1;
 			let inClass = false;
 			while (k < text.length && text[k] !== "\n") {
@@ -120,8 +129,8 @@ export const modesRead = (text: string, path: string): Mode[] => {
 				else if (text[k] === "/" && !inClass) break;
 				k++;
 			}
-			mark(i, k + 1, "string");
-			i = k + 1;
+			mark(i, text[k] === "\n" ? k : k + 1, "string");
+			i = text[k] === "\n" ? k : k + 1;
 			previous = "/";
 		} else if (
 			c === "`" ||
@@ -240,7 +249,7 @@ export const fooRename = (
 	path: string,
 ): string => {
 	const modes = modesRead(text, path);
-	const renamed = text.replace(
+	return text.replace(
 		fooPattern,
 		(token: string, base: string, s: string, start: number) =>
 			spell(
@@ -250,11 +259,6 @@ export const fooRename = (
 				s === "s",
 			),
 	);
-	// "a foo" becomes "an invoice line" when the name starts with a vowel sound.
-	const words = names.kebab.replaceAll("-", " ");
-	return /^[aeiou]/.test(words)
-		? renamed.replace(new RegExp(`\\b([Aa]) (${words})\\b`, "gi"), "$1n $2")
-		: renamed;
 };
 
 export const fooPathRename = (path: string, names: DomainNames): string =>
@@ -264,8 +268,6 @@ export const fooPathRename = (path: string, names: DomainNames): string =>
 
 // ---------------------------------------------------------------------------
 // Foo blocks: the whole statement a foo line belongs to
-
-const codeFileIs = (path: string): boolean => /\.(ts|tsx|js|mjs)$/.test(path);
 
 // Per line: bracket change, lowest point, and whether its line break sits inside a string.
 const lineDepths = (
@@ -319,6 +321,11 @@ export const fooBlocksFind = (
 		let end = i;
 		if (code) {
 			for (;;) {
+				if (start < 0 || end >= lines.length) {
+					throw new Error(
+						`${path}:${i + 1}: cannot find the statement around this foo line`,
+					);
+				}
 				const { depth, low } = balance(start, end);
 				const before = start - 1;
 				if (
@@ -345,18 +352,20 @@ export const fooBlocksFind = (
 		} else if (/(^|\/)\.env\./.test(path)) {
 			while (/^# @/.test(lines[start - 1] ?? "")) start--;
 		}
-		const last = blocks.at(-1);
-		if (last !== undefined && start <= last[1] + 1 && start >= last[0]) {
-			last[1] = Math.max(last[1], end);
-		} else if (last !== undefined && start < last[0]) {
-			last[0] = start;
-			last[1] = Math.max(last[1], end);
-		} else {
-			blocks.push([start, end]);
-		}
+		blocks.push([start, end]);
 		i = Math.max(i, end);
 	}
-	return blocks;
+	// A later line's statement can reach back over earlier blocks: join overlapping and adjacent ones.
+	const joined: [number, number][] = [];
+	for (const [start, end] of blocks.sort((a, b) => a[0] - b[0])) {
+		const last = joined.at(-1);
+		if (last !== undefined && start <= last[1] + 1) {
+			last[1] = Math.max(last[1], end);
+		} else {
+			joined.push([start, end]);
+		}
+	}
+	return joined;
 };
 
 export const linesRemove = (
@@ -375,7 +384,7 @@ export const linesRemove = (
 // Rendering without foo
 
 // Files and folders that are foo's alone, deleted whole.
-export const templateFooPaths = [
+const templateFooPaths = [
 	/^src\/domains\/foo\//,
 	/^src\/ui\/routes\/foo-[^/]+\.tsx$/,
 	/^src\/ui\/routes\/home\.tsx$/,
@@ -386,11 +395,7 @@ export const templateFooPaths = [
 ];
 
 // Never rendered: the scripts and their tests name foo on purpose, and the changelog is the template's own.
-const templateUntouchedPaths = [
-	/^scripts\//,
-	/^test\/unit\/scripts\//,
-	/^CHANGELOG\.md$/,
-];
+const templateUntouchedPaths = [/^scripts\//, /^test\/unit\/scripts\//];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines that are valid only while a domain exists. The render swaps `domains` for `none`
@@ -607,6 +612,8 @@ export const templateFileRender = (
 	if (path === "package.json") {
 		const manifest = JSON.parse(text) as Record<string, unknown>;
 		manifest.name = answers.name;
+		// The version is the project's own, never the template's.
+		delete manifest.version;
 		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
 	}
 	if (!fooLineIs(text)) return file;
@@ -689,7 +696,7 @@ export const templateFinish = (
 // ---------------------------------------------------------------------------
 // Fetching a release
 
-export const releaseTag = (version: string): string => `app@${version}`;
+const releaseTag = (version: string): string => `app@${version}`;
 
 export const releaseLatest = (repository = templateRepository): string => {
 	const tags = run("git", [
@@ -773,12 +780,6 @@ export const templateFetch = (
 	}
 };
 
-// The working tree of this monorepo's apps/app, for domain-create here. Its package.json still
-// says workspace:^, which only matters for a render, never for domain-create.
-export const templateWorkingTree = (appDirectory: string): TemplateFile[] =>
-	filesRead(appDirectory);
-
-// True for apps/app inside the baseline monorepo, where the working tree is the template.
 export const monorepoAppIs = (appDirectory: string): boolean =>
 	existsSync(join(appDirectory, "../../packages/result/package.json")) &&
 	!existsSync(join(appDirectory, ".template.json"));

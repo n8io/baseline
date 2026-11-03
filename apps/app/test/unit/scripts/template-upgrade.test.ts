@@ -68,12 +68,12 @@ const projectCreate = (a: string): string => {
 };
 
 describe("templateUpgradeRun", () => {
-	it("merges the template's change into the project's own edits, without committing", () => {
+	it("merges the template's change into the project's own edits, without committing", async () => {
 		const app = projectCreate("ONE\ntwo\nthree\nfour\nfive\n");
 		const pnpm = vi.fn();
 		const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		expect(templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(0);
+		expect(await templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(0);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toBe(
 			"ONE\ntwo\nthree\n4\nfive\n",
 		);
@@ -92,13 +92,13 @@ describe("templateUpgradeRun", () => {
 		expect(log.mock.calls.flat().join("\n")).toContain("- Four is 4.");
 	});
 
-	it("leaves conflict markers and exits 1 when both sides changed the same line", () => {
+	it("leaves conflict markers and exits 1 when both sides changed the same line", async () => {
 		const app = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
 		const pnpm = vi.fn();
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		expect(templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(1);
+		expect(await templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(1);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toMatch(
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
@@ -108,12 +108,31 @@ describe("templateUpgradeRun", () => {
 		expect(pnpm).not.toHaveBeenCalled();
 	});
 
-	it("refuses a dirty working tree", () => {
+	it("renders a release with that release's own render code", async () => {
+		const app = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		vi.spyOn(console, "log").mockImplementation(() => {});
+		const own = {
+			path: "scripts/template-render.ts",
+			text: 'export const templateFilesRender = (files) => [...files.filter((f) => f.path !== "scripts/template-render.ts"), { path: "src/own.ts", text: "own\\n" }];\n',
+		};
+		const withOwn: UpgradeTools = {
+			...tools,
+			fetch: (version) =>
+				version === "1.2.0"
+					? [...(releases["1.0.0"] ?? []), own]
+					: tools.fetch(version),
+		};
+
+		expect(await templateUpgradeRun(app, "1.2.0", withOwn, vi.fn())).toBe(0);
+		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("own\n");
+	});
+
+	it("refuses a dirty working tree", async () => {
 		const app = projectCreate("one\ntwo\nthree\nfour\nfive\n");
 		writeFileSync(join(app, "src/a.ts"), "dirty\n");
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		expect(templateUpgradeRun(app, "1.1.0", tools, vi.fn())).toBe(1);
+		expect(await templateUpgradeRun(app, "1.1.0", tools, vi.fn())).toBe(1);
 		expect(error.mock.calls.flat().join("\n")).toContain(
 			"working tree has changes",
 		);

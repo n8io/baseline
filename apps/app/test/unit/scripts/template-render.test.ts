@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+	filesRead,
 	fooBlocksFind,
 	fooLineIs,
 	fooPathRename,
@@ -8,7 +9,6 @@ import {
 	linesRemove,
 	templateFileRender,
 	templateFilesRender,
-	templateWorkingTree,
 	templateZeroDomainEdits,
 	zeroDomainEditsApply,
 } from "../../../scripts/template-render.ts";
@@ -44,7 +44,7 @@ describe("fooRename", () => {
 		]);
 	});
 
-	it("reads JSX text as UI copy and fixes the article", () => {
+	it("reads JSX text as UI copy", () => {
 		const source = [
 			"<h1>Foos</h1>",
 			"<CardTitle>New foo</CardTitle>",
@@ -61,7 +61,7 @@ describe("fooRename", () => {
 				"\t\t\t\tBack to invoice lines",
 				"<p>Delete this invoice line?</p>",
 				"{invoiceLine.name} {items.map((invoiceLine) => invoiceLine.id)}",
-				'"An invoice line named it already exists"',
+				'"A invoice line named it already exists"',
 			],
 		);
 	});
@@ -109,6 +109,30 @@ describe("fooBlocksFind", () => {
 			[9, 9],
 			[12, 15],
 		]);
+	});
+
+	it("reads regexes and JSX closing tags without miscounting brackets", () => {
+		const text = [
+			"const fooOpen = (s: string) => {", // 0
+			"\treturn /\\(foo/.test(s);",
+			"};",
+			"<nav>", // 3
+			'\t<Link to="/bars">Bars</Link>',
+			'\t<Link to="/foos">Foos</Link>',
+			'\t<Link to="/bazs">Bazs</Link>',
+			"</nav>",
+		].join("\n");
+
+		expect(fooBlocksFind(text, "src/ui/root.tsx")).toEqual([
+			[0, 2],
+			[5, 5],
+		]);
+	});
+
+	it("stops with the file and line when a statement never closes", () => {
+		expect(() =>
+			fooBlocksFind("const foo = trace(\n\tbar,", "src/x.ts"),
+		).toThrow("src/x.ts:1: cannot find the statement");
 	});
 
 	it("takes an env item's decorator lines with it", () => {
@@ -160,7 +184,10 @@ describe("templateFileRender", () => {
 			answers,
 		);
 		const manifest = templateFileRender(
-			{ path: "package.json", text: '{ "name": "app", "private": true }' },
+			{
+				path: "package.json",
+				text: '{ "name": "app", "version": "1.4.0", "private": true }',
+			},
 			answers,
 		);
 
@@ -173,7 +200,7 @@ describe("templateFileRender", () => {
 });
 
 describe.runIf(template)("the template's own files", () => {
-	const files = template ? templateWorkingTree(appRoot.pathname) : [];
+	const files = template ? filesRead(appRoot.pathname) : [];
 
 	it("render with no foo left outside the scripts", () => {
 		const rendered = templateFilesRender(files, answers);

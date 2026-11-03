@@ -4,6 +4,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import {
 	filesWrite,
@@ -85,10 +86,13 @@ export const templateMerge = (
 	);
 	try {
 		run("git", ["cherry-pick", "--no-commit", next], { cwd: repository });
-	} catch {
-		// A conflict exits non-zero; the unmerged paths say so.
+	} catch (error) {
+		// A conflict exits non-zero and leaves unmerged paths; anything else is a real failure.
+		const conflicts = conflictsRead(repository);
+		if (conflicts.length === 0) throw error;
+		return { conflicts };
 	}
-	return { conflicts: conflictsRead(repository) };
+	return { conflicts: [] };
 };
 
 // The `## <version>` sections of the app's changelog after `from`, up to and including `to`.
@@ -116,11 +120,32 @@ export const changelogBetween = (
 		.trim();
 };
 
-export const templateUpgrade = (
+// Renders a release with that release's own render code, so a project's older scripts never
+// misread a newer template. Releases without scripts/ use this file's.
+const releaseRender = async (
+	files: TemplateFile[],
+	answers: TemplateAnswers,
+): Promise<TemplateFile[]> => {
+	const own = files.find((f) => f.path === "scripts/template-render.ts");
+	if (own === undefined) return templateFilesRender(files, answers);
+	const work = mkdtempSync(join(tmpdir(), "template-render-code-"));
+	try {
+		const path = join(work, "template-render.ts");
+		writeFileSync(path, own.text);
+		const module = (await import(pathToFileURL(path).href)) as {
+			templateFilesRender: typeof templateFilesRender;
+		};
+		return module.templateFilesRender(files, answers);
+	} finally {
+		rmSync(work, { force: true, recursive: true });
+	}
+};
+
+export const templateUpgrade = async (
 	appDirectory: string,
 	to: string,
 	tools: UpgradeTools,
-): { conflicts: string[]; changelog: string } => {
+): Promise<{ conflicts: string[]; changelog: string }> => {
 	const status = run("git", ["status", "--porcelain"], { cwd: appDirectory });
 	if (status.trim() !== "") {
 		throw new Error("the working tree has changes; commit or stash them first");
@@ -131,8 +156,8 @@ export const templateUpgrade = (
 	const toFiles = tools.fetch(to);
 	const { conflicts } = templateMerge(
 		appDirectory,
-		templateFilesRender(fromFiles, answers),
-		templateFilesRender(toFiles, answers),
+		await releaseRender(fromFiles, answers),
+		await releaseRender(toFiles, answers),
 		tools,
 		{ from: template.release, to },
 	);
@@ -148,15 +173,15 @@ export const templateUpgrade = (
 };
 
 // The CLI's steps after parsing; returns the exit code.
-export const templateUpgradeRun = (
+export const templateUpgradeRun = async (
 	appDirectory: string,
 	to: string,
 	tools: UpgradeTools,
 	pnpm: (script: string) => void,
-): number => {
+): Promise<number> => {
 	let result: { conflicts: string[]; changelog: string };
 	try {
-		result = templateUpgrade(appDirectory, to, tools);
+		result = await templateUpgrade(appDirectory, to, tools);
 	} catch (error) {
 		console.error(`template-upgrade: ${(error as Error).message}`);
 		return 1;
@@ -182,10 +207,10 @@ export const templateUpgradeRun = (
 	return 0;
 };
 
-const main = () => {
+const main = async () => {
 	const { values } = parseArgs({ options: { to: { type: "string" } } });
 	const appDirectory = process.cwd();
-	process.exitCode = templateUpgradeRun(
+	process.exitCode = await templateUpgradeRun(
 		appDirectory,
 		values.to ?? releaseLatest(),
 		{
@@ -198,4 +223,4 @@ const main = () => {
 	);
 };
 
-if (import.meta.main) main();
+if (import.meta.main) await main();

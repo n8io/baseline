@@ -30,23 +30,24 @@ When a budget trips, decide again deliberately: make the code faster or set a ne
 
 ## Where new work goes
 
-One Domain per business entity. Copy the `foo` Domain in `src/domains/foo/`.
+One Domain per business entity.
+Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 
-| Kind of work                                                                   | File                      |
-| ------------------------------------------------------------------------------ | ------------------------- |
-| Use cases (types and factory), Port types, Event schemas, scopes, input Models | `index.ts`                |
-| Port declarations                                                              | `ports.ts`                |
-| Domain errors                                                                  | `foo-errors.ts`           |
-| Models (Zod schema and inferred type)                                          | `models/foo.ts`           |
-| Rules (pure functions over Models, one per file, with a test)                  | `rules/foo-deletable.ts`  |
-| One Use case per file, with a test on memory adapters                          | `use-cases/foo-create.ts` |
-| HTTP routes, live streams, Consumers, Schedules, Seeds                         | `api/`                    |
-| Port implementations, tables, contract tests                                   | `spi/`                    |
+| Kind of work                                                                   | File                           |
+| ------------------------------------------------------------------------------ | ------------------------------ |
+| Use cases (types and factory), Port types, Event schemas, scopes, input Models | `index.ts`                     |
+| Port declarations                                                              | `ports.ts`                     |
+| Domain errors                                                                  | `<domain>-errors.ts`           |
+| Models (Zod schema and inferred type)                                          | `models/<domain>.ts`           |
+| Rules (pure functions over Models, one per file, with a test)                  | `rules/<domain>-<rule>.ts`     |
+| One Use case per file, with a test on memory adapters                          | `use-cases/<domain>-create.ts` |
+| HTTP routes, live streams, Consumers, Schedules, Seeds                         | `api/`                         |
+| Port implementations, tables, contract tests                                   | `spi/`                         |
 
 - Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
 - The Domain never imports `api/` or `spi/`. Composition roots wire them.
 - A Use case applies Rules. The API and the SPI hold no business rules.
-- Name things generic to specific: entity first (`fooCreate`), then the action. `Error` and `Repository` come last.
+- Name things generic to specific: entity first (`invoiceCreate`), then the action. `Error` and `Repository` come last.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 
@@ -112,7 +113,7 @@ export const billingOrderPlacedConsumer = (u: BillingUseCases) =>
 - Delivery is at least once. The Use case takes `inbox` as its last argument and passes it to its transaction port: `billingTransaction(work, inbox)`.
 - The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
 - Such a Use case returns `Result<void, E>`.
-- Publish an Event only inside the Use case's transaction, through `fooEvents`.
+- Publish an Event only inside the Use case's transaction, through the domain's `<domain>Events` port.
 - A Domain whose ids other Domains hold publishes `<entity>.deleted`. Each Domain holding that id consumes it and decides what to do with its rows.
 
 ### Bridge

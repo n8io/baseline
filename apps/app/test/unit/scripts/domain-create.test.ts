@@ -1,4 +1,10 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,7 +14,7 @@ import {
 	domainTerm,
 	wiringInsert,
 } from "../../../scripts/domain-create.ts";
-import { templateWorkingTree } from "../../../scripts/template-render.ts";
+import { filesRead } from "../../../scripts/template-render.ts";
 
 const appRoot = new URL("../../../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
@@ -96,13 +102,19 @@ describe("wiringInsert", () => {
 
 describe.runIf(template)("domainFilesCreate on the template", () => {
 	const files = template
-		? domainFilesCreate(
-				templateWorkingTree(appRoot.pathname),
-				appRoot.pathname,
-				names,
-			)
+		? domainFilesCreate(filesRead(appRoot.pathname), appRoot.pathname, names)
 		: [];
 	const file = (path: string) => files.find((f) => f.path === path)?.text ?? "";
+
+	it("refuses to overwrite a file the project already has", () => {
+		const app = appCreate("**Bar**:\nA thing.\n");
+		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
+		writeFileSync(join(app, "src/ui/routes/invoice-line-list.tsx"), "mine\n");
+
+		expect(() =>
+			domainFilesCreate(filesRead(appRoot.pathname), app, names),
+		).toThrow("src/ui/routes/invoice-line-list.tsx already exists");
+	});
 
 	it("copies the foo domain and both pages, renamed", () => {
 		const paths = files.map((f) => f.path);
