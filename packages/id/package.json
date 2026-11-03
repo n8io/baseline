@@ -28,7 +28,7 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"check": "tsc --noEmit && publint && pnpm pack --out dist/package.tgz && attw dist/package.tgz --profile esm-only",
+		"check": "biome check . && tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz && attw dist/package.tgz --profile esm-only",
 		"prepack": "tsdown",
 		"test": "vitest run"
 	},
@@ -43,8 +43,5 @@
 		"typescript": "^7.0.2",
 		"vitest": "^5.0.5",
 		"zod": "^4.6.7"
-	},
-	"tsdown": {
-		"fixedExtension": false
 	}
 }

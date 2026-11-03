@@ -1,5 +1,11 @@
 import { describe, expect, test, vi } from "vitest";
-import { type Id, idCreate, idFromUuid, idSchema, idToUuid } from "./index.ts";
+import {
+	type Id,
+	idCreate,
+	idFromUuid,
+	idSchema,
+	idToUuid,
+} from "../src/index.ts";
 
 // Vectors from the TypeID spec's valid.yml, with a `foo` prefix where the spec has none.
 const vectors: [Id<string>, string][] = [
