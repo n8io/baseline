@@ -3,30 +3,13 @@ import { queueEventsMemory } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
+import { fooPortsGuard } from "./foo-ports-guard.ts";
 import {
 	type FooMemoryState,
 	fooRepositoryMemory,
 } from "./foo-repository.memory.ts";
 
 export type FooPublished = { name: keyof FooEventMap; data: unknown };
-
-// Ports that throw once their transaction has ended, like the Postgres client guard.
-const fooPortsGuard = <T extends object>(ports: T, isOpen: () => boolean): T =>
-	Object.fromEntries(
-		Object.entries(ports).map(([key, value]) => [
-			key,
-			typeof value === "function"
-				? async (...args: unknown[]) => {
-						if (!isOpen()) {
-							throw new Error(
-								"Foo transaction ports used after the transaction ended; keep every call inside the callback",
-							);
-						}
-						return value(...args);
-					}
-				: value,
-		]),
-	) as T;
 
 // Runs the work on a copy of the committed foos and swaps it in on ok; drops it on err or a
 // throw. One transaction at a time. Events reach `published` only on commit; an inbox seen
