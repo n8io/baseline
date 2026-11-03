@@ -28,18 +28,25 @@ export type DomainNames = { kebab: string; plural: string };
 
 export const templateRepository = "n8io/baseline";
 
+// Runs a command and returns its stdout; `inherit` shows its output instead.
 export const run = (
 	command: string,
 	args: string[],
-	options: { cwd?: string; input?: string } = {},
+	options: {
+		cwd?: string;
+		env?: NodeJS.ProcessEnv;
+		inherit?: boolean;
+		input?: string;
+	} = {},
 ): string =>
 	execFileSync(command, args, {
 		cwd: options.cwd,
 		encoding: "utf8",
+		env: options.env ?? process.env,
 		input: options.input,
 		maxBuffer: 256 * 1024 * 1024,
-		stdio: ["pipe", "pipe", "inherit"],
-	});
+		stdio: options.inherit ? "inherit" : ["pipe", "pipe", "inherit"],
+	}) ?? "";
 
 // ---------------------------------------------------------------------------
 // Matching foo
@@ -233,7 +240,7 @@ export const fooRename = (
 	path: string,
 ): string => {
 	const modes = modesRead(text, path);
-	return text.replace(
+	const renamed = text.replace(
 		fooPattern,
 		(token: string, base: string, s: string, start: number) =>
 			spell(
@@ -243,6 +250,11 @@ export const fooRename = (
 				s === "s",
 			),
 	);
+	// "a foo" becomes "an invoice line" when the name starts with a vowel sound.
+	const words = names.kebab.replaceAll("-", " ");
+	return /^[aeiou]/.test(words)
+		? renamed.replace(new RegExp(`\\b([Aa]) (${words})\\b`, "gi"), "$1n $2")
+		: renamed;
 };
 
 export const fooPathRename = (path: string, names: DomainNames): string =>
@@ -321,6 +333,13 @@ export const fooBlocksFind = (
 					/=\s*$/.test(lines[end] ?? "")
 				) {
 					end++;
+				} else if (
+					/[([{]\s*$/.test(lines[before] ?? "") &&
+					/^\s*[)\]}]/.test(lines[end + 1] ?? "")
+				) {
+					// The block is all a bracket holds: the statement around it goes too.
+					start--;
+					end++;
 				} else break;
 			}
 		} else if (/(^|\/)\.env\./.test(path)) {
@@ -360,16 +379,18 @@ export const templateFooPaths = [
 	/^src\/domains\/foo\//,
 	/^src\/ui\/routes\/foo-[^/]+\.tsx$/,
 	/^src\/ui\/routes\/home\.tsx$/,
-	/^test\/unit\/foo-[^/]+\.test\.ts$/,
+	// Tests that drive foo are named foo-*.test.ts in test/unit and test/integration.
+	/^test\/(unit|integration)\/foo-[^/]+\.test\.ts$/,
 	/^test\/unit\/server-seed\.test\.ts$/,
-	// Integration tests that drive foo through the production build; a render has no domain
-	// to drive, so they go whole rather than as half-tests.
-	/^test\/integration\/(live|seed|server-shutdown|ssr|telemetry-leak|worker-schedule|worker-shutdown)\.test\.ts$/,
 	/^migrations\/[^/]*foo[^/]*\//,
 ];
 
-// Never rendered: the scripts name foo on purpose, and the changelog is the template's own.
-const templateUntouchedPaths = [/^scripts\//, /^CHANGELOG\.md$/];
+// Never rendered: the scripts and their tests name foo on purpose, and the changelog is the template's own.
+const templateUntouchedPaths = [
+	/^scripts\//,
+	/^test\/unit\/scripts\//,
+	/^CHANGELOG\.md$/,
+];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines that are valid only while a domain exists. The render swaps `domains` for `none`
@@ -647,7 +668,6 @@ export const templateFinish = (
 	if (linked) symlinkSync(join(toolsDirectory, "node_modules"), modules);
 	try {
 		const bin = (name: string) => join(modules, ".bin", name);
-		run(bin("biome"), ["format", "--write", "."], { cwd: directory });
 		run(
 			bin("biome"),
 			[
@@ -659,6 +679,7 @@ export const templateFinish = (
 			],
 			{ cwd: directory },
 		);
+		run(bin("biome"), ["check", "--write", "."], { cwd: directory });
 		run(bin("varlock"), ["codegen"], { cwd: directory });
 	} finally {
 		if (linked) rmSync(modules);

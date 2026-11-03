@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const appRoot = new URL("../../", import.meta.url);
@@ -85,7 +85,8 @@ describe("domain structure", () => {
 		const domains = new URL("src/domains/", appRoot);
 		const paths = filesList(domains, "src/domains");
 		const text = readFileSync(new URL("CONTEXT.md", appRoot), "utf8");
-		expect(paths.length).toBeGreaterThan(0);
+		// A rendered project starts with no domain, so only the folder must exist.
+		expect(existsSync(domains)).toBe(true);
 		expect(structureViolations(paths, text)).toEqual([]);
 	});
 

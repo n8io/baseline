@@ -1,7 +1,13 @@
 // pnpm domain-create <name> [--plural <plural>]: copies the foo domain and its two pages from the
 // template release, renamed, and wires the copy in at every `domain-create:` marker. Writes no
 // migration and never commits; run `pnpm codegen` after editing the table.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -21,6 +27,7 @@ import {
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const markerPattern = /^\s*(\/\/|#) domain-create: [a-z-]+\s*$/;
 
+// home.tsx (the / redirect) comes back with the first domain, which it redirects to.
 const copiedPaths = [
 	/^src\/domains\/foo\//,
 	/^src\/ui\/routes\/foo-(list|detail)\.tsx$/,
@@ -72,8 +79,11 @@ export const wiringInsert = (
 	template: string,
 	path: string,
 	names: DomainNames,
+	firstDomain: boolean,
 ): string => {
-	const lines = zeroDomainEditsApply(project, path, "domains").split("\n");
+	const lines = (
+		firstDomain ? zeroDomainEditsApply(project, path, "domains") : project
+	).split("\n");
 	const templateLines = template.split("\n");
 	const blocks = fooBlocksFind(template, path);
 	const inBlock = (k: number) => blocks.some(([s, e]) => k >= s && k <= e);
@@ -116,16 +126,28 @@ export const domainFilesCreate = (
 	appDirectory: string,
 	names: DomainNames,
 ): TemplateFile[] => {
+	const domains = join(appDirectory, "src/domains");
+	const firstDomain =
+		!existsSync(domains) ||
+		readdirSync(domains, { withFileTypes: true }).every(
+			(d) => !d.isDirectory(),
+		);
 	const files: TemplateFile[] = [];
 	for (const file of template) {
-		if (copiedPaths.some((p) => p.test(file.path))) {
+		const copied =
+			copiedPaths.some((p) => p.test(file.path)) ||
+			(firstDomain && file.path === "src/ui/routes/home.tsx");
+		if (copied) {
 			files.push({
 				path: fooPathRename(file.path, names),
 				text: fooRename(file.text, names, file.path),
 			});
 			continue;
 		}
-		if (!file.text.split("\n").some((line) => markerPattern.test(line))) {
+		if (
+			/^(scripts|test)\//.test(file.path) ||
+			!file.text.split("\n").some((line) => markerPattern.test(line))
+		) {
 			continue;
 		}
 		const target = join(appDirectory, file.path);
@@ -137,7 +159,7 @@ export const domainFilesCreate = (
 		const project = readFileSync(target, "utf8");
 		files.push({
 			path: file.path,
-			text: wiringInsert(project, file.text, file.path, names),
+			text: wiringInsert(project, file.text, file.path, names, firstDomain),
 		});
 	}
 	return files;
@@ -199,7 +221,7 @@ const main = () => {
 };
 
 const execStep = (cwd: string, script: string) => {
-	run("pnpm", ["run", "--silent", script], { cwd });
+	run("pnpm", ["run", script], { cwd, inherit: true });
 };
 
 if (import.meta.main) main();

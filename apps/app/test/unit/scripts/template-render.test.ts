@@ -1,0 +1,205 @@
+import { existsSync, readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+	fooBlocksFind,
+	fooLineIs,
+	fooPathRename,
+	fooRename,
+	linesRemove,
+	templateFileRender,
+	templateFilesRender,
+	templateWorkingTree,
+	templateZeroDomainEdits,
+	zeroDomainEditsApply,
+} from "../../../scripts/template-render.ts";
+
+const appRoot = new URL("../../../", import.meta.url);
+const names = { kebab: "invoice-line", plural: "invoice-lines" };
+const answers = { description: "Invoices for small shops.", name: "invoicing" };
+// The real foo domain exists only in the template, not in a project rendered from it.
+const template = existsSync(new URL("src/domains/foo/", appRoot));
+
+describe("fooRename", () => {
+	it("spells each occurrence the way its place needs", () => {
+		const source = [
+			'import { fooCreate } from "#domains/foo/use-cases/foo-create.ts";',
+			'const foo = idCreate("foo"); // Saves the foo.',
+			"const foos: Foo[] = state.foos;",
+			'span.setAttribute("baseline.foo.id", foo.id);',
+			'publish("foo.created", { fooId }); scope("foo:update");',
+			'redirect(`/foos/${foo.id}`); app.route("/live/foo", r);',
+			"process.env.SCHEDULE_FOO_STALE_ARCHIVE; /^foo_/;",
+			'throw new Error(`Foo ${id} not found`); "foos"; "FooNotFound";',
+		].join("\n");
+
+		expect(fooRename(source, names, "src/x.ts").split("\n")).toEqual([
+			'import { invoiceLineCreate } from "#domains/invoice-line/use-cases/invoice-line-create.ts";',
+			'const invoiceLine = idCreate("invoice_line"); // Saves the invoice line.',
+			"const invoiceLines: InvoiceLine[] = state.invoiceLines;",
+			'span.setAttribute("baseline.invoice_line.id", invoiceLine.id);',
+			'publish("invoice-line.created", { invoiceLineId }); scope("invoice-line:update");',
+			'redirect(`/invoice-lines/${invoiceLine.id}`); app.route("/live/invoice_line", r);',
+			"process.env.SCHEDULE_INVOICE_LINE_STALE_ARCHIVE; /^invoice_line_/;",
+			'throw new Error(`Invoice line ${id} not found`); "invoice-lines"; "InvoiceLineNotFound";',
+		]);
+	});
+
+	it("reads JSX text as UI copy and fixes the article", () => {
+		const source = [
+			"<h1>Foos</h1>",
+			"<CardTitle>New foo</CardTitle>",
+			"\t\t\t\tBack to foos",
+			"<p>Delete this foo?</p>",
+			"{foo.name} {items.map((foo) => foo.id)}",
+			'"A foo named it already exists"',
+		].join("\n");
+
+		expect(fooRename(source, names, "src/ui/routes/x.tsx").split("\n")).toEqual(
+			[
+				"<h1>Invoice lines</h1>",
+				"<CardTitle>New invoice line</CardTitle>",
+				"\t\t\t\tBack to invoice lines",
+				"<p>Delete this invoice line?</p>",
+				"{invoiceLine.name} {items.map((invoiceLine) => invoiceLine.id)}",
+				'"An invoice line named it already exists"',
+			],
+		);
+	});
+
+	it("renames paths", () => {
+		expect(
+			fooPathRename("src/domains/foo/spi/foo-ports.memory.ts", names),
+		).toBe("src/domains/invoice-line/spi/invoice-line-ports.memory.ts");
+		expect(fooPathRename("src/ui/routes/foo-list.tsx", names)).toBe(
+			"src/ui/routes/invoice-line-list.tsx",
+		);
+	});
+});
+
+describe("fooBlocksFind", () => {
+	it("never matches a longer word such as Footer", () => {
+		expect(fooLineIs("<AlertDialogFooter>")).toBe(false);
+		expect(fooLineIs("const food = 1;")).toBe(false);
+		expect(fooLineIs("fooScopes,")).toBe(true);
+	});
+
+	it("takes the whole statement a foo line belongs to", () => {
+		const text = [
+			"import {", // 0
+			"\ttype FooUseCases,",
+			"\tbarScopes,",
+			'} from "#domains/foo/index.ts";',
+			"const bar = 1;", // 4
+			"const fooUseCases = trace(", // 5
+			"\tfooUseCasesCreate(ports),",
+			");",
+			"const scopes = [", // 8
+			"\t...fooScopes,",
+			"\t// domain-create: scopes",
+			"];",
+			"await db.query(", // 12
+			"\t`UPDATE foo.foo",
+			"\t SET archived = true`,",
+			");",
+		].join("\n");
+
+		expect(fooBlocksFind(text, "src/server.ts")).toEqual([
+			[0, 3],
+			[5, 7],
+			[9, 9],
+			[12, 15],
+		]);
+	});
+
+	it("takes an env item's decorator lines with it", () => {
+		const text = [
+			"# schedule overrides",
+			"# @sensitive=false @required=false",
+			"SCHEDULE_FOO_STALE_ARCHIVE=",
+			"# domain-create: schedules",
+		].join("\n");
+
+		expect(fooBlocksFind(text, ".env.schema")).toEqual([[1, 2]]);
+	});
+});
+
+describe("templateFileRender", () => {
+	it("drops only the Foo entry from CONTEXT.md and writes the description", () => {
+		const text =
+			"# A starter app.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n\n## Language\n\n**Foo**:\nThe example.\n_Avoid_: widget\n";
+
+		expect(templateFileRender({ path: "CONTEXT.md", text }, answers)).toEqual({
+			path: "CONTEXT.md",
+			text: "# Invoices for small shops.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n\n## Language\n",
+		});
+	});
+
+	it("deletes foo's own files and keeps the scripts as they are", () => {
+		for (const path of [
+			"src/domains/foo/index.ts",
+			"src/ui/routes/foo-list.tsx",
+			"src/ui/routes/home.tsx",
+			"test/integration/foo-live.test.ts",
+			"migrations/20261103125512_foo_create/migration.sql",
+			"CHANGELOG.md",
+		]) {
+			expect(
+				templateFileRender({ path, text: "foo" }, answers),
+			).toBeUndefined();
+		}
+		const script = { path: "scripts/x.ts", text: "const foo = 1;\n" };
+		expect(templateFileRender(script, answers)).toEqual(script);
+	});
+
+	it("makes biome.json a root config and names the package", () => {
+		const biome = templateFileRender(
+			{
+				path: "biome.json",
+				text: '{\n\t"$schema": "x",\n\t"root": false,\n\t"a": 1\n}\n',
+			},
+			answers,
+		);
+		const manifest = templateFileRender(
+			{ path: "package.json", text: '{ "name": "app", "private": true }' },
+			answers,
+		);
+
+		expect(biome?.text).toBe('{\n\t"$schema": "x",\n\t"a": 1\n}\n');
+		expect(JSON.parse(manifest?.text ?? "")).toEqual({
+			name: "invoicing",
+			private: true,
+		});
+	});
+});
+
+describe.runIf(template)("the template's own files", () => {
+	const files = template ? templateWorkingTree(appRoot.pathname) : [];
+
+	it("render with no foo left outside the scripts", () => {
+		const rendered = templateFilesRender(files, answers);
+		const leftovers = rendered
+			.filter((f) => !/^(scripts|test\/unit\/scripts)\//.test(f.path))
+			.filter((f) => f.path !== "CONTEXT.md")
+			.flatMap((f) =>
+				f.text
+					.split("\n")
+					.filter(fooLineIs)
+					.map((line) => `${f.path}: ${line}`),
+			);
+
+		expect(leftovers).toEqual([]);
+		expect(rendered.map((f) => f.path)).toContain("src/domains/.gitkeep");
+	});
+
+	it("undo every zero-domain edit exactly, so domain-create can add the first domain", () => {
+		const paths = new Set(templateZeroDomainEdits.map((e) => e.path));
+		for (const path of paths) {
+			const text = readFileSync(new URL(path, appRoot), "utf8");
+			const removed = linesRemove(text, fooBlocksFind(text, path));
+			const none = zeroDomainEditsApply(removed, path, "none");
+
+			expect(none).not.toBe(removed);
+			expect(zeroDomainEditsApply(none, path, "domains")).toBe(removed);
+		}
+	});
+});

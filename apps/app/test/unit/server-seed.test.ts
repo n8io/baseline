@@ -32,9 +32,13 @@ describe("server.ts seeding", () => {
 	it("seeds a memory database at every development start", async () => {
 		await serverImport({ APP_ENV: "development" });
 		expect(seedsRun).toHaveBeenCalledOnce();
-		expect(seedsRun).toHaveBeenCalledWith({
-			fooUseCases: expect.objectContaining({ fooCreate: expect.any(Function) }),
-		});
+		expect(seedsRun).toHaveBeenCalledWith(
+			expect.objectContaining({
+				fooUseCases: expect.objectContaining({
+					fooCreate: expect.any(Function),
+				}),
+			}),
+		);
 	});
 
 	it("never seeds in test", async () => {

@@ -19,5 +19,5 @@
 		"verbatimModuleSyntax": true
 	},
 	"files": ["src/env.d.ts"],
-	"include": ["*.ts", "src", "test", ".react-router/types/**/*"]
+	"include": ["*.ts", "scripts", "src", "test", ".react-router/types/**/*"]
 }
