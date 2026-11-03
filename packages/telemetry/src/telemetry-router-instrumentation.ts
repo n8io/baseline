@@ -1,4 +1,4 @@
-import { loggerErrSerialize } from "@n8io/baseline-logger";
+import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
 import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 
 // The parts of React Router's ServerInstrumentation this file uses, written out

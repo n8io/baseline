@@ -1,4 +1,4 @@
-import { loggerErrSerialize } from "@n8io/baseline-logger";
+import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
 import type { Result } from "@n8io/baseline-result";
 import {
 	type Attributes,

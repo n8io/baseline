@@ -16,13 +16,18 @@
 		"dist"
 	],
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./err-serialize": "./src/logger-err-serialize.ts"
 	},
 	"publishConfig": {
 		"exports": {
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
+			},
+			"./err-serialize": {
+				"types": "./dist/logger-err-serialize.d.ts",
+				"default": "./dist/logger-err-serialize.js"
 			}
 		},
 		"registry": "https://npm.pkg.github.com"

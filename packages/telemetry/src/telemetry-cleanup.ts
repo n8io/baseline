@@ -1,4 +1,5 @@
-import { loggerErrSerialize } from "@n8io/baseline-logger";
+// The subpath creates no logger: the preload must not load pino before the SDK starts.
+import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
 import { type Attributes, SpanStatusCode } from "@opentelemetry/api";
 import type { LogRecordProcessor } from "@opentelemetry/sdk-logs";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace";
