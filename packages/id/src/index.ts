@@ -9,7 +9,7 @@ const alphabet = "0123456789abcdefghjkmnpqrstvwxyz";
 const prefixPattern = /^[a-z]([a-z_]{0,61}[a-z])?$/;
 // 26 characters hold 130 bits, so the first may only use the low 3 bits (0-7) to stay within 128.
 const suffixPattern = "[0-7][0-9a-hjkmnp-tv-z]{25}";
-const idPattern = new RegExp(`^([a-z_]+)_(${suffixPattern})$`);
+const idPattern = new RegExp(`^(.+)_(${suffixPattern})$`);
 const uuidPattern =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

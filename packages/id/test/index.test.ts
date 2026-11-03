@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
 	type Id,
 	idCreate,
@@ -18,11 +18,14 @@ const vectors: [Id<string>, string][] = [
 	["prefix_01h455vb4pex5vsknk084sn02q", "01890a5d-ac96-774b-bcce-b302099a8057"],
 ];
 
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 describe("idCreate", () => {
 	test("makes a prefixed id holding a UUIDv7 of the current time", () => {
 		vi.useFakeTimers({ now: Date.UTC(2026, 10, 2, 12, 0, 0, 123) });
 		const id = idCreate("invoice_line");
-		vi.useRealTimers();
 
 		expect(id).toMatch(/^invoice_line_[0-7][0-9a-hjkmnp-tv-z]{25}$/);
 		const hex = idToUuid(id).replaceAll("-", "");
