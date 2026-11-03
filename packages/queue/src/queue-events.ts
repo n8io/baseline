@@ -9,7 +9,9 @@ export type QueueEvents<M> = {
 // calls are chained rather than queued inside pg (which warns, and pg 9 removes).
 const clientSerialized = (
 	pgClient: pg.PoolClient,
-): { executeSql: (text: string, values?: unknown[]) => Promise<pg.QueryResult> } => {
+): {
+	executeSql: (text: string, values?: unknown[]) => Promise<pg.QueryResult>;
+} => {
 	let tail: Promise<unknown> = Promise.resolve();
 	return {
 		executeSql: (text, values) => {
