@@ -45,5 +45,7 @@ jobs:
           if [ -z "$tag" ]; then exit 0; fi
           major="v${tag#app@}"
           major="${major%%.*}"
+          # app@0.x (the untagged app's first tag) is not a release.
+          if [ "$major" = "v0" ]; then exit 0; fi
           git tag --force "$major" "$tag^{commit}"
           git push --force origin "refs/tags/$major"

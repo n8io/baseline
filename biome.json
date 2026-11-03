@@ -121,5 +121,10 @@
 				"useIsArray": "error"
 			}
 		}
+	},
+	"markdown": {
+		"parser": {
+			"frontmatter": true
+		}
 	}
 }
