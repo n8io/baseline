@@ -215,6 +215,25 @@ describe("OIDC sign-in", () => {
 	});
 });
 
+describe("OIDC bearer tokens", () => {
+	it("answers 500, not 401, when the provider's JWKS cannot be reached", async () => {
+		const { app } = await appCreate(oidcOptions);
+		provider.options.down = true;
+		const logError = vi
+			.spyOn(logger, "error")
+			.mockImplementation(() => undefined);
+		const header = Buffer.from(
+			JSON.stringify({ alg: "RS256", kid: "k1" }),
+		).toString("base64url");
+		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
+			headers: { Authorization: `Bearer ${header}.e30.c2ln` },
+		});
+
+		expect(res.status).toBe(500);
+		expect(logError).toHaveBeenCalledOnce();
+	});
+});
+
 describe("OIDC refresh", () => {
 	it("refreshes with the refresh token and stores the rotated one", async () => {
 		const { app } = await appCreate(oidcOptions);
