@@ -1,5 +1,6 @@
 import { authnActorRequire } from "@n8io/baseline-authn";
 import { idSchema } from "@n8io/baseline-id";
+import { useLiveUpdates } from "@n8io/baseline-live/client";
 import { useState } from "react";
 import {
 	data,
@@ -107,6 +108,7 @@ export const action = async (args: Route.ActionArgs) => {
 
 const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 	const { foo } = loaderData;
+	useLiveUpdates("foo", foo.id);
 	const [open, setOpen] = useState(false);
 	const navigation = useNavigation();
 	const pendingIntent =
