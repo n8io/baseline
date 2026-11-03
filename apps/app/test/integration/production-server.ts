@@ -137,7 +137,7 @@ const appProcessStart = async (
 	return app;
 };
 
-const httpStatus = async (
+export const httpStatus = async (
 	port: number,
 	path: string,
 ): Promise<number | undefined> => {
@@ -147,6 +147,15 @@ const httpStatus = async (
 	await res?.body?.cancel();
 	return res?.status;
 };
+
+/** Waits for /readyz 503 (shutdown started); throws if the process exits first. */
+export const shutdownStarted = (app: AppProcess): Promise<void> =>
+	waitFor("/readyz 503", async () => {
+		if (app.child.exitCode !== null) {
+			throw new Error("exited before /readyz answered 503");
+		}
+		return (await httpStatus(app.healthPort, "/readyz")) === 503;
+	});
 
 export type ProductionServer = AppProcess & { port: number; url: string };
 

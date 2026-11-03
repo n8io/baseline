@@ -7,6 +7,7 @@ import {
 	type OtlpSpan,
 	otlpEnv,
 	otlpReceiverStart,
+	shutdownStarted,
 	spanAncestors,
 	spanAttribute,
 	waitFor,
@@ -52,14 +53,6 @@ const staleArchiveSend = async (databaseUrl: string): Promise<void> => {
 	await boss.stop({ graceful: false });
 };
 
-const httpStatus = async (port: number, path: string) => {
-	const res = await fetch(`http://127.0.0.1:${port}${path}`).catch(
-		() => undefined,
-	);
-	await res?.body?.cancel();
-	return res?.status;
-};
-
 describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 	it("finishes the job in flight, answers /readyz 503 and exits 0", async () => {
 		const receiver = await otlpReceiverStart();
@@ -92,10 +85,7 @@ describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		});
 
 		worker.child.kill("SIGTERM");
-		await waitFor(
-			"/readyz 503",
-			async () => (await httpStatus(worker.healthPort, "/readyz")) === 503,
-		);
+		await shutdownStarted(worker);
 		expect(worker.child.exitCode).toBeNull();
 		await locker.query("COMMIT");
 

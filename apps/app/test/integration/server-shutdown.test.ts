@@ -4,20 +4,17 @@ import { connect } from "node:net";
 import pg from "pg";
 import { afterEach, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
-import { productionServerStart, signIn, waitFor } from "./production-server.ts";
+import {
+	productionServerStart,
+	shutdownStarted,
+	signIn,
+	waitFor,
+} from "./production-server.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
 	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
-
-const httpStatus = async (port: number, path: string) => {
-	const res = await fetch(`http://127.0.0.1:${port}${path}`).catch(
-		() => undefined,
-	);
-	await res?.body?.cancel();
-	return res?.status;
-};
 
 // Resolves with the error code of a new TCP connection, or "connected".
 const connectResult = (port: number): Promise<string> =>
@@ -63,10 +60,7 @@ describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		slow.write(body.slice(0, 5));
 
 		server.child.kill("SIGTERM");
-		await waitFor(
-			"/readyz 503",
-			async () => (await httpStatus(server.healthPort, "/readyz")) === 503,
-		);
+		await shutdownStarted(server);
 		await waitFor(
 			"new connections refused",
 			async () => (await connectResult(server.port)) === "ECONNREFUSED",
