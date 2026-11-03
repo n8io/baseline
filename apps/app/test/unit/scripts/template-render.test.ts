@@ -27,9 +27,9 @@ describe("fooRename", () => {
 			"const foos: Foo[] = state.foos;",
 			'span.setAttribute("baseline.foo.id", foo.id);',
 			'publish("foo.created", { fooId }); scope("foo:update");',
-			'redirect(`/foos/${foo.id}`); app.route("/live/foo", r);',
+			`redirect(\`/foos/\${foo.id}\`); app.route("/live/foo", r);`,
 			"process.env.SCHEDULE_FOO_STALE_ARCHIVE; /^foo_/;",
-			'throw new Error(`Foo ${id} not found`); "foos"; "FooNotFound";',
+			`throw new Error(\`Foo \${id} not found\`); "foos"; "FooNotFound";`,
 		].join("\n");
 
 		expect(fooRename(source, names, "src/x.ts").split("\n")).toEqual([
@@ -38,9 +38,9 @@ describe("fooRename", () => {
 			"const invoiceLines: InvoiceLine[] = state.invoiceLines;",
 			'span.setAttribute("baseline.invoice_line.id", invoiceLine.id);',
 			'publish("invoice-line.created", { invoiceLineId }); scope("invoice-line:update");',
-			'redirect(`/invoice-lines/${invoiceLine.id}`); app.route("/live/invoice_line", r);',
+			`redirect(\`/invoice-lines/\${invoiceLine.id}\`); app.route("/live/invoice_line", r);`,
 			"process.env.SCHEDULE_INVOICE_LINE_STALE_ARCHIVE; /^invoice_line_/;",
-			'throw new Error(`Invoice line ${id} not found`); "invoice-lines"; "InvoiceLineNotFound";',
+			`throw new Error(\`Invoice line \${id} not found\`); "invoice-lines"; "InvoiceLineNotFound";`,
 		]);
 	});
 

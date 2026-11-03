@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
+	canaries,
 	type OtlpReceiver,
 	type OtlpSpan,
 	otlpEnv,
@@ -9,22 +10,19 @@ import {
 	type ProductionServer,
 	productionServerStart,
 	type SignedIn,
+	signalsLeaking,
 	signIn,
 	spanAncestors,
 	spanAttribute,
+	spanKindClient,
+	spanKindServer,
+	telemetrySignals,
 } from "./production-server.ts";
 
-// Personal data a user might type: an email, a test card number and a health term.
-const canaries = {
-	card: "4111111111111111",
-	email: "canary.person@example.com",
-	health: "hypertension",
-};
+// telemetry-leak.test.ts covers routes every project has; this adds a use case, its pg queries
+// and a Postgres error whose detail holds the canaries.
 const fooName = `Canary ${canaries.email} ${canaries.card} ${canaries.health}`;
 const clientSecret = `canary-client-secret-${randomUUID()}`;
-
-const spanKindServer = 2;
-const spanKindClient = 3;
 
 let receiver: OtlpReceiver;
 let server: ProductionServer;
@@ -88,15 +86,9 @@ afterAll(async () => {
 	await drop?.();
 });
 
-const signals = (): Record<string, string> => ({
-	logs: (receiver.bodies["/v1/logs"] ?? []).join("\n"),
-	metrics: (receiver.bodies["/v1/metrics"] ?? []).join("\n"),
-	stderr: server.stderr(),
-	stdout: server.stdout(),
-	traces: (receiver.bodies["/v1/traces"] ?? []).join("\n"),
-});
-
-describe("telemetry from the production build", { timeout: 30_000 }, () => {
+describe("telemetry from the production build with foo traffic", {
+	timeout: 30_000,
+}, () => {
 	it("exits 0 after SIGTERM", () => {
 		expect(exitCode).toBe(0);
 	});
@@ -125,22 +117,18 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 		expect(queries.length).toBeGreaterThan(0);
 	});
 
-	it("traces the page load and replaces query values", () => {
-		const spans = receiver.spans();
-		const list = spans.find(
-			(span) =>
-				span.kind === spanKindServer &&
-				spanAttribute(span, "url.path") === "/foos",
-		);
+	it("replaces the list page's cursor value", () => {
+		const list = receiver
+			.spans()
+			.find(
+				(span) =>
+					span.kind === spanKindServer &&
+					spanAttribute(span, "url.path") === "/foos",
+			);
 		expect(list).toBeDefined();
 		expect(spanAttribute(list as OtlpSpan, "url.query")).toBe(
 			"cursor=REDACTED",
 		);
-	});
-
-	it("exports pino records as OTLP logs and pg client metrics (V16)", () => {
-		expect(signals().logs).toContain("Server listening");
-		expect(signals().metrics).toMatch(/"name":"db\.client\.[a-z._]+"/);
 	});
 
 	it.each(
@@ -153,12 +141,9 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 			"health term": () => canaries.health,
 		}),
 	)("never exports or prints the %s", (_name, value) => {
-		for (const [signal, text] of Object.entries(signals())) {
-			expect({ signal, leaked: text.includes(value()) }).toEqual({
-				leaked: false,
-				signal,
-			});
-		}
+		expect(signalsLeaking(telemetrySignals(server, receiver), value())).toEqual(
+			[],
+		);
 	});
 
 	it("never sends the client secret in a response body", () => {

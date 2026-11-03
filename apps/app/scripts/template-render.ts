@@ -778,8 +778,9 @@ export const templateFetch = (
 export const templateWorkingTree = (appDirectory: string): TemplateFile[] =>
 	filesRead(appDirectory);
 
+// True for apps/app inside the baseline monorepo, where the working tree is the template.
 export const monorepoAppIs = (appDirectory: string): boolean =>
-	existsSync(join(appDirectory, "../../packages")) &&
+	existsSync(join(appDirectory, "../../packages/result/package.json")) &&
 	!existsSync(join(appDirectory, ".template.json"));
 
 export type TemplateJson = {

@@ -2,8 +2,15 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createDecipheriv, hkdfSync } from "node:crypto";
 import { once } from "node:events";
 import { existsSync } from "node:fs";
-import { createServer, type Server } from "node:http";
-import { createServer as netServerCreate } from "node:net";
+import {
+	createServer,
+	type IncomingHttpHeaders,
+	type IncomingMessage,
+	type OutgoingHttpHeaders,
+	request,
+	type Server,
+} from "node:http";
+import { connect, createServer as netServerCreate } from "node:net";
 
 // Every entry in the image starts with these, varlock first (spec 14.3).
 const preloadFlags = [
@@ -166,6 +173,69 @@ export const shutdownStarted = (app: AppProcess): Promise<void> =>
 		}
 		return (await httpStatus(app.healthPort, "/readyz")) === 503;
 	});
+
+// Resolves with the error code of a new TCP connection, or "connected".
+export const connectResult = (port: number): Promise<string> =>
+	new Promise((resolve) => {
+		const socket = connect(port, "127.0.0.1");
+		socket.once("connect", () => {
+			socket.destroy();
+			resolve("connected");
+		});
+		socket.once("error", (error: NodeJS.ErrnoException) =>
+			resolve(error.code ?? "error"),
+		);
+	});
+
+export type SlowRequest = {
+	/** Drops the request; call it before stopping the server, which would wait for it. */
+	abort: () => void;
+	/** Sends the rest of the body and resolves with the response. */
+	finish: () => Promise<{
+		headers: IncomingHttpHeaders;
+		status: number | undefined;
+		text: string;
+	}>;
+};
+
+/**
+ * Starts a POST whose body arrives in two parts. Expect: 100-continue makes the server say when
+ * it has the request, so this resolves once the request is in flight, with five bytes sent.
+ */
+export const slowRequestStart = async (
+	port: number,
+	{
+		body,
+		headers,
+		path,
+	}: { body: string; headers: OutgoingHttpHeaders; path: string },
+): Promise<SlowRequest> => {
+	const slow = request({
+		headers: {
+			...headers,
+			"content-length": Buffer.byteLength(body),
+			expect: "100-continue",
+		},
+		host: "127.0.0.1",
+		method: "POST",
+		path,
+		port,
+	});
+	const responded = once(slow, "response") as Promise<[IncomingMessage]>;
+	responded.catch(() => undefined);
+	await once(slow, "continue");
+	slow.write(body.slice(0, 5));
+	return {
+		abort: () => slow.destroy(),
+		finish: async () => {
+			slow.end(body.slice(5));
+			const [res] = await responded;
+			let text = "";
+			for await (const chunk of res) text += chunk;
+			return { headers: res.headers, status: res.statusCode, text };
+		},
+	};
+};
 
 export type ProductionServer = AppProcess & { port: number; url: string };
 
@@ -362,3 +432,34 @@ export const spanAttribute = (
 	const value = span.attributes.find((item) => item.key === key)?.value;
 	return value?.stringValue ?? value?.intValue?.toString();
 };
+
+export const spanKindServer = 2;
+export const spanKindClient = 3;
+
+// Personal data a user might type: an email, a test card number and a health term.
+export const canaries = {
+	card: "4111111111111111",
+	email: "canary.person@example.com",
+	health: "hypertension",
+};
+
+/** Everything a server sent out of the process: stdout, stderr and each OTLP signal. */
+export const telemetrySignals = (
+	app: AppProcess,
+	receiver: OtlpReceiver,
+): Record<string, string> => ({
+	logs: (receiver.bodies["/v1/logs"] ?? []).join("\n"),
+	metrics: (receiver.bodies["/v1/metrics"] ?? []).join("\n"),
+	stderr: app.stderr(),
+	stdout: app.stdout(),
+	traces: (receiver.bodies["/v1/traces"] ?? []).join("\n"),
+});
+
+/** The names of the signals whose text contains `value`. */
+export const signalsLeaking = (
+	signals: Record<string, string>,
+	value: string,
+): string[] =>
+	Object.entries(signals)
+		.filter(([, text]) => text.includes(value))
+		.map(([name]) => name);
