@@ -82,7 +82,10 @@ const fooUseCases = telemetryUseCasesTrace(
 // domain-create: bridges
 
 if (ENV.APP_ENV === "development" && pgPool === "memory") {
-	await seedsRun({ fooUseCases });
+	await seedsRun({
+		fooUseCases,
+		// domain-create: seed-context
+	});
 }
 
 // Creates queues and subscriptions; consumers run only in the worker.

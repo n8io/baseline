@@ -6,10 +6,10 @@ describe("actorFromClaims", () => {
 		expect(
 			actorFromClaims({
 				client_id: "web",
-				scope: "foo:read  foo:update",
+				scope: "bar:read  bar:update",
 				sub: "u1",
 			}),
-		).toEqual({ id: "u1", kind: "user", scopes: ["foo:read", "foo:update"] });
+		).toEqual({ id: "u1", kind: "user", scopes: ["bar:read", "bar:update"] });
 	});
 
 	it("marks client-credentials tokens as clients", () => {
