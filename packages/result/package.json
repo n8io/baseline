@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-result",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Result, ok and err for expected business errors.",
 	"type": "module",
 	"engines": {

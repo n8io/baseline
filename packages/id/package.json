@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-id",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Prefixed TypeIDs: create, validate and convert to and from UUIDs",
 	"repository": {
 		"type": "git",
