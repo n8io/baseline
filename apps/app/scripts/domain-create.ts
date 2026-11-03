@@ -27,11 +27,17 @@ import {
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const markerPattern = /^\s*(\/\/|#) domain-create: [a-z-]+\s*$/;
 
-// home.tsx (the / redirect) comes back with the first domain, which it redirects to.
+// The domain, its pages and their tests, so a new domain keeps the mutation score.
 const copiedPaths = [
 	/^src\/domains\/foo\//,
 	/^src\/ui\/routes\/foo-(list|detail)\.tsx$/,
+	/^test\/unit\/foo-(list|detail)\.test\.ts$/,
 ];
+// home.tsx (the / redirect) and its test come back with the first domain, which it redirects to.
+const firstDomainPaths = new Map([
+	["src/ui/routes/home.tsx", "src/ui/routes/home.tsx"],
+	["test/unit/foo-home.test.ts", "test/unit/home.test.ts"],
+]);
 
 // The glossary term a domain name needs: invoice-line ↔ **Invoice line**:.
 export const domainTerm = (kebab: string): string => {
@@ -134,10 +140,12 @@ export const domainFilesCreate = (
 		);
 	const copied = (path: string) =>
 		copiedPaths.some((p) => p.test(path)) ||
-		(firstDomain && path === "src/ui/routes/home.tsx");
+		(firstDomain && firstDomainPaths.has(path));
+	const copiedPath = (path: string) =>
+		firstDomainPaths.get(path) ?? fooPathRename(path, names);
 	// Checked before anything is built, so a refusal writes nothing.
 	for (const file of template.filter((f) => copied(f.path))) {
-		const path = fooPathRename(file.path, names);
+		const path = copiedPath(file.path);
 		if (existsSync(join(appDirectory, path))) {
 			throw new Error(`${path} already exists; move it aside first`);
 		}
@@ -146,7 +154,7 @@ export const domainFilesCreate = (
 	for (const file of template) {
 		if (copied(file.path)) {
 			files.push({
-				path: fooPathRename(file.path, names),
+				path: copiedPath(file.path),
 				text: fooRename(file.text, names, file.path),
 			});
 			continue;

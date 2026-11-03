@@ -136,6 +136,26 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		expect(paths.filter((p) => /foo/.test(p))).toEqual([]);
 	});
 
+	it("copies both page tests, renamed, and the home test only with a first domain", () => {
+		const paths = files.map((f) => f.path);
+
+		expect(paths).toContain("test/unit/invoice-line-list.test.ts");
+		expect(paths).toContain("test/unit/invoice-line-detail.test.ts");
+		expect(file("test/unit/invoice-line-list.test.ts")).toContain(
+			'from "#ui/routes/invoice-line-list.tsx"',
+		);
+		expect(paths).not.toContain("test/unit/home.test.ts");
+		expect(paths).not.toContain("src/ui/routes/home.tsx");
+
+		// A first domain (no folder in src/domains) brings home.tsx's test back as home.test.ts.
+		const app = appCreate("**Invoice line**:\nA line.\n");
+		mkdirSync(join(app, "test/unit"), { recursive: true });
+		writeFileSync(join(app, "test/unit/home.test.ts"), "mine\n");
+		expect(() =>
+			domainFilesCreate(filesRead(appRoot.pathname), app, names),
+		).toThrow("test/unit/home.test.ts already exists");
+	});
+
 	it("puts the new schedule item at its marker in .env.schema", () => {
 		expect(file(".env.schema")).toContain(
 			"# @sensitive=false @required=false\nSCHEDULE_INVOICE_LINE_STALE_ARCHIVE=\n# domain-create: schedules",

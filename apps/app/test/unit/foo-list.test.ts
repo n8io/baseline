@@ -5,7 +5,6 @@ import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-list.tsx";
-import { loader as homeLoader } from "#ui/routes/home.tsx";
 import { routeArgs, routerContextCreate } from "./router-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -42,14 +41,6 @@ const thrown = async (run: () => unknown): Promise<unknown> => {
 	}
 	return undefined;
 };
-
-describe("home loader", () => {
-	it("redirects to /foos", () => {
-		const response = homeLoader();
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/foos");
-	});
-});
 
 describe("foo list loader", () => {
 	it("returns created foos", async () => {
