@@ -28,6 +28,7 @@ const setup = () => {
 	const create = async (name: string) =>
 		(await (await send("/", "POST", { name })).json()) as { id: string };
 	return {
+		app,
 		as: (next: Actor | undefined) => {
 			actor = next;
 		},
@@ -80,6 +81,18 @@ describe("POST /", () => {
 			status: 400,
 		});
 	});
+
+	it.each(["POST", "PATCH"])(
+		"rejects %s without a body or Content-Type with 400",
+		async (method) => {
+			const { app, create } = setup();
+			const { id } = await create("alpha");
+			const path = method === "POST" ? "/" : `/${id}`;
+			const res = await app.request(path, { method });
+
+			expect(res.status).toBe(400);
+		},
+	);
 
 	it("answers 401 AuthnRequired without an actor", async () => {
 		const { as, send } = setup();

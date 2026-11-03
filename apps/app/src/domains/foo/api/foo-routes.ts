@@ -69,7 +69,11 @@ const fooCreateRoute = createRoute({
 	method: "post",
 	path: "/",
 	request: {
-		body: { content: { "application/json": { schema: FooCreateBody } } },
+		body: {
+			content: { "application/json": { schema: FooCreateBody } },
+			// Without it, a request with no body or Content-Type skips validation.
+			required: true,
+		},
 	},
 	responses: {
 		201: json(FooResponse, "Created"),
@@ -98,7 +102,11 @@ const fooUpdateRoute = createRoute({
 	method: "patch",
 	path: "/{fooId}",
 	request: {
-		body: { content: { "application/json": { schema: FooUpdateBody } } },
+		body: {
+			content: { "application/json": { schema: FooUpdateBody } },
+			// Without it, a request with no body or Content-Type skips validation.
+			required: true,
+		},
 		params: FooParams,
 	},
 	responses: {
