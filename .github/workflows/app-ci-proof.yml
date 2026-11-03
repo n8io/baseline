@@ -33,7 +33,9 @@ jobs:
           git archive HEAD:apps/app | tar -x -C "$app"
           (cd apps/app && pnpm pack --pack-destination "$RUNNER_TEMP/packed")
           tar -xzf "$RUNNER_TEMP"/packed/*.tgz -C "$RUNNER_TEMP/packed" package/package.json
-          cp "$RUNNER_TEMP/packed/package/package.json" "$app/package.json"
+          # pnpm pack drops packageManager; template-render writes it back.
+          jq --arg pm "$(jq -r .packageManager apps/app/package.json)" '.packageManager = $pm' \
+            "$RUNNER_TEMP/packed/package/package.json" > "$app/package.json"
           grep -v -e '^packages:' -e '^  - ' pnpm-workspace.yaml > "$app/pnpm-workspace.yaml"
           cd "$app"
           jq 'del(.root)' biome.json > biome.tmp && mv biome.tmp biome.json
