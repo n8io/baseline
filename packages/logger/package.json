@@ -1,0 +1,45 @@
+{
+	"name": "@n8io/baseline-logger",
+	"version": "0.0.0",
+	"description": "The one pino logger every baseline app and package logs through.",
+	"type": "module",
+	"license": "UNLICENSED",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n8io/baseline.git",
+		"directory": "packages/logger"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"publishConfig": {
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			}
+		},
+		"registry": "https://npm.pkg.github.com"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz && attw dist/package.tgz --profile esm-only",
+		"prepack": "tsdown",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"pino": "^10.4.0"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.5",
+		"@types/node": "^26.6.6",
+		"publint": "^0.3.25",
+		"tsdown": "0.23.4"
+	}
+}
