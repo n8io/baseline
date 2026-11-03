@@ -1,4 +1,18 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type TestProjectConfiguration } from "vitest/config";
+
+const integration: TestProjectConfiguration = {
+	extends: true,
+	test: {
+		env: { APP_ENV: "test" },
+		include: [
+			"src/**/*.{postgres,redis}.test.ts",
+			"test/integration/**/*.test.ts",
+		],
+		globalSetup: ["test/integration/global-setup.ts"],
+		name: "integration",
+		setupFiles: ["varlock/auto-load"],
+	},
+};
 
 export default defineConfig({
 	test: {
@@ -15,19 +29,8 @@ export default defineConfig({
 					setupFiles: ["varlock/auto-load"],
 				},
 			},
-			{
-				extends: true,
-				test: {
-					env: { APP_ENV: "test" },
-					include: [
-						"src/**/*.{postgres,redis}.test.ts",
-						"test/integration/**/*.test.ts",
-					],
-					globalSetup: ["test/integration/global-setup.ts"],
-					name: "integration",
-					setupFiles: ["varlock/auto-load"],
-				},
-			},
+			// Stryker cannot pass --project, so test:mutation leaves this project out.
+			...(process.env.TEST_MUTATION ? [] : [integration]),
 		],
 	},
 });

@@ -1,0 +1,85 @@
+# Temporary proof for #71 (V24, V25): runs app-ci.yml on a standalone copy of apps/app.
+# Removed before merge.
+name: app-ci-proof
+
+on:
+  push:
+    branches: [feat/71-app-ci]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scenario: [pass, fail]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          registry-url: https://npm.pkg.github.com
+          scope: "@n8io"
+      - name: Standalone app (as template-render does, foo kept)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          app="$RUNNER_TEMP/app"
+          mkdir -p "$app" "$RUNNER_TEMP/packed"
+          git archive HEAD:apps/app | tar -x -C "$app"
+          (cd apps/app && pnpm pack --pack-destination "$RUNNER_TEMP/packed")
+          tar -xzf "$RUNNER_TEMP"/packed/*.tgz -C "$RUNNER_TEMP/packed" package/package.json
+          cp "$RUNNER_TEMP/packed/package/package.json" "$app/package.json"
+          grep -v -e '^packages:' -e '^  - ' pnpm-workspace.yaml > "$app/pnpm-workspace.yaml"
+          cd "$app"
+          jq 'del(.root)' biome.json > biome.tmp && mv biome.tmp biome.json
+          pnpm install --frozen-lockfile=false
+          pnpm exec biome format --write biome.json
+          rm -rf node_modules
+          git init -q -b main
+          git -c user.name=proof -c user.email=proof@example.com add -A
+          git -c user.name=proof -c user.email=proof@example.com commit -qm base
+          git update-ref refs/remotes/origin/main HEAD
+          git checkout -qb change
+      - name: Change (pass)
+        if: matrix.scenario == 'pass'
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          sed -i '1i // A change, so the mutation job has a file to mutate.' src/domains/foo/rules/foo-stale.ts
+      - name: Change (fail)
+        if: matrix.scenario == 'fail'
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          echo '// stale' >> src/env.d.ts
+          echo '-- changed' >> migrations/*/migration.sql
+          mkdir migrations/20991231000000_name_drop
+          echo 'ALTER TABLE "foo"."foo" DROP COLUMN "name";' > migrations/20991231000000_name_drop/migration.sql
+          git add migrations
+          perl -0pi -e 's|method: "get",\n\tpath: "/\{fooId\}"|method: "get",\n\tpath: "/{fooId}/detail"|' src/domains/foo/api/foo-routes.ts
+          sed -i '1i // A change with no test left.' src/domains/foo/rules/foo-stale.ts
+          git rm -q src/domains/foo/rules/foo-stale.test.ts
+          git diff --stat
+      - working-directory: ${{ runner.temp }}/app
+        run: |
+          git -c user.name=proof -c user.email=proof@example.com commit -qam change
+          tar -cf "$RUNNER_TEMP/app.tar" .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-${{ matrix.scenario }}
+          path: ${{ runner.temp }}/app.tar
+          retention-days: 3
+
+  ci:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [pass, fail]
+    uses: ./.github/workflows/app-ci.yml
+    with:
+      artifact: app-${{ matrix.scenario }}
+    secrets: inherit
