@@ -224,6 +224,8 @@ describe.runIf(template)("the template's own files", () => {
 
 		expect(leftovers).toEqual([]);
 		expect(rendered.map((f) => f.path)).toContain("src/domains/.gitkeep");
+		// React Router serves static files from public/.
+		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
 	});
 
 	it("undo every zero-domain edit exactly, so domain-create can add the first domain", () => {
