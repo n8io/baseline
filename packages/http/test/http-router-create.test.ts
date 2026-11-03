@@ -112,6 +112,21 @@ describe("httpRouterCreate", () => {
 			title: "Bad Request",
 		});
 	});
+
+	it("answers a body with the wrong Content-Type with 415 UnsupportedMediaType", async () => {
+		const res = await appCreate().request("/foos", {
+			body: JSON.stringify({ email: canary, name: "Alpha" }),
+			headers: { "Content-Type": "text/plain" },
+			method: "POST",
+		});
+
+		expect(res.status).toBe(415);
+		expect(await res.json()).toStrictEqual({
+			code: "UnsupportedMediaType",
+			status: 415,
+			title: "Unsupported Media Type",
+		});
+	});
 });
 
 describe("Zod 4 issues (V17)", () => {

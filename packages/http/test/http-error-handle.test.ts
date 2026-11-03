@@ -1,5 +1,6 @@
 import { logger } from "@n8io/baseline-logger";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { httpErrorHandle, httpNotFoundHandle } from "../src/index.ts";
 
@@ -77,6 +78,49 @@ describe("httpErrorHandle", () => {
 			.spyOn(logger, "error")
 			.mockImplementation(() => undefined);
 		const res = await appThrowing(error).request("/foos/foo_1");
+
+		expect(res.status).toBe(500);
+		expect(await res.json()).toMatchObject({ code: "InternalError" });
+		expect(logError).toHaveBeenCalledOnce();
+	});
+});
+
+describe("httpErrorHandle with Hono's HTTPException", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it.each([
+		[400, "ValidationFailed", "Bad Request"],
+		[413, "PayloadTooLarge", "Payload Too Large"],
+		[415, "UnsupportedMediaType", "Unsupported Media Type"],
+		[418, "ImATeapot", "I'm a Teapot"],
+	] as const)(
+		"answers a 4xx HTTPException %i with code %s, unlogged",
+		async (status, code, title) => {
+			const logError = vi
+				.spyOn(logger, "error")
+				.mockImplementation(() => undefined);
+			const res = await appThrowing(
+				new HTTPException(status, { message: canary }),
+			).request("/foos/foo_1");
+			const text = await res.text();
+
+			expect(res.status).toBe(status);
+			expect(res.headers.get("Content-Type")).toBe("application/problem+json");
+			expect(JSON.parse(text)).toStrictEqual({ code, status, title });
+			expect(text).not.toContain(canary);
+			expect(logError).not.toHaveBeenCalled();
+		},
+	);
+
+	it("answers a 5xx HTTPException with a logged 500", async () => {
+		const logError = vi
+			.spyOn(logger, "error")
+			.mockImplementation(() => undefined);
+		const res = await appThrowing(new HTTPException(503)).request(
+			"/foos/foo_1",
+		);
 
 		expect(res.status).toBe(500);
 		expect(await res.json()).toMatchObject({ code: "InternalError" });
