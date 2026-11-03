@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-health",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Liveness and readiness probes on /livez and /readyz",
 	"type": "module",
 	"engines": {

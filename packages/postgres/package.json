@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-postgres",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Postgres pool, Result-aware transactions, migrations and prefixed-id columns on pg and Drizzle.",
 	"type": "module",
 	"license": "UNLICENSED",
