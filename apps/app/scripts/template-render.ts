@@ -2,7 +2,6 @@
 // apps/app without the foo domain. Native TS, no dependencies; shells out to git, gh and pnpm.
 import { execFileSync } from "node:child_process";
 import {
-	cpSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
