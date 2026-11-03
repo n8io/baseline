@@ -58,6 +58,25 @@ describe("architecture", () => {
 		expect(samples.map((s) => s.rule).sort()).toEqual([...ruleIds].sort());
 	});
 
+	// V23: the regex checks of A11 and A14 also pass the corrected sample.
+	it.each([
+		[
+			"a11-bridge-writes.txt",
+			"\tensure: (name) => u.bazCreate(actor, { name }),\n",
+			"",
+		],
+		["a14-column-without-consumer.txt", '"baz.created"', '"baz.deleted"'],
+	])("%s passes once fixed", async (name, from, to) => {
+		const sample = samples.find((s) => s.name === name);
+		const fixed = await Promise.all(
+			(sample?.files ?? []).map((f) =>
+				architectureFileCreate(f.path, f.source.replace(from, to)),
+			),
+		);
+		expect(fixed.map((f) => f.source).join("")).not.toContain(from);
+		expect(architectureRules[sample?.rule ?? ""]?.(fixed)).toEqual([]);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(

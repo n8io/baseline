@@ -49,7 +49,12 @@ export const architectureFileCreate = async (
 	await init;
 	// The lexer reads TypeScript but not JSX, so .tsx goes through Vite's transform first.
 	const code = filePath.endsWith(".tsx")
-		? (await transformWithOxc(source, filePath)).code
+		? // Like verbatimModuleSyntax: an unused value import still loads at runtime, so it stays.
+			(
+				await transformWithOxc(source, filePath, {
+					typescript: { onlyRemoveTypeImports: true },
+				})
+			).code
 		: source;
 	const [records] = parse(code, filePath);
 	const imports = records.flatMap((record) =>
