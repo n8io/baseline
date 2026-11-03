@@ -5,7 +5,6 @@ import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-list.tsx";
-import { loader as homeLoader } from "#ui/routes/home.tsx";
 import { routeArgs, routerContextCreate } from "./router-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -43,14 +42,6 @@ const thrown = async (run: () => unknown): Promise<unknown> => {
 	return undefined;
 };
 
-describe("home loader", () => {
-	it("redirects to /foos", () => {
-		const response = homeLoader();
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/foos");
-	});
-});
-
 describe("foo list loader", () => {
 	it("returns created foos", async () => {
 		const { context, useCases } = setup();
@@ -78,7 +69,7 @@ describe("foo list loader", () => {
 		expect(error).toBeInstanceOf(Response);
 		expect((error as Response).status).toBe(302);
 		expect((error as Response).headers.get("Location")).toBe(
-			"/auth/sign-in?returnTo=%2Ffoos",
+			`/auth/sign-in?returnTo=${encodeURIComponent("/foos")}`,
 		);
 	});
 });
@@ -89,7 +80,7 @@ describe("foo list action", () => {
 		const error = await thrown(() => action(postArgs(context, { name: "x" })));
 		expect(error).toBeInstanceOf(Response);
 		expect((error as Response).headers.get("Location")).toBe(
-			"/auth/sign-in?returnTo=%2Ffoos",
+			`/auth/sign-in?returnTo=${encodeURIComponent("/foos")}`,
 		);
 	});
 

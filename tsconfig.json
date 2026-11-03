@@ -13,7 +13,9 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"target": "esnext",
+		"types": ["node"],
 		"verbatimModuleSyntax": true
 	},
-	"include": ["*.ts", "test"]
+	"exclude": ["test/render/second-domain"],
+	"include": ["*.ts", "scripts", "test"]
 }

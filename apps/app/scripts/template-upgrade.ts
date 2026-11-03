@@ -122,7 +122,7 @@ export const changelogBetween = (
 
 // Renders a release with that release's own render code, so a project's older scripts never
 // misread a newer template. Releases without scripts/ use this file's.
-const releaseRender = async (
+export const releaseRender = async (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
 ): Promise<TemplateFile[]> => {

@@ -25,3 +25,46 @@ jobs:
           restore-keys: turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run check test build --affected
+
+  # Renders apps/app as a project would hold it (spec 16.7): origin/main is the previous release,
+  # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
+  render:
+    # The version PR's new package versions are not published until it merges.
+    if: github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+          registry-url: https://npm.pkg.github.com
+          scope: "@n8io"
+      - run: pnpm install --frozen-lockfile
+      - name: Render, upgrade and add the domains
+        env:
+          # gh clones the previous release of this private repository.
+          GH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          git config --global user.name "render-and-test"
+          git config --global user.email "render-and-test@users.noreply.github.com"
+          node test/render/render-and-test.ts "$RUNNER_TEMP/app"
+          tar -cf app.tar -C "$RUNNER_TEMP/app" .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: render-and-test
+          path: app.tar
+          retention-days: 1
+
+  render-and-test:
+    needs: render
+    uses: ./.github/workflows/app-ci.yml
+    with:
+      artifact: render-and-test
+    secrets: inherit

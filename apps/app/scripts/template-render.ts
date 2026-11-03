@@ -722,9 +722,60 @@ export const releaseLatest = (repository = templateRepository): string => {
 const workspaceRender = (rootWorkspace: string): string =>
 	rootWorkspace.replace(/^packages:\n(?: {2}- .*\n)*/m, "");
 
-// Clones the release (blobless), exports apps/app with `git archive`, takes package.json from
-// `pnpm pack` (workspace:^ becomes a caret range) and adds pnpm-workspace.yaml. Returns the
-// unrendered files, foo included, and removes the clone.
+// Exports apps/app at `ref` of a baseline checkout: files with `git archive`, package.json from
+// `pnpm pack` (workspace:^ becomes a caret range; pnpm pack writes a lockfile, so use a throwaway
+// checkout) and pnpm-workspace.yaml from the root. Returns the unrendered files, foo included.
+export const templateExport = (
+	checkout: string,
+	ref: string,
+): TemplateFile[] => {
+	const work = mkdtempSync(join(tmpdir(), "template-export-"));
+	try {
+		const app = join(work, "app");
+		mkdirSync(app);
+		const archive = join(work, "app.tar");
+		run("git", ["archive", "--output", archive, `${ref}:apps/app`], {
+			cwd: checkout,
+		});
+		run("tar", ["-xf", archive, "-C", app]);
+		const packed = join(work, "packed");
+		mkdirSync(packed);
+		run("pnpm", ["pack", "--pack-destination", packed], {
+			cwd: join(checkout, "apps/app"),
+		});
+		const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
+		if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
+		run("tar", [
+			"-xzf",
+			join(packed, tarball),
+			"-C",
+			packed,
+			"package/package.json",
+		]);
+		// pnpm pack drops packageManager, which CI's pnpm setup reads.
+		const manifest = JSON.parse(
+			readFileSync(join(packed, "package/package.json"), "utf8"),
+		) as Record<string, unknown>;
+		const { packageManager } = JSON.parse(
+			readFileSync(join(checkout, "apps/app/package.json"), "utf8"),
+		) as { packageManager: string };
+		writeFileSync(
+			join(app, "package.json"),
+			`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
+		);
+		writeFileSync(
+			join(app, "pnpm-workspace.yaml"),
+			workspaceRender(
+				readFileSync(join(checkout, "pnpm-workspace.yaml"), "utf8"),
+			),
+		);
+		return filesRead(app);
+	} finally {
+		rmSync(work, { force: true, recursive: true });
+	}
+};
+
+// Clones the release (blobless) and exports its apps/app, then removes the clone.
 export const templateFetch = (
 	version: string,
 	repository = templateRepository,
@@ -745,45 +796,7 @@ export const templateFetch = (
 			`https://github.com/${repository}.git`,
 			clone,
 		]);
-		const app = join(work, "app");
-		mkdirSync(app);
-		const archive = join(work, "app.tar");
-		run(
-			"git",
-			["archive", "--output", archive, `${releaseTag(version)}:apps/app`],
-			{ cwd: clone },
-		);
-		run("tar", ["-xf", archive, "-C", app]);
-		const packed = join(work, "packed");
-		mkdirSync(packed);
-		run("pnpm", ["pack", "--pack-destination", packed], {
-			cwd: join(clone, "apps/app"),
-		});
-		const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
-		if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
-		run("tar", [
-			"-xzf",
-			join(packed, tarball),
-			"-C",
-			packed,
-			"package/package.json",
-		]);
-		// pnpm pack drops packageManager, which CI's pnpm setup reads.
-		const manifest = JSON.parse(
-			readFileSync(join(packed, "package/package.json"), "utf8"),
-		) as Record<string, unknown>;
-		const { packageManager } = JSON.parse(
-			readFileSync(join(clone, "apps/app/package.json"), "utf8"),
-		) as { packageManager: string };
-		writeFileSync(
-			join(app, "package.json"),
-			`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
-		);
-		writeFileSync(
-			join(app, "pnpm-workspace.yaml"),
-			workspaceRender(readFileSync(join(clone, "pnpm-workspace.yaml"), "utf8")),
-		);
-		return filesRead(app);
+		return templateExport(clone, releaseTag(version));
 	} finally {
 		rmSync(work, { force: true, recursive: true });
 	}
