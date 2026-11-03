@@ -1,0 +1,14 @@
+{
+	"$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+	"coverageAnalysis": "perTest",
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"reporters": ["clear-text", "progress"],
+	"testRunner": "vitest",
+	"thresholds": {
+		"break": 80
+	},
+	"tsconfigFile": "",
+	"clearTextReporter": {
+		"reportTests": false
+	}
+}

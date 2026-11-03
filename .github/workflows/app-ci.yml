@@ -1,0 +1,234 @@
+# The CI every project made from baseline calls, as `ci / <job>` checks:
+#   jobs:
+#     ci:
+#       uses: n8io/baseline/.github/workflows/app-ci.yml@v1
+#       secrets: inherit
+# Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
+# A change that adds a failing check ships as the next major (v2), never inside v1.
+name: app-ci
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: >-
+          Name of an artifact from the calling run that holds app.tar: the project
+          directory with its .git, origin/main included. Projects leave it empty and
+          the jobs check out the repository.
+        default: ""
+        type: string
+    secrets:
+      PACKAGES_TOKEN:
+        description: Classic PAT with read:packages, for @n8io/baseline-* on GitHub Packages.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - &checkout
+        if: inputs.artifact == ''
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - &download
+        if: inputs.artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact }}
+      - &extract
+        if: inputs.artifact != ''
+        run: tar -xf app.tar && rm app.tar
+      - &pnpm
+        uses: pnpm/action-setup@v6
+      - &node
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+          registry-url: https://npm.pkg.github.com
+          scope: "@n8io"
+      - &install
+        id: install
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+      - run: timeout 30s pnpm check
+      - name: src/env.d.ts matches .env.schema
+        run: git diff --exit-code src/env.d.ts
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm test
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: baseline
+          POSTGRES_PASSWORD: baseline
+          POSTGRES_USER: baseline
+        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
+        options: >-
+          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["5432:5432"]
+      redis:
+        image: redis:8
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["6379:6379"]
+    env:
+      CACHE_URL: redis://localhost:6379
+      DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm test:integration
+
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm test:mutation
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      # Each migrations check reports even when an earlier one failed.
+      - run: pnpm exec drizzle-kit check
+      - name: Migrations match the tables
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          pnpm exec drizzle-kit generate
+          if [ -n "$(git status --porcelain -- migrations)" ]; then
+            git status --porcelain -- migrations
+            echo "::error::The tables changed without a migration. Run pnpm codegen and commit migrations/."
+            exit 1
+          fi
+      - name: Migrations already on main are unchanged
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          changed=$(git diff --name-only --no-renames --diff-filter=DMT origin/main...HEAD -- migrations)
+          for file in $changed; do
+            echo "::error file=$file::Migrations already on main never change; add a new one instead."
+          done
+          [ -z "$changed" ]
+      - name: Destructive SQL has a destructive.md
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          status=0
+          for sql in $(git diff --name-only --no-renames --diff-filter=A origin/main...HEAD -- 'migrations/*/migration.sql'); do
+            folder=$(dirname "$sql")
+            if [ -f "$folder/destructive.md" ]; then continue; fi
+            if grep -inE '\bdrop[[:space:]]+(table|column|schema)\b|\brename\b|\balter[[:space:]]+column\b[^;]*\btype\b|\bset[[:space:]]+not[[:space:]]+null\b' "$sql"; then
+              echo "::error file=$sql::Destructive SQL needs $folder/destructive.md saying why it is safe now."
+              status=1
+            fi
+          done
+          exit $status
+
+  oasdiff:
+    runs-on: ubuntu-latest
+    env:
+      OASDIFF_SHA256: a8023002fcb2eaa7f5758148a9303cb63d33b939886df312268bc0fc7b939140
+      OASDIFF_VERSION: 1.35.0
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - name: Install oasdiff
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
+      - name: OpenAPI documents from main and this change
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: |
+          # Builds the server in $1, boots it with memory adapters on port $2, saves the document to $3.
+          openapi() {
+            (cd "$1" && pnpm build)
+            (cd "$1" && APP_ENV=test DATABASE_URL=memory:// CACHE_URL=memory:// PORT=$2 HEALTH_PORT=$(($2 + 6000)) \
+              node --import varlock/auto-load build/server/index.js) &
+            curl -fsS --retry 30 --retry-connrefused --retry-delay 1 -o "$3" "http://localhost:$2/api/v1/openapi.json"
+          }
+          openapi . 3000 "$RUNNER_TEMP/revision.json"
+          git worktree add --detach "$RUNNER_TEMP/main" origin/main
+          (cd "$RUNNER_TEMP/main" && pnpm install --frozen-lockfile)
+          openapi "$RUNNER_TEMP/main" 3001 "$RUNNER_TEMP/base.json"
+      - name: No breaking change inside /api/v1
+        run: |
+          "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/revision.json" --fail-on ERR
+
+  glossary-check:
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm glossary-check
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - name: Build the image (never pushed)
+        env:
+          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+        run: docker build --secret id=packages_token,env=PACKAGES_TOKEN --tag app:ci .
+      - name: Dockerfile test
+        run: pnpm exec vitest run test/unit/dockerfile.test.ts
+      - name: Image size within image-budget.json
+        run: |
+          bytes=$(docker image inspect --format '{{.Size}}' app:ci)
+          size=$(( (bytes + 999999) / 1000000 ))
+          budget=$(jq -r .megabytes image-budget.json)
+          echo "Image: $size MB, budget $budget MB"
+          if [ "$size" -gt "$budget" ]; then
+            echo "::error file=image-budget.json::The image is $size MB, over the $budget MB budget."
+            exit 1
+          fi

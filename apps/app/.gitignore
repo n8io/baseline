@@ -3,3 +3,4 @@ build
 .react-router
 .env.local
 .env.*.local
+.stryker-tmp
