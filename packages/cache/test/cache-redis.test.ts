@@ -7,6 +7,7 @@ import {
 	cacheRedisClientCreate,
 	type RedisClient,
 } from "../src/cache-redis.ts";
+import type { Cache } from "../src/index.ts";
 import { cacheContract } from "./cache-contract.ts";
 
 // Integration: set CACHE_TEST_URL to a Redis 8 (redis://localhost:<port>).
@@ -70,20 +71,28 @@ describe.skipIf(cacheTestUrl === undefined)("cacheRedis on Redis", () => {
 		expect(pttl).toBeLessThanOrEqual(60_000);
 	});
 
-	// V20: node-redis 6 supports the 1 s command timeout.
-	test("a command Redis does not answer within 1 s fails", async () => {
+	// V20: a Redis that takes a command and does not answer fails each call
+	// within 1 s. node-redis's own timeout stops once a command is sent.
+	test.each([
+		["get", (cache: Cache<string>) => cache.get("foo_1")],
+		["set", (cache: Cache<string>) => cache.set("foo_1", "First")],
+		["delete", (cache: Cache<string>) => cache.delete("foo_1")],
+	])("%s fails within 1 s when Redis does not answer", async (_, call) => {
 		const pauser = await cacheRedisClientCreate({
 			cacheUrl: `${cacheTestUrl}`,
 		});
-		await pauser.clientPause(2000);
 		const cache = cacheRedis({
 			prefix: "pause",
 			redisClient,
 			schema: z.string(),
 		});
+		await pauser.clientPause(3000);
 		const started = Date.now();
-		await expect(cache.get("foo_1")).rejects.toThrow(
-			expect.objectContaining({ name: "TimeoutError" }),
+		await expect(call(cache)).rejects.toThrow(
+			expect.objectContaining({
+				message: "Redis did not answer within 1000 ms",
+				name: "TimeoutError",
+			}),
 		);
 		const elapsed = Date.now() - started;
 		expect(elapsed).toBeGreaterThanOrEqual(950);

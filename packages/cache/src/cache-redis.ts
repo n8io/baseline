@@ -20,6 +20,25 @@ const cacheUrlCheck = (cacheUrl: string): void => {
 	}
 };
 
+// Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
+const cacheTimeLimit = async <T>(
+	work: Promise<T>,
+	ms: number,
+	message: string,
+): Promise<T> => {
+	let timer: NodeJS.Timeout | undefined;
+	const timedOut = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			reject(new DOMException(message, "TimeoutError"));
+		}, ms);
+	});
+	try {
+		return await Promise.race([work, timedOut]);
+	} finally {
+		clearTimeout(timer);
+	}
+};
+
 // Connects to Redis before returning, so an unreachable Redis stops startup.
 // Throws when Redis is not reachable within the connect timeout.
 export const cacheRedisClientCreate = async ({
@@ -33,6 +52,8 @@ export const cacheRedisClientCreate = async ({
 	const { createClient } = await import("redis");
 	const redisClient: RedisClient = createClient({
 		...options,
+		// node-redis drops this timer once a command is sent, so it only limits
+		// the wait to send (while reconnecting); cacheRedis limits the reply.
 		commandOptions: {
 			timeout: cacheCommandTimeoutMs,
 			...options.commandOptions,
@@ -49,41 +70,46 @@ export const cacheRedisClientCreate = async ({
 		logger.error({ err }, "Redis client error");
 	});
 
-	let timer: NodeJS.Timeout | undefined;
-	const timedOut = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => {
-			reject(
-				new Error(`Redis not reachable within ${cacheConnectTimeoutMs} ms`),
-			);
-		}, cacheConnectTimeoutMs);
-	});
 	try {
-		await Promise.race([redisClient.connect(), timedOut]);
+		await cacheTimeLimit(
+			redisClient.connect(),
+			cacheConnectTimeoutMs,
+			`Redis not reachable within ${cacheConnectTimeoutMs} ms`,
+		);
 	} catch (err) {
 		redisClient.destroy();
 		throw err;
-	} finally {
-		clearTimeout(timer);
 	}
 	return redisClient;
 };
 
-// A cache on a shared Redis client; entries expire with Redis PX.
+// A cache on a shared Redis client; entries expire with Redis PX. Each call
+// fails with a TimeoutError when Redis does not answer within 1 s.
 export const cacheRedis = <T>({
 	redisClient,
 	...options
-}: CacheOptions<T> & { redisClient: RedisClient }): Cache<T> =>
-	cacheCreate(
+}: CacheOptions<T> & { redisClient: RedisClient }): Cache<T> => {
+	const limit = <R>(work: Promise<R>): Promise<R> =>
+		cacheTimeLimit(
+			work,
+			cacheCommandTimeoutMs,
+			`Redis did not answer within ${cacheCommandTimeoutMs} ms`,
+		);
+
+	return cacheCreate(
 		{
 			delete: async (key) => {
-				await redisClient.del(key);
+				await limit(redisClient.del(key));
 			},
-			get: async (key) => (await redisClient.get(key)) ?? undefined,
+			get: async (key) => (await limit(redisClient.get(key))) ?? undefined,
 			set: async (key, json, ttlMs) => {
-				await redisClient.set(key, json, {
-					expiration: { type: "PX", value: ttlMs },
-				});
+				await limit(
+					redisClient.set(key, json, {
+						expiration: { type: "PX", value: ttlMs },
+					}),
+				);
 			},
 		},
 		options,
 	);
+};
