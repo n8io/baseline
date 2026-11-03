@@ -10,13 +10,22 @@ afterEach(() => {
 });
 
 // A server whose /slow response takes 200 ms, with a keep-alive timeout far longer than the test.
-const serverListen = async (): Promise<Server> => {
+// `slowArrived` resolves once /slow reaches the handler, so a test never closes before it;
+// each finished response is recorded in `events`.
+const serverListen = async (
+	events: string[],
+): Promise<{ server: Server; slowArrived: Promise<void> }> => {
+	const slow = Promise.withResolvers<void>();
 	const server = createServer((req, res) => {
+		if (req.url === "/slow") {
+			slow.resolve();
+		}
+		res.on("finish", () => events.push(`${req.url} finished`));
 		setTimeout(() => res.end("done"), req.url === "/slow" ? 200 : 0);
 	});
 	server.keepAliveTimeout = 60_000;
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-	return server;
+	return { server, slowArrived: slow.promise };
 };
 
 const get = (server: Server, path: string): Promise<string> => {
@@ -38,17 +47,17 @@ const get = (server: Server, path: string): Promise<string> => {
 
 describe("httpServerClose", () => {
 	it("waits for a running request, then closes its keep-alive socket once it goes idle", async () => {
-		const server = await serverListen();
+		const events: string[] = [];
+		const { server, slowArrived } = await serverListen(events);
 		const response = get(server, "/slow");
-		await new Promise((resolve) => setTimeout(resolve, 50));
+		await slowArrived;
 
 		const started = performance.now();
-		const events: string[] = [];
 		const closed = httpServerClose(server).then(() => events.push("closed"));
-		await response.then((body) => events.push(body));
+		expect(await response).toBe("done");
 		await closed;
 
-		expect(events).toStrictEqual(["done", "closed"]);
+		expect(events).toStrictEqual(["/slow finished", "closed"]);
 		expect(performance.now() - started).toBeLessThan(1_000);
 		expect(server.listening).toBe(false);
 	});
