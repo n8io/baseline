@@ -20,6 +20,7 @@ import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 type FooEvents = { "foo.created": { fooId: string } };
 
+let databaseUrl: string;
 let pgPool: pg.Pool;
 let queue: Queue;
 const warnings: Error[] = [];
@@ -35,7 +36,7 @@ const jobs = async (): Promise<{ name: string; data: unknown }[]> =>
 	).rows;
 
 beforeAll(async () => {
-	const databaseUrl = await queueTestDatabaseCreate();
+	databaseUrl = await queueTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = postgresPoolCreate({ databaseUrl });
 	await pgPool.query("CREATE TABLE foo (id text NOT NULL)");
@@ -107,6 +108,26 @@ describe("queueEventsPgBoss (V6)", () => {
 		expect(result.ok).toBe(false);
 		expect(await jobs()).toEqual([]);
 		expect((await pgPool.query("SELECT * FROM foo")).rows).toEqual([]);
+	});
+
+	it("needs no second pool connection while the transaction holds one", async () => {
+		const onePool = postgresPoolCreate({ databaseUrl, max: 1 });
+		const oneQueue = await queueCreate({ pgPool: onePool, role: "publisher" });
+		try {
+			const result = await postgresTransaction(onePool, async (pgClient) => {
+				await queueEventsPgBoss<FooEvents>(oneQueue, pgClient).publish(
+					"foo.created",
+					{ fooId: "foo_1" },
+				);
+				return ok(undefined);
+			});
+
+			expect(result).toEqual(ok(undefined));
+			expect(await jobs()).toHaveLength(3);
+		} finally {
+			await queueStop(oneQueue);
+			await onePool.end();
+		}
 	});
 
 	it("rolls the jobs back on a throw", async () => {
