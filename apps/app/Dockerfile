@@ -7,7 +7,7 @@
 # run the migrate entry once before rollout; server and worker may then start in any order and scale independently;
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
 # give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password; secrets are fetched at boot.
-# Build: docker build --secret id=packages_token,env=PACKAGES_TOKEN .
+# Build: docker build --secret id=packages_token,env=NODE_AUTH_TOKEN .
 
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build
 WORKDIR /app
