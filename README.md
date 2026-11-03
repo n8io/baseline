@@ -60,15 +60,15 @@ Open the URL `pnpm dev` prints. Development uses a memory sign-in, so no identit
 
 ## In a project
 
-| Task | Command |
-| --- | --- |
-| Lint, format check and typecheck | `pnpm check` |
-| Unit tests (memory adapters) | `pnpm test` |
-| Integration tests (needs `docker compose up -d`) | `pnpm test:integration` |
-| Everything CI runs | `pnpm run ci` |
-| Add a Domain | `pnpm domain-create <name>` |
-| Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen` |
-| Pull the newest template release | `pnpm template-upgrade` |
+| Task                                                  | Command                     |
+| ----------------------------------------------------- | --------------------------- |
+| Lint, format check and typecheck                      | `pnpm check`                |
+| Unit tests (memory adapters)                          | `pnpm test`                 |
+| Integration tests (needs `docker compose up -d`)      | `pnpm test:integration`     |
+| Everything CI runs                                    | `pnpm run ci`               |
+| Add a Domain                                          | `pnpm domain-create <name>` |
+| Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen`              |
+| Pull the newest template release                      | `pnpm template-upgrade`     |
 
 The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the full rules: where new work goes, data and secrets rules, and when to stop and ask.
 
@@ -79,20 +79,20 @@ The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the full rules: where 
 
 Projects depend on these. They are private, on GitHub Packages.
 
-| Package | What it does |
-| --- | --- |
-| [`authn`](packages/authn) | OIDC code flow, JWT verification and the Actor |
-| [`cache`](packages/cache) | Typed cache on Redis or memory |
-| [`health`](packages/health) | `/livez` and `/readyz` probes |
-| [`http`](packages/http) | Hono error handling and helpers |
-| [`id`](packages/id) | Prefixed TypeIDs, to and from UUIDs |
-| [`live`](packages/live) | Live updates over SSE and Redis pub/sub |
-| [`logger`](packages/logger) | The one pino logger |
-| [`postgres`](packages/postgres) | Pool, transactions, migrations and id columns on Drizzle |
-| [`queue`](packages/queue) | pg-boss Events, Consumers and Schedules with an inbox |
-| [`result`](packages/result) | `Result`, `ok` and `err` for expected business errors |
-| [`shutdown`](packages/shutdown) | Graceful shutdown in order |
-| [`telemetry`](packages/telemetry) | OpenTelemetry preload and use-case spans |
+| Package                           | What it does                                             |
+| --------------------------------- | -------------------------------------------------------- |
+| [`authn`](packages/authn)         | OIDC code flow, JWT verification and the Actor           |
+| [`cache`](packages/cache)         | Typed cache on Redis or memory                           |
+| [`health`](packages/health)       | `/livez` and `/readyz` probes                            |
+| [`http`](packages/http)           | Hono error handling and helpers                          |
+| [`id`](packages/id)               | Prefixed TypeIDs, to and from UUIDs                      |
+| [`live`](packages/live)           | Live updates over SSE and Redis pub/sub                  |
+| [`logger`](packages/logger)       | The one pino logger                                      |
+| [`postgres`](packages/postgres)   | Pool, transactions, migrations and id columns on Drizzle |
+| [`queue`](packages/queue)         | pg-boss Events, Consumers and Schedules with an inbox    |
+| [`result`](packages/result)       | `Result`, `ok` and `err` for expected business errors    |
+| [`shutdown`](packages/shutdown)   | Graceful shutdown in order                               |
+| [`telemetry`](packages/telemetry) | OpenTelemetry preload and use-case spans                 |
 
 ## Working on baseline
 
