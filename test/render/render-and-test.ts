@@ -107,7 +107,8 @@ const main = async () => {
 		}
 		const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
 		console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
-		pnpm(directory, ["install"]);
+		// The upgrade can change dependencies; CI's pnpm otherwise installs frozen.
+		pnpm(directory, ["install", "--no-frozen-lockfile"]);
 
 		for (const names of domains) {
 			const refusal = domainNameRefusal(names, directory);
