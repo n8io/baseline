@@ -27,7 +27,7 @@ import {
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const markerPattern = /^\s*(\/\/|#) domain-create: [a-z-]+\s*$/;
 
-// The domain, its pages and their tests, so a new domain keeps the mutation score.
+// The domain, its pages and the pages' unit tests.
 const copiedPaths = [
 	/^src\/domains\/foo\//,
 	/^src\/ui\/routes\/foo-(list|detail)\.tsx$/,

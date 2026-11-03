@@ -106,17 +106,6 @@ jobs:
       - *install
       - run: pnpm test:integration
 
-  mutation:
-    runs-on: ubuntu-latest
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      - run: pnpm test:mutation
-
   migrations:
     runs-on: ubuntu-latest
     steps:

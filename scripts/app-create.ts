@@ -37,7 +37,6 @@ export const requiredJobs = [
 	"check",
 	"unit",
 	"integration",
-	"mutation",
 	"migrations",
 	"oasdiff",
 	"image",

@@ -76,7 +76,8 @@ const main = async () => {
 	const previousFiles = templateFetch(previous);
 	const files = checkoutExport();
 	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
-	const version = (JSON.parse(manifest) as { version: string }).version;
+	// Its own label: between releases the checkout's version equals the previous release's.
+	const version = `${(JSON.parse(manifest) as { version: string }).version}-checkout`;
 	const token = process.env.PACKAGES_TOKEN || undefined;
 
 	await pnpmWithToken(token, async (pnpm) => {
@@ -98,12 +99,14 @@ const main = async () => {
 
 		console.log(`HEAD: template-upgrade to this checkout (${version})`);
 		const { conflicts } = await templateUpgrade(directory, version, {
-			fetch: (release) => (release === previous ? previousFiles : files),
+			fetch: (release) => (release === version ? files : previousFiles),
 			finish: (tree) => templateFinish(tree, toolsDirectory),
 		});
 		if (conflicts.length > 0) {
 			throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
 		}
+		const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
+		console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
 		pnpm(directory, ["install"]);
 
 		for (const names of domains) {

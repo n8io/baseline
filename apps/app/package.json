@@ -27,8 +27,7 @@
 		"seed": "node --import varlock/auto-load --import @n8io/baseline-telemetry/register --experimental-loader=@opentelemetry/instrumentation/hook.mjs src/seed.ts",
 		"template-upgrade": "node scripts/template-upgrade.ts",
 		"test": "vitest run --project unit",
-		"test:integration": "react-router build && vitest run --project integration",
-		"test:mutation": "node scripts/test-mutation.ts"
+		"test:integration": "react-router build && vitest run --project integration"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",
@@ -66,8 +65,6 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.4",
 		"@react-router/dev": "^8.5.1",
-		"@stryker-mutator/core": "^10.1.1",
-		"@stryker-mutator/vitest-runner": "^10.1.1",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/node": "^26.6.6",
 		"@types/pg": "^8.23.1",

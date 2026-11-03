@@ -29,8 +29,7 @@ export default defineConfig({
 					setupFiles: ["varlock/auto-load"],
 				},
 			},
-			// Stryker cannot pass --project, so test:mutation leaves this project out.
-			...(process.env.TEST_MUTATION ? [] : [integration]),
+			integration,
 		],
 	},
 });

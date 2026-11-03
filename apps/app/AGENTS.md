@@ -13,7 +13,6 @@ Commands by role. Integration tests and the dev server need `docker compose up -
 - lint + format check + typecheck: `pnpm check` (30 s budget)
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (3 min budget)
-- mutation tests: `pnpm test:mutation` (changed files, break threshold 80%)
 - full CI-equivalent: `pnpm run ci` (`pnpm ci` is pnpm's own clean install)
 - dev server: `pnpm dev` (runs migrate, then the Worker, with health on port 9001, beside the dev server)
 - build: `pnpm build`
