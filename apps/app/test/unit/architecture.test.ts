@@ -38,16 +38,12 @@ const samples = await samplesRead();
 
 describe("architecture", () => {
 	it("reads every source file and its imports", () => {
+		// Domain-generic, so it holds after template-render removes the example domain.
 		const server = files.find((f) => f.path === "src/server.ts");
-		expect(files.length).toBeGreaterThan(50);
-		expect(server?.imports.map((imp) => imp.target)).toContain(
-			"src/domains/foo/index.ts",
-		);
-		expect(
-			files.find((f) => f.path === "src/ui/routes/foo-detail.tsx")?.imports,
-		).toContainEqual(
-			expect.objectContaining({ target: "src/domains/foo/index.ts" }),
-		);
+		const root = files.find((f) => f.path === "src/ui/root.tsx");
+		expect(files.length).toBeGreaterThan(10);
+		expect(server?.imports.map((imp) => imp.target)).toContain("src/env.ts");
+		expect(root?.imports.map((imp) => imp.specifier)).toContain("react-router");
 	});
 
 	it.each(ruleIds)("src/ keeps rule %s", (rule) => {

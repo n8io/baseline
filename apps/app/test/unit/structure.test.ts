@@ -136,7 +136,7 @@ describe("domain structure", () => {
 	});
 
 	it("fails on a domain with no glossary term", () => {
-		expect(structureViolations(barBase, "**Foo**:\n")).toEqual([
+		expect(structureViolations(barBase, "**Baz**:\n")).toEqual([
 			"CONTEXT.md: add a **Bar**: term for bar",
 		]);
 	});

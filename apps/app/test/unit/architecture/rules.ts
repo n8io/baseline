@@ -104,7 +104,7 @@ export const architectureSrcRead = async (
 	);
 };
 
-// Where a path sits: its domain, and the domain-relative parts (`["models", "foo.ts"]`).
+// Where a path sits: its domain, and the domain-relative parts (`["models", "bar.ts"]`).
 const domainOf = (p: string): string | undefined =>
 	/^src\/domains\/([^/]+)\//.exec(p)?.[1];
 const partsOf = (p: string): string[] => p.split("/").slice(3);
@@ -514,7 +514,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					.map((p) => p[1] ?? p[2] ?? "")
 					.filter((name) => !name.endsWith("Id"));
 				return names.length > 0
-					? `path parameter ${names.join(", ")} in "${m[2]}" must end in Id (:fooId)`
+					? `path parameter ${names.join(", ")} in "${m[2]}" must end in Id (:<thing>Id)`
 					: undefined;
 			},
 		),
