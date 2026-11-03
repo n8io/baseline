@@ -8,14 +8,6 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-	answersWrite,
-	appRender,
-	gitCommitAll,
-	glossaryTerm,
-	pnpmWithToken,
-	toolsDirectory,
-} from "../../scripts/app-create.ts";
-import {
 	domainFilesCreate,
 	domainNameRefusal,
 } from "../../apps/app/scripts/domain-create.ts";
@@ -29,6 +21,14 @@ import {
 	templateFinish,
 } from "../../apps/app/scripts/template-render.ts";
 import { templateUpgrade } from "../../apps/app/scripts/template-upgrade.ts";
+import {
+	answersWrite,
+	appRender,
+	gitCommitAll,
+	glossaryTerm,
+	pnpmWithToken,
+	toolsDirectory,
+} from "../../scripts/app-create.ts";
 
 const monorepo = resolve(import.meta.dirname, "../..");
 const fixture = join(import.meta.dirname, "second-domain");
