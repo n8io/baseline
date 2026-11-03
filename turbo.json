@@ -1,0 +1,13 @@
+{
+	"$schema": "./node_modules/turbo/schema.json",
+	"tasks": {
+		"//#check": {},
+		"//#test": {},
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["build/**", "dist/**"]
+		},
+		"check": {},
+		"test": {}
+	}
+}
