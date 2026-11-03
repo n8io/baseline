@@ -769,7 +769,17 @@ export const templateFetch = (
 			packed,
 			"package/package.json",
 		]);
-		cpSync(join(packed, "package/package.json"), join(app, "package.json"));
+		// pnpm pack drops packageManager, which CI's pnpm setup reads.
+		const manifest = JSON.parse(
+			readFileSync(join(packed, "package/package.json"), "utf8"),
+		) as Record<string, unknown>;
+		const { packageManager } = JSON.parse(
+			readFileSync(join(clone, "apps/app/package.json"), "utf8"),
+		) as { packageManager: string };
+		writeFileSync(
+			join(app, "package.json"),
+			`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
+		);
 		writeFileSync(
 			join(app, "pnpm-workspace.yaml"),
 			workspaceRender(readFileSync(join(clone, "pnpm-workspace.yaml"), "utf8")),
