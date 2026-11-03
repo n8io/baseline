@@ -91,6 +91,16 @@ describe("the verifier", () => {
 		).toStrictEqual({ status: "invalid" });
 	});
 
+	it("treats claims that make actorFromClaims throw as invalid, not a 500", async () => {
+		expect(
+			await verify({
+				actorFromClaims: () => {
+					throw new TypeError("no sub");
+				},
+			}),
+		).toStrictEqual({ status: "invalid" });
+	});
+
 	it("never accepts a memory refresh token as an access token", async () => {
 		const authn = await authnCreate(memoryOptions);
 		if (authn.issuer.kind !== "memory")

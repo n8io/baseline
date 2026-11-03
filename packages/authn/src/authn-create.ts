@@ -22,7 +22,7 @@ export type AuthnOptions = {
 	secret: string;
 	/** Extra authorization request params, such as `{ audience }` for Auth0. */
 	authorizeParams?: Record<string, string>;
-	/** `"client_id"` for Cognito without a resource binding. */
+	/** `"client_id"` for Cognito without a resource binding: the token's `client_id` must then equal `audience`. */
 	audienceClaim?: "aud" | "client_id";
 	actorFromClaims: (claims: JWTPayload) => Actor;
 	/** Scopes of the memory issuer's "Dev admin". */
@@ -72,10 +72,34 @@ const issuerUrlCheck = (issuerUrl: string): void => {
 	);
 };
 
-// Network and timeout failures reaching the JWKS are outages (500), never a
-// reason to treat a caller as signed out.
-const isOutage = (error: unknown): boolean =>
-	error instanceof errors.JWKSTimeout || !(error instanceof errors.JOSEError);
+// What jose throws for a token that is wrong in itself. Anything else, such as a JWKS fetch that
+// fails, times out, answers non-200 or returns a bad key set, is an outage (500), never a reason
+// to treat a caller as signed out.
+const tokenErrors = [
+	errors.JWTClaimValidationFailed,
+	errors.JWTInvalid,
+	errors.JWSInvalid,
+	errors.JWSSignatureVerificationFailed,
+	errors.JOSEAlgNotAllowed,
+	errors.JOSENotSupported,
+	errors.JWKSNoMatchingKey,
+	errors.JWKSMultipleMatchingKeys,
+];
+
+const isTokenError = (error: unknown): boolean =>
+	tokenErrors.some((tokenError) => error instanceof tokenError);
+
+// `actorFromClaims` is the app's pure mapping; a throw means the claims are not an actor.
+const actorFrom = (
+	options: AuthnOptions,
+	payload: JWTPayload,
+): Actor | undefined => {
+	try {
+		return Actor.safeParse(options.actorFromClaims(payload)).data;
+	} catch {
+		return undefined;
+	}
+};
 
 const verifyCreate =
 	(
@@ -95,8 +119,8 @@ const verifyCreate =
 			}));
 		} catch (error) {
 			if (error instanceof errors.JWTExpired) return { status: "expired" };
-			if (isOutage(error)) throw error;
-			return { status: "invalid" };
+			if (isTokenError(error)) return { status: "invalid" };
+			throw error;
 		}
 		if (
 			options.audienceClaim === "client_id" &&
@@ -104,10 +128,10 @@ const verifyCreate =
 		) {
 			return { status: "invalid" };
 		}
-		const actor = Actor.safeParse(options.actorFromClaims(payload));
-		if (!actor.success) return { status: "invalid" };
+		const actor = actorFrom(options, payload);
+		if (actor === undefined) return { status: "invalid" };
 		return {
-			actor: actor.data,
+			actor,
 			expiresAt: (payload.exp ?? 0) * 1000,
 			status: "valid",
 		};

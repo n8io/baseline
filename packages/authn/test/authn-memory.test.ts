@@ -252,12 +252,11 @@ describe("/auth/refresh", () => {
 		expect((await app.request(`${appOrigin}/auth/refresh`)).status).toBe(401);
 	});
 
-	it("clears the cookies and redirects to sign-in when the refresh token is gone", async () => {
+	it("redirects to sign-in when there is no refresh token", async () => {
 		const { app } = await appCreate();
 		const res = await app.request(`${appOrigin}/auth/refresh?returnTo=%2Ffoos`);
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
 	});
 
 	it("never redirects to another site", async () => {

@@ -10,6 +10,7 @@ import {
 import {
 	actorFromClaims,
 	appOrigin,
+	type CookieJar,
 	cookieJar,
 	pageBody,
 	secret,
@@ -33,13 +34,7 @@ beforeEach(async () => {
 	vi.stubGlobal(
 		"fetch",
 		(input: string | URL | Request, init?: RequestInit) => {
-			let request: Request;
-			try {
-				request = new Request(input, init);
-			} catch (e) {
-				console.log("STUBERR", String(input), e);
-				throw e;
-			}
+			const request = new Request(input, init);
 			if (!request.url.startsWith(idpOrigin)) return realFetch(request);
 			if (provider.options.down)
 				return Promise.reject(new TypeError("fetch failed"));
@@ -49,6 +44,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 });
@@ -193,98 +189,149 @@ describe("OIDC sign-in", () => {
 		expect(setCookieLine(res, "__Host-authn")).toBeUndefined();
 	});
 
-	it("verifies provider bearer tokens on the API through the remote JWKS", async () => {
+	it("clears an earlier user's refresh cookie when the new sign-in gets none", async () => {
 		const { app } = await appCreate(oidcOptions);
-		const code = provider.authorize(
-			`${idpOrigin}/authorize?code_challenge=x&nonce=n`,
-		);
-		expect(code).toBeTruthy();
-		const tokenRes = await provider.app.request(`${idpOrigin}/token`, {
-			body: new URLSearchParams({
-				grant_type: "refresh_token",
-				refresh_token: "none",
-			}),
-			method: "POST",
-		});
-		expect(tokenRes.status).toBe(400);
 		const { jar } = await signIn(app);
-		const refresh = await app.request(`${appOrigin}/auth/refresh`, {
-			headers: { Cookie: jar.header() },
-		});
-		expect(refresh.status).toBe(200);
+		provider.options.noRefreshToken = true;
+		const { authorizeUrl, jar: secondJar } = await signInStart(app);
+		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
+		const code = provider.authorize(authorizeUrl, "user-2");
+		const res = await app.request(
+			`${appOrigin}/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(idpOrigin)}`,
+			{ headers: { Cookie: `${jar.header()}; ${secondJar.header()}` } },
+		);
+
+		expect(res.status).toBe(302);
+		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(/Max-Age=0/);
 	});
 });
 
 describe("OIDC bearer tokens", () => {
-	it("answers 500, not 401, when the provider's JWKS cannot be reached", async () => {
+	it("verifies a provider token through the remote JWKS", async () => {
 		const { app } = await appCreate(oidcOptions);
-		provider.options.down = true;
-		const logError = vi
-			.spyOn(logger, "error")
-			.mockImplementation(() => undefined);
-		const header = Buffer.from(
-			JSON.stringify({ alg: "RS256", kid: "k1" }),
-		).toString("base64url");
-		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
-			headers: { Authorization: `Bearer ${header}.e30.c2ln` },
+		const res = await app.request(`${appOrigin}/api/v1/me`, {
+			headers: { Authorization: `Bearer ${await provider.accessToken()}` },
 		});
 
-		expect(res.status).toBe(500);
-		expect(logError).toHaveBeenCalledOnce();
+		expect(await res.json()).toStrictEqual({
+			id: "user-1",
+			kind: "user",
+			scopes: ["foo:read"],
+		});
 	});
+
+	it.each([
+		[
+			"cannot be reached",
+			() => {
+				provider.options.down = true;
+			},
+		],
+		[
+			"answers 503",
+			() => {
+				provider.options.jwksFails = true;
+			},
+		],
+	])(
+		"answers 500, not 401, when the provider's JWKS %s",
+		async (_, breakJwks) => {
+			const { app } = await appCreate(oidcOptions);
+			const token = await provider.accessToken();
+			breakJwks();
+			const logError = vi
+				.spyOn(logger, "error")
+				.mockImplementation(() => undefined);
+			const res = await app.request(`${appOrigin}/api/v1/whoami`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+
+			expect(res.status).toBe(500);
+			expect(logError).toHaveBeenCalledOnce();
+		},
+	);
 });
+
+// Provider tokens last 10 minutes; past 9.5 the access cookie is no longer fresh, so a refresh
+// goes to the provider.
+const nearExpiry = () => {
+	vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
+};
+
+const refreshGet = (app: Hono, jar: CookieJar, query = "") =>
+	app.request(`${appOrigin}/auth/refresh${query}`, {
+		headers: { Cookie: jar.header() },
+	});
 
 describe("OIDC refresh", () => {
 	it("refreshes with the refresh token and stores the rotated one", async () => {
 		const { app } = await appCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
-		const res = await app.request(
-			`${appOrigin}/auth/refresh?returnTo=%2Ffoos`,
-			{
-				headers: { Cookie: jar.header() },
-			},
-		);
+		nearExpiry();
+		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
 		jar.store(res);
 
 		expect(res.headers.get("Location")).toBe("/foos");
 		expect(provider.refreshTokens.has(before[0] ?? "")).toBe(false);
-		const again = await app.request(`${appOrigin}/auth/refresh`, {
-			headers: { Cookie: jar.header() },
-		});
-		expect(again.status).toBe(200);
+		expect(provider.refreshTokens.size).toBe(1);
+		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
+		expect((await refreshGet(app, jar)).status).toBe(200);
+	});
+
+	it("answers without a grant while the access cookie has over a minute left", async () => {
+		const { app } = await appCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		const before = [...provider.refreshTokens];
+		const res = await refreshGet(app, jar);
+
+		expect(res.status).toBe(200);
+		expect(
+			((await res.json()) as { expiresAt: number }).expiresAt,
+		).toBeGreaterThan(Date.now() + 60_000);
+		expect([...provider.refreshTokens]).toStrictEqual(before);
 	});
 
 	it("keeps the refresh token when the provider does not rotate", async () => {
 		provider.options.rotate = false;
 		const { app } = await appCreate(oidcOptions);
 		const { jar } = await signIn(app);
-		const first = await app.request(`${appOrigin}/auth/refresh`, {
-			headers: { Cookie: jar.header() },
-		});
+		nearExpiry();
+		const first = await refreshGet(app, jar);
 		jar.store(first);
-		const second = await app.request(`${appOrigin}/auth/refresh`, {
-			headers: { Cookie: jar.header() },
-		});
+		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
+		const second = await refreshGet(app, jar);
 
 		expect(first.status).toBe(200);
 		expect(setCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
 		expect(second.status).toBe(200);
 	});
 
-	it("clears the cookies and sends the user to sign-in when the provider refuses", async () => {
+	it("sends the user to sign-in when the provider refuses, leaving the cookies to another tab", async () => {
 		const { app } = await appCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.refreshTokens.clear();
-		const res = await app.request(
-			`${appOrigin}/auth/refresh?returnTo=%2Ffoos`,
-			{
-				headers: { Cookie: jar.header() },
-			},
-		);
+		nearExpiry();
+		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(/Max-Age=0/);
+		expect(res.headers.getSetCookie()).toStrictEqual([]);
+	});
+
+	it("keeps the rotated refresh token when checking the new access token fails", async () => {
+		const { app } = await appCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		// Past the JWKS cache's 10 minutes, so verifying the new token fetches the key set again.
+		vi.useFakeTimers({ now: Date.now() + 11 * 60_000, toFake: ["Date"] });
+		provider.options.jwksFails = true;
+		vi.spyOn(logger, "error").mockImplementation(() => undefined);
+		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
+
+		expect(res.status).toBe(500);
+		expect(provider.refreshTokens.size).toBe(1);
+		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(
+			/Max-Age=2592000/,
+		);
 	});
 
 	it.each([
@@ -306,16 +353,12 @@ describe("OIDC refresh", () => {
 		async (_, breakProvider) => {
 			const { app } = await appCreate(oidcOptions);
 			const { jar } = await signIn(app);
+			nearExpiry();
 			breakProvider();
 			const logError = vi
 				.spyOn(logger, "error")
 				.mockImplementation(() => undefined);
-			const res = await app.request(
-				`${appOrigin}/auth/refresh?returnTo=%2Ffoos`,
-				{
-					headers: { Cookie: jar.header() },
-				},
-			);
+			const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
 
 			expect(res.status).toBe(500);
 			expect(setCookieLine(res, "__Secure-authn-refresh")).toBeUndefined();

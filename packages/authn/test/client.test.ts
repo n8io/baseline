@@ -116,7 +116,7 @@ describe("authnRefreshClientMiddleware", () => {
 		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
-	it("skips the fetch when another tab refreshed while this one waited for the lock", async () => {
+	it("skips the fetch when a refresh landed in this tab while it waited for the lock", async () => {
 		rootExpiresAtSet(Date.now() + 30_000);
 		vi.stubGlobal("navigator", {
 			locks: {

@@ -1,5 +1,6 @@
 import { logger } from "@n8io/baseline-logger";
 import { type Context, Hono } from "hono";
+import { decodeJwt } from "jose";
 import {
 	AuthorizationResponseError,
 	authorizationCodeGrant,
@@ -46,20 +47,50 @@ const isProviderRefusal = (error: unknown): boolean =>
 const returnToQuery = (c: Context): string =>
 	authnReturnToSafe(c.req.query("returnTo"));
 
-/** Verifies the new access token, then writes both cookies; returns its expiry, or `undefined` when it does not verify. */
+/**
+ * Writes the refresh cookie, then verifies the access token and writes the access cookie;
+ * returns its expiry, or `undefined` when it does not verify. The refresh cookie goes first: the
+ * provider may already have rotated it, so it must survive a verify that throws (an outage).
+ * No refresh token clears the old one, so a new sign-in never inherits another's.
+ */
 const tokensStore = async (
 	c: Context,
 	authn: Authn,
 	tokens: AuthnTokens,
 ): Promise<number | undefined> => {
+	if (tokens.refreshToken === undefined) authnCookieClear(c, "refresh");
+	else await authnCookieSet(c, authn.cookieKey, "refresh", tokens.refreshToken);
 	const verified = await authn.verify(tokens.accessToken);
 	if (verified.status !== "valid") return undefined;
 	await authnCookieSet(c, authn.cookieKey, "access", tokens.accessToken);
-	if (tokens.refreshToken !== undefined) {
-		await authnCookieSet(c, authn.cookieKey, "refresh", tokens.refreshToken);
-	}
 	return verified.expiresAt;
 };
+
+// Another tab may have refreshed already; its cookie is then fresh and needs no grant.
+const accessFreshFor = async (
+	c: Context,
+	authn: Authn,
+	minimumMs: number,
+): Promise<number | undefined> => {
+	const accessToken = await authnCookieGet(c, authn.cookieKey, "access");
+	if (accessToken === undefined || accessToken === "invalid") return undefined;
+	// Read `exp` before verifying, so an expiring token costs no JWKS lookup.
+	let exp: number | undefined;
+	try {
+		({ exp } = decodeJwt(accessToken));
+	} catch {
+		return undefined;
+	}
+	if (exp === undefined || exp * 1000 - Date.now() < minimumMs)
+		return undefined;
+	const verified = await authn.verify(accessToken);
+	return verified.status === "valid" &&
+		verified.expiresAt - Date.now() >= minimumMs
+		? verified.expiresAt
+		: undefined;
+};
+
+const refreshSkipMs = 60_000;
 
 const signInStart = async (
 	c: Context,
@@ -147,24 +178,29 @@ const tokensRefresh = async (
 	}
 };
 
+const refreshRun = async (
+	c: Context,
+	authn: Authn,
+): Promise<number | undefined> => {
+	const fresh = await accessFreshFor(c, authn, refreshSkipMs);
+	if (fresh !== undefined) return fresh;
+	const refreshToken = await authnCookieGet(c, authn.cookieKey, "refresh");
+	if (refreshToken === undefined || refreshToken === "invalid")
+		return undefined;
+	const tokens = await tokensRefresh(authn, refreshToken);
+	return tokens === undefined ? undefined : tokensStore(c, authn, tokens);
+};
+
 /**
  * `GET /auth/refresh?returnTo=…` (a page whose token is expiring) refreshes both cookies and
  * redirects back, or to sign-in when the refresh fails. Without `returnTo` (the client
- * middleware's `fetch`) it answers `{ expiresAt }`, or 401.
+ * middleware's `fetch`) it answers `{ expiresAt }`, or 401. A failed refresh leaves the cookies
+ * alone: with refresh token rotation, two tabs refreshing at once see one fail, and clearing
+ * would undo the other's fresh cookies. A new sign-in replaces them.
  */
 const refresh = async (c: Context, authn: Authn): Promise<Response> => {
 	const returnTo = c.req.query("returnTo");
-	const refreshToken = await authnCookieGet(c, authn.cookieKey, "refresh");
-	const tokens =
-		refreshToken === undefined || refreshToken === "invalid"
-			? undefined
-			: await tokensRefresh(authn, refreshToken);
-	const expiresAt =
-		tokens === undefined ? undefined : await tokensStore(c, authn, tokens);
-	if (expiresAt === undefined) {
-		authnCookieClear(c, "access");
-		authnCookieClear(c, "refresh");
-	}
+	const expiresAt = await refreshRun(c, authn);
 	if (returnTo === undefined) {
 		return expiresAt === undefined
 			? c.body(null, 401)

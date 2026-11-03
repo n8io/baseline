@@ -31,7 +31,9 @@ const expiresAtKnown = (): number | undefined => {
 };
 
 const refreshFetch = async (): Promise<void> => {
-	// Another tab may have refreshed while this one waited for the lock.
+	// A refresh may have landed in this tab while it waited for the lock (the root loader
+	// revalidated). Another tab's refresh is caught by the server, which answers without a grant
+	// while the access cookie still has over a minute left.
 	const expiresAt = expiresAtKnown();
 	if (expiresAt !== undefined && expiresAt - Date.now() >= refreshBeforeMs) {
 		return;

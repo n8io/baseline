@@ -7,6 +7,8 @@ export const idpOrigin = "https://idp.test";
 type Grant = { challenge: string; nonce: string; sub: string; scope: string };
 
 export type FakeProvider = {
+	/** An access token as the provider would issue it, for bearer calls. */
+	accessToken: (sub?: string) => Promise<string>;
 	app: Hono;
 	/** What the user's browser would get back from the authorize page: a code for this request. */
 	authorize: (authorizeUrl: string, sub?: string) => string;
@@ -14,6 +16,8 @@ export type FakeProvider = {
 	options: {
 		accessAudience: string;
 		down: boolean;
+		jwksFails: boolean;
+		noRefreshToken: boolean;
 		revokeFails: boolean;
 		rotate: boolean;
 	};
@@ -34,6 +38,8 @@ export const fakeProviderCreate = async (
 	const options = {
 		accessAudience: "api",
 		down: false,
+		jwksFails: false,
+		noRefreshToken: false,
 		revokeFails: false,
 		rotate: true,
 	};
@@ -78,7 +84,11 @@ export const fakeProviderCreate = async (
 			token_endpoint: `${idpOrigin}/token`,
 		}),
 	);
-	app.get("/jwks", (c) => c.json({ keys: [jwk] }));
+	app.get("/jwks", (c) =>
+		options.jwksFails
+			? c.json({ error: "unavailable" }, 503)
+			: c.json({ keys: [jwk] }),
+	);
 	app.post("/token", async (c) => {
 		const body = await c.req.parseBody();
 		if (body.grant_type === "authorization_code") {
@@ -90,7 +100,11 @@ export const fakeProviderCreate = async (
 			if (grant === undefined || grant.challenge !== challenge) {
 				return c.json({ error: "invalid_grant" }, 400);
 			}
-			return c.json(await tokens(grant, true));
+			const issued = await tokens(grant, true);
+			if (!options.noRefreshToken) return c.json(issued);
+			refreshTokens.delete(issued.refresh_token);
+			const { refresh_token: _, ...withoutRefresh } = issued;
+			return c.json(withoutRefresh);
 		}
 		if (body.grant_type === "refresh_token") {
 			const token = String(body.refresh_token);
@@ -119,6 +133,8 @@ export const fakeProviderCreate = async (
 	});
 
 	return {
+		accessToken: (sub = "user-1") =>
+			sign({ scope: "foo:read" }, options.accessAudience, sub),
 		app,
 		authorize: (authorizeUrl, sub = "user-1") => {
 			const params = new URL(authorizeUrl).searchParams;
