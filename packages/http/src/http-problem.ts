@@ -37,7 +37,9 @@ export const httpErrorBody = (
 	status: ContentfulStatusCode,
 ): HttpProblem => httpProblemCreate(status, error.type);
 
-export const httpProblemSchema = (codes: [string, ...string[]]): z.ZodType =>
+export const httpProblemSchema = (
+	codes: [string, ...string[]],
+): z.ZodType<HttpProblem> =>
 	z.object({
 		status: z.number().int(),
 		title: z.string(),
@@ -45,4 +47,5 @@ export const httpProblemSchema = (codes: [string, ...string[]]): z.ZodType =>
 		errors: z
 			.array(z.object({ pointer: z.string(), detail: z.string() }))
 			.optional(),
-	});
+		// Zod types an optional key as `?: T | undefined`; HttpProblem leaves out `undefined`.
+	}) as z.ZodType<HttpProblem>;

@@ -1,3 +1,4 @@
+import { type Authn, authnMemoryTokenCreate } from "@n8io/baseline-authn";
 import type { Hono } from "hono";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -5,6 +6,18 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("react-router-hono-server/node", () => ({
 	createHonoServer: async (options: unknown) => options,
 }));
+let authn: Authn | undefined;
+vi.mock("@n8io/baseline-authn", async (importOriginal) => {
+	const original =
+		await importOriginal<typeof import("@n8io/baseline-authn")>();
+	return {
+		...original,
+		authnCreate: async (...args: Parameters<typeof original.authnCreate>) => {
+			authn = await original.authnCreate(...args);
+			return authn;
+		},
+	};
+});
 vi.mock("@n8io/baseline-health", () => ({
 	healthServerCreate: () => ({ close: async () => {}, ready: () => {} }),
 }));
@@ -59,5 +72,60 @@ describe("server wiring", () => {
 			headers: { Authorization: "Bearer not-a-real-token" },
 		});
 		expect(res.status).toBe(401);
+	});
+
+	describe("foo API", () => {
+		const bearer = async () => {
+			if (!authn) throw new Error("authn was not captured");
+			const token = await authnMemoryTokenCreate(authn, {
+				id: "user-1",
+				kind: "user",
+				scopes: [],
+			});
+			return {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			};
+		};
+
+		it("creates a foo and reads it back with a bearer token", async () => {
+			const headers = await bearer();
+			const created = await app.request("/api/v1/foos", {
+				body: JSON.stringify({ name: "wired" }),
+				headers,
+				method: "POST",
+			});
+			expect(created.status).toBe(201);
+			const foo = (await created.json()) as { id: string };
+
+			const got = await app.request(`/api/v1/foos/${foo.id}`, { headers });
+			expect(got.status).toBe(200);
+			expect(await got.json()).toStrictEqual(foo);
+		});
+
+		it("answers 401 without a token", async () => {
+			const res = await app.request("/api/v1/foos");
+			expect(res.status).toBe(401);
+		});
+
+		it("documents the foo routes in the OpenAPI document", async () => {
+			const res = await app.request("/api/v1/openapi.json");
+			expect(res.status).toBe(200);
+			const doc = (await res.json()) as {
+				components: { schemas: Record<string, unknown> };
+				paths: Record<string, Record<string, { responses: object }>>;
+			};
+
+			expect(Object.keys(doc.paths["/api/v1/foos"] ?? {})).toEqual(
+				expect.arrayContaining(["get", "post"]),
+			);
+			expect(Object.keys(doc.paths["/api/v1/foos/{fooId}"] ?? {})).toEqual(
+				expect.arrayContaining(["get", "patch", "delete"]),
+			);
+			expect(
+				Object.keys(doc.paths["/api/v1/foos/{fooId}"]?.patch?.responses ?? {}),
+			).toEqual(expect.arrayContaining(["200", "403", "404", "409"]));
+			expect(Object.keys(doc.components.schemas)).toContain("FooResponse");
+		});
 	});
 });
