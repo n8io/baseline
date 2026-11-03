@@ -1,0 +1,128 @@
+// Composition root for pages, the API and live streams.
+import type { Server } from "node:http";
+import {
+	authnCreate,
+	authnMiddleware,
+	authnRoutes,
+} from "@n8io/baseline-authn";
+import { cacheRedisClientCreate } from "@n8io/baseline-cache";
+import { healthServerCreate } from "@n8io/baseline-health";
+import {
+	httpErrorHandle,
+	httpNotFoundHandle,
+	httpRouteName,
+	httpRouterCreate,
+	httpServerClose,
+} from "@n8io/baseline-http";
+import { liveMemory, liveRedis } from "@n8io/baseline-live";
+import { logger } from "@n8io/baseline-logger";
+import { postgresPoolCreate } from "@n8io/baseline-postgres";
+import {
+	consumersSubscribe,
+	queueCreate,
+	queueStop,
+} from "@n8io/baseline-queue";
+import { shutdownHandle } from "@n8io/baseline-shutdown";
+import { telemetryShutdown } from "@n8io/baseline-telemetry";
+import { except } from "hono/combine";
+import { createHonoServer } from "react-router-hono-server/node";
+import { actorFromClaims, authnProviderOptions } from "#authn";
+import { ENV, envLocal } from "#env";
+import { loadContextCreate } from "#ui/context.ts";
+
+let shutdown: { isShuttingDown(): boolean } | undefined;
+const health = healthServerCreate({
+	isAlive: () => true,
+	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
+	port: ENV.HEALTH_PORT,
+});
+
+const pgPool =
+	ENV.DATABASE_URL === "memory://"
+		? "memory"
+		: postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+const redisClient =
+	ENV.CACHE_URL === "memory://"
+		? "memory"
+		: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
+const queue =
+	pgPool === "memory"
+		? "memory"
+		: await queueCreate({ pgPool, role: "publisher" });
+const liveHub =
+	redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+
+// domain-create: use-cases
+// domain-create: bridges
+
+// Creates queues and subscriptions; consumers run only in the worker.
+if (queue !== "memory") {
+	await consumersSubscribe(queue, [
+		// domain-create: consumers
+	]);
+}
+
+const authn = await authnCreate({
+	...authnProviderOptions(ENV),
+	actorFromClaims,
+	memoryAdminScopes: [
+		// domain-create: scopes
+	],
+});
+
+const app = httpRouterCreate();
+app.use(httpRouteName);
+app.onError(httpErrorHandle);
+app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
+app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
+app.route("/auth", authnRoutes(authn));
+// domain-create: routes
+// domain-create: live
+app.doc31("/api/v1/openapi.json", {
+	info: { title: "app", version: "1" },
+	openapi: "3.1.0",
+});
+// Unknown /api paths answer JSON, never a React Router page.
+app.all("/api/*", httpNotFoundHandle);
+
+export default await createHonoServer({
+	app,
+	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
+	defaultLogger: false,
+	getLoadContext: (c) =>
+		loadContextCreate(c, {
+			// domain-create: context
+		}),
+	listeningListener: ({ port }) => logger.info({ port }, "Server listening"),
+	onServe: (server) => {
+		// Development: Vite owns the server and Ctrl-C.
+		if (!import.meta.env.PROD) return health.ready();
+		shutdown = shutdownHandle({
+			drainDelayMs: envLocal ? 0 : 5_000,
+			intakes: [
+				{ close: () => httpServerClose(server as Server), name: "http" },
+				{ close: () => liveHub.close(), name: "live" },
+			],
+			resources: [
+				{
+					close: () =>
+						queue === "memory" ? Promise.resolve() : queueStop(queue),
+					name: "queue",
+				},
+				{
+					close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
+					name: "database",
+				},
+				{
+					close: () =>
+						redisClient === "memory" ? Promise.resolve() : redisClient.close(),
+					name: "cache",
+				},
+				{ close: () => health.close(), name: "health" },
+				{ close: () => telemetryShutdown(), name: "telemetry" },
+			],
+		});
+		health.ready();
+	},
+	port: ENV.PORT,
+});
