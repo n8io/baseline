@@ -134,6 +134,7 @@ const main = async () => {
 		pnpm(directory, ["exec", "biome", "check", "--write", "."]);
 		pnpm(directory, ["codegen"]);
 		pnpm(directory, ["check"]);
+		pnpm(directory, ["test"]);
 		gitCommitAll(directory, "Upgrade, add invoice-line and customer");
 	});
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));

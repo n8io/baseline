@@ -69,7 +69,7 @@ describe("foo list loader", () => {
 		expect(error).toBeInstanceOf(Response);
 		expect((error as Response).status).toBe(302);
 		expect((error as Response).headers.get("Location")).toBe(
-			"/auth/sign-in?returnTo=%2Ffoos",
+			`/auth/sign-in?returnTo=${encodeURIComponent("/foos")}`,
 		);
 	});
 });
@@ -80,7 +80,7 @@ describe("foo list action", () => {
 		const error = await thrown(() => action(postArgs(context, { name: "x" })));
 		expect(error).toBeInstanceOf(Response);
 		expect((error as Response).headers.get("Location")).toBe(
-			"/auth/sign-in?returnTo=%2Ffoos",
+			`/auth/sign-in?returnTo=${encodeURIComponent("/foos")}`,
 		);
 	});
 
