@@ -1,5 +1,11 @@
 # app
 
+## 1.1.0
+
+### Minor Changes
+
+- 75e4ae8: Projects install the baseline packages with the built-in GITHUB_TOKEN instead of a personal access token: the template CI grants `packages: read` and Dependabot needs no registry block.
+
 ## 1.0.3
 
 ### Patch Changes
