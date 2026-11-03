@@ -109,7 +109,10 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 	const { foo } = loaderData;
 	const [open, setOpen] = useState(false);
 	const navigation = useNavigation();
-	const submitting = navigation.state === "submitting";
+	const pendingIntent =
+		navigation.state === "submitting"
+			? navigation.formData?.get("intent")
+			: undefined;
 	const errors =
 		actionData && "errors" in actionData ? actionData.errors : undefined;
 	const values =
@@ -148,12 +151,13 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 								</p>
 							) : null}
 						</div>
-						<Button disabled={submitting} type="submit">
-							{submitting ? "Saving…" : "Save"}
+						<Button disabled={pendingIntent !== undefined} type="submit">
+							{pendingIntent === "update" ? "Saving…" : "Save"}
 						</Button>
 					</Form>
 					<Form id="foo-delete" method="post">
 						<Button
+							disabled={pendingIntent !== undefined}
 							name="intent"
 							onClick={(event) => {
 								event.preventDefault();
@@ -163,7 +167,7 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 							value="delete"
 							variant="destructive"
 						>
-							Delete
+							{pendingIntent === "delete" ? "Deleting…" : "Delete"}
 						</Button>
 					</Form>
 				</CardContent>

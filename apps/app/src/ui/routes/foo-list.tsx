@@ -51,10 +51,14 @@ export const action = async (args: Route.ActionArgs) => {
 		.get(fooUseCasesContext)
 		.fooCreate(actor, parsed.data);
 	if (!result.ok) {
-		return data(
-			{ errors: { name: [result.error.message] }, values },
-			{ status: 409 },
-		);
+		if (result.error.type === "FooNameTaken") {
+			return data(
+				{ errors: { name: [result.error.message] }, values },
+				{ status: 409 },
+			);
+		}
+		// An error this page does not handle yet goes to handleError as a 500.
+		throw result.error;
 	}
 	return redirect(`/foos/${result.value.id}`);
 };
