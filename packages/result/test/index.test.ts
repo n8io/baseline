@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import * as resultModule from "../src/index.ts";
+import * as resultExports from "../src/index.ts";
 import { err, ok, type Result } from "../src/index.ts";
 
 class FooNotFoundError extends Error {
@@ -59,6 +59,6 @@ describe("Result", () => {
 
 describe("exports", () => {
 	it("exports exactly ok and err at runtime", () => {
-		expect(Object.keys(resultModule).sort()).toEqual(["err", "ok"]);
+		expect(Object.keys(resultExports).sort()).toEqual(["err", "ok"]);
 	});
 });
