@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
 	filesRead,
@@ -16,8 +16,14 @@ import {
 const appRoot = new URL("../../../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const answers = { description: "Invoices for small shops.", name: "invoicing" };
-// The real foo domain exists only in the template, not in a project rendered from it.
-const template = existsSync(new URL("src/domains/foo/", appRoot));
+const domainsUrl = new URL("src/domains/", appRoot);
+// The template itself: foo is its only domain. A project, or this tree after a
+// domain-create, skips these tests.
+const template =
+	existsSync(domainsUrl) &&
+	readdirSync(domainsUrl)
+		.filter((name) => !name.startsWith("."))
+		.join() === "foo";
 
 describe("fooRename", () => {
 	it("spells each occurrence the way its place needs", () => {

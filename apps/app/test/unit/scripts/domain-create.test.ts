@@ -2,6 +2,7 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readdirSync,
 	rmSync,
 	writeFileSync,
 } from "node:fs";
@@ -18,7 +19,14 @@ import { filesRead } from "../../../scripts/template-render.ts";
 
 const appRoot = new URL("../../../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
-const template = existsSync(new URL("src/domains/foo/", appRoot));
+const domainsUrl = new URL("src/domains/", appRoot);
+// The template itself: foo is its only domain. A project, or this tree after a
+// domain-create, skips these tests.
+const template =
+	existsSync(domainsUrl) &&
+	readdirSync(domainsUrl)
+		.filter((name) => !name.startsWith("."))
+		.join() === "foo";
 
 const directories: string[] = [];
 afterEach(() => {
