@@ -1,5 +1,5 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { z } from "zod";
 import {
 	cacheReconnectDelay,
@@ -34,14 +34,26 @@ describe("cacheRedisClientCreate", () => {
 		).rejects.toThrow(expect.not.stringContaining("s3cret"));
 	});
 
+	// Timer time, not wall time: a loaded CI runner fired the real 3 s timer 542 ms late.
 	test("throws within the 3 s connect timeout when Redis is unreachable", async () => {
-		const started = Date.now();
-		await expect(
-			cacheRedisClientCreate({ cacheUrl: "redis://127.0.0.1:1" }),
-		).rejects.toThrow("Redis not reachable within 3000 ms");
-		const elapsed = Date.now() - started;
-		expect(elapsed).toBeGreaterThanOrEqual(2900);
-		expect(elapsed).toBeLessThan(3500);
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+		try {
+			const settled = vi.fn();
+			const created = cacheRedisClientCreate({
+				cacheUrl: "redis://127.0.0.1:1",
+			});
+			created.then(settled, settled);
+			await vi.dynamicImportSettled();
+			await vi.advanceTimersByTimeAsync(2999);
+			expect(settled).not.toHaveBeenCalled();
+			await vi.advanceTimersByTimeAsync(1);
+			expect(settled).toHaveBeenCalled();
+			await expect(created).rejects.toThrow(
+				"Redis not reachable within 3000 ms",
+			);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test("backs off min(retries × 100 ms, 2 s)", () => {
