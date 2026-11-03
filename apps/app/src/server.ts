@@ -23,10 +23,16 @@ import {
 	queueStop,
 } from "@n8io/baseline-queue";
 import { shutdownHandle } from "@n8io/baseline-shutdown";
-import { telemetryShutdown } from "@n8io/baseline-telemetry";
+import {
+	telemetryShutdown,
+	telemetryUseCasesTrace,
+} from "@n8io/baseline-telemetry";
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
 import { actorFromClaims, authnProviderOptions } from "#authn";
+import { fooRoutes } from "#domains/foo/api/index.ts";
+import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
+import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 import { loadContextCreate } from "#ui/context.ts";
 
@@ -51,7 +57,11 @@ const queue =
 		: await queueCreate({ pgPool, role: "publisher" });
 const liveHub =
 	redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
 
+const fooUseCases = telemetryUseCasesTrace(
+	fooUseCasesCreate(fooPortsCreate(ports)),
+);
 // domain-create: use-cases
 // domain-create: bridges
 
@@ -66,6 +76,7 @@ const authn = await authnCreate({
 	...authnProviderOptions(ENV),
 	actorFromClaims,
 	memoryAdminScopes: [
+		...fooScopes,
 		// domain-create: scopes
 	],
 });
@@ -76,6 +87,7 @@ app.onError(httpErrorHandle);
 app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
 app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
 app.route("/auth", authnRoutes(authn));
+app.route("/api/v1/foos", fooRoutes(fooUseCases));
 // domain-create: routes
 // domain-create: live
 app.doc31("/api/v1/openapi.json", {

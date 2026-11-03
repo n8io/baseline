@@ -1,5 +1,8 @@
 export { httpErrorHandle, httpNotFoundHandle } from "./http-error-handle.ts";
-export { httpErrorResponses } from "./http-error-responses.ts";
+export {
+	type HttpErrorResponses,
+	httpErrorResponses,
+} from "./http-error-responses.ts";
 export {
 	type HttpErrorStatus,
 	type HttpProblem,

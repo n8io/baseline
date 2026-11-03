@@ -1,4 +1,4 @@
-import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 import {
 	type HttpErrorStatus,
@@ -88,5 +88,35 @@ describe("httpErrorResponses", () => {
 		const responses = httpErrorResponses(fooErrorStatus, ["FooNameTakn"]);
 
 		expect(Object.keys(responses)).toStrictEqual(["undefined"]);
+	});
+
+	it("lets a handler return the problem body with a listed status, and only those", async () => {
+		// Every response has content, so Hono checks the handler's statuses strictly.
+		const route = createRoute({
+			method: "post",
+			path: "/foos",
+			responses: {
+				201: {
+					content: { "application/json": { schema: z.object({}) } },
+					description: "Created",
+				},
+				...httpErrorResponses(fooErrorStatus, ["FooNameTaken", "FooNotFound"]),
+			},
+		});
+		const error = { type: "FooNameTaken" } as const;
+		const app = new OpenAPIHono().openapi(route, (c) => {
+			const status = fooErrorStatus[error.type];
+			return c.json(httpErrorBody(error, status), status, httpProblemHeaders);
+		});
+		new OpenAPIHono().openapi(
+			route,
+			// @ts-expect-error 403 is not listed for this route
+			(c) => c.json(httpErrorBody(error, 403), 403, httpProblemHeaders),
+		);
+
+		const res = await app.request("/foos", { method: "POST" });
+
+		expect(res.status).toBe(409);
+		expect(res.headers.get("Content-Type")).toBe("application/problem+json");
 	});
 });
