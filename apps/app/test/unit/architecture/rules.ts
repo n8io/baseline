@@ -71,7 +71,19 @@ export const architectureFileCreate = async (
 					},
 				],
 	);
-	return { imports, path: filePath, source };
+	// The transform drops `import type` lines, so .tsx type-only imports are read from the source.
+	const typeImports = filePath.endsWith(".tsx")
+		? [
+				...source.matchAll(
+					/^\s*(?:import|export)\s+type\s[^;]*?\bfrom\s*["']([^"']+)["']/gm,
+				),
+			].map((m) => ({
+				specifier: m[1] ?? "",
+				target: importTarget(filePath, m[1] ?? ""),
+				typeOnly: true,
+			}))
+		: [];
+	return { imports: [...imports, ...typeImports], path: filePath, source };
 };
 
 // Every .ts and .tsx file under <appRoot>/src, except generated declarations.
@@ -456,15 +468,20 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			.filter((f) => layerOf(f.path) === "use-cases" && !testIs(f.path))
 			.flatMap((f) => {
 				const domain = snake(domainOf(f.path) ?? "");
+				// A key that is not a plain string literal reads as itself and fails the pattern.
 				const single = [
-					...f.source.matchAll(/\.setAttribute\(\s*(["'`])([^"'`]+)\1/g),
-				].map((m) => m[2] ?? "");
+					...f.source.matchAll(/\.setAttribute\(\s*([^,)]+)/g),
+				].map(
+					(m) =>
+						/^(["'])([^"'`]+)\1$/.exec((m[1] ?? "").trim())?.[2] ?? m[1] ?? "",
+				);
+				// Keys are what follows `{` or a comma: shorthand counts, a ternary's branches do not.
 				const many = [
 					...f.source.matchAll(/\.setAttributes\(\s*\{([^}]*)\}/g),
 				].flatMap((m) =>
 					[
-						...(m[1] ?? "").matchAll(
-							/(["'`])([^"'`]+)\1\s*:|([A-Za-z_$][\w$]*)\s*:/g,
+						...`,${m[1] ?? ""}`.matchAll(
+							/,\s*(?:(["'])([^"'`]+)\1|([A-Za-z_$`[][^\s:,]*))\s*(?=[:,]|$)/g,
 						),
 					].map((k) => k[2] ?? k[3] ?? ""),
 				);
@@ -562,7 +579,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			files,
 			(f) => businessIs(f.path) && !testIs(f.path),
 			(imp, f) => {
-				const pkg = /^@n8io\/baseline-[a-z]+/.exec(imp.specifier)?.[0];
+				const pkg = /^@n8io\/baseline-[^/]+/.exec(imp.specifier)?.[0];
 				if (!pkg) return undefined;
 				if (pkg === "@n8io/baseline-result" || pkg === "@n8io/baseline-id") {
 					return undefined;
@@ -575,7 +592,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						layerOf(f.path) === "use-cases");
 				return typeAllowed
 					? undefined
-					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; anything else is a port, implemented in spi/";
+					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
 			},
 		),
 

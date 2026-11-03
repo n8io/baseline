@@ -1,12 +1,25 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-type EnvItem = { decorators: string; key: string; value: string };
+type EnvItem = {
+	decorators: string;
+	// "" for a line that is not KEY=value; `line` then holds its text before "=" (never a value).
+	key: string;
+	line: string;
+	value: string;
+};
 type EnvFiles = {
 	development: string;
 	production: string;
 	schema: string;
 	test: string;
+};
+
+// Quotes are stripped; an unquoted value ends at " #" (a trailing comment).
+const envValue = (raw: string): string => {
+	const value = raw.trim();
+	const quoted = /^(["'])(.*)\1$/.exec(value);
+	return quoted ? (quoted[2] ?? "") : (value.split(/\s+#/)[0] ?? "").trim();
 };
 
 const envFileParse = (text: string): EnvItem[] => {
@@ -19,33 +32,48 @@ const envFileParse = (text: string): EnvItem[] => {
 		else if (line === "") comments = [];
 		else {
 			const match = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(line);
-			if (match)
-				items.push({
-					decorators: comments.join("\n"),
-					key: match[1] ?? "",
-					value: (match[2] ?? "").trim(),
-				});
+			items.push({
+				decorators: comments.join("\n"),
+				key: match?.[1] ?? "",
+				line: line.split("=")[0] ?? "",
+				value: envValue(match?.[2] ?? ""),
+			});
 			comments = [];
 		}
 	}
 	return items;
 };
 
-const envRequired = (decorators: string, env: string): boolean => {
-	if (decorators.includes("@required=false")) return false;
+const envRequired = (
+	decorators: string,
+	env: string,
+	defaultRequired: boolean,
+): boolean => {
+	if (/@optional\b|@required=false/.test(decorators)) return false;
+	if (/@required(=true)?(\s|$)/.test(decorators)) return true;
 	const list = /@required=forEnv\(([^)]*)\)/.exec(decorators);
 	return list
 		? (list[1] ?? "")
 				.split(",")
 				.map((name) => name.trim())
 				.includes(env)
-		: true;
+		: defaultRequired;
 };
 
 const envViolations = (files: EnvFiles): string[] => {
-	const schema = envFileParse(files.schema);
-	const declared = new Set(schema.map((item) => item.key));
 	const problems: string[] = [];
+	for (const [name, text] of Object.entries(files)) {
+		for (const item of envFileParse(text).filter((i) => i.key === "")) {
+			problems.push(
+				`.env.${name} has a line that is not KEY=value: ${item.line}`,
+			);
+		}
+	}
+	const schema = envFileParse(files.schema).filter((item) => item.key);
+	const declared = new Set(schema.map((item) => item.key));
+	const defaultRequired = !/@defaultRequired=false/.test(
+		files.schema.split("# ---")[0] ?? "",
+	);
 	for (const env of ["development", "test"] as const) {
 		const values = new Map(
 			envFileParse(files[env]).map((item) => [item.key, item.value]),
@@ -53,7 +81,7 @@ const envViolations = (files: EnvFiles): string[] => {
 		for (const item of schema) {
 			if (
 				item.value === "" &&
-				envRequired(item.decorators, env) &&
+				envRequired(item.decorators, env, defaultRequired) &&
 				!values.get(item.key)
 			) {
 				problems.push(
@@ -62,7 +90,7 @@ const envViolations = (files: EnvFiles): string[] => {
 			}
 		}
 	}
-	for (const item of envFileParse(files.production)) {
+	for (const item of envFileParse(files.production).filter((i) => i.key)) {
 		if (!/^op\(op:\/\/[^)\s]+\)$/.test(item.value)) {
 			problems.push(
 				`.env.production sets ${item.key} to a value; use an op(op://<vault>/<item>/<field>) reference`,
@@ -71,7 +99,7 @@ const envViolations = (files: EnvFiles): string[] => {
 	}
 	for (const env of ["development", "test", "production"] as const) {
 		for (const item of envFileParse(files[env])) {
-			if (!declared.has(item.key))
+			if (item.key && !declared.has(item.key))
 				problems.push(
 					`.env.${env} sets ${item.key}, which .env.schema does not declare`,
 				);
@@ -91,6 +119,8 @@ const schema = [
 	"B_KEY=",
 	"# @required=forEnv(production)",
 	"C_KEY=",
+	"# @optional",
+	"E_KEY=",
 	"D_KEY=fixed",
 ].join("\n");
 const good: EnvFiles = {
@@ -134,6 +164,16 @@ describe("env files", () => {
 			[
 				".env.production sets A_KEY to a value; use an op(op://<vault>/<item>/<field>) reference",
 			],
+		],
+		[
+			"an empty quoted value",
+			{ test: 'A_KEY=""' },
+			[".env.test needs a value for A_KEY (.env.schema gives it no default)"],
+		],
+		[
+			"a line that is not KEY=value",
+			{ production: "export A_KEY=plain" },
+			[".env.production has a line that is not KEY=value: export A_KEY"],
 		],
 		[
 			"an undeclared key",
