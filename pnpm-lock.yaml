@@ -320,6 +320,25 @@ importers:
         specifier: 0.23.4
         version: 0.23.4(@arethetypeswrong/core@0.18.5)(publint@0.3.25)(typescript@7.0.2)
 
+  packages/shutdown:
+    dependencies:
+      '@n8io/baseline-logger':
+        specifier: workspace:^
+        version: link:../logger
+    devDependencies:
+      '@arethetypeswrong/cli':
+        specifier: ^0.18.5
+        version: 0.18.5
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      publint:
+        specifier: ^0.3.25
+        version: 0.3.25
+      tsdown:
+        specifier: 0.23.4
+        version: 0.23.4(@arethetypeswrong/core@0.18.5)(publint@0.3.25)(typescript@7.0.2)
+
   packages/telemetry:
     dependencies:
       '@n8io/baseline-logger':
