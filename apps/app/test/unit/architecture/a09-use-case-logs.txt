@@ -1,0 +1,6 @@
+// A9: @n8io/baseline-logger is not imported in src/domains/** or src/ui/** (except src/ui/entry.server.tsx)
+// expect: src/domains/bar/use-cases/bar-get.ts imports @n8io/baseline-logger: domains and the UI never log
+// @file src/domains/bar/use-cases/bar-get.ts
+import { logger } from "@n8io/baseline-logger";
+
+export const barGet = () => logger.info("getting a bar");

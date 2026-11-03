@@ -1,0 +1,7 @@
+// A12: no port declares close; no connection is opened in src/domains/**
+// expect: src/domains/bar/ports.ts: no port declares close
+// @file src/domains/bar/ports.ts
+export type BarCache = {
+	get(id: string): Promise<string | undefined>;
+	close(): Promise<void>;
+};

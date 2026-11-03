@@ -1,0 +1,6 @@
+// A20: no @ts-expect-error or @ts-ignore in src/domains/**
+// expect: src/domains/bar/use-cases/bar-get.ts: @ts-expect-error is banned in src/domains/
+// @file src/domains/bar/use-cases/bar-get.ts
+export const barGet = (input: { barId: string }): number =>
+	// @ts-expect-error the id is a string
+	input.barId;

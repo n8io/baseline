@@ -1,0 +1,8 @@
+// A16: span attribute keys in use-cases/ match baseline.<domain>.id or baseline.<domain>.<thing>_id
+// expect: src/domains/bar/use-cases/bar-get.ts: span attribute baseline.bar.name must be baseline.bar.id or baseline.bar.<thing>_id
+// @file src/domains/bar/use-cases/bar-get.ts
+import { trace } from "@opentelemetry/api";
+
+export const barGet = (input: { barId: string; name: string }) => {
+	trace.getActiveSpan()?.setAttributes({ "baseline.bar.id": input.barId, "baseline.bar.name": input.name });
+};

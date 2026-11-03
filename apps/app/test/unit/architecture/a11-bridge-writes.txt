@@ -1,0 +1,11 @@
+// A11: bridges import exactly two domains through index.ts and call only *Get/*List use cases; no domain imports a bridge
+// expect: src/bridges/bar-baz-read.ts: a bridge only reads, so it calls only *Get and *List use cases, not bazCreate
+// @file src/bridges/bar-baz-read.ts
+import type { Actor } from "@n8io/baseline-authn";
+import type { BarBazReadRepository } from "#domains/bar/index.ts";
+import type { BazUseCases } from "#domains/baz/index.ts";
+
+export const barBazRead = (u: BazUseCases, actor: Actor): BarBazReadRepository => ({
+	get: (bazId) => u.bazGet(actor, { bazId }),
+	ensure: (name) => u.bazCreate(actor, { name }),
+});

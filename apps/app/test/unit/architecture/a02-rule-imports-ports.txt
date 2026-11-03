@@ -1,0 +1,7 @@
+// A2: rules/ imports only models/ (and the Actor type)
+// expect: src/domains/bar/rules/bar-open.ts imports ../ports.ts: rules are pure functions over models/
+// @file src/domains/bar/rules/bar-open.ts
+import type { Bar } from "../models/bar.ts";
+import type { BarPorts } from "../ports.ts";
+
+export const barOpen = (bar: Bar, _ports: BarPorts): boolean => bar.openAt !== null;

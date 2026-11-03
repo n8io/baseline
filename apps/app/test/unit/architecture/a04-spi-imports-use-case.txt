@@ -1,0 +1,7 @@
+// A4: spi/ imports only ports.ts, models/ and <domain>-errors.ts from its domain
+// expect: src/domains/bar/spi/bar-repository.postgres.ts imports ../use-cases/bar-get.ts: spi/ implements ports
+// @file src/domains/bar/spi/bar-repository.postgres.ts
+import type { BarRepository } from "../ports.ts";
+import { barGet } from "../use-cases/bar-get.ts";
+
+export const barRepositoryPostgres = (): BarRepository => ({ get: barGet });

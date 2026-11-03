@@ -1,0 +1,9 @@
+// A18: every domain folder is imported by server.ts; use cases in server.ts, worker.ts and seed.ts are wrapped by telemetryUseCasesTrace
+// expect: src/server.ts: wrap barUseCasesCreate(...) in telemetryUseCasesTrace(...)
+// @file src/server.ts
+import { barUseCasesCreate } from "#domains/bar/index.ts";
+import { barPortsCreate } from "#domains/bar/spi/index.ts";
+
+export const barUseCases = barUseCasesCreate(barPortsCreate("memory"));
+// @file src/domains/bar/index.ts
+export const barScopes = [];

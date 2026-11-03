@@ -1,0 +1,7 @@
+// A13: tables only in spi/*-table.ts, each in a pgSchema named after its folder; no bare pgTable
+// expect: src/domains/bar/spi/bar-table.ts: tables use pgSchema("bar"), named after the domain folder
+// @file src/domains/bar/spi/bar-table.ts
+import { pgSchema, text } from "drizzle-orm/pg-core";
+
+export const barSchema = pgSchema("bars");
+export const bar = barSchema.table("bar", { name: text().notNull() });

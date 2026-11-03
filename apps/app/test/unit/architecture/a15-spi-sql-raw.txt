@@ -1,0 +1,6 @@
+// A15: sql.raw is banned in src/domains/**/spi/
+// expect: src/domains/bar/spi/bar-repository.postgres.ts: sql.raw is banned in spi/
+// @file src/domains/bar/spi/bar-repository.postgres.ts
+import { sql } from "drizzle-orm";
+
+export const barOrder = (column: string) => sql.raw(column);
