@@ -51,6 +51,7 @@ describe("fooRename", () => {
 			"\t\t\t\tBack to foos",
 			"<p>Delete this foo?</p>",
 			"{foo.name} {items.map((foo) => foo.id)}",
+			"<p>Foos</p> {foo.name}",
 			'"A foo named it already exists"',
 		].join("\n");
 
@@ -61,6 +62,7 @@ describe("fooRename", () => {
 				"\t\t\t\tBack to invoice lines",
 				"<p>Delete this invoice line?</p>",
 				"{invoiceLine.name} {items.map((invoiceLine) => invoiceLine.id)}",
+				"<p>Invoice lines</p> {invoiceLine.name}",
 				'"A invoice line named it already exists"',
 			],
 		);
