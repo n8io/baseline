@@ -1,0 +1,65 @@
+{
+	"name": "@n8io/baseline-authn",
+	"version": "0.0.0",
+	"description": "OIDC code flow, JWT verification and the Actor every baseline app's pages and API use.",
+	"type": "module",
+	"license": "UNLICENSED",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n8io/baseline.git",
+		"directory": "packages/authn"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./client": "./src/client.ts"
+	},
+	"publishConfig": {
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"./client": {
+				"types": "./dist/client.d.ts",
+				"default": "./dist/client.js"
+			}
+		},
+		"registry": "https://npm.pkg.github.com"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz && attw dist/package.tgz --profile esm-only",
+		"prepack": "tsdown",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@n8io/baseline-logger": "workspace:^",
+		"jose": "^6.2.15",
+		"openid-client": "^6.8.9"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.5",
+		"@opentelemetry/api": "^1.10.0",
+		"@types/node": "^26.6.6",
+		"hono": "^4.13.16",
+		"publint": "^0.3.25",
+		"react": "^19.3.1",
+		"react-dom": "^19.3.1",
+		"react-router": "^8.5.1",
+		"tsdown": "0.23.4",
+		"zod": "^4.6.7"
+	},
+	"peerDependencies": {
+		"@opentelemetry/api": "^1.10.0",
+		"hono": "^4.13.16",
+		"react": "^19.3.1",
+		"react-router": "^8.5.1",
+		"zod": "^4.6.7"
+	}
+}
