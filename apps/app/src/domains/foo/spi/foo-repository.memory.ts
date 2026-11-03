@@ -18,6 +18,9 @@ export const fooMemoryStateCreate = (): FooMemoryState => ({
 const fooSortValue = (foo: Foo, field: "createdAt" | "name"): string =>
 	field === "name" ? foo.name : foo.createdAt.toISOString();
 
+// Code-unit order, like Postgres with COLLATE "C".
+const fooOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
 // Like Postgres: the unique index on name, and copies in and out so no caller shares a row.
 export const fooRepositoryMemory = (state: {
 	foos: Map<Id<"foo">, Foo>;
@@ -59,8 +62,7 @@ export const fooRepositoryMemory = (state: {
 			const compare = (
 				a: { k: string; id: string },
 				b: { k: string; id: string },
-			): number =>
-				direction * (a.k === b.k ? (a.id < b.id ? -1 : 1) : a.k < b.k ? -1 : 1);
+			): number => direction * (fooOrder(a.k, b.k) || fooOrder(a.id, b.id));
 			const after = input.cursor ? fooCursorDecode(input.cursor) : undefined;
 
 			const matching = [...state.foos.values()]
