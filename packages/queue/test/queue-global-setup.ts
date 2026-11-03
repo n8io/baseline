@@ -49,7 +49,7 @@ export default async function queueGlobalSetup(
 		"postgres:18",
 	);
 	const teardown = (): void => {
-		docker("rm", "--force", name);
+		docker("rm", "--force", "--volumes", name);
 	};
 	try {
 		const hostPort = docker("port", name, "5432/tcp").split("\n")[0];
