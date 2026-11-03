@@ -62,6 +62,9 @@ type AppProcessOptions = {
 	env?: Record<string, string>;
 };
 
+const hasExited = (child: ChildProcess): boolean =>
+	child.exitCode !== null || child.signalCode !== null;
+
 // Spawns the entry with the image's preloads and env; does not wait for anything.
 const appProcessSpawn = async (
 	entry: string,
@@ -97,7 +100,8 @@ const appProcessSpawn = async (
 	child.stderr?.on("data", (chunk) => {
 		stderr += String(chunk);
 	});
-	const exited = once(child, "exit").then(([code]) => code as number | null);
+	// "close" waits for stdout and stderr to drain as well; "exit" can fire before their last chunks.
+	const exited = once(child, "close").then(([code]) => code as number | null);
 	return {
 		child,
 		exited,
@@ -105,10 +109,16 @@ const appProcessSpawn = async (
 		stderr: () => stderr,
 		stdout: () => stdout,
 		stop: async () => {
-			if (child.exitCode === null && child.signalCode === null) {
+			if (!hasExited(child)) {
 				child.kill("SIGTERM");
 			}
-			return exited;
+			// A child that hangs past the 25 s shutdown deadline is killed.
+			const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+			try {
+				return await exited;
+			} finally {
+				clearTimeout(timer);
+			}
 		},
 	};
 };
@@ -123,7 +133,7 @@ const appProcessStart = async (
 		await waitFor(
 			`${entry} /readyz 200`,
 			async () => {
-				if (app.child.exitCode !== null) {
+				if (hasExited(app.child)) {
 					throw new Error(`${entry} exited early: ${app.stderr()}`);
 				}
 				return (await httpStatus(app.healthPort, "/readyz")) === 200;
@@ -141,9 +151,9 @@ export const httpStatus = async (
 	port: number,
 	path: string,
 ): Promise<number | undefined> => {
-	const res = await fetch(`http://127.0.0.1:${port}${path}`).catch(
-		() => undefined,
-	);
+	const res = await fetch(`http://127.0.0.1:${port}${path}`, {
+		signal: AbortSignal.timeout(2_000),
+	}).catch(() => undefined);
 	await res?.body?.cancel();
 	return res?.status;
 };
@@ -151,7 +161,7 @@ export const httpStatus = async (
 /** Waits for /readyz 503 (shutdown started); throws if the process exits first. */
 export const shutdownStarted = (app: AppProcess): Promise<void> =>
 	waitFor("/readyz 503", async () => {
-		if (app.child.exitCode !== null) {
+		if (hasExited(app.child)) {
 			throw new Error("exited before /readyz answered 503");
 		}
 		return (await httpStatus(app.healthPort, "/readyz")) === 503;
@@ -174,9 +184,16 @@ export const productionServerStart = async (
 	const app = await appProcessStart(serverEntry, options, {
 		PORT: String(port),
 	});
-	await waitFor("the server on PORT", async () => {
-		return (await httpStatus(port, "/auth/sign-in")) === 200;
-	});
+	try {
+		await waitFor(
+			"the server on PORT",
+			async () => (await httpStatus(port, "/auth/sign-in")) === 200,
+			20_000,
+		);
+	} catch (error) {
+		await app.stop();
+		throw error;
+	}
 	return { ...app, port, url: `http://127.0.0.1:${port}` };
 };
 

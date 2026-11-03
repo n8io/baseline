@@ -55,7 +55,12 @@ describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 			path: "/api/v1/foos",
 			port: server.port,
 		});
+		// Runs before server.stop, which would otherwise wait for this request until its deadline.
 		const responded = once(slow, "response");
+		cleanups.push(async () => {
+			responded.catch(() => undefined);
+			slow.destroy();
+		});
 		await once(slow, "continue");
 		slow.write(body.slice(0, 5));
 

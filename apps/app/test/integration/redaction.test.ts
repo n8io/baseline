@@ -8,11 +8,7 @@ describe("varlock redaction of stdout", { timeout: 30_000 }, () => {
 		const secret = `canary-client-secret-${randomUUID()}`;
 		const child = spawn(
 			process.execPath,
-			[
-				"--import",
-				"varlock/auto-load",
-				"test/integration/redaction-probe.ts",
-			],
+			["--import", "varlock/auto-load", "test/integration/redaction-probe.ts"],
 			{
 				env: {
 					...process.env,
@@ -29,7 +25,8 @@ describe("varlock redaction of stdout", { timeout: 30_000 }, () => {
 		child.stdout?.on("data", (chunk) => {
 			stdout += String(chunk);
 		});
-		const [code] = await once(child, "exit");
+		// "close" also waits for stdout to drain.
+		const [code] = await once(child, "close");
 
 		expect(code).toBe(0);
 		expect(stdout).toContain('"msg":"redaction probe"');

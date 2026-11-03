@@ -16,12 +16,16 @@ beforeAll(async () => {
 		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 	};
-	servers.push(
-		...(await Promise.all([
-			productionServerStart(options),
-			productionServerStart(options),
-		])),
-	);
+	const started = await Promise.allSettled([
+		productionServerStart(options),
+		productionServerStart(options),
+	]);
+	for (const result of started) {
+		if (result.status === "fulfilled") servers.push(result.value);
+	}
+	for (const result of started) {
+		if (result.status === "rejected") throw result.reason;
+	}
 }, 30_000);
 
 afterAll(async () => {
