@@ -10,7 +10,13 @@ import {
 	schedulesRegister,
 } from "@n8io/baseline-queue";
 import { shutdownHandle } from "@n8io/baseline-shutdown";
-import { telemetryShutdown } from "@n8io/baseline-telemetry";
+import {
+	telemetryShutdown,
+	telemetryUseCasesTrace,
+} from "@n8io/baseline-telemetry";
+import { fooSchedule } from "#domains/foo/api/index.ts";
+import { fooUseCasesCreate } from "#domains/foo/index.ts";
+import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 
 if (ENV.DATABASE_URL === "memory://") {
@@ -32,7 +38,11 @@ const health = healthServerCreate({
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
+const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
 
+const fooUseCases = telemetryUseCasesTrace(
+	fooUseCasesCreate(fooPortsCreate(ports)),
+);
 // domain-create: use-cases
 // domain-create: bridges
 
@@ -42,6 +52,7 @@ await consumersStart(queue, [
 await schedulesRegister(
 	queue,
 	[
+		fooSchedule(fooUseCases),
 		// domain-create: schedules
 	],
 	{ env: process.env },
