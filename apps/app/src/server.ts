@@ -35,6 +35,7 @@ import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 import { loadContextCreate } from "#ui/context.ts";
+import { seedsRun } from "./seed.ts";
 
 let shutdown: { isShuttingDown(): boolean } | undefined;
 const health = healthServerCreate({
@@ -64,6 +65,10 @@ const fooUseCases = telemetryUseCasesTrace(
 );
 // domain-create: use-cases
 // domain-create: bridges
+
+if (ENV.APP_ENV === "development" && pgPool === "memory") {
+	await seedsRun({ fooUseCases });
+}
 
 // Creates queues and subscriptions; consumers run only in the worker.
 if (queue !== "memory") {
