@@ -3,5 +3,11 @@ import { vitestShared } from "./vitest.shared.ts";
 
 export default mergeConfig(
 	vitestShared,
-	defineConfig({ test: { include: ["test/**/*.test.ts"] } }),
+	defineConfig({
+		test: {
+			// test/render/ runs inside a rendered app, never here.
+			exclude: ["test/render/**"],
+			include: ["test/**/*.test.ts"],
+		},
+	}),
 );

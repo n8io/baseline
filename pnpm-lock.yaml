@@ -174,6 +174,9 @@ importers:
       '@changesets/cli':
         specifier: ^3.0.3
         version: 3.0.3
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
       turbo:
         specifier: ^2.11.10
         version: 2.11.10
