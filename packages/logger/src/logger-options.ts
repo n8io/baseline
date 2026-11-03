@@ -35,7 +35,12 @@ const errFind = (first: unknown): unknown => {
 	if (first instanceof Error) {
 		return first;
 	}
-	if (typeof first === "object" && first !== null && "err" in first) {
+	if (
+		typeof first === "object" &&
+		first !== null &&
+		"err" in first &&
+		!("msg" in first)
+	) {
 		return first.err;
 	}
 	return undefined;

@@ -50,8 +50,12 @@ describe("logger", () => {
 	it("keeps a message the caller gives", () => {
 		const { lines, logger } = loggerCapture();
 		logger.error({ err: new Error(canary) }, "request failed");
+		logger.error({ err: new Error(canary), msg: "query failed" });
 
-		expect(lines[0]?.msg).toBe("request failed");
+		expect(lines.map((line) => line.msg)).toEqual([
+			"request failed",
+			"query failed",
+		]);
 		expect(JSON.stringify(lines)).not.toContain(canary);
 	});
 
