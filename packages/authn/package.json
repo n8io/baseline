@@ -41,7 +41,7 @@
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
 		"jose": "^6.2.15",
-		"openid-client": "^6.8.9"
+		"openid-client": "^6.8.8"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
