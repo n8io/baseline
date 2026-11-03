@@ -69,8 +69,9 @@ describe("authnRefreshClientMiddleware", () => {
 		expect(order).toStrictEqual(["refresh", "next"]);
 	});
 
-	it("keeps one refresh in flight per tab", async () => {
+	it("keeps one refresh in flight per tab, even without Web Locks", async () => {
 		rootExpiresAtSet(Date.now() + 30_000);
+		vi.stubGlobal("navigator", {});
 		const middleware = await middlewareLoad();
 		let release = () => {};
 		fetchMock.mockImplementation(

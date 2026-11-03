@@ -139,10 +139,10 @@ const tokensRefresh = async (
 			refreshToken: tokens.refresh_token ?? refreshToken,
 		};
 	} catch (error) {
-		// Only the provider saying no (`invalid_grant` and other 4xx answers) signs the user out;
-		// an outage or a 5xx throws, so a provider hiccup never signs everyone out.
-		if (error instanceof ResponseBodyError && error.status < 500)
-			return undefined;
+		// Only the provider saying no (an OAuth error body such as `invalid_grant`) signs the user
+		// out. openid-client reports a 5xx as a ClientError and an outage as a TypeError; both throw,
+		// so a provider hiccup never signs everyone out.
+		if (error instanceof ResponseBodyError) return undefined;
 		throw error;
 	}
 };

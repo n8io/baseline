@@ -249,6 +249,7 @@ describe("OIDC refresh", () => {
 		});
 
 		expect(first.status).toBe(200);
+		expect(setCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
 		expect(second.status).toBe(200);
 	});
 
@@ -275,9 +276,10 @@ describe("OIDC refresh", () => {
 			},
 		],
 		[
-			"answers 5xx",
+			"answers an OAuth error with a 5xx status",
 			() => {
-				provider.app.fetch = async () => new Response("oops", { status: 503 });
+				provider.app.fetch = async () =>
+					Response.json({ error: "temporarily_unavailable" }, { status: 503 });
 			},
 		],
 	])(
