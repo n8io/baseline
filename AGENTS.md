@@ -1,5 +1,5 @@
 # Baseline
 
-A template repo for new projects. The architecture is still being decided on the wayfinder map in this repo's GitHub Issues (label `wayfinder:map`). Don't write product code until the map reaches its destination.
+A template repo for new projects: shared `@n8io/baseline-*` packages and the `apps/app` template that new repos are generated from.
 
-@CONTEXT.md
+@apps/app/CONTEXT.md
