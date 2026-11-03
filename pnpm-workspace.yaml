@@ -3,3 +3,11 @@ packages:
   - packages/*
 allowBuilds:
   protobufjs: false
+# The built server never imports these peers; optional keeps them out of production installs.
+packageExtensions:
+  react-router-hono-server:
+    peerDependenciesMeta:
+      "@react-router/dev":
+        optional: true
+      vite:
+        optional: true

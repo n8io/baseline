@@ -162,6 +162,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: sha256-qfHJZ/cYyETwZQNn6h5Uimkqig4dIletHUDXjTj1yQ4=
+
 importers:
 
   .:
@@ -3983,7 +3985,11 @@ packages:
       vite: '>=8.3.0'
       ws: ^8.21.3
     peerDependenciesMeta:
+      '@react-router/dev':
+        optional: true
       '@types/ws':
+        optional: true
+      vite:
         optional: true
       ws:
         optional: true
@@ -7585,11 +7591,12 @@ snapshots:
       '@drizzle-team/brocli': 0.12.1
       '@hono/node-server': 2.1.5(hono@4.13.16)
       '@hono/vite-dev-server': 0.26.1(hono@4.13.16)
-      '@react-router/dev': 8.5.1(react-router@8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(supports-color@7.2.0)(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1))
       hono: 4.13.16
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       react-router: 8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+    optionalDependencies:
+      '@react-router/dev': 8.5.1(react-router@8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(supports-color@7.2.0)(typescript@7.0.2)(vite@8.3.5(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1))
       vite: 8.3.5(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1)
     transitivePeerDependencies:
       - miniflare
