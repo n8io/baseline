@@ -23,6 +23,7 @@ export default defineConfig({
 						"src/**/*.{postgres,redis}.test.ts",
 						"test/integration/**/*.test.ts",
 					],
+					globalSetup: ["test/integration/global-setup.ts"],
 					name: "integration",
 					setupFiles: ["varlock/auto-load"],
 				},

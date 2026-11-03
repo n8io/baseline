@@ -1,0 +1,265 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "10b4add9-72ae-420c-af9e-39c3eaf030ce",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "foo"
+      ],
+      "writes": [
+        "s|sch|foo",
+        "n|sch|foo",
+        "e|sch|foo"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "foo",
+        "foo"
+      ],
+      "writes": [
+        "s|tbl|foo.foo",
+        "n|tbl|foo.foo",
+        "e|tbl|foo.foo",
+        "n|rel|foo.foo",
+        "n|type|foo.foo",
+        "n|rel|foo.foo_pkey"
+      ],
+      "reads": [
+        "n|sch|foo"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "foo",
+        "foo",
+        "foo_name_key"
+      ],
+      "writes": [
+        "s|idx|foo.foo_name_key",
+        "n|idx|foo.foo_name_key",
+        "e|idx|foo.foo_name_key",
+        "n|rel|foo.foo_name_key"
+      ],
+      "reads": [
+        "n|tbl|foo.foo",
+        "n|sch|foo",
+        "n|col|foo.foo.name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "foo",
+        "foo",
+        "foo_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|foo.foo_created_at_idx",
+        "n|idx|foo.foo_created_at_idx",
+        "e|idx|foo.foo_created_at_idx",
+        "n|rel|foo.foo_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|foo.foo",
+        "n|sch|foo",
+        "n|col|foo.foo.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "foo",
+        "foo",
+        "foo_updated_at_idx"
+      ],
+      "writes": [
+        "s|idx|foo.foo_updated_at_idx",
+        "n|idx|foo.foo_updated_at_idx",
+        "e|idx|foo.foo_updated_at_idx",
+        "n|rel|foo.foo_updated_at_idx"
+      ],
+      "reads": [
+        "n|tbl|foo.foo",
+        "n|sch|foo",
+        "n|col|foo.foo.updated_at"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "name": "foo",
+      "entityType": "schemas"
+    },
+    {
+      "schema": "foo",
+      "name": "foo",
+      "isRlsEnabled": false,
+      "entityType": "tables"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "name",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "created_by",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "archived_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "foo_name_key",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "name",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "foo_created_at_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "foo_updated_at_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "updated_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "foo",
+      "table": "foo",
+      "name": "foo_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    }
+  ]
+}
