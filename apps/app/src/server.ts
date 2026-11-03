@@ -37,6 +37,11 @@ import { ENV, envLocal } from "#env";
 import { loadContextCreate } from "#ui/context.ts";
 import { seedsRun } from "./seed.ts";
 
+// Development: the dev server re-runs this file after an edit, and import.meta.hot is
+// undefined there, so each run first closes what the last one opened.
+const devRun = globalThis as { serverDevClose?: () => Promise<void> };
+if (import.meta.env.DEV) await devRun.serverDevClose?.();
+
 let shutdown: { isShuttingDown(): boolean } | undefined;
 const health = healthServerCreate({
 	isAlive: () => true,
@@ -58,6 +63,16 @@ const queue =
 		: await queueCreate({ pgPool, role: "publisher" });
 const liveHub =
 	redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+if (import.meta.env.DEV) {
+	// Shutdown order: intakes, then resources, health last.
+	devRun.serverDevClose = async () => {
+		await liveHub.close();
+		if (queue !== "memory") await queueStop(queue);
+		if (pgPool !== "memory") await pgPool.end();
+		if (redisClient !== "memory") await redisClient.close();
+		await health.close();
+	};
+}
 const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
 
 const fooUseCases = telemetryUseCasesTrace(
