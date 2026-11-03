@@ -67,6 +67,8 @@ describe("GET /live/foo/:fooId", () => {
 		expect(res.headers.get("content-type")).toMatch(/^text\/event-stream/);
 		const stream = sseReader(res);
 		expect((await stream.until("event: ready")).ended).toBe(false);
+		// Without a token expiry the stream stays open past its first moments.
+		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		const updated = await useCases.fooUpdate(owner, { fooId, name: "beta" });
 		expect(updated.ok).toBe(true);
