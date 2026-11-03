@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 export type HealthServer = {
 	/** Marks the process ready; call it after every intake listens. */
 	ready(): void;
-	/** Stops listening and drops open probe connections. */
+	/** Stops listening; `server.close()` also drops idle keep-alive connections. */
 	close(): Promise<void>;
 };
 
@@ -47,7 +47,6 @@ export const healthServerCreate = (options: {
 		close: () =>
 			new Promise((resolve, reject) => {
 				server.close((error) => (error ? reject(error) : resolve()));
-				server.closeAllConnections();
 			}),
 		ready: () => {
 			isReady = true;
