@@ -21,7 +21,7 @@ const refreshWindowMs = 10_000;
 
 /**
  * Redirects a page request. React Router's client-side data requests (`/foos.data`) cannot follow
- * a cross-site redirect, so they get its 204 redirect signal and load the target as a document.
+ * a cross-site redirect, so they get its 204 redirect headers and load the target as a document.
  */
 const pageRedirect = (c: Context, path: string): Response => {
 	const target = `${path}?returnTo=${encodeURIComponent(authnPagePath(new URL(c.req.url)))}`;

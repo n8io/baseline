@@ -11,15 +11,15 @@ export const authnCookieNames = {
 
 type AuthnCookieName = keyof typeof authnCookieNames;
 
-const sessionMaxAgeSeconds = 30 * 24 * 60 * 60;
+const signedInMaxAgeSeconds = 30 * 24 * 60 * 60;
 const flowMaxAgeSeconds = 10 * 60;
 
 // Paths and lifetimes per cookie (spec 4.10). Every cookie is HttpOnly, Secure and SameSite=Lax.
 const cookieOptions: Record<AuthnCookieName, { maxAge: number; path: string }> =
 	{
-		access: { maxAge: sessionMaxAgeSeconds, path: "/" },
+		access: { maxAge: signedInMaxAgeSeconds, path: "/" },
 		flow: { maxAge: flowMaxAgeSeconds, path: "/auth/callback" },
-		refresh: { maxAge: sessionMaxAgeSeconds, path: "/auth" },
+		refresh: { maxAge: signedInMaxAgeSeconds, path: "/auth" },
 	};
 
 const cookieFlags = { httpOnly: true, sameSite: "Lax", secure: true } as const;

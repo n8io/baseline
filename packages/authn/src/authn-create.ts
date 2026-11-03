@@ -72,9 +72,9 @@ const issuerUrlCheck = (issuerUrl: string): void => {
 	);
 };
 
-// Network and timeout failures reaching the JWKS are infrastructure failures (500), never a
+// Network and timeout failures reaching the JWKS are outages (500), never a
 // reason to treat a caller as signed out.
-const isInfrastructureError = (error: unknown): boolean =>
+const isOutage = (error: unknown): boolean =>
 	error instanceof errors.JWKSTimeout || !(error instanceof errors.JOSEError);
 
 const verifyCreate =
@@ -95,7 +95,7 @@ const verifyCreate =
 			}));
 		} catch (error) {
 			if (error instanceof errors.JWTExpired) return { status: "expired" };
-			if (isInfrastructureError(error)) throw error;
+			if (isOutage(error)) throw error;
 			return { status: "invalid" };
 		}
 		if (
