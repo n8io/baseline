@@ -41,7 +41,7 @@ const fooNames = async (databaseUrl: string): Promise<string[]> => {
 	}
 };
 
-describe("src/seed.ts on Postgres", () => {
+describe("src/seed.ts on Postgres", { timeout: 30_000 }, () => {
 	it("seeds an empty database once and exits 0", async () => {
 		const { databaseUrl, drop } = await integrationDatabaseCreate();
 		cleanups.push(drop);
