@@ -1,0 +1,72 @@
+import type { Result } from "@n8io/baseline-result";
+import { type Queue, queueBoss } from "./queue-create.ts";
+import { queueJobRun } from "./queue-job-run.ts";
+import { queueWithDeadLetterCreate } from "./queue-retry.ts";
+
+export type Schedule = {
+	readonly name: string;
+	readonly cron: string;
+	readonly run: () => Promise<Result<unknown, { type: string }>>;
+};
+
+// name is `<domain>.<use case words, kebab>` (foo.stale-archive); cron is UTC, minute precision.
+export const scheduleCreate = (
+	name: string,
+	cron: string,
+	run: () => Promise<Result<unknown, { type: string }>>,
+): Schedule => ({ cron, name, run });
+
+// foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE
+export const scheduleEnvName = (name: string): string =>
+	`SCHEDULE_${name.toUpperCase().replaceAll(/[.-]/g, "_")}`;
+
+// Registers each schedule (worker process only) and unschedules any pg-boss holds that is no longer
+// in code or is turned `off`. Every override is validated before anything registers.
+export const schedulesRegister = async (
+	queue: Queue,
+	schedules: Schedule[],
+	options: { env: Record<string, string | undefined> },
+): Promise<void> => {
+	const boss = queueBoss(queue);
+	const active: { schedule: Schedule; cron: string }[] = [];
+	for (const schedule of schedules) {
+		const variable = scheduleEnvName(schedule.name);
+		const override = options.env[variable];
+		if (override === "off") {
+			continue;
+		}
+		const cron = override ?? schedule.cron;
+		try {
+			boss.previewSchedule(cron, { count: 1, from: new Date() });
+		} catch (error) {
+			const source =
+				override === undefined ? `schedule ${schedule.name}` : variable;
+			throw new TypeError(
+				`Invalid cron for ${source}: use a cron string or off`,
+				{ cause: error },
+			);
+		}
+		active.push({ cron, schedule });
+	}
+	for (const { cron, schedule } of active) {
+		// exclusive: one job queued or active, so a tick while a run is active is skipped.
+		await queueWithDeadLetterCreate(boss, schedule.name, {
+			policy: "exclusive",
+		});
+		await boss.schedule(schedule.name, cron, null, {
+			missed: "once",
+			tz: "UTC",
+		});
+		await boss.work(schedule.name, async (jobs) => {
+			for (const job of jobs) {
+				await queueJobRun(schedule.name, job, schedule.run);
+			}
+		});
+	}
+	const names = new Set(active.map(({ schedule }) => schedule.name));
+	for (const held of await boss.getSchedules()) {
+		if (!names.has(held.name) && !held.name.startsWith("queue.")) {
+			await boss.unschedule(held.name, held.key);
+		}
+	}
+};
