@@ -20,6 +20,10 @@ export default defineConfig({
 			},
 		},
 	},
+	// The dev server finds these late (only the UI components import them) and reloads mid-load.
+	optimizeDeps: {
+		include: ["class-variance-authority", "cn", "radix-ui"],
+	},
 	resolve: {
 		// One copy of each, even when a linked package resolves its own.
 		dedupe: ["hono", "react", "react-dom", "react-router"],
