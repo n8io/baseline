@@ -53,8 +53,13 @@ export const consumersSubscribe = async (
 	}
 };
 
-// The pg-boss job id, the inbox key that makes a repeated job a no-op.
-const consumerEventId = (job: { id: string }): string => job.id;
+// The inbox key that makes a repeated job a no-op. A retry keeps the job id, but a redrive from the
+// dead-letter queue makes a new job; sourceRootId is the first job's id, kept through every dead
+// letter and redrive, so the event keeps one id however often it comes back.
+const consumerEventId = (job: {
+	id: string;
+	sourceRootId: string | null;
+}): string => job.sourceRootId ?? job.id;
 
 // Subscribes, then starts a worker per consumer (worker process only).
 export const consumersStart = async (
@@ -64,15 +69,19 @@ export const consumersStart = async (
 	await consumersSubscribe(queue, consumers);
 	const boss = queueBoss(queue);
 	for (const consumer of consumers) {
-		await boss.work(consumer.queueName, async (jobs) => {
-			for (const job of jobs) {
-				await queueJobRun(consumer.queueName, job, () =>
-					consumer.run(job.data, {
-						consumer: consumer.queueName,
-						eventId: consumerEventId(job),
-					}),
-				);
-			}
-		});
+		await boss.work(
+			consumer.queueName,
+			{ includeMetadata: true },
+			async (jobs) => {
+				for (const job of jobs) {
+					await queueJobRun(consumer.queueName, job, () =>
+						consumer.run(job.data, {
+							consumer: consumer.queueName,
+							eventId: consumerEventId(job),
+						}),
+					);
+				}
+			},
+		);
 	}
 };

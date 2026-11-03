@@ -104,6 +104,84 @@ describe("consumersStart", () => {
 		]);
 	});
 
+	it("V8: a redriven job keeps its eventId, so redriving twice runs the work once", async () => {
+		const calls: Inbox[] = [];
+		// Commits, then fails until its third run: dead letter, redrive, dead letter, redrive.
+		const invoiceArchive = async (
+			event: z.infer<typeof fooCreated>,
+			inbox: Inbox,
+		): Promise<Result<undefined, { type: string }>> => {
+			calls.push(inbox);
+			const result = await postgresTransaction<undefined, { type: string }>(
+				pgPool,
+				async (pgClient) => {
+					if (!(await queueInboxInsert(pgClient, inbox))) {
+						return ok(undefined);
+					}
+					await pgClient.query("INSERT INTO invoice (foo_id) VALUES ($1)", [
+						event.fooId,
+					]);
+					return ok(undefined);
+				},
+			);
+			if (calls.length < 3) {
+				throw new Error("Connection lost after commit");
+			}
+			return result;
+		};
+		await consumersStart(queue, [
+			consumerCreate(
+				"billing.foo-archived",
+				"foo.archived",
+				fooCreated,
+				invoiceArchive,
+			),
+		]);
+		const boss = queueBoss(queue);
+		// No retries, so each failure goes straight to the dead-letter queue.
+		await boss.updateQueue("billing.foo-archived", { retryLimit: 0 });
+		const deadLettered = async (): Promise<void> => {
+			await vi.waitFor(
+				async () => {
+					const dead = await boss.findJobs("billing.foo-archived.dead");
+					expect(dead).toHaveLength(1);
+				},
+				{ interval: 250, timeout: 30_000 },
+			);
+		};
+
+		await postgresTransaction(pgPool, async (pgClient) => {
+			await queueEventsPgBoss<{ "foo.archived": unknown }>(
+				queue,
+				pgClient,
+			).publish("foo.archived", { fooId: "foo_2" });
+			return ok(undefined);
+		});
+		await deadLettered();
+		expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
+		await deadLettered();
+		expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
+		await vi.waitFor(
+			async () => {
+				const jobs = await boss.findJobs("billing.foo-archived");
+				expect(jobs.map((job) => job.state)).toContain("completed");
+			},
+			{ interval: 250, timeout: 30_000 },
+		);
+
+		const eventId = calls[0]?.eventId;
+		expect(eventId).toBeDefined();
+		expect(calls).toEqual([
+			{ consumer: "billing.foo-archived", eventId },
+			{ consumer: "billing.foo-archived", eventId },
+			{ consumer: "billing.foo-archived", eventId },
+		]);
+		expect(
+			(await pgPool.query("SELECT foo_id FROM invoice WHERE foo_id = 'foo_2'"))
+				.rows,
+		).toEqual([{ foo_id: "foo_2" }]);
+	});
+
 	it("fails a job whose data does not match the schema, without echoing it", async () => {
 		const run = vi.fn(async () => ok(undefined));
 		await consumersStart(queue, [
