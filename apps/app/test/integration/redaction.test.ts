@@ -11,7 +11,7 @@ describe("varlock redaction of stdout", { timeout: 30_000 }, () => {
 			[
 				"--import",
 				"varlock/auto-load",
-				"test/integration/fixture/redact-log.ts",
+				"test/integration/redaction-probe.ts",
 			],
 			{
 				env: {
