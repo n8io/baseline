@@ -73,6 +73,15 @@ describe("queueCreate", () => {
 		expect(boss.isMaintaining()).toBe(false);
 		expect(boss.isTimekeeping()).toBe(false);
 		expect(query).not.toHaveBeenCalled();
+		// The instance registry records the roles pg-boss started with.
+		const live = (await boss.getInstances()).filter((row) => row.live);
+		expect(live).toEqual([
+			expect.objectContaining({
+				migrate: false,
+				schedule: false,
+				supervise: false,
+			}),
+		]);
 	});
 
 	it("V9: a worker starts the cron pass and the inbox prune schedule", async () => {
