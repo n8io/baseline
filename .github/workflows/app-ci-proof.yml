@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        scenario: [pass, fail]
+        scenario: [pass, fail, mutation]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -40,7 +40,7 @@ jobs:
           cd "$app"
           jq 'del(.root)' biome.json > biome.tmp && mv biome.tmp biome.json
           pnpm install --frozen-lockfile=false
-          pnpm exec biome format --write biome.json
+          pnpm exec biome check --write .
           rm -rf node_modules
           git init -q -b main
           git -c user.name=proof -c user.email=proof@example.com add -A
@@ -62,9 +62,13 @@ jobs:
           echo 'ALTER TABLE "foo"."foo" DROP COLUMN "name";' > migrations/20991231000000_name_drop/migration.sql
           git add migrations
           perl -0pi -e 's|method: "get",\n\tpath: "/\{fooId\}"|method: "get",\n\tpath: "/{fooId}/detail"|' src/domains/foo/api/foo-routes.ts
+          git diff --stat
+      - name: Change (mutation)
+        if: matrix.scenario == 'mutation'
+        working-directory: ${{ runner.temp }}/app
+        run: |
           sed -i '1i // A change with no test left.' src/domains/foo/rules/foo-stale.ts
           git rm -q src/domains/foo/rules/foo-stale.test.ts
-          git diff --stat
       - working-directory: ${{ runner.temp }}/app
         run: |
           git -c user.name=proof -c user.email=proof@example.com commit -qam change
@@ -80,7 +84,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [pass, fail]
+        scenario: [pass, fail, mutation]
     uses: ./.github/workflows/app-ci.yml
     with:
       artifact: app-${{ matrix.scenario }}
