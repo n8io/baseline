@@ -128,4 +128,81 @@ describe("server wiring", () => {
 			expect(Object.keys(doc.components.schemas)).toContain("FooResponse");
 		});
 	});
+
+	describe("foo live updates", () => {
+		const cookieSignIn = async () => {
+			const res = await app.request("/auth/sign-in", {
+				body: new URLSearchParams({ who: "user" }),
+				method: "POST",
+			});
+			expect(res.status).toBe(302);
+			return res.headers
+				.getSetCookie()
+				.map((cookie) => cookie.split(";")[0])
+				.join("; ");
+		};
+
+		it("sends a live update to an open detail stream when the foo is updated", async () => {
+			const token = await authnMemoryTokenCreate(authn as Authn, {
+				id: "user-1",
+				kind: "user",
+				scopes: [],
+			});
+			const headers = {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			};
+			const created = await app.request("/api/v1/foos", {
+				body: JSON.stringify({ name: "live" }),
+				headers,
+				method: "POST",
+			});
+			const foo = (await created.json()) as { id: string };
+
+			const live = await app.request(`/live/foo/${foo.id}`, {
+				headers: { Cookie: await cookieSignIn() },
+			});
+			expect(live.status).toBe(200);
+			const reader = (live.body as ReadableStream<Uint8Array>).getReader();
+			const decoder = new TextDecoder();
+			let body = "";
+			const until = async (text: string) => {
+				while (!body.includes(text)) {
+					const chunk = await reader.read();
+					if (chunk.done) throw new Error(`stream ended before ${text}`);
+					body += decoder.decode(chunk.value, { stream: true });
+				}
+			};
+			try {
+				await until("event: ready");
+				const updated = await app.request(`/api/v1/foos/${foo.id}`, {
+					body: JSON.stringify({ name: "live-renamed" }),
+					headers,
+					method: "PATCH",
+				});
+				expect(updated.status).toBe(200);
+				await until("foo.updated");
+				expect(body).toContain(
+					`data: ${JSON.stringify({ id: foo.id, type: "foo.updated" })}`,
+				);
+			} finally {
+				await reader.cancel();
+			}
+		});
+
+		it("reads only the cookie: a bearer token gets 401", async () => {
+			const token = await authnMemoryTokenCreate(authn as Authn, {
+				id: "user-1",
+				kind: "user",
+				scopes: [],
+			});
+			const res = await app.request(
+				"/live/foo/foo_01m6gtefj7e9bayj0wmqpjjmg8",
+				{
+					headers: { Authorization: `Bearer ${token}` },
+				},
+			);
+			expect(res.status).toBe(401);
+		});
+	});
 });

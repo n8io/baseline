@@ -30,7 +30,7 @@ import {
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
 import { actorFromClaims, authnProviderOptions } from "#authn";
-import { fooRoutes } from "#domains/foo/api/index.ts";
+import { fooLiveRoutes, fooRoutes } from "#domains/foo/api/index.ts";
 import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
@@ -94,6 +94,7 @@ app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
 app.route("/auth", authnRoutes(authn));
 app.route("/api/v1/foos", fooRoutes(fooUseCases));
 // domain-create: routes
+app.route("/live/foo", fooLiveRoutes(fooUseCases, liveHub));
 // domain-create: live
 app.doc31("/api/v1/openapi.json", {
 	info: { title: "app", version: "1" },
