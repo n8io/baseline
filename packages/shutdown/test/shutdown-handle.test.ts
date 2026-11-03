@@ -246,6 +246,22 @@ describe("shutdownHandle", () => {
 		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
+	it("still exits 1 when the shutdown itself throws", async () => {
+		shutdownHandle({
+			drainDelayMs: 0,
+			intakes: [],
+			resources: [failing("postgres")],
+		});
+		vi.mocked(logger.error).mockImplementation(() => {
+			throw new Error("stdout closed");
+		});
+
+		emit("SIGTERM");
+		await vi.runAllTimersAsync();
+		expect(events).toEqual(["postgres:start"]);
+		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
 	it("ignores a second signal", async () => {
 		const http = step("http");
 		const close = vi.spyOn(http, "close");
@@ -311,7 +327,7 @@ describe("shutdownHandle", () => {
 		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("logs a crash during shutdown without starting a second one", async () => {
+	it("logs a crash during shutdown without starting a second one, and exits 1", async () => {
 		const http = step("http");
 		const close = vi.spyOn(http, "close");
 		shutdownHandle({ drainDelayMs: 1000, intakes: [http], resources: [] });
@@ -326,6 +342,6 @@ describe("shutdownHandle", () => {
 			"Crashed, shutting down",
 		);
 		expect(close).toHaveBeenCalledOnce();
-		expect(exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });

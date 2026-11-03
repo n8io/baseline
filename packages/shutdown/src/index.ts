@@ -48,9 +48,12 @@ export const shutdownHandle = ({
 	resources,
 }: ShutdownOptions): ShutdownHandle => {
 	let shuttingDown = false;
+	// Set by any crash, also one during a shutdown a signal started.
+	let crashed = false;
 
-	const shutdownRun = async (drainMs: number, crashed: boolean) => {
-		let clean = !crashed;
+	// Resolves true when every step closed in time.
+	const shutdownRun = async (drainMs: number): Promise<boolean> => {
+		let clean = true;
 		const cutoff = timeout(deadlineMs - RESOURCE_RESERVE_MS);
 		const deadline = timeout(deadlineMs);
 
@@ -92,29 +95,36 @@ export const shutdownHandle = ({
 			}
 		}
 
-		const code = clean ? 0 : 1;
+		return clean;
+	};
+
+	// Always exits, even if the shutdown itself throws.
+	const shutdownExit = async (drainMs: number): Promise<void> => {
+		const clean = await shutdownRun(drainMs).catch(() => false);
+		const code = clean && !crashed ? 0 : 1;
 		logger.info({ code }, "Shutdown finished");
 		process.exit(code);
 	};
 
-	const start = (drainMs: number, crashed: boolean): boolean => {
+	const start = (drainMs: number): boolean => {
 		if (shuttingDown) {
 			return false;
 		}
 		shuttingDown = true;
-		void shutdownRun(drainMs, crashed);
+		void shutdownExit(drainMs);
 		return true;
 	};
 
 	const onSignal = (signal: NodeJS.Signals) => {
-		if (start(drainDelayMs, false)) {
+		if (start(drainDelayMs)) {
 			logger.info(`Shutdown started on ${signal}`);
 		}
 	};
 
 	const onCrash = (error: unknown) => {
 		logger.fatal({ err: error }, "Crashed, shutting down");
-		start(0, true);
+		crashed = true;
+		start(0);
 	};
 
 	process.on("SIGTERM", onSignal);
