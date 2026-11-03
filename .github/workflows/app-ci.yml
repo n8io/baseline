@@ -3,6 +3,8 @@
 #     ci:
 #       uses: n8io/baseline/.github/workflows/app-ci.yml@v1
 #       secrets: inherit
+# Callers grant `contents: read` and `packages: read`, and add the repository with Read to each
+# @n8io/baseline-* package (Manage Actions access). Jobs install with the built-in GITHUB_TOKEN.
 # Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
 # A change that adds a failing check ships as the next major (v2), never inside v1.
 name: app-ci
@@ -19,11 +21,8 @@ on:
         type: string
     secrets:
       PACKAGES_TOKEN:
-        description: Classic PAT with read:packages, for @n8io/baseline-* on GitHub Packages.
-        required: true
-
-permissions:
-  contents: read
+        description: Optional PAT with read:packages for v1 callers; the built-in token is used without it.
+        required: false
 
 jobs:
   check:
@@ -56,7 +55,7 @@ jobs:
         id: install
         run: pnpm install --frozen-lockfile
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
       - run: timeout 30s pnpm check
       - name: src/env.d.ts matches .env.schema
         run: git diff --exit-code src/env.d.ts
@@ -168,7 +167,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
       - name: OpenAPI documents from main and this change
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
         run: |
           # Builds the server in $1, boots it with memory adapters on port $2, saves the document to $3.
           openapi() {
@@ -207,8 +206,8 @@ jobs:
       - *install
       - name: Build the image (never pushed)
         env:
-          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-        run: docker build --secret id=packages_token,env=PACKAGES_TOKEN --tag app:ci .
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
+        run: docker build --secret id=packages_token,env=NODE_AUTH_TOKEN --tag app:ci .
       - name: Dockerfile test
         run: pnpm exec vitest run test/unit/dockerfile.test.ts
       - name: Image size within image-budget.json

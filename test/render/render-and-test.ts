@@ -3,7 +3,7 @@
 // with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade, then
 // adds invoice-line and customer with this checkout's domain-create, and the second-domain
 // fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
-// deleted, and the bridge that reads customers. Reads PACKAGES_TOKEN for installs.
+// deleted, and the bridge that reads customers. Installs with NODE_AUTH_TOKEN or `gh auth token`.
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,6 +26,7 @@ import {
 	appRender,
 	gitCommitAll,
 	glossaryTerm,
+	packagesToken,
 	pnpmWithToken,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";
@@ -78,7 +79,7 @@ const main = async () => {
 	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
 	// Its own label: between releases the checkout's version equals the previous release's.
 	const version = `${(JSON.parse(manifest) as { version: string }).version}-checkout`;
-	const token = process.env.PACKAGES_TOKEN || undefined;
+	const token = packagesToken();
 
 	await pnpmWithToken(token, async (pnpm) => {
 		console.log(`origin/main: app@${previous} with no domain`);

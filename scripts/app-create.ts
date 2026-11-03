@@ -1,6 +1,7 @@
 // node scripts/app-create.ts: makes a new project repository from the latest app@ release.
 // Renders apps/app, writes the project's answers, creates the first domain and its migration,
-// then creates the private GitHub repository, its PACKAGES_TOKEN secret and the CI ruleset.
+// then creates the private GitHub repository and the CI ruleset. Installs use NODE_AUTH_TOKEN or
+// `gh auth token`; the end of the run lists the package settings pages that need the repo added.
 // Flags skip the questions: --name --description --domain --plural --definition [--owner].
 import { randomBytes } from "node:crypto";
 import {
@@ -112,6 +113,46 @@ export const answersWrite = (
 		)}\n`,
 	);
 };
+
+// The GitHub Packages token: NODE_AUTH_TOKEN in Actions, else the operator's `gh auth token`.
+// undefined means pnpm falls back to the operator's own ~/.npmrc.
+export const packagesToken = (): string | undefined => {
+	const fromEnv = process.env.NODE_AUTH_TOKEN;
+	if (fromEnv) return fromEnv;
+	try {
+		return run("gh", ["auth", "token"]).trim() || undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+// The @n8io/baseline-* packages a template depends on, from its package.json.
+export const baselinePackages = (files: TemplateFile[]): string[] => {
+	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
+	const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest) as {
+		dependencies?: Record<string, string>;
+		devDependencies?: Record<string, string>;
+	};
+	return [
+		...new Set(
+			Object.keys({ ...dependencies, ...devDependencies }).filter((name) =>
+				name.startsWith("@n8io/baseline-"),
+			),
+		),
+	].sort();
+};
+
+// GitHub has no API to add a repo to a package, so each one is a click in the UI.
+export const packageGrantLines = (
+	repository: string,
+	packages: string[],
+): string[] => [
+	`Add ${repository} with Read under Manage Actions access on each package:`,
+	...packages.map(
+		(name) =>
+			`  https://github.com/users/n8io/packages/npm/${name.replace("@n8io/", "")}/settings`,
+	),
+];
 
 // Runs pnpm with a userconfig holding the GitHub Packages token, as actions/setup-node writes
 // it, and removes that file after. Without a token pnpm uses the operator's own ~/.npmrc.
@@ -229,14 +270,16 @@ const answersAsk = async (): Promise<AppCreateAnswers> => {
 
 const main = async () => {
 	const answers = await answersAsk();
-	const token = process.env.PACKAGES_TOKEN || undefined;
+	const token = packagesToken();
 	const directory = resolve(process.cwd(), answers.name);
 	if (existsSync(directory)) throw new Error(`${directory} already exists`);
 	const repository = `${answers.owner}/${answers.name}`;
 	const release = releaseLatest();
 	console.log(`Rendering app@${release} into ${directory}`);
+	let files: TemplateFile[] = [];
 	try {
-		await appRender(directory, templateFetch(release), answers);
+		files = templateFetch(release);
+		await appRender(directory, files, answers);
 		answersWrite(directory, { ...answers, release, repository }, [
 			{
 				definition: answers.domain.definition,
@@ -277,25 +320,15 @@ const main = async () => {
 		],
 		{ inherit: true },
 	);
-	if (token === undefined) {
-		console.warn(
-			`app-create: PACKAGES_TOKEN is not set, so the repository has no PACKAGES_TOKEN secret and CI cannot install. Set it for Actions and Dependabot: gh secret set PACKAGES_TOKEN --app actions --repo ${repository} (then --app dependabot).`,
-		);
-	} else {
-		for (const app of ["actions", "dependabot"]) {
-			run(
-				"gh",
-				["secret", "set", "PACKAGES_TOKEN", "--app", app, "--repo", repository],
-				{ input: token },
-			);
-		}
-	}
 	run(
 		"gh",
 		["api", "--method", "POST", `repos/${repository}/rulesets`, "--input", "-"],
 		{ input: JSON.stringify(rulesetBody()) },
 	);
 	console.log(`Created https://github.com/${repository}`);
+	console.log(
+		packageGrantLines(repository, baselinePackages(files)).join("\n"),
+	);
 };
 
 if (import.meta.main) {
