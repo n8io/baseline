@@ -1,8 +1,8 @@
 import { PgBoss, TestClock } from "pg-boss";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { queueMigrate } from "../src/index.ts";
 import { queueWithDeadLetterCreate } from "../src/queue-retry.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 // pg-boss's TestClock needs a db adapter that runs session statements on every connection, which
 // the pgPool adapter does not; these proofs drive pg-boss directly with the settings
@@ -50,7 +50,7 @@ const jobs = async (boss: PgBoss): Promise<string[]> =>
 	(await boss.findJobs(name)).map((job) => job.state);
 
 beforeEach(async () => {
-	databaseUrl = await queueTestDatabaseCreate();
+	databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 });
 

@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { describe, expect, it } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { postgresMigrate } from "../src/index.ts";
 import { postgresMigrateLockKey } from "../src/postgres-migrate.ts";
-import { postgresTestDatabaseCreate } from "./postgres-test-database.ts";
 
 const migrationsFolder = fileURLToPath(new URL("migrations", import.meta.url));
 

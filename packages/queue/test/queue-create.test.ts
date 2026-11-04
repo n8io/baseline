@@ -3,16 +3,15 @@ import { ok } from "@n8io/baseline-result";
 import pg from "pg";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	consumerCreate,
 	consumersStart,
 	type Queue,
 	queueCreate,
 	queueMigrate,
-	queueStop,
 } from "../src/index.ts";
 import { queueBoss } from "../src/queue-create.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 let databaseUrl: string;
 const pools: pg.Pool[] = [];
@@ -34,14 +33,14 @@ const start = async (
 };
 
 beforeAll(async () => {
-	databaseUrl = await queueTestDatabaseCreate();
+	databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 });
 
 afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const queue of queues.splice(0)) {
-		await queueStop(queue);
+		await queue.stop();
 	}
 	for (const pgPool of pools.splice(0)) {
 		await pgPool.end();
@@ -124,7 +123,7 @@ describe("queueCreate", () => {
 		expect(queue.isAlive()).toBe(true);
 	});
 
-	it("V14: queueStop waits for a running job, then stops the workers and the cron pass", async () => {
+	it("V14: stop waits for a running job, then stops the workers and the cron pass", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "worker");
 		const boss = queueBoss(queue);
@@ -150,7 +149,7 @@ describe("queueCreate", () => {
 			{ interval: 100, timeout: 10_000 },
 		);
 
-		await queueStop(queue);
+		await queue.stop();
 		queues.splice(0);
 
 		expect(finished).toEqual(["run"]);

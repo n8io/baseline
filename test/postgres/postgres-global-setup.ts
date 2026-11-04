@@ -1,37 +1,38 @@
 import { execFileSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
-import pg from "pg";
 import type { TestProject } from "vitest/node";
-
-declare module "vitest" {
-	export interface ProvidedContext {
-		postgresAdminUrl: string;
-	}
-}
+// Loads the ProvidedContext keys this file provides.
+import type {} from "./postgres-test-database.ts";
 
 const docker = (...args: string[]): string =>
-	execFileSync("docker", args, { encoding: "utf8" }).trim();
+	execFileSync("docker", args, { encoding: "utf8", stdio: "pipe" }).trim();
 
-const ready = async (url: string): Promise<void> => {
+// Over TCP inside the container: the image's init server listens on the socket only, so this waits for the real one.
+const ready = async (name: string): Promise<void> => {
 	const deadline = Date.now() + 60_000;
 	for (;;) {
-		const pgClient = new pg.Client({ connectionString: url });
 		try {
-			await pgClient.connect();
-			await pgClient.query("SELECT 1");
+			docker(
+				"exec",
+				"--env",
+				"PGPASSWORD=postgres",
+				name,
+				"psql",
+				"--host=127.0.0.1",
+				"--username=postgres",
+				"--command=SELECT 1",
+			);
 			return;
 		} catch (error) {
 			if (Date.now() > deadline) {
 				throw error;
 			}
 			await setTimeout(250);
-		} finally {
-			await pgClient.end().catch(() => undefined);
 		}
 	}
 };
 
-// A throwaway Postgres 18 on a free port for this run, removed afterward.
+// A throwaway Postgres 18 on a free port for this run, removed afterward. Any package's vitest config can list it.
 export default async function postgresGlobalSetup(
 	project: TestProject,
 ): Promise<() => void> {
@@ -53,9 +54,12 @@ export default async function postgresGlobalSetup(
 	};
 	try {
 		const hostPort = docker("port", name, "5432/tcp").split("\n")[0];
-		const url = `postgres://postgres:postgres@${hostPort}/postgres`;
-		await ready(url);
-		project.provide("postgresAdminUrl", url);
+		await ready(name);
+		project.provide(
+			"postgresAdminUrl",
+			`postgres://postgres:postgres@${hostPort}/postgres`,
+		);
+		project.provide("postgresContainer", name);
 	} catch (error) {
 		teardown();
 		throw error;

@@ -13,8 +13,8 @@ import {
 	it,
 	vi,
 } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { postgresPoolCreate, postgresTransaction } from "../src/index.ts";
-import { postgresTestDatabaseCreate } from "./postgres-test-database.ts";
 
 let pgPool: pg.Pool;
 

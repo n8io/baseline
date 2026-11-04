@@ -6,10 +6,9 @@ import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	consumersStart,
 	queueCreate,
-	queueStop,
 	schedulesRegister,
 } from "@n8io/baseline-queue";
-import { shutdownHandle } from "@n8io/baseline-shutdown";
+import { type ShutdownHandle, shutdownHandle } from "@n8io/baseline-shutdown";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
@@ -24,7 +23,7 @@ if (ENV.DATABASE_URL === "memory://") {
 		"The worker needs a real database: DATABASE_URL is memory://",
 	);
 }
-let shutdown: { isShuttingDown(): boolean } | undefined;
+let shutdown: ShutdownHandle | undefined;
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
 const redisClient =
 	ENV.CACHE_URL === "memory://"
@@ -55,12 +54,12 @@ await schedulesRegister(
 		fooSchedule(fooUseCases),
 		// domain-create: schedules
 	],
-	{ env: process.env },
+	{ env: ENV },
 );
 
 shutdown = shutdownHandle({
 	drainDelayMs: envLocal ? 0 : 5_000,
-	intakes: [{ close: () => queueStop(queue), name: "queue" }],
+	intakes: [{ close: () => queue.stop(), name: "queue" }],
 	resources: [
 		{ close: () => liveHub.close(), name: "live" },
 		{ close: () => pgPool.end(), name: "database" },

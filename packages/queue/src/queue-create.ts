@@ -4,7 +4,12 @@ import type pg from "pg";
 import { PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
 
-export type Queue = { isAlive(): boolean; stop(): Promise<void> };
+export type Queue = {
+	isAlive(): boolean;
+	// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
+	// the composition root closes it after.
+	stop(): Promise<void>;
+};
 
 // Every pg-boss table, function and queue lives in this Postgres schema, beside queue.inbox.
 export const queueSchema = "queue";
@@ -83,7 +88,3 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 	}
 	return queue;
 };
-
-// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
-// the composition root closes it after.
-export const queueStop = (queue: Queue): Promise<void> => queue.stop();

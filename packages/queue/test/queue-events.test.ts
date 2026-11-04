@@ -6,6 +6,7 @@ import { err, ok } from "@n8io/baseline-result";
 import type pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	consumerCreate,
 	consumersSubscribe,
@@ -14,9 +15,7 @@ import {
 	queueEventsMemory,
 	queueEventsPgBoss,
 	queueMigrate,
-	queueStop,
 } from "../src/index.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 type FooEvents = { "foo.created": { fooId: string } };
 
@@ -36,7 +35,7 @@ const jobs = async (): Promise<{ name: string; data: unknown }[]> =>
 	).rows;
 
 beforeAll(async () => {
-	databaseUrl = await queueTestDatabaseCreate();
+	databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = postgresPoolCreate({ databaseUrl });
 	await pgPool.query("CREATE TABLE foo (id text NOT NULL)");
@@ -66,7 +65,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	process.off("warning", onWarning);
-	await queueStop(queue);
+	await queue.stop();
 	await pgPool.end();
 });
 
@@ -125,7 +124,7 @@ describe("queueEventsPgBoss (V6)", () => {
 			expect(result).toEqual(ok(undefined));
 			expect(await jobs()).toHaveLength(3);
 		} finally {
-			await queueStop(oneQueue);
+			await oneQueue.stop();
 			await onePool.end();
 		}
 	});

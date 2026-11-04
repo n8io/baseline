@@ -25,13 +25,15 @@ export const scheduleEnvName = (name: string): string =>
 export const schedulesRegister = async (
 	queue: Queue,
 	schedules: Schedule[],
-	options: { env: Record<string, string | undefined> },
+	// env is the composition root's ENV (or any object): an undeclared or non-string item means no override.
+	options: { env: object },
 ): Promise<void> => {
 	const boss = queueBoss(queue);
 	const active: { schedule: Schedule; cron: string }[] = [];
 	for (const schedule of schedules) {
 		const variable = scheduleEnvName(schedule.name);
-		const override = options.env[variable];
+		const value: unknown = Reflect.get(options.env, variable);
+		const override = typeof value === "string" ? value : undefined;
 		if (override === "off") {
 			continue;
 		}

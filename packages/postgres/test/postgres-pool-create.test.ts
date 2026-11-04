@@ -1,7 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { postgresPoolCreate } from "../src/index.ts";
-import { postgresTestDatabaseCreate } from "./postgres-test-database.ts";
 
 afterEach(() => {
 	vi.restoreAllMocks();

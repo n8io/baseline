@@ -4,7 +4,7 @@ import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { liveMemory, liveRedis } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { queueCreate, queueStop } from "@n8io/baseline-queue";
+import { queueCreate } from "@n8io/baseline-queue";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
@@ -72,7 +72,7 @@ if (import.meta.main) {
 	});
 	logger.info("seeds done");
 
-	await queueStop(queue);
+	await queue.stop();
 	await liveHub.close();
 	await pgPool.end();
 	if (redisClient !== "memory") await redisClient.close();
