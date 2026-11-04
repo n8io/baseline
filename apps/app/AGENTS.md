@@ -83,7 +83,7 @@ Stop and ask the user when:
 - an OpenTelemetry instrumentation would be added;
 - a secret cannot come from `.env.schema` and 1Password.
 
-Other hard rules: no `any`; every Biome suppression states a reason; no `@ts-expect-error` or `@ts-ignore` in `src/domains/**`; every test asserts with `expect()`; Vitest is the only runner.
+Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/domains/**`; every test asserts with `expect()`; Vitest is the only runner.
 
 ## Glossary rules
 

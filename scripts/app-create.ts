@@ -33,6 +33,7 @@ export const requiredJobs = [
 	"migrations",
 	"oasdiff",
 	"image",
+	"sast",
 ] as const;
 
 // The monorepo's apps/app, whose node_modules hold the Biome and varlock the render runs.
