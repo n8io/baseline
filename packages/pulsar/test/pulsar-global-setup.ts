@@ -45,8 +45,10 @@ const ready = async (adminUrl: string, token: string): Promise<void> => {
 };
 
 // A throwaway Pulsar 5.0.1 standalone with JWT token authentication on free ports, removed afterward.
+// `timeout` ends the container after `lifetimeSeconds` and `--rm` removes it, even when teardown never runs.
 export default async function pulsarGlobalSetup(
-	project: TestProject,
+	project: Pick<TestProject, "provide">,
+	lifetimeSeconds = 1200,
 ): Promise<() => void> {
 	const name = `baseline-pulsar-test-${process.pid}`;
 	const secretKey = randomBytes(32);
@@ -64,6 +66,7 @@ export default async function pulsarGlobalSetup(
 	docker(
 		"run",
 		"--detach",
+		"--rm",
 		"--name",
 		name,
 		...Object.entries(config).flatMap(([key, value]) => [
@@ -75,6 +78,8 @@ export default async function pulsarGlobalSetup(
 		"--publish",
 		"127.0.0.1::8080",
 		"apachepulsar/pulsar:5.0.1",
+		"timeout",
+		String(lifetimeSeconds),
 		"sh",
 		"-c",
 		"bin/apply-config-from-env.py conf/standalone.conf && exec bin/pulsar standalone --no-functions-worker --no-stream-storage",

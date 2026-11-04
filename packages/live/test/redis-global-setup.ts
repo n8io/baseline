@@ -33,18 +33,25 @@ const ready = async (url: string): Promise<void> => {
 };
 
 // A throwaway Redis 8 on a free port for this run, removed afterward.
+// `timeout` ends the container after `lifetimeSeconds` and `--rm` removes it, even when teardown never runs.
 export default async function redisGlobalSetup(
-	project: TestProject,
+	project: Pick<TestProject, "provide">,
+	lifetimeSeconds = 1200,
 ): Promise<() => void> {
 	const name = `baseline-live-test-${process.pid}`;
 	docker(
 		"run",
 		"--detach",
+		"--rm",
 		"--name",
 		name,
 		"--publish",
 		"127.0.0.1::6379",
 		"redis:8",
+		"timeout",
+		String(lifetimeSeconds),
+		"docker-entrypoint.sh",
+		"redis-server",
 	);
 	const teardown = (): void => {
 		docker("rm", "--force", "--volumes", name);

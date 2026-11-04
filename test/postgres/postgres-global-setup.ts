@@ -33,8 +33,10 @@ const ready = async (name: string): Promise<void> => {
 };
 
 // A throwaway Postgres 18 on a free port for this run, removed afterward. Any package's vitest config can list it.
+// `timeout` ends the container after `lifetimeSeconds` and `--rm` removes it, even when teardown never runs.
 export default async function postgresGlobalSetup(
-	project: TestProject,
+	project: Pick<TestProject, "provide">,
+	lifetimeSeconds = 1200,
 ): Promise<() => void> {
 	const name = `baseline-postgres-test-${process.pid}`;
 	docker(
@@ -48,6 +50,10 @@ export default async function postgresGlobalSetup(
 		"--publish",
 		"127.0.0.1::5432",
 		"postgres:18",
+		"timeout",
+		String(lifetimeSeconds),
+		"docker-entrypoint.sh",
+		"postgres",
 	);
 	const teardown = (): void => {
 		docker("rm", "--force", "--volumes", name);
