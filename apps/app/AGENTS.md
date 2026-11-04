@@ -161,6 +161,7 @@ export const billingCustomerReader = (
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
 - A scheduled Use case handles everything due as of now, not a fixed batch. One catch-up run must cover any number of missed ticks, and a repeat must change nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
+- Dependabot update PRs merge themselves once CI passes, unless they are major. A major PR needs a human to review and merge it.
 - Reuse an existing shadcn component before making one. Add components only with `pnpm shadcn add <name>`. Never write them by hand.
 
 ## Data rules
