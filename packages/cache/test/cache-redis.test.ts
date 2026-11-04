@@ -1,3 +1,5 @@
+// Live's Redis global setup starts the Redis these tests use (vitest.config.ts).
+/// <reference path="../../live/test/redis-global-setup.ts" />
 import { setTimeout as sleep } from "node:timers/promises";
 import {
 	afterAll,
