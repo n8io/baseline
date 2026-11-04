@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-shutdown",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "Graceful shutdown: drain, close intakes together, then resources in order.",
 	"license": "MIT",
 	"type": "module",
