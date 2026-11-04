@@ -2,6 +2,7 @@
 	"name": "@n8io/baseline-id",
 	"version": "1.0.0",
 	"description": "Prefixed TypeIDs: create, validate and convert to and from UUIDs",
+	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",

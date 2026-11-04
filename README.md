@@ -24,7 +24,7 @@ flowchart LR
 ## Quick start
 
 > [!NOTE]
-> You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in to `n8io`.
+> You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in, which `app-create` uses to create the project's repo.
 
 **1. Create a project.** This renders the latest `app@` release, adds your first Domain, and creates a private GitHub repo with a CI ruleset.
 
@@ -112,3 +112,7 @@ packages/*          the @n8io/baseline-* packages
 scripts/            app-create.ts
 test/               app-create tests and the render-and-test check
 ```
+
+## License
+
+[MIT](LICENSE). Report vulnerabilities as [`SECURITY.md`](SECURITY.md) describes.
