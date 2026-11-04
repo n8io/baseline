@@ -47,14 +47,16 @@ export const pulsarConsumersSubscribe = async (
 ): Promise<void> => {
 	const state = pulsarState(pulsar);
 	for (const consumer of consumers) {
-		const subscribed = await state.client.subscribe(
-			pulsarSubscribeConfig(state, consumer),
-		);
+		// No prefetch: this consumer never receives, so it must not hold Events from the workers.
+		const subscribed = await state.client.subscribe({
+			...pulsarSubscribeConfig(state, consumer),
+			receiverQueueSize: 0,
+		});
 		await subscribed.close();
 	}
 };
 
-const pulsarMessageRun = (
+const pulsarEventRun = (
 	state: PulsarState,
 	consumer: Consumer,
 	subscribed: PulsarClient.Consumer,
@@ -97,13 +99,11 @@ const pulsarMessageRun = (
 				// 10 s, 20 s, 40 s, 80 s; after the last attempt, straight to the dead letter.
 				const delayMs =
 					attempt >= queueRetryLimit ? 0 : state.retryDelayMs * 2 ** attempt;
-				setTimeout(() => {
-					try {
-						subscribed.negativeAcknowledge(message);
-					} catch {
-						// Closed by stop(): the broker redelivers it anyway.
-					}
-				}, delayMs).unref();
+				// A no-op once stop() has closed the consumer: the broker redelivers it anyway.
+				setTimeout(
+					() => subscribed.negativeAcknowledge(message),
+					delayMs,
+				).unref();
 			} finally {
 				span.end();
 			}
@@ -129,8 +129,10 @@ const pulsarConsumerLoop = async (
 			await new Promise((resolve) => setTimeout(resolve, 1_000));
 			continue;
 		}
+		// Left unacknowledged: the broker redelivers it once stop() closes the consumer.
+		if (state.stopping) return;
 		// One Event at a time per Consumer per instance, like the queue package's workers.
-		const running = pulsarMessageRun(state, consumer, subscribed, message);
+		const running = pulsarEventRun(state, consumer, subscribed, message);
 		state.running.add(running);
 		await running;
 		state.running.delete(running);
@@ -148,7 +150,6 @@ export const pulsarConsumersStart = async (
 			pulsarSubscribeConfig(state, consumer),
 		);
 		state.consumers.push(subscribed);
-		state.connections.push(subscribed);
 		void pulsarConsumerLoop(state, consumer, subscribed);
 	}
 };

@@ -2,17 +2,19 @@ import { logger } from "@n8io/baseline-logger";
 import PulsarClient from "pulsar-client";
 
 export type Pulsar = {
-	// false once a producer or consumer has been disconnected for 60 s.
+	// false once a producer or consumer has stayed disconnected for 60 s.
 	isAlive(): boolean;
-	// Closes consumers, waits up to 15 s for running Consumers, then flushes producers and closes
-	// the client.
+	// An intake: stops receiving and waits up to 15 s for running Consumers. Events they send
+	// still go out until close().
 	stop(): Promise<void>;
+	// A resource, after every intake that may send: stops if needed, flushes producers and
+	// closes the client.
+	close(): Promise<void>;
 };
 
 // What the other modules of this package reach through a Pulsar.
 export type PulsarState = {
 	readonly client: PulsarClient.Client;
-	readonly connections: { isConnected(): boolean }[];
 	readonly consumers: PulsarClient.Consumer[];
 	readonly retryDelayMs: number;
 	readonly running: Set<Promise<void>>;
@@ -34,6 +36,11 @@ export const pulsarState = (pulsar: Pulsar): PulsarState => {
 	return state;
 };
 
+const pulsarLogLevels = new Map<PulsarClient.LogLevel, "warn" | "error">([
+	[PulsarClient.LogLevel.WARN, "warn"],
+	[PulsarClient.LogLevel.ERROR, "error"],
+]);
+
 // The client logs through its C++ library; only warnings and errors reach the app's logger.
 const pulsarLog = (
 	level: PulsarClient.LogLevel,
@@ -41,32 +48,18 @@ const pulsarLog = (
 	line: number,
 	message: string,
 ): void => {
-	if (level === PulsarClient.LogLevel.ERROR) {
-		logger.error({ pulsarSource: `${file}:${line}` }, message);
-	} else if (level === PulsarClient.LogLevel.WARN) {
-		logger.warn({ pulsarSource: `${file}:${line}` }, message);
-	}
+	const method = pulsarLogLevels.get(level);
+	if (method) logger[method]({ pulsarSource: `${file}:${line}` }, message);
 };
 
-const pulsarStop = async (
-	state: PulsarState,
-	producers: Map<string, Promise<PulsarClient.Producer>>,
-): Promise<void> => {
+const pulsarStop = async (state: PulsarState): Promise<void> => {
 	state.stopping = true;
-	// Unacknowledged Events go back to the subscription for another worker.
-	await Promise.allSettled(state.consumers.map((consumer) => consumer.close()));
+	// Running Consumers finish and acknowledge first; what they leave goes back to the broker.
 	await Promise.race([
 		Promise.allSettled(state.running),
 		new Promise((resolve) => setTimeout(resolve, pulsarStopGraceMs).unref()),
 	]);
-	await Promise.allSettled(
-		[...producers.values()].map(async (opening) => {
-			const producer = await opening;
-			await producer.flush();
-			await producer.close();
-		}),
-	);
-	await state.client.close();
+	await Promise.allSettled(state.consumers.map((consumer) => consumer.close()));
 };
 
 // Opens a client to `serviceUrl` (pulsar:// or pulsar+ssl://). `token` is a JWT for the broker's
@@ -92,17 +85,21 @@ export const pulsarCreate = (options: {
 		serviceUrl: options.serviceUrl,
 	});
 	const producers = new Map<string, Promise<PulsarClient.Producer>>();
+	const opened: PulsarClient.Producer[] = [];
+	let closing = false;
 	const state: PulsarState = {
 		client,
-		connections: [],
 		consumers: [],
 		producer: (topic) => {
+			if (closing) {
+				return Promise.reject(new Error("Pulsar is closed"));
+			}
 			let opening = producers.get(topic);
 			if (opening === undefined) {
 				opening = client.createProducer({ topic });
 				producers.set(topic, opening);
 				opening.then(
-					(producer) => state.connections.push(producer),
+					(producer) => opened.push(producer),
 					// A failed create is tried again on the next send.
 					() => producers.delete(topic),
 				);
@@ -114,21 +111,34 @@ export const pulsarCreate = (options: {
 		stopping: false,
 		topic: (name) => `persistent://${namespace}/${name}`,
 	};
-	const disconnectedSince = new Map<object, number>();
+	let downSince: number | undefined;
+	let stopped: Promise<void> | undefined;
 	const pulsar: Pulsar = {
-		isAlive: () => {
-			const now = Date.now();
-			return state.connections.every((connection) => {
-				if (connection.isConnected()) {
-					disconnectedSince.delete(connection);
-					return true;
-				}
-				const since = disconnectedSince.get(connection) ?? now;
-				disconnectedSince.set(connection, since);
-				return now - since < pulsarDisconnectedLimitMs;
-			});
+		close: async () => {
+			await pulsar.stop();
+			closing = true;
+			await Promise.allSettled(
+				[...producers.values()].map(async (opening) => {
+					const producer = await opening;
+					await producer.flush();
+					await producer.close();
+				}),
+			);
+			await client.close();
 		},
-		stop: () => pulsarStop(state, producers),
+		isAlive: () => {
+			const connections = [...state.consumers, ...opened];
+			if (connections.every((connection) => connection.isConnected())) {
+				downSince = undefined;
+				return true;
+			}
+			downSince ??= Date.now();
+			return Date.now() - downSince < pulsarDisconnectedLimitMs;
+		},
+		stop: () => {
+			stopped ??= pulsarStop(state);
+			return stopped;
+		},
 	};
 	pulsarStates.set(pulsar, state);
 	return pulsar;

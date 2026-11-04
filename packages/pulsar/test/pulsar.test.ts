@@ -233,11 +233,55 @@ describe("pulsarEvents and pulsarConsumersStart", () => {
 				pulsarConsumersSubscribe(anonymous, [consumer]),
 			).rejects.toThrow();
 		} finally {
-			await anonymous.stop();
+			await anonymous.close();
 		}
 	});
 
 	it("reports alive while connected", () => {
 		expect(worker.isAlive()).toBe(true);
+	});
+
+	it("lets a running Consumer finish and acknowledge before stop closes it", async () => {
+		const eventName = eventNameCreate();
+		const queueName = `billing.foo-created-${randomUUID()}`;
+		const options = {
+			serviceUrl: inject("pulsarUrl"),
+			token: inject("pulsarToken"),
+		};
+		const stopping = pulsarCreate(options);
+		const runs: string[] = [];
+		let release = (): void => undefined;
+		const released = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		await pulsarConsumersStart(stopping, [
+			received(queueName, eventName, async ({ fooId }) => {
+				runs.push(fooId);
+				await released;
+				return ok(undefined);
+			}),
+		]);
+		await commit(eventName, { fooId: "foo_stop" });
+		await vi.waitFor(() => expect(runs).toEqual(["foo_stop"]), {
+			timeout: 20_000,
+		});
+		const stopped = stopping.stop();
+		release();
+		await stopped;
+		await stopping.close();
+		// An Event acknowledged before the close is not redelivered to the next worker.
+		const next = pulsarCreate(options);
+		try {
+			await pulsarConsumersStart(next, [
+				received(queueName, eventName, async ({ fooId }) => {
+					runs.push(fooId);
+					return ok(undefined);
+				}),
+			]);
+			await new Promise((resolve) => setTimeout(resolve, 3_000));
+			expect(runs).toEqual(["foo_stop"]);
+		} finally {
+			await next.close();
+		}
 	});
 });

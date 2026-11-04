@@ -26,7 +26,7 @@ How it differs from the queue package:
    PULSAR_TOKEN=
    ```
 
-3. **Transaction SPI.** In each Domain's `*-transaction.postgres.ts`, publish into a `pulsarEvents` buffer and send it once the transaction has committed:
+3. **Transaction SPI.** In each Domain's `*-transaction.postgres.ts`, take a `Pulsar` instead of the `Queue`, publish into a `pulsarEvents` buffer behind the same guard, and send it once the transaction has committed:
 
    ```ts
    import { type Pulsar, pulsarEvents } from "@n8io/baseline-pulsar";
@@ -36,21 +36,36 @@ How it differs from the queue package:
        const fooEvents = pulsarEvents<FooEventMap>(pulsar);
        const result = await postgresTransaction(pgPool, async (pgClient) => {
          if (inbox && !(await queueInboxInsert(pgClient, inbox))) return ok(undefined);
-         // ...the same ports as before, with fooEvents in place of queueEventsPgBoss
+         let open = true;
+         const isOpen = (): boolean => open;
+         try {
+           return await work({
+             fooEvents: postgresPortsGuard(fooEvents, isOpen),
+             fooRepository: postgresPortsGuard(fooRepositoryPostgres(drizzle({ client: pgClient })), isOpen),
+           });
+         } finally {
+           open = false;
+         }
        });
        if (result.ok) await fooEvents.send();
        return result;
      }) as FooTransaction;
    ```
 
-4. **Composition roots.** Create one client per process and stop it with the other intakes:
+   In `spi/index.ts`, `fooPortsCreate` takes `pulsar: Pulsar | "memory"` in place of `queue`, with the same both-real-or-both-memory check against `database`.
+
+4. **Composition roots.** Every root that builds ports creates one client, or `"memory"` when `PULSAR_URL` is `memory://` (allow that protocol in `.env.schema` as `DATABASE_URL` does):
 
    ```ts
-   const pulsar = pulsarCreate({ serviceUrl: ENV.PULSAR_URL, token: ENV.PULSAR_TOKEN });
+   const pulsar = ENV.PULSAR_URL === "memory://"
+     ? "memory"
+     : pulsarCreate({ serviceUrl: ENV.PULSAR_URL, token: ENV.PULSAR_TOKEN });
    ```
 
-   - `src/server.ts`: replace `consumersSubscribe(queue, [...])` with `pulsarConsumersSubscribe(pulsar, [...])`, so the subscriptions exist before the first send. The server no longer needs `queueCreate`: it only published Events and created subscriptions.
-   - `src/worker.ts`: replace `consumersStart(queue, [...])` with `pulsarConsumersStart(pulsar, [...])`. Keep `queueCreate` and `schedulesRegister` for Schedules and inbox pruning. Make `/livez` check both: `isAlive: () => queue.isAlive() && pulsar.isAlive()`, and add `{ close: () => pulsar.stop(), name: "pulsar" }` to the intakes.
+   `stop()` is an intake: it stops receiving and lets running Consumers finish. `close()` is a resource: it flushes what was sent and closes the client, so list it before `database`, after every intake that may still send.
+   - `src/server.ts`: replace `consumersSubscribe(queue, [...])` with `pulsarConsumersSubscribe(pulsar, [...])`, so the subscriptions exist before the first send. Drop `queueCreate`: the server used the Queue only to publish. Replace the `queue` resource and the `queue.stop()` in `serverDevClose` with `pulsar.close()`.
+   - `src/worker.ts`: replace `consumersStart(queue, [...])` with `pulsarConsumersStart(pulsar, [...])`. Keep `queueCreate` and `schedulesRegister` for Schedules and inbox pruning, and pass both to the ports. Check both in `/livez` (`queue.isAlive() && pulsar.isAlive()`), add `pulsar.stop()` to the intakes beside `queue.stop()`, and `pulsar.close()` to the resources.
+   - `src/seed.ts`: create the client in place of the Queue, pass it to the ports, and `close()` it where the seed now calls `queue.stop()`.
 
    Consumers are built with the queue package's `consumerCreate`, unchanged.
 
