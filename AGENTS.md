@@ -14,6 +14,13 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test (root files): `pnpm test`
 - full CI-equivalent: `pnpm turbo run check test build`
 
+## Tests
+
+- A test for one source file sits beside it as `<name>.test.ts`. Test helpers sit beside the tests that use them and are never exported from `index.ts`.
+- A test that needs a real service names it before `.test` (`.postgres.test.ts`, `.redis.test.ts`).
+- A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
+- Root `test/` tests the template and holds service setup shared across packages (`test/postgres/`, `test/redis/`).
+
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
 
 In packages, only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's span rules are in [apps/app/AGENTS.md](apps/app/AGENTS.md#spans).

@@ -5,7 +5,7 @@ export default mergeConfig(
 	vitestShared,
 	defineConfig({
 		test: {
-			globalSetup: ["test/redis-global-setup.ts"],
+			globalSetup: ["../../test/redis/redis-global-setup.ts"],
 			hookTimeout: 30_000,
 		},
 	}),
