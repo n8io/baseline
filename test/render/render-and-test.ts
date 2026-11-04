@@ -3,8 +3,18 @@
 // with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade, then
 // adds invoice-line and customer with this checkout's domain-create, and the second-domain
 // fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
-// deleted, and the bridge that reads customers. Installs with NODE_AUTH_TOKEN or `gh auth token`.
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+// deleted, and the bridge that reads customers. HEAD installs this checkout's packages/*.
+// Installs with NODE_AUTH_TOKEN or `gh auth token`.
+import {
+	appendFileSync,
+	cpSync,
+	existsSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -66,6 +76,53 @@ const checkoutExport = (): TemplateFile[] => {
 	}
 };
 
+// Packs this checkout's packages/* into the project and points every @n8io/baseline-* dependency
+// at the tarballs with pnpm overrides, so HEAD tests the package code that releases with this
+// template. The tarballs travel in app.tar for app-ci's frozen installs; git ignores them, and the
+// project's checks never read .tgz files.
+const checkoutPackagesUse = (directory: string) => {
+	const folder = ".baseline-packages";
+	run(
+		"pnpm",
+		[
+			"-r",
+			"--filter",
+			"./packages/*",
+			"pack",
+			"--pack-destination",
+			join(directory, folder),
+		],
+		{ cwd: monorepo },
+	);
+	const overrides = readdirSync(join(monorepo, "packages")).map((name) => {
+		const { name: scoped, version } = JSON.parse(
+			readFileSync(join(monorepo, "packages", name, "package.json"), "utf8"),
+		) as { name: string; version: string };
+		const tarball = `${folder}/${scoped.slice(1).replace("/", "-")}-${version}.tgz`;
+		if (!existsSync(join(directory, tarball))) {
+			throw new Error(`pnpm pack wrote no ${tarball}`);
+		}
+		return `  "${scoped}": file:./${tarball}\n`;
+	});
+	appendFileSync(
+		join(directory, "pnpm-workspace.yaml"),
+		`overrides:\n${overrides.join("")}`,
+	);
+	appendFileSync(join(directory, ".git/info/exclude"), `/${folder}/\n`);
+	// The image installs from the manifests before it copies the project, and again in /prod.
+	const dockerfile = join(directory, "Dockerfile");
+	let text = readFileSync(dockerfile, "utf8");
+	for (const [from, to] of [
+		[".npmrc ./\n", `.npmrc ./\nCOPY ${folder} ${folder}\n`],
+		["cp package.json", "cp -R package.json"],
+		[".npmrc /prod/", `.npmrc ${folder} /prod/`],
+	] as const) {
+		if (!text.includes(from)) throw new Error(`Dockerfile has no "${from}"`);
+		text = text.replace(from, to);
+	}
+	writeFileSync(dockerfile, text);
+};
+
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");
 	if (process.argv[2] === undefined || existsSync(directory)) {
@@ -108,7 +165,8 @@ const main = async () => {
 		}
 		const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
 		console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
-		// The upgrade can change dependencies; CI's pnpm otherwise installs frozen.
+		checkoutPackagesUse(directory);
+		// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
 		pnpm(directory, ["install", "--no-frozen-lockfile"]);
 
 		for (const names of domains) {
