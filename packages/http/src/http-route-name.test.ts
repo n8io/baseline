@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { logger } from "@n8io/baseline-logger";
-import { type Span, trace } from "@opentelemetry/api";
+import { INVALID_SPAN_CONTEXT, type Span, trace } from "@opentelemetry/api";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,7 +11,11 @@ import {
 } from "./index.ts";
 
 const spanFake = () => {
-	const span = { setAttribute: vi.fn(), updateName: vi.fn() };
+	const span = {
+		setAttribute: vi.fn(),
+		spanContext: () => INVALID_SPAN_CONTEXT,
+		updateName: vi.fn(),
+	};
 	vi.spyOn(trace, "getActiveSpan").mockReturnValue(span as unknown as Span);
 	return span;
 };

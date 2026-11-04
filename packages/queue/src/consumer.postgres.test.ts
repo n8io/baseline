@@ -3,7 +3,13 @@ import {
 	postgresTransaction,
 } from "@n8io/baseline-postgres";
 import { err, ok, type Result } from "@n8io/baseline-result";
-import { metrics, trace } from "@opentelemetry/api";
+import { context, metrics, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import {
+	InMemorySpanExporter,
+	SimpleSpanProcessor,
+	TracerProvider,
+} from "@opentelemetry/sdk-trace";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -23,6 +29,16 @@ import { queueJobRun } from "./queue-job-run.ts";
 
 let pgPool: pg.Pool;
 let queue: Queue;
+
+// What the telemetry preload registers in every process.
+context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+trace.setGlobalTracerProvider(
+	new TracerProvider({
+		spanProcessors: [
+			new SimpleSpanProcessor({ exporter: new InMemorySpanExporter() }),
+		],
+	}),
+);
 
 beforeAll(async () => {
 	const databaseUrl = await postgresTestDatabaseCreate();
@@ -202,6 +218,42 @@ describe("consumersStart", () => {
 			"Event failed validation for audit.foo-created",
 		);
 		expect(JSON.stringify(job?.output)).not.toContain("hunter2");
+	});
+});
+
+describe("consumersStart trace context", () => {
+	it("runs the Consumer in the publishing request's trace", async () => {
+		let consumerTraceId: string | undefined;
+		await consumersStart(queue, [
+			consumerCreate(
+				"billing.foo-traced",
+				"foo.traced",
+				fooCreated,
+				async () => {
+					consumerTraceId = trace.getActiveSpan()?.spanContext().traceId;
+					return ok(undefined);
+				},
+			),
+		]);
+
+		const publisherTraceId = await trace
+			.getTracer("test")
+			.startActiveSpan("fooCreate", async (span) => {
+				await postgresTransaction(pgPool, async (pgClient) => {
+					await queueEventsPgBoss<{ "foo.traced": unknown }>(
+						queue,
+						pgClient,
+					).publish("foo.traced", { fooId: "foo_3" });
+					return ok(undefined);
+				});
+				span.end();
+				return span.spanContext().traceId;
+			});
+
+		await vi.waitFor(() => expect(consumerTraceId).toBe(publisherTraceId), {
+			interval: 250,
+			timeout: 15_000,
+		});
 	});
 });
 

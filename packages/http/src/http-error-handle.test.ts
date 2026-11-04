@@ -1,10 +1,21 @@
 import { logger } from "@n8io/baseline-logger";
+import { context, TraceFlags, trace } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { httpErrorHandle, httpNotFoundHandle } from "./index.ts";
 
 const canary = "canary@example.com";
+
+context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+
+// What the HTTP instrumentation does for a traced request: the handler runs inside its span.
+const requestSpanContext = {
+	spanId: "b7ad6b7169203331",
+	traceFlags: TraceFlags.SAMPLED,
+	traceId: "0af7651916cd43dd8448eb211c80319c",
+};
 
 class AuthnRequiredError extends Error {
 	readonly httpStatus = 401;
@@ -139,5 +150,46 @@ describe("httpNotFoundHandle", () => {
 			status: 404,
 			title: "Not Found",
 		});
+	});
+});
+
+describe("problem traceId", () => {
+	const appTraced = (error: unknown) => {
+		const app = new Hono();
+		app.use((_c, next) =>
+			context.with(
+				trace.setSpan(
+					context.active(),
+					trace.wrapSpanContext(requestSpanContext),
+				),
+				next,
+			),
+		);
+		app.onError(httpErrorHandle);
+		app.notFound(httpNotFoundHandle);
+		app.get("/foos/:fooId", () => {
+			throw error;
+		});
+		return app;
+	};
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("carries the request's trace id on a 500, a 4xx and a 404", async () => {
+		vi.spyOn(logger, "error").mockImplementation(() => undefined);
+		const app = appTraced(new TypeError(canary));
+		const authn = appTraced(new AuthnRequiredError(canary));
+
+		for (const res of [
+			await app.request("/foos/foo_1"),
+			await authn.request("/foos/foo_1"),
+			await app.request("/bars"),
+		]) {
+			expect(await res.json()).toMatchObject({
+				traceId: requestSpanContext.traceId,
+			});
+		}
 	});
 });

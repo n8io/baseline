@@ -137,6 +137,21 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 		);
 	});
 
+	it("answers an API problem with the trace id of its request's span", () => {
+		const api = receiver
+			.spans()
+			.find(
+				(span) =>
+					span.kind === spanKindServer &&
+					spanAttribute(span, "url.path") === "/api/v1/no-such-thing",
+			);
+		expect(api).toBeDefined();
+		expect(JSON.parse(responseBodies.at(-1) ?? "{}")).toMatchObject({
+			code: "NotFound",
+			traceId: api?.traceId,
+		});
+	});
+
 	it("never sends the client secret in a response body", () => {
 		expect(responseBodies).toHaveLength(4);
 		for (const body of responseBodies) {
