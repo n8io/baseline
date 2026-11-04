@@ -70,7 +70,7 @@ Open the URL `pnpm dev` prints. Development uses a memory sign-in, so no identit
 | Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen`              |
 | Pull the newest template release                      | `pnpm template-upgrade`     |
 
-The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the full rules: where new work goes, data and secrets rules, and when to stop and ask.
+The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the rules every task needs: where new work goes, secrets rules, and when to stop and ask. It links the task-specific rules in [`docs/agents/`](apps/app/docs/agents/), which an agent reads only when the task needs them.
 
 > [!TIP]
 > `pnpm template-upgrade` does a 3-way merge between the release your project came from and the newest one. Resolve every conflict marker before you commit.

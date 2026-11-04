@@ -92,78 +92,6 @@ Other hard rules: no `any`; every Biome suppression states a reason; no `@ts-exp
 - Renames go everywhere, with expand then contract.
 - Run `pnpm glossary-check` before a PR and judge each hit.
 
-## Snippets
-
-### Consumer with the inbox
-
-A Consumer lives in the reacting Domain's `api/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// domain-create: consumers`.
-
-```ts
-// src/domains/billing/api/billing-order-placed-consumer.ts
-import { orderPlaced } from "#domains/order/index.ts"; // the one allowed cross-domain import: Event schemas only
-const billingOrderPlacedConsumerActor: Actor = {
-	id: "billing-order-placed-consumer",
-	kind: "client",
-	scopes: ["billing:invoice-create"],
-};
-export const billingOrderPlacedConsumer = (u: BillingUseCases) =>
-	consumerCreate(
-		"billing.order-placed",
-		"order.placed",
-		orderPlaced,
-		(event, inbox) =>
-			u.invoiceCreate(
-				billingOrderPlacedConsumerActor,
-				{ customerId: event.customerId, amountCents: event.totalCents },
-				inbox,
-			),
-	);
-```
-
-- Delivery is at least once. The Use case takes `inbox` as its last argument and passes it to its transaction port: `billingTransaction(work, inbox)`.
-- The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
-- Such a Use case returns `Result<void, E>`.
-- Publish an Event only inside the Use case's transaction, through the domain's `<domain>Events` port.
-- A Domain whose ids other Domains hold publishes `<entity>.deleted`. Each Domain holding that id consumes it and decides what to do with its rows.
-
-### Bridge
-
-A Bridge fills a Port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains. Wire it at `// domain-create: bridges`.
-
-```ts
-// billing/ports.ts
-export type BillingCustomerReader = {
-	get(
-		id: Id<"customer">,
-	): Promise<{ email: string; taxRegion: string } | undefined>;
-};
-
-// src/bridges/billing-customer.ts (the only file that knows both Domains)
-const billingCustomerBridgeActor: Actor = {
-	id: "billing-customer-bridge",
-	kind: "client",
-	scopes: [],
-};
-export const billingCustomerReader = (
-	customer: CustomerUseCases,
-): BillingCustomerReader => ({
-	get: async (id) => {
-		const r = await customer.customerGet(billingCustomerBridgeActor, {
-			customerId: id,
-		});
-		return r.ok
-			? { email: r.value.email, taxRegion: r.value.taxRegion }
-			: undefined;
-	},
-});
-```
-
-### Aggregate
-
-- One repository per Aggregate root, named after it. Its tables live in `spi/`.
-- A supporting Model gets no repository. Save and load it through the root's repository.
-- A transaction may change more than one Aggregate, but only within one Domain.
-
 ## Rules no tool checks
 
 - An action calls exactly one write Use case. A loader may call any number of read Use cases across Domains.
@@ -174,17 +102,6 @@ export const billingCustomerReader = (
 - Dependabot update PRs merge themselves once CI passes, unless they are major. A major PR needs a human to review and merge it.
 - Reuse an existing shadcn component before making one. Add components only with `pnpm shadcn add <name>`. Never write them by hand.
 
-## Data rules
-
-- Postgres 17 or newer.
-- Drizzle stays on the pinned 1.0 rc until 1.0 GA, because the `migrations/<ts>_<name>/` folder format needs 1.x. Move to GA when it ships.
-- Change schemas with expand then contract. A rename is an added column in one release and a dropped one in a later release.
-- Run `pnpm codegen` after editing a table file. A PR may only add folders under `migrations/`.
-- On a migration conflict, delete your migration, rebase and run `pnpm codegen` again. Never use `--fix-conflicts` or `--hints`.
-- Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask.
-- No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
-- Do not use `sql.raw` in `spi/`.
-
 ## Env and secrets
 
 - Declare every variable in `.env.schema`. Secrets are `@sensitive` by default.
@@ -193,55 +110,6 @@ export const billingCustomerReader = (
 - Put dev and test values in `.env.development` and `.env.test`.
 - `memory://` URLs are allowed only in development and test.
 
-## Tracing
-
-One client request is one trace, with no app code. The telemetry preload (`--import @n8io/baseline-telemetry/register`, in every script and the Dockerfile) does all of it:
-
-- **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
-- **Into the worker.** An Event carries the publishing request's trace: on the pg-boss job row, or in the Pulsar message properties. The Consumer runs in that trace, retries included.
-- **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
-- **Logs.** Every `logger` line inside a request, job or Consumer has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
-- **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
-
-Never add a request id, correlation id or trace header by hand, and never pass a trace id through a Port or Event payload: the context already travels.
-
-## Spans
-
-Most spans already exist. Instrumentations time inbound and outbound HTTP, Postgres, Redis and jobs. `telemetryUseCasesTrace` gives every Use case a span, and the router instrumentation gives every loader and action one. So the usual answer to "should this be a span?" is an attribute on the active span.
-
-Decide in this order:
-
-1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId })`. Use a semantic-convention key when one exists, otherwise `baseline.<domain>.<key>` in snake_case.
-2. Does a span already time it? Then it is not a span. That covers a port call, a transaction, a whole Use case, loader or action.
-3. Is it a step inside a Use case whose own duration you would ask about in an incident? Start one child span around it. It qualifies only when no instrumentation times it and it routinely takes milliseconds or grows with input size: parsing an upload, rendering a document, hashing, a large in-memory sort or merge, or a whole batch loop.
-
-Never start a span:
-
-- for a Rule, a helper, or anything that takes microseconds;
-- per loop iteration or per item. One span covers the loop and an attribute holds the count;
-- to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
-- for an error. Return an err; the Use case span records `error.type`;
-- in an SPI adapter. A call with no span means no instrumentation covers that library, and adding one is a stop-and-ask.
-
-Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
-
-```ts
-const rows = await trace
-	.getTracer("foo")
-	.startActiveSpan("fooImport parse", async (span) => {
-		try {
-			const rows = fooImportRowsParse(input.file);
-			span.setAttribute("baseline.foo.row_count", rows.length);
-			return rows;
-		} catch (error) {
-			span.setStatus({ code: SpanStatusCode.ERROR });
-			throw error;
-		} finally {
-			span.end();
-		}
-	});
-```
-
 ## Privacy
 
 - Logs, spans and metrics carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
@@ -249,15 +117,11 @@ const rows = await trace
 - Card numbers never enter the app. Accepting card data is a stop-and-ask.
 - At deploy time, recommend the OpenTelemetry Collector `redaction` processor as a second line of defence.
 
-## Runtime notes
+## Read when
 
-- Give each entry `OP_SERVICE_ACCOUNT_TOKEN` and outbound HTTPS to 1Password. Secrets are fetched at boot.
-- Use 5 to 15 minute access tokens.
-- Use `parentbased_traceidratio` sampling for busy services.
-- Set `OTEL_LOGS_EXPORTER=none` when stdout is already shipped.
-- The runner must allow a 30 s grace period.
-- Run `pnpm migrate` once before the new version starts. The server and the Worker may then start in any order.
-- The load balancer must speak HTTP/2 and allow long-lived responses (live updates use SSE).
-- Probe `/livez` and `/readyz` on `HEALTH_PORT` (9000).
-- The load balancer or edge rate-limits requests; the app does not.
-- After `pnpm template-upgrade`, resolve every conflict marker before committing.
+These docs load only when the task needs them. Read the one that matches before you start.
+
+- Adding a Consumer, an Event, a Bridge or a repository: [docs/agents/events-and-bridges.md](docs/agents/events-and-bridges.md)
+- Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
+- Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
+- Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
