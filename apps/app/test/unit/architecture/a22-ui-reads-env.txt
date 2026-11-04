@@ -1,4 +1,4 @@
-// A22: varlock/env only in src/env.ts; #env only in the composition roots and src/authn.ts; process.env only as worker.ts schedulesRegister argument
+// A22: varlock/env only in src/env.ts; #env only in the composition roots and src/authn.ts; process.env never
 // expect: src/ui/routes/bar-list.tsx imports #env: only the composition roots and src/authn.ts read #env
 // @file src/ui/routes/bar-list.tsx
 import { ENV } from "#env";

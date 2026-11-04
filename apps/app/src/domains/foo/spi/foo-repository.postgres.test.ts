@@ -1,5 +1,5 @@
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { queueCreate, queueStop } from "@n8io/baseline-queue";
+import { queueCreate } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
@@ -19,7 +19,7 @@ fooRepositoryContract(async () => {
 	const pgPool = postgresPoolCreate({ databaseUrl, max: 4 });
 	const queue = await queueCreate({ pgPool, role: "publisher" });
 	cleanups.push(
-		() => queueStop(queue),
+		() => queue.stop(),
 		() => pgPool.end(),
 		drop,
 	);

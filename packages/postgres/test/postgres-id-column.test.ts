@@ -10,8 +10,8 @@ import {
 	expectTypeOf,
 	it,
 } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { postgresIdColumn, postgresPoolCreate } from "../src/index.ts";
-import { postgresTestDatabaseCreate } from "./postgres-test-database.ts";
 
 const fooTable = pgTable("foo", {
 	id: postgresIdColumn("foo")().primaryKey(),

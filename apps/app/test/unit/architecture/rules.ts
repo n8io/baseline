@@ -614,24 +614,8 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			files,
 			() => true,
 			/\bprocess\.env\b/g,
-			(m, f) =>
-				f.path === "src/worker.ts" &&
-				insideCall(f.source, "schedulesRegister(", m.index)
-					? undefined
-					: "process.env is read only through ENV from #env (declare the item in .env.schema); worker.ts passes it to schedulesRegister alone",
+			() =>
+				"process.env is read only through ENV from #env (declare the item in .env.schema)",
 		),
 	],
-};
-
-// Whether `index` lies inside the parentheses of the nearest `call` before it.
-const insideCall = (source: string, call: string, index: number): boolean => {
-	const start = source.lastIndexOf(call, index);
-	if (start === -1) return false;
-	let depth = 0;
-	for (let i = start + call.length - 1; i < index; i += 1) {
-		if (source[i] === "(") depth += 1;
-		if (source[i] === ")") depth -= 1;
-		if (depth === 0) return false;
-	}
-	return depth > 0;
 };

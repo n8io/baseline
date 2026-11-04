@@ -4,7 +4,7 @@ import { logger } from "@n8io/baseline-logger";
 // or a resource (pools, clients, health, telemetry).
 export type ShutdownStep = { name: string; close: () => Promise<void> };
 
-export type ShutdownOptions = {
+type ShutdownOptions = {
 	// Counted from the signal, including the drain delay.
 	deadlineMs?: number;
 	// Roots pass 0 outside production.

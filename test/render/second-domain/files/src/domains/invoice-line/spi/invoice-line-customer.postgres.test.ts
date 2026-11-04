@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { liveMemory } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { type Queue, queueCreate, queueStop } from "@n8io/baseline-queue";
+import { type Queue, queueCreate } from "@n8io/baseline-queue";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
@@ -23,7 +23,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	await queueStop(queue);
+	await queue.stop();
 	await pgPool.end();
 	await drop();
 });

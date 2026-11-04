@@ -17,12 +17,8 @@ import {
 import { liveMemory, liveRedis } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import {
-	consumersSubscribe,
-	queueCreate,
-	queueStop,
-} from "@n8io/baseline-queue";
-import { shutdownHandle } from "@n8io/baseline-shutdown";
+import { consumersSubscribe, queueCreate } from "@n8io/baseline-queue";
+import { type ShutdownHandle, shutdownHandle } from "@n8io/baseline-shutdown";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
@@ -42,7 +38,7 @@ import { seedsRun } from "./seed.ts";
 const devRun = globalThis as { serverDevClose?: () => Promise<void> };
 if (import.meta.env.DEV) await devRun.serverDevClose?.();
 
-let shutdown: { isShuttingDown(): boolean } | undefined;
+let shutdown: ShutdownHandle | undefined;
 const health = healthServerCreate({
 	isAlive: () => true,
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
@@ -67,7 +63,7 @@ if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.
 	devRun.serverDevClose = async () => {
 		await liveHub.close();
-		if (queue !== "memory") await queueStop(queue);
+		if (queue !== "memory") await queue.stop();
 		if (pgPool !== "memory") await pgPool.end();
 		if (redisClient !== "memory") await redisClient.close();
 		await health.close();
@@ -142,8 +138,7 @@ export default await createHonoServer({
 			],
 			resources: [
 				{
-					close: () =>
-						queue === "memory" ? Promise.resolve() : queueStop(queue),
+					close: () => (queue === "memory" ? Promise.resolve() : queue.stop()),
 					name: "queue",
 				},
 				{

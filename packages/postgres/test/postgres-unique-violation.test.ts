@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { postgresPoolCreate, postgresUniqueViolation } from "../src/index.ts";
-import { postgresTestDatabaseCreate } from "./postgres-test-database.ts";
 
 const violation = { code: "23505", constraint: "foo_name_key" };
 

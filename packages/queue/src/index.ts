@@ -4,7 +4,7 @@ export {
 	consumersStart,
 	consumersSubscribe,
 } from "./consumer.ts";
-export { type Queue, queueCreate, queueStop } from "./queue-create.ts";
+export { type Queue, queueCreate } from "./queue-create.ts";
 export {
 	type QueueEvents,
 	queueEventsMemory,

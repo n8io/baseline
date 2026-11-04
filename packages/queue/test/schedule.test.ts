@@ -1,17 +1,16 @@
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type Queue,
 	queueCreate,
 	queueMigrate,
-	queueStop,
 	scheduleCreate,
 	schedulesRegister,
 } from "../src/index.ts";
 import { queueBoss } from "../src/queue-create.ts";
 import { scheduleEnvName } from "../src/schedule.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 let pgPool: pg.Pool;
 const queues: Queue[] = [];
@@ -32,17 +31,17 @@ const held = async (queue: Queue): Promise<Record<string, string>> =>
 
 beforeEach(async () => {
 	for (const queue of queues.splice(0)) {
-		await queueStop(queue);
+		await queue.stop();
 	}
 	await pgPool?.end();
-	const databaseUrl = await queueTestDatabaseCreate();
+	const databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = new pg.Pool({ connectionString: databaseUrl });
 });
 
 afterAll(async () => {
 	for (const queue of queues.splice(0)) {
-		await queueStop(queue);
+		await queue.stop();
 	}
 	await pgPool.end();
 });
@@ -131,6 +130,32 @@ describe("schedulesRegister", () => {
 		);
 
 		expect(await held(queue)).toEqual({
+			"foo.stale-archive": "*/5 * * * *",
+			"queue.inbox-prune": "0 4 * * *",
+		});
+	});
+
+	it("reads overrides from a typed ENV proxy, and ignores items that are not strings", async () => {
+		const queue = await worker();
+		// Like varlock's ENV: no own keys, values only through the get trap, typed items.
+		const env = new Proxy(
+			{},
+			{
+				get: (_target, name) =>
+					({
+						SCHEDULE_FOO_REPORT_SEND: 5,
+						SCHEDULE_FOO_STALE_ARCHIVE: "*/5 * * * *",
+					})[String(name)],
+			},
+		);
+		await schedulesRegister(
+			queue,
+			[schedule("foo.stale-archive"), schedule("foo.report-send")],
+			{ env },
+		);
+
+		expect(await held(queue)).toEqual({
+			"foo.report-send": "0 3 * * *",
 			"foo.stale-archive": "*/5 * * * *",
 			"queue.inbox-prune": "0 4 * * *",
 		});

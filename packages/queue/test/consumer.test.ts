@@ -7,6 +7,7 @@ import { metrics, trace } from "@opentelemetry/api";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	consumerCreate,
 	consumersStart,
@@ -16,17 +17,15 @@ import {
 	queueEventsPgBoss,
 	queueInboxInsert,
 	queueMigrate,
-	queueStop,
 } from "../src/index.ts";
 import { queueBoss } from "../src/queue-create.ts";
 import { queueJobRun } from "../src/queue-job-run.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 let pgPool: pg.Pool;
 let queue: Queue;
 
 beforeAll(async () => {
-	const databaseUrl = await queueTestDatabaseCreate();
+	const databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = postgresPoolCreate({ databaseUrl });
 	await pgPool.query("CREATE TABLE invoice (foo_id text NOT NULL)");
@@ -34,7 +33,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	await queueStop(queue);
+	await queue.stop();
 	await pgPool.end();
 });
 

@@ -2,28 +2,27 @@ import { ok } from "@n8io/baseline-result";
 import pg from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
+import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	consumerCreate,
 	consumersSubscribe,
 	type Queue,
 	queueCreate,
 	queueMigrate,
-	queueStop,
 } from "../src/index.ts";
-import { queueTestDatabaseCreate } from "./queue-test-database.ts";
 
 let databaseUrl: string;
 let pgPool: pg.Pool;
 const queues: Queue[] = [];
 
 beforeEach(async () => {
-	databaseUrl = await queueTestDatabaseCreate();
+	databaseUrl = await postgresTestDatabaseCreate();
 	pgPool = new pg.Pool({ connectionString: databaseUrl });
 });
 
 afterEach(async () => {
 	for (const queue of queues.splice(0)) {
-		await queueStop(queue);
+		await queue.stop();
 	}
 	await pgPool.end();
 });
@@ -79,7 +78,7 @@ describe("queueMigrate (V5)", () => {
 				ok(undefined),
 			),
 		]);
-		await queueStop(queue);
+		await queue.stop();
 		queues.splice(0);
 
 		await queueMigrate({ databaseUrl, queuesRemoved: ["bar.foo-created"] });

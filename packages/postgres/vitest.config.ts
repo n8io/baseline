@@ -5,7 +5,7 @@ export default mergeConfig(
 	vitestShared,
 	defineConfig({
 		test: {
-			globalSetup: ["test/postgres-global-setup.ts"],
+			globalSetup: ["../../test/postgres/postgres-global-setup.ts"],
 			hookTimeout: 30_000,
 			testTimeout: 15_000,
 		},

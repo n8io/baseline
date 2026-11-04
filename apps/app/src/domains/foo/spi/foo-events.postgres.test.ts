@@ -7,7 +7,6 @@ import {
 	consumersSubscribe,
 	type Queue,
 	queueCreate,
-	queueStop,
 } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
 import type pg from "pg";
@@ -48,7 +47,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	await queueStop(queue);
+	await queue.stop();
 	await pgPool.end();
 	await drop();
 });
