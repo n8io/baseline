@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { liveMemory } from "@n8io/baseline-live";
+import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import { type Queue, queueCreate } from "@n8io/baseline-queue";
 import type pg from "pg";
@@ -34,7 +34,7 @@ describe("the customer.deleted consumer on Postgres", () => {
 			cache: "memory",
 			customerReader: { get: async () => ({ name: "Acme" }) },
 			database: pgPool,
-			liveHub: liveMemory(),
+			liveHub: liveHubMemoryCreate(),
 			queue,
 		});
 

@@ -36,7 +36,9 @@ const liveHubStreamsByHub = new WeakMap<LiveHub, LiveHubStreams>();
 export const liveHubStreams = (liveHub: LiveHub): LiveHubStreams => {
 	const streams = liveHubStreamsByHub.get(liveHub);
 	if (streams === undefined) {
-		throw new TypeError("liveHub must come from liveRedis or liveMemory");
+		throw new TypeError(
+			"liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
+		);
 	}
 	return streams;
 };

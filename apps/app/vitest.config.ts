@@ -27,6 +27,8 @@ export default defineConfig({
 					name: "unit",
 					// Loads .env.schema and .env.test into process.env in every worker.
 					setupFiles: ["varlock/auto-load"],
+					// Some tests import server.ts or spawn node; CI runs them beside every package's tests.
+					testTimeout: 20_000,
 				},
 			},
 			integration,

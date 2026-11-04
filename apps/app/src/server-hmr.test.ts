@@ -17,7 +17,10 @@ vi.mock("@n8io/baseline-live", async (importOriginal) => {
 	const original = await importOriginal<typeof import("@n8io/baseline-live")>();
 	return {
 		...original,
-		liveMemory: () => ({ ...original.liveMemory(), close: liveClose }),
+		liveHubMemoryCreate: () => ({
+			...original.liveHubMemoryCreate(),
+			close: liveClose,
+		}),
 	};
 });
 

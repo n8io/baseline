@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { liveMemory } from "@n8io/baseline-live";
+import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	consumerCreate,
@@ -57,7 +57,7 @@ describe("foo events on Postgres", () => {
 		fooPortsCreate({
 			cache: "memory",
 			database: pgPool,
-			liveHub: liveMemory(),
+			liveHub: liveHubMemoryCreate(),
 			queue,
 		});
 
