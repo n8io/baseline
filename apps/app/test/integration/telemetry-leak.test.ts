@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
 	canaries,
 	type OtlpReceiver,
@@ -16,7 +17,6 @@ import {
 	type ProductionServer,
 	productionServerStart,
 } from "./production-server.ts";
-import { type SignedIn, signIn } from "./sign-in.ts";
 
 const clientSecret = `canary-client-secret-${randomUUID()}`;
 // The canaries ride in queries and bodies; url.path is exported as is, so none goes there.
@@ -56,7 +56,7 @@ beforeAll(async () => {
 			LOG_LEVEL: "trace",
 		},
 	});
-	session = await signIn(server.url);
+	session = await integrationSignIn(server.url);
 	// A sign-in that fails validation on a canary.
 	expect(
 		await request("/auth/sign-in", {

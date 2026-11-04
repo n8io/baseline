@@ -11,7 +11,7 @@ import {
 	queueCreate,
 	queueMigrate,
 } from "./index.ts";
-import { queueBoss } from "./queue-create.ts";
+import { queueBossGet } from "./queue-create.ts";
 
 let databaseUrl: string;
 const pools: pg.Pool[] = [];
@@ -63,7 +63,7 @@ describe("queueCreate", () => {
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "publisher");
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 		const query = vi.spyOn(pgPool, "query");
 
 		await setTimeout(3_000);
@@ -85,7 +85,7 @@ describe("queueCreate", () => {
 
 	it("a worker starts the cron pass and the inbox prune schedule", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 
 		const names = boss
 			.getWipData({ includeInternal: true })
@@ -100,7 +100,7 @@ describe("queueCreate", () => {
 
 	it("every poll stamps the heartbeat, including empty ones", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 		const stamp = (): number =>
 			Math.max(...boss.getWipData().map((wip) => wip.lastFetchedOn ?? 0));
 
@@ -126,7 +126,7 @@ describe("queueCreate", () => {
 	it("stop waits for a running job, then stops the workers and the cron pass", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "worker");
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 		const finished: string[] = [];
 		await consumersStart(queue, [
 			consumerCreate(
@@ -163,7 +163,7 @@ describe("queueCreate", () => {
 
 	it("a job still running at the timeout is failed, to be retried", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 		await consumersStart(queue, [
 			consumerCreate(
 				"baz.foo-deleted",

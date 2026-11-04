@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
 	canaries,
 	type OtlpReceiver,
@@ -18,7 +19,6 @@ import {
 	type ProductionServer,
 	productionServerStart,
 } from "./production-server.ts";
-import { type SignedIn, signIn } from "./sign-in.ts";
 
 // telemetry-leak.test.ts covers routes every project has; this adds a use case, its pg queries
 // and a Postgres error whose detail holds the canaries.
@@ -65,7 +65,7 @@ beforeAll(async () => {
 			LOG_LEVEL: "trace",
 		},
 	});
-	session = await signIn(server.url);
+	session = await integrationSignIn(server.url);
 	expect(await apiPost({ name: fooName })).toBe(201);
 	// The repeat fails on the unique name: Postgres's 23505 detail now holds the canaries.
 	expect(await apiPost({ name: fooName })).toBe(409);

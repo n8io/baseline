@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
 } from "./production-server.ts";
-import { signIn } from "./sign-in.ts";
 
 const servers: ProductionServer[] = [];
 let drop: () => Promise<void>;
@@ -53,8 +53,8 @@ describe("live updates across server instances", { timeout: 30_000 }, () => {
 			ProductionServer,
 			ProductionServer,
 		];
-		const reader = await signIn(streaming.url, "user");
-		const writer = await signIn(changing.url, "user");
+		const reader = await integrationSignIn(streaming.url, "user");
+		const writer = await integrationSignIn(changing.url, "user");
 		const created = await fetch(`${changing.url}/api/v1/foos`, {
 			body: JSON.stringify({ name: "Watched" }),
 			headers: {

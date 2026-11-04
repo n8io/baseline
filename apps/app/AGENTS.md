@@ -57,7 +57,11 @@ Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 - Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
 - The Domain never imports `api/` or `spi/`. Composition roots wire them.
 - A Use case applies Rules. The API and the SPI hold no business rules.
-- Name things generic to specific: entity first (`invoiceCreate`), then the action. `Error` and `Repository` come last.
+- Name things generic to specific: the scope (Domain, package or area), then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `fooRepositoryPostgres`). An exported name never starts with a verb; architecture rule A23 checks it.
+  - A function that builds and returns a thing ends in `Create`. A predicate ends in `Is`, `Has` or `Can` (`authnDataRequestIs`).
+  - `Error`, `Repository`, `Schema` and adapter names (`Memory`, `Postgres`, `Redis`) come last.
+  - A file is named as its main export, in kebab case: `foo-create.ts` exports `fooCreate`.
+  - Exempt: React hooks (`use…`) and components; React Router's own export names (`loader`, `action`, `handleError`); names imported from a library stay as the library spells them.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 

@@ -10,7 +10,11 @@ import {
 	spanAncestors,
 	spanAttribute,
 } from "./otlp-receiver.ts";
-import { shutdownStarted, waitFor, workerStart } from "./production-server.ts";
+import {
+	productionServerWaitFor,
+	shutdownStarted,
+	workerStart,
+} from "./production-server.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -74,13 +78,16 @@ describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		await locker.query("BEGIN");
 		await locker.query("LOCK TABLE foo.foo IN SHARE MODE");
 		await staleArchiveSend(databaseUrl);
-		await waitFor("the archive UPDATE waiting on the lock", async () => {
-			const { rows } = await db.query(
-				`SELECT 1 FROM pg_stat_activity
+		await productionServerWaitFor(
+			"the archive UPDATE waiting on the lock",
+			async () => {
+				const { rows } = await db.query(
+					`SELECT 1 FROM pg_stat_activity
 				 WHERE wait_event_type = 'Lock' AND query ILIKE 'update "foo"."foo"%'`,
-			);
-			return rows.length === 1;
-		});
+				);
+				return rows.length === 1;
+			},
+		);
 
 		worker.child.kill("SIGTERM");
 		await shutdownStarted(worker);

@@ -39,7 +39,7 @@ export type SignedIn = {
 };
 
 /** Signs in through the memory issuer's form; each server instance signs its own tokens. */
-export const signIn = async (
+export const integrationSignIn = async (
 	url: string,
 	who: "admin" | "user" = "admin",
 ): Promise<SignedIn> => {

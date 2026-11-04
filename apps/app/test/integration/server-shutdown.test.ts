@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
-	connectResult,
+	productionServerConnectResult,
 	productionServerStart,
+	productionServerWaitFor,
 	shutdownStarted,
 	slowRequestStart,
-	waitFor,
 } from "./production-server.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
@@ -34,9 +34,10 @@ describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 
 		server.child.kill("SIGTERM");
 		await shutdownStarted(server);
-		await waitFor(
+		await productionServerWaitFor(
 			"new connections refused",
-			async () => (await connectResult(server.port)) === "ECONNREFUSED",
+			async () =>
+				(await productionServerConnectResult(server.port)) === "ECONNREFUSED",
 		);
 		expect(server.child.exitCode).toBeNull();
 

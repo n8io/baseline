@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	type OtlpReceiver,
 	otlpEnv,
@@ -9,7 +10,6 @@ import {
 	type ProductionServer,
 	productionServerStart,
 } from "./production-server.ts";
-import { signIn } from "./sign-in.ts";
 
 let receiver: OtlpReceiver;
 let server: ProductionServer;
@@ -24,7 +24,7 @@ beforeAll(async () => {
 		databaseUrl: database.databaseUrl,
 		env: otlpEnv(receiver),
 	});
-	const session = await signIn(server.url);
+	const session = await integrationSignIn(server.url);
 	const res = await fetch(`${server.url}/api/v1/foos`, {
 		body: JSON.stringify({ name: "Metered" }),
 		headers: {

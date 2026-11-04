@@ -1,12 +1,12 @@
 import pg from "pg";
 import { afterEach, describe, expect, inject, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	productionServerStart,
 	shutdownStarted,
 	slowRequestStart,
 } from "./production-server.ts";
-import { signIn } from "./sign-in.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
@@ -25,7 +25,7 @@ describe("server shutdown on SIGTERM with a write in flight", {
 			databaseUrl,
 		});
 		cleanups.push(server.stop);
-		const { authorization } = await signIn(server.url);
+		const { authorization } = await integrationSignIn(server.url);
 
 		const slow = await slowRequestStart(server.port, {
 			body: JSON.stringify({ name: "Sent slowly" }),

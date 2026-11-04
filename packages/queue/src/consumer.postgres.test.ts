@@ -24,7 +24,7 @@ import {
 	queueInboxInsert,
 	queueMigrate,
 } from "./index.ts";
-import { queueBoss } from "./queue-create.ts";
+import { queueBossGet } from "./queue-create.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 
 let pgPool: pg.Pool;
@@ -103,13 +103,13 @@ describe("consumersStart", () => {
 		await publish({ fooId: "foo_1" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBoss(queue).findJobs("billing.foo-created");
+				const [job] = await queueBossGet(queue).findJobs("billing.foo-created");
 				expect(job?.state).toBe("completed");
 			},
 			{ interval: 250, timeout: 45_000 },
 		);
 
-		const [job] = await queueBoss(queue).findJobs("billing.foo-created");
+		const [job] = await queueBossGet(queue).findJobs("billing.foo-created");
 		expect(calls).toEqual([
 			{ consumer: "billing.foo-created", eventId: job?.id },
 			{ consumer: "billing.foo-created", eventId: job?.id },
@@ -152,7 +152,7 @@ describe("consumersStart", () => {
 				invoiceArchive,
 			),
 		]);
-		const boss = queueBoss(queue);
+		const boss = queueBossGet(queue);
 		// No retries, so each failure goes straight to the dead-letter queue.
 		await boss.updateQueue("billing.foo-archived", { retryLimit: 0 });
 		const deadLettered = async (): Promise<void> => {
@@ -206,13 +206,13 @@ describe("consumersStart", () => {
 		await publish({ fooId: 42, secret: "hunter2" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBoss(queue).findJobs("audit.foo-created");
+				const [job] = await queueBossGet(queue).findJobs("audit.foo-created");
 				expect(job?.state).toBe("retry");
 			},
 			{ interval: 250, timeout: 15_000 },
 		);
 
-		const [job] = await queueBoss(queue).findJobs("audit.foo-created");
+		const [job] = await queueBossGet(queue).findJobs("audit.foo-created");
 		expect(run).not.toHaveBeenCalled();
 		expect(JSON.stringify(job?.output)).toContain(
 			"Event failed validation for audit.foo-created",

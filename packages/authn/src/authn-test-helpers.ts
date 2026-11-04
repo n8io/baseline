@@ -51,7 +51,7 @@ export const cookieJar = (): CookieJar => {
 };
 
 /** The Set-Cookie line for `name`, or undefined. */
-export const setCookieLine = (
+export const authnSetCookieLine = (
 	res: Response,
 	name: string,
 ): string | undefined =>

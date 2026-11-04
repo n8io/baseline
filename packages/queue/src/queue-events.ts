@@ -1,5 +1,5 @@
 import type pg from "pg";
-import { type Queue, queueBoss } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue-create.ts";
 
 export type QueueEvents<M> = {
 	publish<K extends keyof M & string>(name: K, data: M[K]): Promise<void>;
@@ -13,7 +13,7 @@ export const queueEventsPgBossCreate = <M extends Record<string, unknown>>(
 	queue: Queue,
 	pgClient: pg.PoolClient,
 ): QueueEvents<M> => {
-	const boss = queueBoss(queue);
+	const boss = queueBossGet(queue);
 	const db = {
 		executeSql: (text: string, values?: unknown[]): Promise<pg.QueryResult> =>
 			pgClient.query(text, values),

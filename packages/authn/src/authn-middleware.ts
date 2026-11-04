@@ -4,7 +4,7 @@ import type { Actor } from "./actor.ts";
 import { authnCookieClear, authnCookieGet } from "./authn-cookie.ts";
 import type { Authn, AuthnVerified } from "./authn-create.ts";
 import { AuthnInvalidError } from "./authn-errors.ts";
-import { authnIsDataRequest, authnPagePath } from "./authn-return-to.ts";
+import { authnDataRequestIs, authnPagePath } from "./authn-return-to.ts";
 
 declare module "hono" {
 	interface ContextVariableMap {
@@ -25,7 +25,7 @@ const refreshWindowMs = 10_000;
  */
 const pageRedirect = (c: Context, path: string): Response => {
 	const target = `${path}?returnTo=${encodeURIComponent(authnPagePath(new URL(c.req.url)))}`;
-	if (!authnIsDataRequest(new URL(c.req.url))) return c.redirect(target, 302);
+	if (!authnDataRequestIs(new URL(c.req.url))) return c.redirect(target, 302);
 	return c.body(null, 204, {
 		"X-Remix-Redirect": target,
 		"X-Remix-Reload-Document": "true",

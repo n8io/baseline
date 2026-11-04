@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { scriptsNonce } from "./csp-nonce.ts";
 import { integrationDatabaseCreate } from "./integration-database.ts";
+import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
 } from "./production-server.ts";
-import { type SignedIn, signIn } from "./sign-in.ts";
 
 let server: ProductionServer;
 let drop: () => Promise<void>;
@@ -18,7 +18,7 @@ beforeAll(async () => {
 		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 	});
-	session = await signIn(server.url);
+	session = await integrationSignIn(server.url);
 }, 30_000);
 
 afterAll(async () => {

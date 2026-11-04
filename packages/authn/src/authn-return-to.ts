@@ -21,7 +21,7 @@ export const authnPagePath = (url: URL): string => {
 };
 
 /** True for React Router's client-side data requests (`/foos.data`). */
-export const authnIsDataRequest = (url: URL): boolean =>
+export const authnDataRequestIs = (url: URL): boolean =>
 	url.pathname.endsWith(".data");
 
 /** The URL the provider sends the user back to; behind a TLS proxy the request arrives as http. */

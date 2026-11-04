@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-	diffAddedLines,
 	glossaryAliasesRead,
+	glossaryDiffAddedLines,
 	glossaryHitFormat,
 	glossaryHitsFind,
 } from "./glossary-check.ts";
@@ -48,7 +48,7 @@ describe("glossary-check", () => {
 	});
 
 	it("numbers added lines as they are in the new file", () => {
-		expect(diffAddedLines(diff).slice(0, 3)).toEqual([
+		expect(glossaryDiffAddedLines(diff).slice(0, 3)).toEqual([
 			{ file: "src/a.ts", line: 4, text: "// Sends a Push to every item." },
 			{ file: "src/a.ts", line: 5, text: "const pushed = items;" },
 			{ file: "src/a.ts", line: 12, text: "// a real-time event" },

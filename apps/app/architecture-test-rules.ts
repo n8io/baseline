@@ -163,6 +163,15 @@ const sameDomainParts = (
 ): string[] | undefined =>
 	domain && domainOf(imp.target) === domain ? partsOf(imp.target) : undefined;
 
+// The leading verbs A23 bans in an exported name. React Router's own export names are exempt.
+const leadingVerbs =
+	"add|build|calculate|can|check|clear|close|compute|connect|convert|create|delete|fetch|find|format|get|handle|has|init|is|list|load|make|open|parse|read|register|remove|render|reset|run|save|send|set|should|sign|start|stop|update|validate|wait|write";
+const frameworkNames = new Set(["handleError"]);
+const exportedVerbFirst = new RegExp(
+	`^export (?:const|let|function|async function) ((${leadingVerbs})([A-Z0-9]\\w*))`,
+	"gm",
+);
+
 export const architectureRules: Record<string, ArchitectureRule> = {
 	A1: (files) =>
 		importsCheck(
@@ -620,4 +629,15 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				"process.env is read only through ENV from #env (declare the item in .env.schema)",
 		),
 	],
+
+	A23: (files) =>
+		textCheck(
+			files,
+			() => true,
+			exportedVerbFirst,
+			([, name = "", verb = "", rest = ""]) =>
+				frameworkNames.has(name)
+					? undefined
+					: `${name} starts with a verb; name it generic to specific, scope then subject then action: ${rest.charAt(0).toLowerCase()}${rest.slice(1)}${verb.charAt(0).toUpperCase()}${verb.slice(1)}`,
+		),
 };
