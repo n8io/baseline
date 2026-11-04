@@ -10,3 +10,10 @@ jobs:
   ci:
     uses: n8io/baseline/.github/workflows/app-ci.yml@v1
     secrets: inherit
+
+  automerge:
+    needs: ci
+    uses: n8io/baseline/.github/workflows/dependabot-automerge.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
