@@ -11,4 +11,5 @@ export {
 } from "./http-problem.ts";
 export { httpRouteName } from "./http-route-name.ts";
 export { httpRouterCreate } from "./http-router-create.ts";
+export { httpSecureHeaders } from "./http-secure-headers.ts";
 export { httpServerClose } from "./http-server-close.ts";

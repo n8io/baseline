@@ -5,15 +5,16 @@ const escapeHtml = (text: string): string =>
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;");
 
+// No inline styles: the app's CSP blocks them.
 const page = (title: string, body: string): string =>
-	`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui,sans-serif;max-width:24rem;margin:3rem auto;padding:0 1rem">${body}</body></html>`;
+	`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body>${body}</body></html>`;
 
 const devButton = (
 	who: "admin" | "user",
 	label: string,
 	returnTo: string,
 ): string =>
-	`<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${who}"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><button type="submit" style="width:100%;padding:.75rem;margin:.25rem 0">${label}</button></form>`;
+	`<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${who}"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><button type="submit">${label}</button></form>`;
 
 /** The memory issuer's sign-in page: pick "Dev user" (no scopes) or "Dev admin". */
 export const authnMemorySignInPage = (returnTo: string): string =>

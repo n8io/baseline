@@ -8,9 +8,11 @@ import {
 	type EntryContext,
 	type HandleErrorFunction,
 	isRouteErrorResponse,
+	type RouterContextProvider,
 	type ServerInstrumentation,
 	ServerRouter,
 } from "react-router";
+import { cspNonceContext } from "./context.ts";
 
 export const streamTimeout = 5_000;
 
@@ -31,6 +33,7 @@ export default function handleRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	routerContext: EntryContext,
+	loadContext: RouterContextProvider,
 ): Response | Promise<Response> {
 	if (request.method.toUpperCase() === "HEAD") {
 		return new Response(null, {
@@ -39,6 +42,8 @@ export default function handleRequest(
 		});
 	}
 
+	// ServerRouter hands the nonce to <Scripts>, <ScrollRestoration> and the streamed data scripts.
+	const nonce = loadContext.get(cspNonceContext);
 	return new Promise((resolve, reject) => {
 		let status = responseStatusCode;
 		let shellRendered = false;
@@ -50,8 +55,9 @@ export default function handleRequest(
 		const readyOption = routerContext.isSpaMode ? "onAllReady" : "onShellReady";
 
 		const { abort, pipe } = renderToPipeableStream(
-			<ServerRouter context={routerContext} url={request.url} />,
+			<ServerRouter context={routerContext} nonce={nonce} url={request.url} />,
 			{
+				nonce,
 				onError(error: unknown) {
 					status = 500;
 					// Shell errors reject and reach handleError; log only later stream errors.

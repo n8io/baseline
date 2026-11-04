@@ -258,4 +258,5 @@ const rows = await trace
 - Run `pnpm migrate` once before the new version starts. The server and the Worker may then start in any order.
 - The load balancer must speak HTTP/2 and allow long-lived responses (live updates use SSE).
 - Probe `/livez` and `/readyz` on `HEALTH_PORT` (9000).
+- The load balancer or edge rate-limits requests; the app does not.
 - After `pnpm template-upgrade`, resolve every conflict marker before committing.
