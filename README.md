@@ -89,6 +89,7 @@ Projects depend on these. They are private, on GitHub Packages.
 | [`live`](packages/live)           | Live updates over SSE and Redis pub/sub                  |
 | [`logger`](packages/logger)       | The one pino logger                                      |
 | [`postgres`](packages/postgres)   | Pool, transactions, migrations and id columns on Drizzle |
+| [`pulsar`](packages/pulsar)       | Events and Consumers on Apache Pulsar, sent after commit |
 | [`queue`](packages/queue)         | pg-boss Events, Consumers and Schedules with an inbox    |
 | [`result`](packages/result)       | `Result`, `ok` and `err` for expected business errors    |
 | [`shutdown`](packages/shutdown)   | Graceful shutdown in order                               |

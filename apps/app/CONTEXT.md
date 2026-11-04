@@ -46,7 +46,7 @@ The pages a project serves, outside every domain; their loaders and actions call
 _Avoid_: frontend, web, client
 
 **Event**:
-A fact a domain records in past tense (OrderPlaced), saved with the change that caused it and delivered to other domains.
+A fact a domain records in past tense (OrderPlaced) and delivers to other domains once the change that caused it commits.
 _Avoid_: message, signal, notification
 
 **Consumer**:
