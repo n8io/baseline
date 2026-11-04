@@ -41,6 +41,8 @@ jobs:
         with:
           cache: pnpm
           node-version-file: .node-version
+          # Only for the previous app@ release, whose .npmrc still reads @n8io from GitHub Packages.
+          # Drop this and packages: read once that release installs from npmjs.
           registry-url: https://npm.pkg.github.com
           scope: "@n8io"
       - run: pnpm install --frozen-lockfile

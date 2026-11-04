@@ -1,6 +1,6 @@
 {
 	"$schema": "./node_modules/turbo/schema.json",
-	"globalPassThroughEnv": ["NODE_AUTH_TOKEN", "RENDER_AND_TEST_STOP"],
+	"globalPassThroughEnv": ["RENDER_AND_TEST_STOP"],
 	"tasks": {
 		"//#check": {},
 		"//#test": {},

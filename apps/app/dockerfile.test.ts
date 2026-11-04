@@ -69,8 +69,8 @@ describe("Dockerfile", () => {
 		expect(dockerfile).toContain(`npm install --global ${packageManager}`);
 	});
 
-	it("reads the packages token only from a BuildKit secret", () => {
-		expect(dockerfile).toContain("--mount=type=secret,id=packages_token");
+	it("builds with no registry token or secret", () => {
+		expect(dockerfile).not.toMatch(/--mount=type=secret|_authToken/);
 		const declared = instructions.filter(
 			({ keyword }) => keyword === "ARG" || keyword === "ENV",
 		);

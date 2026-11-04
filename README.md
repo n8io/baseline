@@ -11,7 +11,7 @@ Each project gets a domain-driven Hono API and React Router pages in one process
 ```mermaid
 flowchart LR
   subgraph baseline
-    P["packages/*"] -->|release| GP[("GitHub Packages<br/>@n8io/baseline-*")]
+    P["packages/*"] -->|release| GP[("npmjs<br/>@n8io/baseline-*")]
     T["apps/app"] -->|release| R["app@x.y.z tag"]
     W["app-ci.yml"] -->|tag| V1["v1"]
   end
@@ -26,14 +26,7 @@ flowchart LR
 > [!NOTE]
 > You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in to `n8io`.
 
-**1. Let pnpm read the private packages.** Do this once per machine.
-
-```sh
-gh auth refresh -s read:packages
-echo "//npm.pkg.github.com/:_authToken=$(gh auth token)" >> ~/.npmrc
-```
-
-**2. Create a project.** This renders the latest `app@` release, adds your first Domain, and creates a private GitHub repo with a CI ruleset.
+**1. Create a project.** This renders the latest `app@` release, adds your first Domain, and creates a private GitHub repo with a CI ruleset.
 
 ```sh
 git clone https://github.com/n8io/baseline && cd baseline
@@ -43,12 +36,7 @@ node scripts/app-create.ts
 
 It asks five questions. You can pass them as flags instead: `--name --description --domain --plural --definition [--owner]`.
 
-**3. Give the new repo access to the packages.**
-
-> [!IMPORTANT]
-> CI and Dependabot install the packages with the repo's built-in `GITHUB_TOKEN`. That works only after each package lists the repo. GitHub has no API for this, so `app-create` ends by printing the 12 links. On each one, open **Manage Actions access**, click **Add Repository**, and choose **Read**.
-
-**4. Run it.**
+**2. Run it.**
 
 ```sh
 cd <your-project>
@@ -77,7 +65,7 @@ The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the full rules: where 
 
 ## Packages
 
-Projects depend on these. They are private, on GitHub Packages.
+Projects depend on these. They are public on npmjs.
 
 | Package                           | What it does                                             |
 | --------------------------------- | -------------------------------------------------------- |

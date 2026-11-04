@@ -20,6 +20,7 @@
 		"./client": "./src/client.ts"
 	},
 	"publishConfig": {
+		"access": "public",
 		"exports": {
 			".": {
 				"types": "./dist/index.d.ts",
@@ -30,7 +31,7 @@
 				"default": "./dist/client.js"
 			}
 		},
-		"registry": "https://npm.pkg.github.com"
+		"registry": "https://registry.npmjs.org"
 	},
 	"scripts": {
 		"build": "tsdown",

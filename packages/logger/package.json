@@ -20,6 +20,7 @@
 		"./err-serialize": "./src/logger-err-serialize.ts"
 	},
 	"publishConfig": {
+		"access": "public",
 		"exports": {
 			".": {
 				"types": "./dist/index.d.ts",
@@ -30,7 +31,7 @@
 				"default": "./dist/logger-err-serialize.js"
 			}
 		},
-		"registry": "https://npm.pkg.github.com"
+		"registry": "https://registry.npmjs.org"
 	},
 	"scripts": {
 		"build": "tsdown",
