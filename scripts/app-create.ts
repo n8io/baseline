@@ -1,7 +1,8 @@
 // node scripts/app-create.ts: makes a new project repository from the latest app@ release.
 // Renders apps/app, writes the project's answers, creates the first domain and its migration,
-// then creates the private GitHub repository and the CI ruleset. Installs use NODE_AUTH_TOKEN or
-// `gh auth token`; the end of the run lists the package settings pages that need the repo added.
+// then creates the private GitHub repository, the CI ruleset and Dependabot security updates.
+// Installs use NODE_AUTH_TOKEN or `gh auth token`; the end of the run lists the package settings
+// pages that need the repo added.
 // Flags skip the questions: --name --description --domain --plural --definition [--owner].
 import { randomBytes } from "node:crypto";
 import {
@@ -207,6 +208,15 @@ export const rulesetBody = () => ({
 	target: "branch",
 });
 
+// Turns on Dependabot alerts, then Dependabot security updates, which need the alerts on.
+export const securityUpdatesCalls = (repository: string) =>
+	["vulnerability-alerts", "automated-security-fixes"].map((setting) => [
+		"api",
+		"--method",
+		"PUT",
+		`repos/${repository}/${setting}`,
+	]);
+
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 const answersAsk = async (): Promise<AppCreateAnswers> => {
@@ -325,6 +335,7 @@ const main = async () => {
 		["api", "--method", "POST", `repos/${repository}/rulesets`, "--input", "-"],
 		{ input: JSON.stringify(rulesetBody()) },
 	);
+	for (const args of securityUpdatesCalls(repository)) run("gh", args);
 	console.log(`Created https://github.com/${repository}`);
 	console.log(
 		packageGrantLines(repository, baselinePackages(files)).join("\n"),
