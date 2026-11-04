@@ -16,7 +16,8 @@
 		".": "./src/index.ts"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"README.md"
 	],
 	"publishConfig": {
 		"access": "public",
