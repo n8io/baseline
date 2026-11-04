@@ -4,7 +4,7 @@ Read when adding a log line, a span, a span attribute or a metric.
 
 ## Tracing
 
-One client request is one trace, with no app code. The telemetry preload (`--import @n8io/baseline-telemetry/register`, in every script and the Dockerfile) does all of it:
+One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every script runs `node --import ./src/preload.ts`, the image sets it in `NODE_OPTIONS`) does all of it:
 
 - **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
 - **Into the worker.** An Event carries the publishing request's trace: on the pg-boss job row, or in the Pulsar message properties. The Consumer runs in that trace, retries included.

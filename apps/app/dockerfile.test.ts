@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
@@ -32,12 +34,12 @@ const stages = instructions.reduce<Instruction[][]>((all, instruction) => {
 }, []);
 const runtime = stages.at(-1) ?? [];
 const packageManagers = /\b(pnpm|npm|npx|yarn|corepack)\b/;
-const preloads = [
-	"--import",
-	"varlock/auto-load",
-	"--import",
+const preloadEnv = 'NODE_OPTIONS="--import /app/src/preload.ts"';
+// The tracing preloads, which only src/preload.ts may name. Tests and vitest load
+// varlock/auto-load alone, so it is checked in src/preload.ts but allowed elsewhere.
+const tracingModules = [
 	"@n8io/baseline-telemetry/register",
-	"--experimental-loader=@opentelemetry/instrumentation/hook.mjs",
+	"@opentelemetry/instrumentation/hook.mjs",
 ];
 
 // Every entry the image runs: the CMD, and the worker command compose passes.
@@ -79,7 +81,15 @@ describe("Dockerfile", () => {
 		}
 	});
 
-	it("runs every entry in exec form with the three preloads, varlock first", () => {
+	it("preloads src/preload.ts for every entry through one NODE_OPTIONS line", () => {
+		const options = instructions.filter(
+			({ args, keyword }) => keyword === "ENV" && args.includes("NODE_OPTIONS"),
+		);
+		expect(options).toEqual([{ args: preloadEnv, keyword: "ENV" }]);
+		expect(runtime).toContainEqual({ args: preloadEnv, keyword: "ENV" });
+	});
+
+	it("runs every entry in exec form as node <entry>, with no preload flags", () => {
 		const commands = instructions.filter(
 			({ keyword }) => keyword === "CMD" || keyword === "ENTRYPOINT",
 		);
@@ -91,19 +101,15 @@ describe("Dockerfile", () => {
 			"src/worker.ts",
 		]);
 		for (const entry of all) {
-			expect(entry.slice(0, 6)).toEqual(["node", ...preloads]);
-			expect(entry).toHaveLength(7);
+			expect(entry).toHaveLength(2);
+			expect(entry[0]).toBe("node");
 			expect(entry.join(" ")).not.toMatch(packageManagers);
 		}
 	});
 
 	it("names the worker and migrate entries in its comments", () => {
-		expect(dockerfile).toContain(
-			'worker:  [... same flags ..., "src/worker.ts"]',
-		);
-		expect(dockerfile).toContain(
-			'migrate: [... same flags ..., "src/migrate.ts"]',
-		);
+		expect(dockerfile).toContain('worker:  ["node", "src/worker.ts"]');
+		expect(dockerfile).toContain('migrate: ["node", "src/migrate.ts"]');
 		expect(dockerfile).toMatch(/30 s grace period/);
 	});
 
@@ -138,6 +144,38 @@ describe("Dockerfile", () => {
 		expect(copies.every((args) => args.startsWith("--from=build /"))).toBe(
 			true,
 		);
+	});
+});
+
+describe("src/preload.ts", () => {
+	it("is the only file that names the tracing preloads", () => {
+		const skipped = /(^|\/)(node_modules|build|\.git|\.react-router)(\/|$)/;
+		const root = fileURLToPath(new URL("./", import.meta.url));
+		const offenders = readdirSync(root, {
+			recursive: true,
+			withFileTypes: true,
+		})
+			.filter((entry) => entry.isFile())
+			.map((entry) => relative(root, join(entry.parentPath, entry.name)))
+			.filter(
+				(path) =>
+					!skipped.test(path) &&
+					!["CHANGELOG.md", "dockerfile.test.ts", "src/preload.ts"].includes(
+						path,
+					),
+			)
+			.filter((path) => {
+				const text = readFileSync(
+					new URL(`./${path}`, import.meta.url),
+					"utf8",
+				);
+				return tracingModules.some((name) => text.includes(name));
+			});
+		expect(offenders).toEqual([]);
+		const preload = read("src/preload.ts");
+		for (const name of ["varlock/auto-load", ...tracingModules]) {
+			expect(preload).toContain(`"${name}"`);
+		}
 	});
 });
 

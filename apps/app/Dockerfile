@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 # One image, three entries, picked by the last argument of the command:
 #   server:  the CMD below (build/server/index.js)
-#   worker:  [... same flags ..., "src/worker.ts"]
-#   migrate: [... same flags ..., "src/migrate.ts"]
+#   worker:  ["node", "src/worker.ts"]
+#   migrate: ["node", "src/migrate.ts"]
+# NODE_OPTIONS preloads src/preload.ts (secrets, then tracing) for every entry.
 # Runner: allow a 30 s grace period; probe /livez and /readyz on HEALTH_PORT (9000);
 # run the migrate entry once before rollout; server and worker may then start in any order and scale independently;
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
@@ -29,6 +30,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39
 WORKDIR /app
 ENV NODE_ENV=production APP_ENV=production
+ENV NODE_OPTIONS="--import /app/src/preload.ts"
 COPY --from=build /prod/node_modules ./node_modules
 COPY --from=build /app/build ./build
 COPY --from=build /app/src ./src
@@ -37,4 +39,4 @@ COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/.env.schema /app/.env.production ./
 USER node
 EXPOSE 3000 9000
-CMD ["node", "--import", "varlock/auto-load", "--import", "@n8io/baseline-telemetry/register", "--experimental-loader=@opentelemetry/instrumentation/hook.mjs", "build/server/index.js"]
+CMD ["node", "build/server/index.js"]

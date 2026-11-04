@@ -52,16 +52,7 @@ services:
   worker:
     build: .
     profiles: [image]
-    command:
-      [
-        "node",
-        "--import",
-        "varlock/auto-load",
-        "--import",
-        "@n8io/baseline-telemetry/register",
-        "--experimental-loader=@opentelemetry/instrumentation/hook.mjs",
-        "src/worker.ts",
-      ]
+    command: ["node", "src/worker.ts"]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

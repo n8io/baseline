@@ -9,14 +9,8 @@ import {
 } from "node:http";
 import { connect, createServer as netServerCreate } from "node:net";
 
-// Every entry in the image starts with these, varlock first.
-const preloadFlags = [
-	"--import",
-	"varlock/auto-load",
-	"--import",
-	"@n8io/baseline-telemetry/register",
-	"--experimental-loader=@opentelemetry/instrumentation/hook.mjs",
-];
+// The preload every entry runs; the image sets it in NODE_OPTIONS.
+const preloadFlags = ["--import", "./src/preload.ts"];
 
 const serverEntry = "build/server/index.js";
 
