@@ -23,4 +23,4 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
 
-In packages, only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's span rules are in [apps/app/AGENTS.md](apps/app/AGENTS.md#spans).
+In packages, only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself (`@n8io/baseline-pulsar`: `send` and `process`). Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/AGENTS.md](apps/app/AGENTS.md#tracing).

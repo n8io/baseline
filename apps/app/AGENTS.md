@@ -192,6 +192,18 @@ export const billingCustomerReader = (
 - Put dev and test values in `.env.development` and `.env.test`.
 - `memory://` URLs are allowed only in development and test.
 
+## Tracing
+
+One client request is one trace, with no app code. The telemetry preload (`--import @n8io/baseline-telemetry/register`, in every script and the Dockerfile) does all of it:
+
+- **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
+- **Into the worker.** An Event carries the publishing request's trace: on the pg-boss job row, or in the Pulsar message properties. The Consumer runs in that trace, retries included.
+- **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
+- **Logs.** Every `logger` line inside a request, job or Consumer has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
+- **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
+
+Never add a request id, correlation id or trace header by hand, and never pass a trace id through a Port or Event payload: the context already travels.
+
 ## Spans
 
 Most spans already exist. Instrumentations time inbound and outbound HTTP, Postgres, Redis and jobs. `telemetryUseCasesTrace` gives every Use case a span, and the router instrumentation gives every loader and action one. So the usual answer to "should this be a span?" is an attribute on the active span.
