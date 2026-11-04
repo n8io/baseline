@@ -2,7 +2,7 @@
 
 A template for TypeScript projects. It has three parts:
 
-- 12 shared `@n8io/baseline-*` packages.
+- The shared `@n8io/baseline-*` packages.
 - The `apps/app` template that new projects are made from.
 - The CI workflow every project runs.
 
@@ -65,7 +65,7 @@ The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the rules every task n
 
 ## Packages
 
-Projects depend on these. They are public on npmjs.
+Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-<name>` needs no registry setup. Each package's README lists its exports, an example, and the env vars and peers it needs.
 
 | Package                           | What it does                                             |
 | --------------------------------- | -------------------------------------------------------- |
@@ -89,6 +89,8 @@ Projects depend on these. They are public on npmjs.
 fnm use && pnpm install
 pnpm turbo run check test build   # the full CI-equivalent
 ```
+
+Docker must be running: the root tests and the `cache`, `live`, `postgres`, `queue` and `pulsar` tests start their own containers.
 
 A change that should ship needs a changeset. Run `pnpm changeset` and pick the packages it touches, plus `app` for template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the packages, tags `app@x.y.z`, and moves `v2`.
 

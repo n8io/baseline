@@ -13,7 +13,7 @@ How it differs from the queue package:
 
 ## Swap it in
 
-1. **Package access.** On GitHub, open the package's settings, then **Manage Actions access**, and add your project's repository. This is a web-only step, once per repository. Then `pnpm add @n8io/baseline-pulsar`, and add `pulsar-client: true` under `allowBuilds` in `pnpm-workspace.yaml` (its install script downloads a prebuilt binary from archive.apache.org).
+1. **Install.** Run `pnpm add @n8io/baseline-pulsar` (it is public on npmjs), and add `pulsar-client: true` under `allowBuilds` in `pnpm-workspace.yaml` (its install script downloads a prebuilt binary from archive.apache.org).
 
 2. **Environment.** Declare the broker in `.env.schema` (varlock regenerates `src/env.d.ts` on the next run):
 
