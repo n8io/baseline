@@ -1,6 +1,8 @@
 name: ci
 
-on: [pull_request]
+# workflow_dispatch: release.yml starts CI on the Version packages PR, whose
+# GITHUB_TOKEN pushes start no pull_request runs.
+on: [pull_request, workflow_dispatch]
 
 permissions:
   contents: read

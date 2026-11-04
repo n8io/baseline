@@ -8,8 +8,10 @@ concurrency:
   cancel-in-progress: false
   group: release
 
+# actions: start ci.yml on the Version packages PR.
 # id-token: npm trusted publishing (OIDC), so no npm token is stored.
 permissions:
+  actions: write
   contents: write
   id-token: write
   pull-requests: write
@@ -39,6 +41,12 @@ jobs:
         env:
           # Provenance needs n8io/baseline to be public.
           NPM_CONFIG_PROVENANCE: "true"
+      # GITHUB_TOKEN pushes start no pull_request runs, but a dispatch does, and its
+      # checks attach to the PR's head commit.
+      - if: steps.changesets.outputs.pullRequestNumber
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --ref changeset-release/main
       # Point v<major> at the newest app@<major>.x.y release, so projects on
       # app-ci.yml@v<major> get it.
       - if: steps.changesets.outputs.has-changesets == 'false'
