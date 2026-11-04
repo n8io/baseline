@@ -1,9 +1,9 @@
+import { postgresPortsGuard } from "@n8io/baseline-postgres";
 import type { Inbox } from "@n8io/baseline-queue";
 import { queueEventsMemory } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
-import { fooPortsGuard } from "./foo-ports-guard.ts";
 import {
 	type FooMemoryState,
 	fooRepositoryMemory,
@@ -33,11 +33,14 @@ export const fooTransactionMemory = (
 		let open = true;
 		try {
 			const result = await work({
-				fooEvents: fooPortsGuard(
+				fooEvents: postgresPortsGuard(
 					queueEventsMemory<FooEventMap>(pending),
 					() => open,
 				),
-				fooRepository: fooPortsGuard(fooRepositoryMemory(scratch), () => open),
+				fooRepository: postgresPortsGuard(
+					fooRepositoryMemory(scratch),
+					() => open,
+				),
 			});
 			if (result.ok) {
 				state.foos = scratch.foos;

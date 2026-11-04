@@ -1,5 +1,9 @@
 import { idToUuid } from "@n8io/baseline-id";
-import { postgresUniqueViolation } from "@n8io/baseline-postgres";
+import {
+	postgresCursorDecode,
+	postgresCursorEncode,
+	postgresUniqueViolation,
+} from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import {
 	and,
@@ -15,7 +19,6 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { FooNameTakenError } from "../foo-errors.ts";
 import type { Foo } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
-import { fooCursorDecode, fooCursorEncode } from "./foo-cursor.ts";
 import { foo } from "./foo-table.ts";
 
 // A nested Drizzle transaction is a compile error: fooTransaction owns the transaction.
@@ -67,7 +70,9 @@ export const fooRepositoryPostgres = (db: FooDatabase): FooRepository => ({
 		const sortColumn =
 			field === "name" ? sql`${foo.name} COLLATE "C"` : sql`${foo.createdAt}`;
 		const direction = descending ? sql`DESC` : sql`ASC`;
-		const after = input.cursor ? fooCursorDecode(input.cursor) : undefined;
+		const after = input.cursor
+			? postgresCursorDecode(input.cursor, "foo")
+			: undefined;
 		const keyset: SQL | undefined = after
 			? sql`(${sortColumn}, ${foo.id}) ${descending ? sql`<` : sql`>`} (${
 					field === "name"
@@ -86,7 +91,7 @@ export const fooRepositoryPostgres = (db: FooDatabase): FooRepository => ({
 		const last = page.at(-1);
 		const nextCursor =
 			rows.length > input.limit && last
-				? fooCursorEncode({
+				? postgresCursorEncode({
 						id: last.id,
 						k: field === "name" ? last.name : last.createdAt.toISOString(),
 					})

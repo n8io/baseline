@@ -1,4 +1,7 @@
-import { postgresTransaction } from "@n8io/baseline-postgres";
+import {
+	postgresPortsGuard,
+	postgresTransaction,
+} from "@n8io/baseline-postgres";
 import {
 	type Inbox,
 	type Queue,
@@ -10,7 +13,6 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
-import { fooPortsGuard } from "./foo-ports-guard.ts";
 import { fooRepositoryPostgres } from "./foo-repository.postgres.ts";
 
 // One Postgres transaction: the rows and the events published with them commit or roll back
@@ -31,11 +33,11 @@ export const fooTransactionPostgres = (
 			const isOpen = (): boolean => open;
 			try {
 				return await work({
-					fooEvents: fooPortsGuard(
+					fooEvents: postgresPortsGuard(
 						queueEventsPgBoss<FooEventMap>(queue, pgClient),
 						isOpen,
 					),
-					fooRepository: fooPortsGuard(
+					fooRepository: postgresPortsGuard(
 						fooRepositoryPostgres(drizzle({ client: pgClient })),
 						isOpen,
 					),

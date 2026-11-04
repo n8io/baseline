@@ -1,9 +1,12 @@
 import type { Id } from "@n8io/baseline-id";
+import {
+	postgresCursorDecode,
+	postgresCursorEncode,
+} from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import { FooNameTakenError } from "../foo-errors.ts";
 import type { Foo, FooListInput } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
-import { fooCursorDecode, fooCursorEncode } from "./foo-cursor.ts";
 
 // Committed foos. The read repository and the transaction share one state object; a
 // transaction swaps in its copy of `foos` on commit.
@@ -63,7 +66,9 @@ export const fooRepositoryMemory = (state: {
 				a: { k: string; id: string },
 				b: { k: string; id: string },
 			): number => direction * (fooOrder(a.k, b.k) || fooOrder(a.id, b.id));
-			const after = input.cursor ? fooCursorDecode(input.cursor) : undefined;
+			const after = input.cursor
+				? postgresCursorDecode(input.cursor, "foo")
+				: undefined;
 
 			const matching = [...state.foos.values()]
 				.filter((foo) => (foo.archivedAt !== null) === input.archived)
@@ -76,7 +81,7 @@ export const fooRepositoryMemory = (state: {
 			const last = page.at(-1);
 			const nextCursor =
 				rest.length > input.limit && last
-					? fooCursorEncode({ id: last.id, k: last.k })
+					? postgresCursorEncode({ id: last.id, k: last.k })
 					: null;
 			const items = page.map((row) => structuredClone(row.foo));
 			return input.count
