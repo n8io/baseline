@@ -1,8 +1,8 @@
-import type { Id, IdOf } from "@n8io/baseline-id";
+import type { Id } from "@n8io/baseline-id";
 
 export class FooNotFoundError extends Error {
 	readonly type = "FooNotFound";
-	readonly fooId: IdOf<"foo">;
+	readonly fooId: Id<"foo">;
 	constructor(fooId: Id<"foo">) {
 		super(`Foo ${fooId} not found`);
 		this.fooId = fooId;
@@ -21,7 +21,7 @@ export class FooNameTakenError extends Error {
 
 export class FooForbiddenError extends Error {
 	readonly type = "FooForbidden";
-	readonly fooId: IdOf<"foo">;
+	readonly fooId: Id<"foo">;
 	constructor(fooId: Id<"foo">) {
 		super(`Not allowed to change foo ${fooId}`);
 		this.fooId = fooId;
