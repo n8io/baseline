@@ -1,6 +1,6 @@
-import { cn } from "cn";
 import { Label as LabelPrimitive } from "radix-ui";
 import type * as React from "react";
+import { cn } from "#ui/lib/utils.ts";
 
 function Label({
 	className,

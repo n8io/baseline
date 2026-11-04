@@ -7,15 +7,16 @@ import {
 	type OtlpSpan,
 	otlpEnv,
 	otlpReceiverStart,
-	type ProductionServer,
-	productionServerStart,
-	type SignedIn,
 	signalsLeaking,
-	signIn,
 	spanAttribute,
 	spanKindServer,
 	telemetrySignals,
+} from "./otlp-receiver.ts";
+import {
+	type ProductionServer,
+	productionServerStart,
 } from "./production-server.ts";
+import { type SignedIn, signIn } from "./sign-in.ts";
 
 const clientSecret = `canary-client-secret-${randomUUID()}`;
 // The canaries ride in queries and bodies; url.path is exported as is, so none goes there.

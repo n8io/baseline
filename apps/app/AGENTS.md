@@ -14,7 +14,7 @@ Commands by role. Integration tests and the dev server need `docker compose up -
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (3 min budget)
 - full CI-equivalent: `pnpm run ci` (`pnpm ci` is pnpm's own clean install)
-- dev server: `pnpm dev` (runs migrate, then the Worker, with health on port 9001, beside the dev server)
+- dev server: `pnpm dev` (runs migrate and seed, then the Worker, with health on port 9001, beside the dev server)
 - build: `pnpm build`
 - codegen: `pnpm codegen` (run after editing a `spi/*-table.ts` file)
 - migrate: `pnpm migrate`
@@ -32,16 +32,17 @@ When a budget trips, decide again deliberately: make the code faster or set a ne
 One Domain per business entity.
 Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 
-| Kind of work                                                                   | File                           |
-| ------------------------------------------------------------------------------ | ------------------------------ |
-| Use cases (types and factory), Port types, Event schemas, scopes, input Models | `index.ts`                     |
-| Port declarations                                                              | `ports.ts`                     |
-| Domain errors                                                                  | `<domain>-errors.ts`           |
-| Models (Zod schema and inferred type)                                          | `models/<domain>.ts`           |
-| Rules (pure functions over Models, one per file, with a test)                  | `rules/<domain>-<rule>.ts`     |
-| One Use case per file, with a test on memory adapters                          | `use-cases/<domain>-create.ts` |
-| HTTP routes, live streams, Consumers, Schedules, Seeds                         | `api/`                         |
-| Port implementations, tables, contract tests                                   | `spi/`                         |
+| Kind of work                                                         | File                                     |
+| -------------------------------------------------------------------- | ---------------------------------------- |
+| Entry: re-exports what outside code may use, and the Domain's scopes | `index.ts`                               |
+| Port types                                                           | `ports.ts`                               |
+| Domain errors                                                        | `<domain>-errors.ts`                     |
+| Models (Zod schema and inferred type), input Models, Event schemas   | `models/<domain>.ts`                     |
+| Rules (pure functions over Models, one per file, with a test)        | `rules/<domain>-<rule>.ts`               |
+| One Use case per file, with a test on memory adapters                | `use-cases/<domain>-<verb>.ts`           |
+| Use cases factory and its type                                       | `use-cases/<domain>-use-cases-create.ts` |
+| HTTP routes, live streams, Consumers, Schedules, Seeds               | `api/`                                   |
+| Port implementations, tables, contract tests                         | `spi/`                                   |
 
 - Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
 - The Domain never imports `api/` or `spi/`. Composition roots wire them.

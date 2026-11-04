@@ -93,9 +93,6 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 2s --health-timeout 5s --health-retries 30
         ports: ["6379:6379"]
-    env:
-      CACHE_URL: redis://localhost:6379
-      DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
     steps:
       - *checkout
       - *download
@@ -107,6 +104,7 @@ jobs:
 
   migrations:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - *checkout
       - *download
@@ -149,6 +147,7 @@ jobs:
 
   oasdiff:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       OASDIFF_SHA256: a8023002fcb2eaa7f5758148a9303cb63d33b939886df312268bc0fc7b939140
       OASDIFF_VERSION: 1.35.0
@@ -186,6 +185,7 @@ jobs:
 
   glossary-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - *checkout
       - *download
@@ -197,6 +197,7 @@ jobs:
 
   image:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - *checkout
       - *download
@@ -208,8 +209,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
         run: docker build --secret id=packages_token,env=NODE_AUTH_TOKEN --tag app:ci .
-      - name: Dockerfile test
-        run: pnpm exec vitest run test/unit/dockerfile.test.ts
       - name: Image size within image-budget.json
         run: |
           bytes=$(docker image inspect --format '{{.Size}}' app:ci)

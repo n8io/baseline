@@ -7,17 +7,18 @@ import {
 	type OtlpSpan,
 	otlpEnv,
 	otlpReceiverStart,
-	type ProductionServer,
-	productionServerStart,
-	type SignedIn,
 	signalsLeaking,
-	signIn,
 	spanAncestors,
 	spanAttribute,
 	spanKindClient,
 	spanKindServer,
 	telemetrySignals,
+} from "./otlp-receiver.ts";
+import {
+	type ProductionServer,
+	productionServerStart,
 } from "./production-server.ts";
+import { type SignedIn, signIn } from "./sign-in.ts";
 
 // telemetry-leak.test.ts covers routes every project has; this adds a use case, its pg queries
 // and a Postgres error whose detail holds the canaries.
