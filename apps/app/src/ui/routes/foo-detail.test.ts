@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { liveMemory } from "@n8io/baseline-live";
+import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { describe, expect, it } from "vitest";
 import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
@@ -16,7 +16,7 @@ const setup = async (actor: Actor | null = owner) => {
 		fooPortsCreate({
 			cache: "memory",
 			database: "memory",
-			liveHub: liveMemory(),
+			liveHub: liveHubMemoryCreate(),
 			queue: "memory",
 		}),
 	);

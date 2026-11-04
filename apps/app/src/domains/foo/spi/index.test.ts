@@ -1,4 +1,4 @@
-import { liveMemory } from "@n8io/baseline-live";
+import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import type { Queue } from "@n8io/baseline-queue";
 import { describe, expect, it } from "vitest";
 import { fooPortsCreate } from "./index.ts";
@@ -10,7 +10,7 @@ describe("fooPortsCreate", () => {
 			fooPortsCreate({
 				cache: "memory",
 				database: "memory",
-				liveHub: liveMemory(),
+				liveHub: liveHubMemoryCreate(),
 				queue,
 			}),
 		).toThrow("both be Postgres or both memory");

@@ -48,11 +48,11 @@ export const cacheRedisClientCreate = async ({
 	cacheUrl: string;
 }): Promise<RedisClient> => {
 	cacheUrlCheck(cacheUrl);
-	// Imported here so apps that only use cacheMemory need not install redis.
+	// Imported here so apps that only use cacheMemoryCreate need not install redis.
 	const { createClient } = await import("redis");
 	const redisClient: RedisClient = createClient({
 		// node-redis drops this timer once a command is sent, so it only limits
-		// the wait to send (while reconnecting); cacheRedis limits the reply.
+		// the wait to send (while reconnecting); cacheRedisCreate limits the reply.
 		commandOptions: { timeout: cacheCommandTimeoutMs },
 		socket: {
 			connectTimeout: cacheConnectTimeoutMs,
@@ -80,7 +80,7 @@ export const cacheRedisClientCreate = async ({
 
 // A cache on a shared Redis client; entries expire with Redis PX. Each call
 // fails with a TimeoutError when Redis does not answer within 1 s.
-export const cacheRedis = <T>({
+export const cacheRedisCreate = <T>({
 	redisClient,
 	...options
 }: CacheOptions<T> & { redisClient: RedisClient }): Cache<T> => {

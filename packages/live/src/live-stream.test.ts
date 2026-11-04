@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { liveMemory } from "./index.ts";
+import { liveHubMemoryCreate } from "./index.ts";
 import { liveHubStreams } from "./live-hub.ts";
 import { liveHeartbeatMs, liveStreamMaxMs } from "./live-stream.ts";
 import { liveAppCreate, sseRead } from "./live-test-sse.ts";
@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe("liveStreamCreate", () => {
 	test("answers an SSE response that sends ready once subscribed", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const { response, sse } = await open(liveAppCreate(liveHub));
 
 		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
@@ -31,7 +31,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("sends { type, id } for its own (channel, id) only", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const app = liveAppCreate(liveHub);
 		const { sse } = await open(app);
 
@@ -47,7 +47,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("sends only type and id, whatever else the sender passes", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const { sse } = await open(liveAppCreate(liveHub));
 
 		const update = { id: "foo_1", name: "secret", type: "foo.updated" };
@@ -59,7 +59,7 @@ describe("liveStreamCreate", () => {
 
 	test("sends a comment every 20 s", async () => {
 		vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "Date"] });
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const { sse } = await open(liveAppCreate(liveHub));
 
 		await vi.advanceTimersByTimeAsync(liveHeartbeatMs - 1);
@@ -77,7 +77,7 @@ describe("liveStreamCreate", () => {
 	])("closes %s with a retry of 1–5 s", async (_, expiresInMs, closesAtMs) => {
 		vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "Date"] });
 		vi.spyOn(Math, "random").mockReturnValue(0.999_999);
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const startedAt = Date.now();
 		const app = liveAppCreate(liveHub, () => startedAt + expiresInMs);
 		const { sse } = await open(app);
@@ -96,7 +96,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("picks the retry between 1000 and 5000 ms", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const app = liveAppCreate(liveHub, () => Date.now() - 1);
 		const retries = [];
 		for (const random of [0, 0.5, 0.999_999]) {
@@ -113,7 +113,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("liveHub.close() sends every stream a retry, closes it, then resolves", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const app = liveAppCreate(liveHub);
 		const first = await open(app, "/live/foo/foo_1");
 		const second = await open(app, "/live/foo/foo_2");
@@ -125,7 +125,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("a stream opened after close ends at once with a retry", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		await liveHub.close();
 
 		const response = await liveAppCreate(liveHub).request("/live/foo/foo_1");
@@ -134,7 +134,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("a client that goes away stops listening and no longer holds close()", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const streams = liveHubStreams(liveHub);
 		const listen = streams.listen;
 		let unlistened = 0;
@@ -156,7 +156,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("close() does not wait on a subscribe that never finishes", async () => {
-		const liveHub = liveMemory();
+		const liveHub = liveHubMemoryCreate();
 		const late = vi.fn();
 		const listening = Promise.withResolvers<() => void>();
 		vi.spyOn(liveHubStreams(liveHub), "listen").mockReturnValue(
@@ -178,6 +178,8 @@ describe("liveStreamCreate", () => {
 	test("refuses a hub it did not make", () => {
 		expect(() =>
 			liveHubStreams({ close: async () => {}, send: async () => {} }),
-		).toThrow("liveHub must come from liveRedis or liveMemory");
+		).toThrow(
+			"liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
+		);
 	});
 });
