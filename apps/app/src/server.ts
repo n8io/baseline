@@ -12,6 +12,7 @@ import {
 	httpNotFoundHandle,
 	httpRouteName,
 	httpRouterCreate,
+	httpSecureHeaders,
 	httpServerClose,
 } from "@n8io/baseline-http";
 import { liveMemory, liveRedis } from "@n8io/baseline-live";
@@ -23,6 +24,7 @@ import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
 } from "@n8io/baseline-telemetry";
+import { bodyLimit } from "hono/body-limit";
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
 import { actorFromClaims, authnProviderOptions } from "#authn";
@@ -105,6 +107,9 @@ const authn = await authnCreate({
 const app = httpRouterCreate();
 app.use(httpRouteName);
 app.onError(httpErrorHandle);
+app.use(httpSecureHeaders);
+// A body over 1 MB throws a 413 that httpErrorHandle answers as PayloadTooLarge.
+app.use("/api/*", bodyLimit({ maxSize: 1024 * 1024 }));
 app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
 app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
 app.route("/auth", authnRoutes(authn));

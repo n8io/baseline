@@ -40,6 +40,8 @@ describe("memory issuer sign-in", () => {
 		expect(html).toContain("Dev user");
 		expect(html).toContain("Dev admin");
 		expect(html).toContain('name="returnTo" value="/foos?page=2"');
+		// The app's CSP blocks inline styles.
+		expect(html).not.toContain("style=");
 		expect(res.headers.get("Cache-Control")).toBe("no-store");
 	});
 
