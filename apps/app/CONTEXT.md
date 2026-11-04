@@ -46,7 +46,7 @@ The pages a project serves, outside every domain; their loaders and actions call
 _Avoid_: frontend, web, client
 
 **Event**:
-A fact a domain records in past tense (OrderPlaced) and delivers to other domains once the change that caused it commits.
+A fact a domain records in past tense (OrderPlaced) and delivers to other domains once the change that caused it commits. Events go through the queue (pg-boss) by default; `@n8io/baseline-pulsar` is the one sanctioned swap for a project that outgrows Postgres. Nothing else carries Events.
 _Avoid_: message, signal, notification
 
 **Consumer**:

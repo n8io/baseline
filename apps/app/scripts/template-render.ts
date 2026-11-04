@@ -1,5 +1,8 @@
 // Shared by domain-create, template-upgrade and app-create: fetches a baseline release and renders
 // apps/app without the foo domain. Native TS, no dependencies; shells out to git, gh and pnpm.
+// Why a JS/TS-aware scanner renames foo instead of domain-create markers alone: foo also appears in
+// regex literals, JSX text and prose, where a plain replace or a marker would rename the wrong text
+// or miss it. render-and-test renders and tests a project on every PR, so it covers the scanner.
 import { execFileSync } from "node:child_process";
 import {
 	existsSync,
