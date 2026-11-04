@@ -16,7 +16,7 @@ const deadLettersCounter = (): Counter => {
 	return deadLetters;
 };
 
-// Runs one job's work inside pg-boss's process span. ok and err both complete the job; err is an
+// Runs one job's work inside its process span (pg-boss's, or the pulsar package's). ok and err both complete the job; err is an
 // expected business outcome, so it only marks the span. A throw fails the job, which pg-boss
 // retries and, after the last attempt, moves to the dead-letter queue. The counter sees only those
 // throws: jobs pg-boss fails itself (expired, or still active after the 15 s stop grace) skip it,

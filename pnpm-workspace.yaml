@@ -3,6 +3,7 @@ packages:
   - packages/*
 allowBuilds:
   protobufjs: false
+  pulsar-client: true
 # The built server never imports these peers; optional keeps them out of production installs.
 packageExtensions:
   react-router-hono-server:
