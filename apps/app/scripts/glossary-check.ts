@@ -3,9 +3,9 @@
 import { readFileSync } from "node:fs";
 import { run } from "./template-render.ts";
 
-export type GlossaryAlias = { alias: string; term: string };
+type GlossaryAlias = { alias: string; term: string };
 
-export type GlossaryHit = GlossaryAlias & { file: string; line: number };
+type GlossaryHit = GlossaryAlias & { file: string; line: number };
 
 // Every `_Avoid_:` alias with the `**Term**:` it belongs to, from both sections.
 export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {

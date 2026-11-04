@@ -12,20 +12,24 @@ import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import {
 	type DomainNames,
+	domainsPairsFind,
 	filesRead,
 	fooBlocksFind,
+	fooLineIs,
 	fooPathRename,
 	fooRename,
+	linesRemove,
 	monorepoAppIs,
 	run,
 	type TemplateFile,
 	templateFetch,
 	templateJsonRead,
-	zeroDomainEditsApply,
 } from "./template-render.ts";
 
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-const markerPattern = /^\s*(\/\/|#) domain-create: [a-z-]+\s*$/;
+// Where foo's renamed lines go; domains-start and domains-end only delimit.
+const markerPattern =
+	/^\s*(\/\/|#) domain-create: (?!domains-(start|end)\s*$)[a-z-]+\s*$/;
 
 // The domain, its pages and the pages' unit tests.
 const copiedPaths = [
@@ -78,6 +82,52 @@ const importEnd = (lines: string[]): number => {
 	return end;
 };
 
+const namedImports = /^import\s+(type\s+)?\{([^}]*)\}\s*from\s*("[^"]+");/gm;
+
+// The first domain fills each emptied domains-start/domains-end pair with the template's lines,
+// foo's left out, and imports the template names the render's Biome pass dropped as unused.
+export const domainsPairsFill = (
+	project: string,
+	template: string,
+	path: string,
+): string => {
+	const lines = project.split("\n");
+	const source = linesRemove(template, fooBlocksFind(template, path)).split(
+		"\n",
+	);
+	const pairs = domainsPairsFind(project, path);
+	const sourcePairs = domainsPairsFind(source.join("\n"), path);
+	if (pairs.length !== sourcePairs.length) {
+		throw new Error(
+			`${path}: has ${pairs.length} domains-start/domains-end pairs, the template ${sourcePairs.length}`,
+		);
+	}
+	for (const [k, [start, end]] of [...pairs.entries()].reverse()) {
+		const [from, to] = sourcePairs[k] ?? [0, 0];
+		if (end === start + 1) {
+			lines.splice(start + 1, 0, ...source.slice(from + 1, to));
+		}
+	}
+	const imported = new Set(
+		[...project.matchAll(namedImports)].flatMap((m) =>
+			(m[2] ?? "").split(",").map((name) => name.trim().split(/\s+/).at(-1)),
+		),
+	);
+	const missing = [...template.matchAll(namedImports)]
+		.filter((m) => !fooLineIs(m[0]))
+		.flatMap(([, type = "", names = "", from]) =>
+			names
+				.split(",")
+				.map((name) => name.trim())
+				.filter(
+					(name) => name !== "" && !imported.has(name.split(/\s+/).at(-1)),
+				)
+				.map((name) => `import ${type}{ ${name} } from ${from};`),
+		);
+	lines.splice(importEnd(lines) + 1, 0, ...missing);
+	return lines.join("\n");
+};
+
 // Adds the renamed copy of each foo line in the template's version of a file to the project's
 // version: above the same marker, or after the imports for an import.
 export const wiringInsert = (
@@ -88,7 +138,7 @@ export const wiringInsert = (
 	firstDomain: boolean,
 ): string => {
 	const lines = (
-		firstDomain ? zeroDomainEditsApply(project, path, "domains") : project
+		firstDomain ? domainsPairsFill(project, template, path) : project
 	).split("\n");
 	const templateLines = template.split("\n");
 	const blocks = fooBlocksFind(template, path);

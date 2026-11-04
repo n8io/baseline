@@ -27,9 +27,9 @@ import {
 } from "../apps/app/scripts/template-render.ts";
 import { releaseRender } from "../apps/app/scripts/template-upgrade.ts";
 
-export type GlossaryTerm = { term: string; definition: string };
+type GlossaryTerm = { term: string; definition: string };
 
-export type AppCreateAnswers = TemplateAnswers & {
+type AppCreateAnswers = TemplateAnswers & {
 	owner: string;
 	domain: { kebab: string; plural: string; definition: string };
 };
@@ -92,7 +92,7 @@ export const envFilesWrite = (directory: string, name: string): void => {
 // Writes the answers a rendered project keeps: CONTEXT.md terms, env files and .template.json.
 export const answersWrite = (
 	directory: string,
-	answers: TemplateAnswers & { repository: string; release: string },
+	answers: TemplateAnswers & { release: string },
 	terms: GlossaryTerm[],
 ): void => {
 	const context = join(directory, "CONTEXT.md");
@@ -107,7 +107,6 @@ export const answersWrite = (
 			{
 				description: answers.description,
 				release: answers.release,
-				repository: answers.repository,
 			},
 			null,
 			"\t",
@@ -290,7 +289,7 @@ const main = async () => {
 	try {
 		files = templateFetch(release);
 		await appRender(directory, files, answers);
-		answersWrite(directory, { ...answers, release, repository }, [
+		answersWrite(directory, { ...answers, release }, [
 			{
 				definition: answers.domain.definition,
 				term: glossaryTerm(answers.domain.kebab),

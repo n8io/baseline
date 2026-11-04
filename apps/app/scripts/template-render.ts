@@ -25,7 +25,7 @@ export type TemplateFile = { path: string; text: string };
 
 export type DomainNames = { kebab: string; plural: string };
 
-export const templateRepository = "n8io/baseline";
+const templateRepository = "n8io/baseline";
 
 // Runs a command and returns its stdout; `inherit` shows its output instead.
 export const run = (
@@ -68,7 +68,7 @@ const regexKeywords =
 
 // A small lexer: the mode of every character, so renames and bracket counts can tell
 // code from strings and comments. JSX text reads as code; fooProseIs handles it.
-export const modesRead = (text: string, path: string): Mode[] => {
+const modesRead = (text: string, path: string): Mode[] => {
 	const modes: Mode[] = new Array(text.length);
 	if (!codeFileIs(path)) return modes.fill("comment");
 	const templateDepths: number[] = [];
@@ -397,190 +397,42 @@ const templateFooPaths = [
 const templateUntouchedPaths = [/^scripts\//, /^test\/unit\/scripts\//];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
-// Lines that are valid only while a domain exists. The render swaps `domains` for `none`
-// once foo's lines are gone; domain-create swaps them back before adding the first domain.
-export const templateZeroDomainEdits: {
-	path: string;
-	domains: string;
-	none: string;
-}[] = [
-	{
-		domains: `import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
-`,
-		none: 'import { telemetryShutdown } from "@n8io/baseline-telemetry";\n',
-		path: "src/server.ts",
-	},
-	{
-		domains: `import { loadContextCreate } from "#ui/context.ts";
-import { seedsRun } from "./seed.ts";
-`,
-		none: `import { loadContextCreate } from "#ui/context.ts";
-`,
-		path: "src/server.ts",
-	},
-	{
-		domains: `const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
+// Lines between a `domain-create: domains-start` and `domains-end` marker pair are valid only while
+// a domain exists. The render empties each pair; domain-create fills them for the first domain.
+const domainsStart = /^\s*(\/\/|#) domain-create: domains-start\s*$/;
+const domainsEnd = /^\s*(\/\/|#) domain-create: domains-end\s*$/;
 
-// domain-create: use-cases
-`,
-		none: `
-// domain-create: use-cases
-`,
-		path: "src/server.ts",
-	},
-	{
-		domains: `// domain-create: bridges
-
-if (ENV.APP_ENV === "development" && pgPool === "memory") {
-	await seedsRun({
-		// domain-create: seed-context
-	});
-}
-`,
-		none: `// domain-create: bridges
-`,
-		path: "src/server.ts",
-	},
-	{
-		domains: `import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
-`,
-		none: 'import { telemetryShutdown } from "@n8io/baseline-telemetry";\n',
-		path: "src/worker.ts",
-	},
-	{
-		domains: `const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
-
-// domain-create: use-cases
-`,
-		none: `
-// domain-create: use-cases
-`,
-		path: "src/worker.ts",
-	},
-	{
-		domains: `import type { Actor } from "@n8io/baseline-authn";
-import { cacheRedisClientCreate }`,
-		none: "import { cacheRedisClientCreate }",
-		path: "src/seed.ts",
-	},
-	{
-		domains: `import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
-`,
-		none: 'import { telemetryShutdown } from "@n8io/baseline-telemetry";\n',
-		path: "src/seed.ts",
-	},
-	{
-		domains: `const devSeedActor: Actor = {
-	id: "dev-seed",
-	kind: "client",
-	scopes: [
-		// domain-create: scopes
-	],
-};
-
-export const seedsRun = async (useCases: {
-	// domain-create: seed-types
-}) => {
-	// domain-create: seeds
-};
-`,
-		none: `export const seedsRun = async (
-	// domain-create: seed-types
-	_useCases: Record<string, never>,
-) => {
-	// domain-create: seeds
-};
-`,
-		path: "src/seed.ts",
-	},
-	{
-		domains: `	const ports = {
-		cache: redisClient,
-		database: pgPool,
-		liveHub,
-		queue,
-	} as const;
-
-	// domain-create: use-cases
-`,
-		none: `	// domain-create: use-cases
-`,
-		path: "src/seed.ts",
-	},
-	{
-		domains: `import {
-	createContext,
-	type RouterContext,
-	RouterContextProvider,
-} from "react-router";
-`,
-		none: `import { type RouterContext, RouterContextProvider } from "react-router";
-`,
-		path: "src/ui/context.ts",
-	},
-	{
-		domains: `	useCases: {
-		// domain-create: context-types
-	},
-`,
-		none: `	// domain-create: context-types
-	_useCases: Record<string, never>,
-`,
-		path: "src/ui/context.ts",
-	},
-	{
-		domains: `import { index, type RouteConfig, route } from "@react-router/dev/routes";
-
-export default [
-	index("routes/home.tsx"),
-`,
-		none: `import type { RouteConfig } from "@react-router/dev/routes";
-
-export default [
-`,
-		path: "src/ui/routes.ts",
-	},
-];
-
-const editApply = (
+// Each pair's marker lines [start, end].
+export const domainsPairsFind = (
 	text: string,
 	path: string,
-	from: string,
-	to: string,
-): string => {
-	if (from === to) return text;
-	if (!text.includes(from)) {
-		throw new Error(
-			`${path}: expected this text, which the template's render relies on:\n${from}`,
-		);
+): [number, number][] => {
+	const pairs: [number, number][] = [];
+	let start: number | undefined;
+	for (const [k, line] of text.split("\n").entries()) {
+		const misplaced = domainsStart.test(line)
+			? start !== undefined
+			: domainsEnd.test(line) && start === undefined;
+		if (misplaced) {
+			throw new Error(`${path}:${k + 1}: domain-create markers must pair up`);
+		}
+		if (domainsStart.test(line)) start = k;
+		if (domainsEnd.test(line) && start !== undefined) {
+			pairs.push([start, k]);
+			start = undefined;
+		}
 	}
-	return text.replace(from, to);
+	if (start !== undefined) {
+		throw new Error(`${path}:${start + 1}: domains-start has no domains-end`);
+	}
+	return pairs;
 };
 
-export const zeroDomainEditsApply = (
-	text: string,
-	path: string,
-	direction: "none" | "domains",
-): string => {
-	let result = text;
-	for (const edit of templateZeroDomainEdits) {
-		if (edit.path !== path) continue;
-		result =
-			direction === "none"
-				? editApply(result, path, edit.domains, edit.none)
-				: editApply(result, path, edit.none, edit.domains);
-	}
-	return result;
-};
+export const domainsPairsEmpty = (text: string, path: string): string =>
+	linesRemove(
+		text,
+		domainsPairsFind(text, path).map(([start, end]) => [start + 1, end - 1]),
+	);
 
 // CONTEXT.md keeps every Architecture term; only the **Foo**: entry goes.
 const contextRender = (text: string, answers: TemplateAnswers): string => {
@@ -616,8 +468,8 @@ export const templateFileRender = (
 		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
 	}
 	if (!fooLineIs(text)) return file;
-	const removed = linesRemove(text, fooBlocksFind(text, path));
-	return { path, text: zeroDomainEditsApply(removed, path, "none") };
+	const emptied = domainsPairsEmpty(text, path);
+	return { path, text: linesRemove(emptied, fooBlocksFind(emptied, path)) };
 };
 
 // ---------------------------------------------------------------------------
@@ -697,7 +549,7 @@ export const templateFinish = (
 
 const releaseTag = (version: string): string => `app@${version}`;
 
-export const releaseLatest = (repository = templateRepository): string => {
+export const releaseLatest = (): string => {
 	const tags = run("git", [
 		"-c",
 		"credential.helper=",
@@ -706,7 +558,7 @@ export const releaseLatest = (repository = templateRepository): string => {
 		"ls-remote",
 		"--tags",
 		"--refs",
-		`https://github.com/${repository}.git`,
+		`https://github.com/${templateRepository}.git`,
 		"app@*",
 	]);
 	const versions = [...tags.matchAll(/refs\/tags\/app@(\d+)\.(\d+)\.(\d+)$/gm)]
@@ -714,7 +566,8 @@ export const releaseLatest = (repository = templateRepository): string => {
 		.filter(([major]) => major > 0)
 		.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
 	const latest = versions.at(-1);
-	if (latest === undefined) throw new Error(`No app@ release in ${repository}`);
+	if (latest === undefined)
+		throw new Error(`No app@ release in ${templateRepository}`);
 	return latest.join(".");
 };
 
@@ -776,10 +629,7 @@ export const templateExport = (
 };
 
 // Clones the release (blobless) and exports its apps/app, then removes the clone.
-export const templateFetch = (
-	version: string,
-	repository = templateRepository,
-): TemplateFile[] => {
+export const templateFetch = (version: string): TemplateFile[] => {
 	const work = mkdtempSync(join(tmpdir(), "template-"));
 	try {
 		const clone = join(work, "clone");
@@ -793,7 +643,7 @@ export const templateFetch = (
 			"--filter=blob:none",
 			"--branch",
 			releaseTag(version),
-			`https://github.com/${repository}.git`,
+			`https://github.com/${templateRepository}.git`,
 			clone,
 		]);
 		return templateExport(clone, releaseTag(version));
@@ -806,12 +656,7 @@ export const monorepoAppIs = (appDirectory: string): boolean =>
 	existsSync(join(appDirectory, "../../packages/result/package.json")) &&
 	!existsSync(join(appDirectory, ".template.json"));
 
-export type TemplateJson = {
-	release: string;
-	repository: string;
-	description: string;
-	name?: string;
-};
+type TemplateJson = { release: string; description: string };
 
 export const templateJsonRead = (appDirectory: string): TemplateJson =>
 	JSON.parse(
@@ -827,6 +672,6 @@ export const templateAnswers = (
 	) as { name: string };
 	return {
 		description: template.description,
-		name: template.name ?? manifest.name,
+		name: manifest.name,
 	};
 };

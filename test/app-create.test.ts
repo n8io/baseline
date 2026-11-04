@@ -84,7 +84,6 @@ describe("app-create", () => {
 				description: "Invoices.",
 				name: "invoicing",
 				release: "1.0.1",
-				repository: "n8io/invoicing",
 			},
 			[{ definition: "A charge.", term: "Invoice line" }],
 		);
@@ -92,7 +91,6 @@ describe("app-create", () => {
 		expect(JSON.parse(read(directory, ".template.json"))).toEqual({
 			description: "Invoices.",
 			release: "1.0.1",
-			repository: "n8io/invoicing",
 		});
 		expect(read(directory, "CONTEXT.md")).toContain(
 			"## Language\n\n**Invoice line**:\nA charge.\n",

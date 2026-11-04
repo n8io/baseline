@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	domainFilesCreate,
 	domainNameRefusal,
+	domainsPairsFill,
 	domainTerm,
 	wiringInsert,
 } from "../../../scripts/domain-create.ts";
@@ -105,6 +106,34 @@ describe("wiringInsert", () => {
 				false,
 			),
 		).toThrow('src/server.ts: missing marker "// domain-create: routes"');
+	});
+});
+
+describe("domainsPairsFill", () => {
+	it("fills an emptied pair without foo's lines and imports what the render dropped", () => {
+		const template = [
+			'import { a, type B } from "./a.ts";',
+			'import { foo } from "./foo.ts";',
+			"// domain-create: domains-start",
+			"const b: B = a(foo);",
+			"const c = a();",
+			"// domain-create: domains-end",
+		].join("\n");
+		const project = [
+			"// domain-create: domains-start",
+			"// domain-create: domains-end",
+		].join("\n");
+
+		expect(domainsPairsFill(project, template, "x.ts").split("\n")).toEqual([
+			'import { a } from "./a.ts";',
+			'import { type B } from "./a.ts";',
+			"// domain-create: domains-start",
+			"const c = a();",
+			"// domain-create: domains-end",
+		]);
+		expect(() => domainsPairsFill("", template, "x.ts")).toThrow(
+			"x.ts: has 0 domains-start/domains-end pairs, the template 1",
+		);
 	});
 });
 

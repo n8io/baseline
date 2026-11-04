@@ -2,7 +2,7 @@ import { once } from "node:events";
 import { createServer, type Server } from "node:http";
 import type { AppProcess } from "./production-server.ts";
 
-export type OtlpAttribute = {
+type OtlpAttribute = {
 	key: string;
 	value: { intValue?: number | string; stringValue?: string };
 };

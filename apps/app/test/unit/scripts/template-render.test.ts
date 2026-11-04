@@ -1,6 +1,8 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { domainsPairsFill } from "../../../scripts/domain-create.ts";
 import {
+	domainsPairsFind,
 	filesRead,
 	fooBlocksFind,
 	fooLineIs,
@@ -9,8 +11,6 @@ import {
 	linesRemove,
 	templateFileRender,
 	templateFilesRender,
-	templateZeroDomainEdits,
-	zeroDomainEditsApply,
 } from "../../../scripts/template-render.ts";
 
 const appRoot = new URL("../../../", import.meta.url);
@@ -228,15 +228,24 @@ describe.runIf(template)("the template's own files", () => {
 		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
 	});
 
-	it("undo every zero-domain edit exactly, so domain-create can add the first domain", () => {
-		const paths = new Set(templateZeroDomainEdits.map((e) => e.path));
-		for (const path of paths) {
-			const text = readFileSync(new URL(path, appRoot), "utf8");
-			const removed = linesRemove(text, fooBlocksFind(text, path));
-			const none = zeroDomainEditsApply(removed, path, "none");
+	it("empty every domains-start/domains-end pair, which domainsPairsFill fills back exactly", () => {
+		const paired = files.filter((f) => domainsPairsFind(f.text, f.path).length);
 
-			expect(none).not.toBe(removed);
-			expect(zeroDomainEditsApply(none, path, "domains")).toBe(removed);
+		expect(paired.map((f) => f.path)).toEqual([
+			"src/seed.ts",
+			"src/server.ts",
+			"src/ui/context.ts",
+			"src/ui/routes.ts",
+			"src/worker.ts",
+		]);
+		for (const { path, text } of paired) {
+			const rendered = templateFileRender({ path, text }, answers)?.text ?? "";
+			const pairs = domainsPairsFind(rendered, path);
+
+			expect(pairs.every(([start, end]) => end === start + 1)).toBe(true);
+			expect(domainsPairsFill(rendered, text, path)).toBe(
+				linesRemove(text, fooBlocksFind(text, path)),
+			);
 		}
 	});
 });

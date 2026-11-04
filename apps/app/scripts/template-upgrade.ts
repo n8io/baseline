@@ -69,7 +69,7 @@ const conflictsRead = (repository: string): string[] =>
 		.filter((path) => path !== "");
 
 // Applies the change between two renders to the project's working tree.
-export const templateMerge = (
+const templateMerge = (
 	repository: string,
 	from: TemplateFile[],
 	to: TemplateFile[],
