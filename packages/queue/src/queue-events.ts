@@ -9,7 +9,7 @@ export type QueueEvents<M> = {
 // pg-boss's own publish() reads the subscriptions through the pool, which would hold a second
 // connection per transaction; here they are read on the transaction's client, and each subscribed
 // queue gets its job one send at a time (one client runs one query at a time).
-export const queueEventsPgBoss = <M extends Record<string, unknown>>(
+export const queueEventsPgBossCreate = <M extends Record<string, unknown>>(
 	queue: Queue,
 	pgClient: pg.PoolClient,
 ): QueueEvents<M> => {
@@ -32,7 +32,7 @@ export const queueEventsPgBoss = <M extends Record<string, unknown>>(
 };
 
 // Records publishes in `published` and delivers nothing; unit tests assert on the array.
-export const queueEventsMemory = <M extends Record<string, unknown>>(
+export const queueEventsMemoryCreate = <M extends Record<string, unknown>>(
 	published: { name: keyof M; data: unknown }[] = [],
 ): QueueEvents<M> => ({
 	publish: async (name, data) => {

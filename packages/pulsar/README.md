@@ -26,14 +26,14 @@ How it differs from the queue package:
    PULSAR_TOKEN=
    ```
 
-3. **Transaction SPI.** In each Domain's `*-transaction.postgres.ts`, take a `Pulsar` instead of the `Queue`, publish into a `pulsarEvents` buffer behind the same guard, and send it once the transaction has committed:
+3. **Transaction SPI.** In each Domain's `*-transaction.postgres.ts`, take a `Pulsar` instead of the `Queue`, publish into a `pulsarEventsCreate` buffer behind the same guard, and send it once the transaction has committed:
 
    ```ts
-   import { type Pulsar, pulsarEvents } from "@n8io/baseline-pulsar";
+   import { type Pulsar, pulsarEventsCreate } from "@n8io/baseline-pulsar";
 
    export const fooTransactionPostgres = (pgPool: pg.Pool, pulsar: Pulsar): FooTransaction =>
      (async (work, inbox) => {
-       const fooEvents = pulsarEvents<FooEventMap>(pulsar);
+       const fooEvents = pulsarEventsCreate<FooEventMap>(pulsar);
        const result = await postgresTransaction(pgPool, async (pgClient) => {
          if (inbox && !(await queueInboxInsert(pgClient, inbox))) return ok(undefined);
          let open = true;

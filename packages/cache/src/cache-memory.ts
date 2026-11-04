@@ -4,7 +4,7 @@ import { type Cache, type CacheOptions, cacheCreate } from "./cache.ts";
 // JSON like Redis does, so a value that does not survive the round trip
 // (a Date comes back as a string) fails the same way. Expiry reads Date.now,
 // so fake timers move it.
-export const cacheMemory = <T>(options: CacheOptions<T>): Cache<T> => {
+export const cacheMemoryCreate = <T>(options: CacheOptions<T>): Cache<T> => {
 	const entries = new Map<string, { expiresAt: number; json: string }>();
 
 	return cacheCreate(

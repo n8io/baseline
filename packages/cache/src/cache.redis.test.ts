@@ -14,8 +14,8 @@ import { z } from "zod";
 import { cacheContract } from "./cache.contract.ts";
 import {
 	cacheReconnectDelay,
-	cacheRedis,
 	cacheRedisClientCreate,
+	cacheRedisCreate,
 	type RedisClient,
 } from "./cache-redis.ts";
 import type { Cache } from "./index.ts";
@@ -70,7 +70,7 @@ describe("cacheRedisClientCreate", () => {
 	});
 });
 
-describe("cacheRedis on Redis", () => {
+describe("cacheRedisCreate on Redis", () => {
 	let redisClient: RedisClient;
 
 	beforeAll(async () => {
@@ -83,11 +83,14 @@ describe("cacheRedis on Redis", () => {
 		await redisClient.close();
 	});
 
-	cacheContract((options) => cacheRedis({ redisClient, ...options }), sleep);
+	cacheContract(
+		(options) => cacheRedisCreate({ redisClient, ...options }),
+		sleep,
+	);
 
 	test("writes <prefix>:<id> with a 60 s TTL by default", async () => {
 		const prefix = `test-${crypto.randomUUID()}`;
-		await cacheRedis({ prefix, redisClient, schema: z.string() }).set(
+		await cacheRedisCreate({ prefix, redisClient, schema: z.string() }).set(
 			"foo_1",
 			"First",
 		);
@@ -107,7 +110,7 @@ describe("cacheRedis on Redis", () => {
 		const pauser = await cacheRedisClientCreate({
 			cacheUrl: inject("redisUrl"),
 		});
-		const cache = cacheRedis({
+		const cache = cacheRedisCreate({
 			prefix: "pause",
 			redisClient,
 			schema: z.string(),

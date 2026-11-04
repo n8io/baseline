@@ -7,8 +7,8 @@ export {
 export { type Queue, queueCreate } from "./queue-create.ts";
 export {
 	type QueueEvents,
-	queueEventsMemory,
-	queueEventsPgBoss,
+	queueEventsMemoryCreate,
+	queueEventsPgBossCreate,
 } from "./queue-events.ts";
 export { type Inbox, queueInboxInsert } from "./queue-inbox.ts";
 export { queueJobRun } from "./queue-job-run.ts";
