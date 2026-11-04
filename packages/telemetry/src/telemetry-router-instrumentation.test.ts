@@ -14,9 +14,10 @@ type HandlerInstruments = Parameters<
 >[0];
 
 // Collects what the instrumentation registers, as React Router would.
-const routeInstruments = (): RouteInstruments => {
+const routeInstruments = (id = "routes/foo-detail"): RouteInstruments => {
 	let registered: RouteInstruments = {};
 	telemetryRouterInstrumentation.route({
+		id,
 		instrument: (instruments) => {
 			registered = instruments;
 		},
@@ -43,24 +44,33 @@ beforeEach(() => {
 });
 
 describe("telemetryRouterInstrumentation", () => {
-	it("names loader and action spans after the route pattern", async () => {
+	it("names loader and action spans after their route, and sets http.route with a leading slash", async () => {
 		const { action, loader } = routeInstruments();
+		const root = routeInstruments("root");
 		let activeInLoader: unknown;
+		// React Router hands every matched route the request's pattern, without a leading slash.
+		await root.loader?.(async () => success, { pattern: "foos/:fooId" });
 		await loader?.(
 			async () => {
 				activeInLoader = trace.getActiveSpan();
 				return success;
 			},
-			{ pattern: "/foos/:fooId" },
+			{ pattern: "foos/:fooId" },
 		);
-		await action?.(async () => success, { pattern: "/foos/:fooId" });
+		await action?.(async () => success, { pattern: "foos/:fooId" });
 		const finished = spans.getFinishedSpans();
 		expect(finished.map((span) => span.name)).toEqual([
-			"loader /foos/:fooId",
-			"action /foos/:fooId",
+			"loader root",
+			"loader routes/foo-detail",
+			"action routes/foo-detail",
 		]);
-		expect(finished[0]?.kind).toBe(SpanKind.INTERNAL);
-		expect(finished[0]?.status.code).toBe(SpanStatusCode.UNSET);
+		expect(finished.map((span) => span.attributes["http.route"])).toEqual([
+			"/foos/:fooId",
+			"/foos/:fooId",
+			"/foos/:fooId",
+		]);
+		expect(finished[1]?.kind).toBe(SpanKind.INTERNAL);
+		expect(finished[1]?.status.code).toBe(SpanStatusCode.UNSET);
 		expect(activeInLoader).toBeDefined();
 	});
 
@@ -98,7 +108,7 @@ describe("telemetryRouterInstrumentation", () => {
 			.getTracer("test")
 			.startActiveSpan("GET", { kind: SpanKind.SERVER }, async (active) => {
 				await request?.(
-					async () => ({ ...success, meta: { pattern: "/foos/:fooId" } }),
+					async () => ({ ...success, meta: { pattern: "foos/:fooId" } }),
 					{ request: { method: "GET" } },
 				);
 				active.end();
@@ -107,6 +117,21 @@ describe("telemetryRouterInstrumentation", () => {
 		const [named] = spans.getFinishedSpans();
 		expect(named?.name).toBe("GET /foos/:fooId");
 		expect(named?.attributes["http.route"]).toBe("/foos/:fooId");
+	});
+
+	it("names the index route's server span GET /", async () => {
+		const { request } = handlerInstruments();
+		await trace
+			.getTracer("test")
+			.startActiveSpan("GET", { kind: SpanKind.SERVER }, async (active) => {
+				await request?.(async () => ({ ...success, meta: { pattern: "" } }), {
+					request: { method: "GET" },
+				});
+				active.end();
+			});
+		const [named] = spans.getFinishedSpans();
+		expect(named?.name).toBe("GET /");
+		expect(named?.attributes["http.route"]).toBe("/");
 	});
 
 	it("leaves the server span alone when no route matched", async () => {

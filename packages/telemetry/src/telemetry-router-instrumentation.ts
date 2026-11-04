@@ -25,6 +25,7 @@ export type TelemetryRouterInstrumentation = {
 		instrument(instrumentations: { request?: RouterRequestInstrument }): void;
 	}): void;
 	route(route: {
+		readonly id: string;
 		instrument(instrumentations: {
 			action?: RouterHandlerInstrument;
 			loader?: RouterHandlerInstrument;
@@ -34,13 +35,23 @@ export type TelemetryRouterInstrumentation = {
 
 const tracer = () => trace.getTracer("@n8io/baseline-telemetry");
 
-// A thrown Response (a redirect, a 404) is a normal outcome, not an error.
+// React Router's pattern has no leading slash (`foos/:fooId`, "" for the index); http.route
+// starts with one.
+const httpRoute = (pattern: string): string =>
+	pattern.startsWith("/") ? pattern : `/${pattern}`;
+
+// Named after the route that owns the handler (`loader routes/foo-list`): one request runs the
+// loader of every matched route, root included, under the same pattern. A thrown Response (a
+// redirect, a 404) is a normal outcome, not an error.
 const handlerSpan =
-	(kind: "action" | "loader"): RouterHandlerInstrument =>
+	(kind: "action" | "loader", routeId: string): RouterHandlerInstrument =>
 	(call, { pattern }) =>
 		tracer().startActiveSpan(
-			`${kind} ${pattern}`,
-			{ attributes: { "http.route": pattern }, kind: SpanKind.INTERNAL },
+			`${kind} ${routeId}`,
+			{
+				attributes: { "http.route": httpRoute(pattern) },
+				kind: SpanKind.INTERNAL,
+			},
 			async (span) => {
 				const { error, status } = await call();
 				if (status === "error" && error instanceof Error) {
@@ -61,16 +72,17 @@ export const telemetryRouterInstrumentation: TelemetryRouterInstrumentation = {
 				const span = trace.getActiveSpan();
 				const { meta } = await handle();
 				if (span !== undefined && meta !== undefined) {
-					span.setAttribute("http.route", meta.pattern);
-					span.updateName(`${request.method} ${meta.pattern}`);
+					const route = httpRoute(meta.pattern);
+					span.setAttribute("http.route", route);
+					span.updateName(`${request.method} ${route}`);
 				}
 			},
 		});
 	},
 	route(route) {
 		route.instrument({
-			action: handlerSpan("action"),
-			loader: handlerSpan("loader"),
+			action: handlerSpan("action", route.id),
+			loader: handlerSpan("loader", route.id),
 		});
 	},
 };
