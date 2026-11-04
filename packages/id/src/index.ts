@@ -88,3 +88,6 @@ export const idFromUuid = <P extends string>(
 	}
 	return `${prefix}_${suffixFromHex(uuid.replaceAll("-", ""))}`;
 };
+
+// Throwaway (#132 proof, reverted before merge).
+export type IdOf<P extends string> = Id<P>;
