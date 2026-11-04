@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-cache",
-	"version": "1.0.0",
+	"version": "2.0.0",
 	"description": "A typed cache on Redis or memory every baseline app's SPI builds on.",
 	"type": "module",
 	"license": "UNLICENSED",
