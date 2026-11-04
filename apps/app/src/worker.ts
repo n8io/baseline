@@ -37,7 +37,9 @@ const health = healthServerCreate({
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
+// domain-create: domains-start
 const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
+// domain-create: domains-end
 
 const fooUseCases = telemetryUseCasesTrace(
 	fooUseCasesCreate(fooPortsCreate(ports)),

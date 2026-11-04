@@ -48,7 +48,6 @@ const answers = {
 	description: "Invoices for render-and-test.",
 	name: "render-test",
 	release: "",
-	repository: "n8io/render-test",
 };
 // customer first: invoice-line's ports take the bridge built from customer's use cases.
 const domains = [

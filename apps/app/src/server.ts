@@ -69,6 +69,7 @@ if (import.meta.env.DEV) {
 		await health.close();
 	};
 }
+// domain-create: domains-start
 const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
 
 const fooUseCases = telemetryUseCasesTrace(
@@ -83,6 +84,7 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
 		// domain-create: seed-context
 	});
 }
+// domain-create: domains-end
 
 // Creates queues and subscriptions; consumers run only in the worker.
 if (queue !== "memory") {
@@ -122,10 +124,15 @@ export default await createHonoServer({
 	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
 	defaultLogger: false,
 	getLoadContext: (c) =>
-		loadContextCreate(c, {
-			fooUseCases,
-			// domain-create: context
-		}),
+		loadContextCreate(
+			c,
+			// domain-create: domains-start
+			{
+				fooUseCases,
+				// domain-create: context
+			},
+			// domain-create: domains-end
+		),
 	listeningListener: ({ port }) => logger.info({ port }, "Server listening"),
 	onServe: (server) => {
 		// Development: Vite owns the server and Ctrl-C.

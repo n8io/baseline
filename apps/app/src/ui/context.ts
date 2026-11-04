@@ -14,10 +14,12 @@ export const fooUseCasesContext: RouterContext<FooUseCases> =
 
 export const loadContextCreate = (
 	c: Context,
+	// domain-create: domains-start
 	useCases: {
 		fooUseCases: FooUseCases;
 		// domain-create: context-types
 	},
+	// domain-create: domains-end
 ): RouterContextProvider =>
 	new RouterContextProvider(
 		new Map<RouterContext<unknown>, unknown>([

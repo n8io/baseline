@@ -1,4 +1,6 @@
 // Composition root for example data: local development only, never production.
+// The blank line below keeps this comment when the render's Biome pass drops the Actor import.
+
 import type { Actor } from "@n8io/baseline-authn";
 import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { liveMemory, liveRedis } from "@n8io/baseline-live";
@@ -18,6 +20,7 @@ import {
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 
+// domain-create: domains-start
 const devSeedActor: Actor = {
 	id: "dev-seed",
 	kind: "client",
@@ -34,6 +37,7 @@ export const seedsRun = async (useCases: {
 	await fooSeed(useCases.fooUseCases, devSeedActor);
 	// domain-create: seeds
 };
+// domain-create: domains-end
 
 // True only for `node src/seed.ts`; false when server.ts imports seedsRun.
 if (import.meta.main) {
@@ -54,6 +58,7 @@ if (import.meta.main) {
 	const queue = await queueCreate({ pgPool, role: "publisher" });
 	const liveHub =
 		redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+	// domain-create: domains-start
 	const ports = {
 		cache: redisClient,
 		database: pgPool,
@@ -70,6 +75,7 @@ if (import.meta.main) {
 		fooUseCases,
 		// domain-create: seed-context
 	});
+	// domain-create: domains-end
 	logger.info("seeds done");
 
 	await queue.stop();

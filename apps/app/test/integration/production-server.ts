@@ -20,7 +20,7 @@ const preloadFlags = [
 
 const serverEntry = "build/server/index.js";
 
-export const freePort = async (): Promise<number> => {
+const freePort = async (): Promise<number> => {
 	const server = netServerCreate().listen(0, "127.0.0.1");
 	await once(server, "listening");
 	const address = server.address();
@@ -31,7 +31,7 @@ export const freePort = async (): Promise<number> => {
 	return address.port;
 };
 
-export const sleep = (ms: number): Promise<void> =>
+const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls `check` every 50 ms until it returns true, or throws `what` after `timeoutMs`.
@@ -184,7 +184,7 @@ export const connectResult = (port: number): Promise<string> =>
 		);
 	});
 
-export type SlowRequest = {
+type SlowRequest = {
 	/** Drops the request; call it before stopping the server, which would wait for it. */
 	abort: () => void;
 	/** Sends the rest of the body and resolves with the response. */

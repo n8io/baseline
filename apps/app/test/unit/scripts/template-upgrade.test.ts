@@ -51,8 +51,7 @@ const projectCreate = (a: string): string => {
 	git(app, "config", "user.email", "test@example.com");
 	git(app, "config", "user.name", "Test");
 	const files: Record<string, string> = {
-		".template.json":
-			'{ "release": "1.0.0", "repository": "o/invoicing", "description": "Invoices." }\n',
+		".template.json": '{ "release": "1.0.0", "description": "Invoices." }\n',
 		"CONTEXT.md": "# Invoices.\n",
 		"package.json": manifest,
 		"src/a.ts": a,
