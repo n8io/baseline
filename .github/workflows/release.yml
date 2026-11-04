@@ -34,6 +34,8 @@ jobs:
           commit-message: "🔖 Version packages"
           pr-title: "🔖 Version packages"
           publish-script: pnpm changeset publish
+          # changeset version, then Biome, so the generated CHANGELOGs pass `pnpm check`.
+          version-script: pnpm run version
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Point v<major> at the newest app@<major>.x.y release, so projects on
