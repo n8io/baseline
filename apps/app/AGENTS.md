@@ -181,6 +181,43 @@ export const billingCustomerReader = (
 - Put dev and test values in `.env.development` and `.env.test`.
 - `memory://` URLs are allowed only in development and test.
 
+## Spans
+
+Most spans already exist. Instrumentations time inbound and outbound HTTP, Postgres, Redis and jobs. `telemetryUseCasesTrace` gives every Use case a span, and the router instrumentation gives every loader and action one. So the usual answer to "should this be a span?" is an attribute on the active span.
+
+Decide in this order:
+
+1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId })`. Use a semantic-convention key when one exists, otherwise `baseline.<domain>.<key>` in snake_case.
+2. Does a span already time it? Then it is not a span. That covers a port call, a transaction, a whole Use case, loader or action.
+3. Is it a step inside a Use case whose own duration you would ask about in an incident? Start one child span around it. It qualifies only when no instrumentation times it and it routinely takes milliseconds or grows with input size: parsing an upload, rendering a document, hashing, a large in-memory sort or merge, or a whole batch loop.
+
+Never start a span:
+
+- for a Rule, a helper, or anything that takes microseconds;
+- per loop iteration or per item. One span covers the loop and an attribute holds the count;
+- to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
+- for an error. Return an err; the Use case span records `error.type`;
+- in an SPI adapter. A call with no span means no instrumentation covers that library, and adding one is a stop-and-ask.
+
+Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
+
+```ts
+const rows = await trace
+	.getTracer("foo")
+	.startActiveSpan("fooImport parse", async (span) => {
+		try {
+			const rows = fooImportRowsParse(input.file);
+			span.setAttribute("baseline.foo.row_count", rows.length);
+			return rows;
+		} catch (error) {
+			span.setStatus({ code: SpanStatusCode.ERROR });
+			throw error;
+		} finally {
+			span.end();
+		}
+	});
+```
+
 ## Privacy
 
 - Logs, spans and metrics carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.

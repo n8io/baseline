@@ -15,3 +15,5 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - full CI-equivalent: `pnpm turbo run check test build`
 
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
+
+In packages, only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's span rules are in [apps/app/AGENTS.md](apps/app/AGENTS.md#spans).
