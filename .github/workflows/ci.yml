@@ -38,6 +38,39 @@ jobs:
           --config p/typescript --config p/nodejs --config p/react --config p/secrets
           packages scripts test
 
+  # The template as is, foo included: render drops foo's integration tests, so only this runs them.
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: baseline
+          POSTGRES_PASSWORD: baseline
+          POSTGRES_USER: baseline
+        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
+        options: >-
+          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["5432:5432"]
+      redis:
+        image: redis:8
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration
+        working-directory: apps/app
+
   # Renders apps/app as a project would hold it: origin/main is the previous release,
   # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
   render:
@@ -72,7 +105,7 @@ jobs:
       artifact: render-and-test
 
   automerge:
-    needs: [packages, render, render-and-test, sast]
+    needs: [integration, packages, render, render-and-test, sast]
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
       contents: write
