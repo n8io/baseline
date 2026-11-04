@@ -1,9 +1,6 @@
-import { OTLPLogExporter as LogExporterGrpc } from "@opentelemetry/exporter-logs-otlp-grpc";
-import { OTLPLogExporter as LogExporterHttp } from "@opentelemetry/exporter-logs-otlp-http";
-import { OTLPLogExporter as LogExporterProto } from "@opentelemetry/exporter-logs-otlp-proto";
-import { OTLPTraceExporter as TraceExporterGrpc } from "@opentelemetry/exporter-trace-otlp-grpc";
-import { OTLPTraceExporter as TraceExporterHttp } from "@opentelemetry/exporter-trace-otlp-http";
-import { OTLPTraceExporter as TraceExporterProto } from "@opentelemetry/exporter-trace-otlp-proto";
+import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-proto";
+import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { PinoInstrumentation } from "@opentelemetry/instrumentation-pino";
@@ -16,6 +13,11 @@ import {
 	type LogRecordProcessor,
 	SimpleLogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
+import {
+	ConsoleMetricExporter,
+	type IMetricReader,
+	PeriodicExportingMetricReader,
+} from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import {
 	BatchSpanProcessor,
@@ -31,9 +33,10 @@ import {
 // Probes are never traced.
 const pathsHealth = new Set(["/livez", "/readyz"]);
 
-// The OTEL_* settings NodeSDK reads only when it builds the processors itself.
-// It builds them only when given none, and the cleanup processors must run
-// first, so this file builds them the same way from the same variables.
+// The OTEL_* settings NodeSDK reads only when it builds the processors and
+// readers itself. It builds them only when given none, and the cleanup
+// processors must run first, so this file builds them the same way from the
+// same variables.
 
 const envList = (name: string): string[] =>
 	(process.env[name] ?? "")
@@ -49,10 +52,22 @@ const exportersNamed = (name: string): string[] => {
 	return names.length === 0 ? ["otlp"] : names;
 };
 
-const protocol = (signal: "LOGS" | "TRACES"): string =>
-	process.env[`OTEL_EXPORTER_OTLP_${signal}_PROTOCOL`]?.trim() ||
-	process.env.OTEL_EXPORTER_OTLP_PROTOCOL?.trim() ||
-	"http/protobuf";
+// OTLP goes over http/protobuf only, the OTel default.
+const protocolNames = ["", "_LOGS", "_METRICS", "_TRACES"].map(
+	(signal) => `OTEL_EXPORTER_OTLP${signal}_PROTOCOL`,
+);
+
+const protocolOthersWarn = (): void => {
+	const others = protocolNames.filter((name) => {
+		const value = process.env[name]?.trim();
+		return value !== undefined && value !== "" && value !== "http/protobuf";
+	});
+	if (others.length > 0) {
+		process.emitWarning(
+			`${others.join(", ")} ignored: telemetry exports OTLP over http/protobuf only.`,
+		);
+	}
+};
 
 type BatchOptions = {
 	exportTimeoutMillis?: number;
@@ -87,14 +102,12 @@ const spanProcessorsFromEnv = (): SpanProcessor[] =>
 		if (name !== "otlp") {
 			return [];
 		}
-		const by = protocol("TRACES");
-		const exporter =
-			by === "grpc"
-				? new TraceExporterGrpc()
-				: by === "http/json"
-					? new TraceExporterHttp()
-					: new TraceExporterProto();
-		return [new BatchSpanProcessor({ exporter, ...batchOptions("BSP") })];
+		return [
+			new BatchSpanProcessor({
+				exporter: new OTLPTraceExporter(),
+				...batchOptions("BSP"),
+			}),
+		];
 	});
 
 const logRecordProcessorsFromEnv = (): LogRecordProcessor[] =>
@@ -109,14 +122,43 @@ const logRecordProcessorsFromEnv = (): LogRecordProcessor[] =>
 		if (name !== "otlp") {
 			return [];
 		}
-		const by = protocol("LOGS");
-		const exporter =
-			by === "grpc"
-				? new LogExporterGrpc()
-				: by === "http/json"
-					? new LogExporterHttp()
-					: new LogExporterProto();
-		return [new BatchLogRecordProcessor({ exporter, ...batchOptions("BLRP") })];
+		return [
+			new BatchLogRecordProcessor({
+				exporter: new OTLPLogExporter(),
+				...batchOptions("BLRP"),
+			}),
+		];
+	});
+
+// A reader's timeout may not exceed its interval.
+const metricReaderOptions = (): {
+	exportIntervalMillis: number;
+	exportTimeoutMillis: number;
+} => {
+	const interval = Number(process.env.OTEL_METRIC_EXPORT_INTERVAL);
+	const exportIntervalMillis =
+		Number.isFinite(interval) && interval > 0 ? interval : 60_000;
+	return {
+		exportIntervalMillis,
+		exportTimeoutMillis: Math.min(exportIntervalMillis, 30_000),
+	};
+};
+
+// Metric attributes are set by code, never from input or error text.
+const metricReadersFromEnv = (): IMetricReader[] =>
+	exportersNamed("OTEL_METRICS_EXPORTER").flatMap((name): IMetricReader[] => {
+		if (name !== "console" && name !== "otlp") {
+			return [];
+		}
+		return [
+			new PeriodicExportingMetricReader({
+				exporter:
+					name === "console"
+						? new ConsoleMetricExporter()
+						: new OTLPMetricExporter(),
+				...metricReaderOptions(),
+			}),
+		];
 	});
 
 let sdk: NodeSDK | undefined;
@@ -128,6 +170,7 @@ export const telemetryStart = (): void => {
 	// Exceptions as log records, not span events; read when instrumentations
 	// are built, so it is set first.
 	process.env.OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN ??= "logs";
+	protocolOthersWarn();
 	const spanProcessors = spanProcessorsFromEnv();
 	const logRecordProcessors = logRecordProcessorsFromEnv();
 	sdk = new NodeSDK({
@@ -142,6 +185,8 @@ export const telemetryStart = (): void => {
 			new PinoInstrumentation(),
 			new RuntimeNodeInstrumentation(),
 		],
+		// An empty list starts no meter provider (OTEL_METRICS_EXPORTER=none).
+		metricReaders: metricReadersFromEnv(),
 		spanProcessors:
 			spanProcessors.length === 0
 				? []
