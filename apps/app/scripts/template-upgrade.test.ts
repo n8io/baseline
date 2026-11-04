@@ -3,12 +3,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TemplateFile } from "../../../scripts/template-render.ts";
+import type { TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
 	templateUpgradeRun,
 	type UpgradeTools,
-} from "../../../scripts/template-upgrade.ts";
+} from "./template-upgrade.ts";
 
 const directories: string[] = [];
 afterEach(() => {

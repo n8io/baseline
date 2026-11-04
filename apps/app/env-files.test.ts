@@ -109,7 +109,7 @@ const envViolations = (files: EnvFiles): string[] => {
 };
 
 const fileRead = (name: string) =>
-	readFileSync(new URL(`../../${name}`, import.meta.url), "utf8");
+	readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
 
 const schema = [
 	"# @defaultRequired=true",

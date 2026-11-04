@@ -25,7 +25,7 @@ vi.mock("@n8io/baseline-health", () => ({
 let app: Hono;
 
 beforeAll(async () => {
-	const server = (await import("../../src/server.ts")).default as unknown as {
+	const server = (await import("./server.ts")).default as unknown as {
 		app: Hono;
 	};
 	app = server.app;

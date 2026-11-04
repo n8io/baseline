@@ -27,6 +27,15 @@ Dev, tests, the worker, migrate and seed run TypeScript directly with erasable s
 
 When a budget trips, decide again deliberately: make the code faster or set a new budget. Never raise it quietly.
 
+## Tests
+
+- A unit test sits beside the file it covers in `src/` or `scripts/`, as `<name>.test.ts` or `<name>-<aspect>.test.ts` (`src/server-wiring.test.ts`).
+- A test that needs Postgres or Redis names it before `.test` (`foo-repository.postgres.test.ts`) and runs with `pnpm test:integration`.
+- A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
+- A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts`, `dockerfile.test.ts` and `env-files.test.ts`.
+- A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
+- `structure.test.ts` fails on a test anywhere else. There is no `test/unit/`.
+
 ## Where new work goes
 
 One Domain per business entity.
@@ -43,6 +52,7 @@ Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 | Use cases factory and its type                                       | `use-cases/<domain>-use-cases-create.ts` |
 | HTTP routes, live streams, Consumers, Schedules, Seeds               | `api/`                                   |
 | Port implementations, tables, contract tests                         | `spi/`                                   |
+| A unit test of one file, beside it                                   | `<file>.test.ts`                         |
 
 - Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
 - The Domain never imports `api/` or `spi/`. Composition roots wire them.

@@ -5,7 +5,7 @@ import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-list.tsx";
-import { routeArgs, routerContextCreate } from "./router-context.ts";
+import { routeArgs, routerContextCreate } from "./router-test-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 

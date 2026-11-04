@@ -15,10 +15,10 @@ import {
 	domainsPairsFill,
 	domainTerm,
 	wiringInsert,
-} from "../../../scripts/domain-create.ts";
-import { filesRead } from "../../../scripts/template-render.ts";
+} from "./domain-create.ts";
+import { filesRead } from "./template-render.ts";
 
-const appRoot = new URL("../../../", import.meta.url);
+const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const domainsUrl = new URL("src/domains/", appRoot);
 // The template itself: foo is its only domain. A project, or this tree after a
@@ -168,21 +168,21 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 	it("copies both page tests, renamed, and the home test only with a first domain", () => {
 		const paths = files.map((f) => f.path);
 
-		expect(paths).toContain("test/unit/invoice-line-list.test.ts");
-		expect(paths).toContain("test/unit/invoice-line-detail.test.ts");
-		expect(file("test/unit/invoice-line-list.test.ts")).toContain(
+		expect(paths).toContain("src/ui/routes/invoice-line-list.test.ts");
+		expect(paths).toContain("src/ui/routes/invoice-line-detail.test.ts");
+		expect(file("src/ui/routes/invoice-line-list.test.ts")).toContain(
 			'from "#ui/routes/invoice-line-list.tsx"',
 		);
-		expect(paths).not.toContain("test/unit/home.test.ts");
+		expect(paths).not.toContain("src/ui/routes/home.test.ts");
 		expect(paths).not.toContain("src/ui/routes/home.tsx");
 
-		// A first domain (no folder in src/domains) brings home.tsx's test back as home.test.ts.
+		// A first domain (no folder in src/domains) brings home.tsx back with its test.
 		const app = appCreate("**Invoice line**:\nA line.\n");
-		mkdirSync(join(app, "test/unit"), { recursive: true });
-		writeFileSync(join(app, "test/unit/home.test.ts"), "mine\n");
+		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
+		writeFileSync(join(app, "src/ui/routes/home.test.ts"), "mine\n");
 		expect(() =>
 			domainFilesCreate(filesRead(appRoot.pathname), app, names),
-		).toThrow("test/unit/home.test.ts already exists");
+		).toThrow("src/ui/routes/home.test.ts already exists");
 	});
 
 	it("puts the new schedule item at its marker in .env.schema", () => {

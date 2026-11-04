@@ -4,7 +4,7 @@ import {
 	glossaryAliasesRead,
 	glossaryHitFormat,
 	glossaryHitsFind,
-} from "../../../scripts/glossary-check.ts";
+} from "./glossary-check.ts";
 
 const context = [
 	"# A project.",

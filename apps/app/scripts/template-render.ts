@@ -385,16 +385,15 @@ export const linesRemove = (
 // Files and folders that are foo's alone, deleted whole.
 const templateFooPaths = [
 	/^src\/domains\/foo\//,
-	/^src\/ui\/routes\/foo-[^/]+\.tsx$/,
-	/^src\/ui\/routes\/home\.tsx$/,
-	// Tests that drive foo are named foo-*.test.ts in test/unit and test/integration.
-	/^test\/(unit|integration)\/foo-[^/]+\.test\.ts$/,
-	/^test\/unit\/server-seed\.test\.ts$/,
+	/^src\/ui\/routes\/(foo-[^/]+|home)(\.test)?\.tsx?$/,
+	// Integration tests that drive foo are named foo-*.test.ts.
+	/^test\/integration\/foo-[^/]+\.test\.ts$/,
+	/^src\/server-seed\.test\.ts$/,
 	/^migrations\/[^/]*foo[^/]*\//,
 ];
 
 // Never rendered: the scripts and their tests name foo on purpose, and the changelog is the template's own.
-const templateUntouchedPaths = [/^scripts\//, /^test\/unit\/scripts\//];
+const templateUntouchedPaths = [/^scripts\//];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines between a `domain-create: domains-start` and `domains-end` marker pair are valid only while

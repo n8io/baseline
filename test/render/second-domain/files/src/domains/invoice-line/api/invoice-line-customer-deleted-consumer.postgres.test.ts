@@ -6,9 +6,9 @@ import { type Queue, queueCreate } from "@n8io/baseline-queue";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
-import { invoiceLineCustomerDeletedConsumer } from "../api/invoice-line-customer-deleted-consumer.ts";
+import { invoiceLinePortsCreate } from "../spi/index.ts";
 import { invoiceLineUseCasesCreate } from "../use-cases/invoice-line-use-cases-create.ts";
-import { invoiceLinePortsCreate } from "./index.ts";
+import { invoiceLineCustomerDeletedConsumer } from "./invoice-line-customer-deleted-consumer.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 let pgPool: pg.Pool;

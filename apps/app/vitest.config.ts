@@ -23,7 +23,7 @@ export default defineConfig({
 				test: {
 					env: { APP_ENV: "test" },
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
-					include: ["src/**/*.test.ts", "test/unit/**/*.test.ts"],
+					include: ["*.test.ts", "scripts/*.test.ts", "src/**/*.test.ts"],
 					name: "unit",
 					// Loads .env.schema and .env.test into process.env in every worker.
 					setupFiles: ["varlock/auto-load"],

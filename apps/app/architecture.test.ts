@@ -6,10 +6,10 @@ import {
 	architectureFileCreate,
 	architectureRules,
 	architectureSrcRead,
-} from "./architecture/rules.ts";
+} from "./architecture-test-rules.ts";
 
-const appRoot = fileURLToPath(new URL("../../", import.meta.url));
-const samplesDir = new URL("./architecture/", import.meta.url);
+const appRoot = fileURLToPath(new URL("./", import.meta.url));
+const samplesDir = new URL("./architecture-test-samples/", import.meta.url);
 const ruleIds = Object.keys(architectureRules);
 
 const files = await architectureSrcRead(appRoot);
