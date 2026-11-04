@@ -20,7 +20,7 @@ const queueHeartbeatLimitMs = 60_000;
 const queueBosses = new WeakMap<Queue, PgBoss>();
 
 // The pg-boss instance behind a Queue, for the other modules of this package only.
-export const queueBoss = (queue: Queue): PgBoss => {
+export const queueBossGet = (queue: Queue): PgBoss => {
 	const boss = queueBosses.get(queue);
 	if (boss === undefined) {
 		throw new TypeError("Expected a Queue from queueCreate");

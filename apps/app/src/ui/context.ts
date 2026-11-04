@@ -16,7 +16,7 @@ export const fooUseCasesContext: RouterContext<FooUseCases> =
 	createContext<FooUseCases>();
 // domain-create: context-keys
 
-export const loadContextCreate = (
+export const uiLoadContextCreate = (
 	c: Context,
 	// domain-create: domains-start
 	useCases: {

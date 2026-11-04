@@ -5,11 +5,11 @@ import { appCreate } from "./authn-test-app.ts";
 import {
 	actorFromClaims,
 	appOrigin,
+	authnSetCookieLine,
 	type CookieJar,
 	cookieJar,
 	pageBody,
 	secret,
-	setCookieLine,
 } from "./authn-test-helpers.ts";
 import {
 	type FakeProvider,
@@ -91,7 +91,7 @@ describe("OIDC sign-in", () => {
 	it("scopes the flow cookie to /auth/callback for 10 minutes", async () => {
 		const { app } = await appCreate(oidcOptions);
 		const { res } = await signInStart(app);
-		const line = setCookieLine(res, "__Secure-authn-flow");
+		const line = authnSetCookieLine(res, "__Secure-authn-flow");
 
 		expect(line).toContain("Max-Age=600");
 		expect(line).toContain("Path=/auth/callback");
@@ -131,7 +131,7 @@ describe("OIDC sign-in", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
-		expect(setCookieLine(res, "__Secure-authn-flow")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Secure-authn-flow")).toMatch(/Max-Age=0/);
 		const page = await app.request(`${appOrigin}/foos`, {
 			headers: { Cookie: jar.header() },
 		});
@@ -156,7 +156,7 @@ describe("OIDC sign-in", () => {
 
 		expect(res.status).toBe(400);
 		expect(await res.text()).toContain("Sign-in failed");
-		expect(setCookieLine(res, "__Host-authn")).toBeUndefined();
+		expect(authnSetCookieLine(res, "__Host-authn")).toBeUndefined();
 	});
 
 	it("shows the failure page when the provider refuses", async () => {
@@ -186,7 +186,7 @@ describe("OIDC sign-in", () => {
 		const { res } = await signIn(app);
 
 		expect(res.status).toBe(400);
-		expect(setCookieLine(res, "__Host-authn")).toBeUndefined();
+		expect(authnSetCookieLine(res, "__Host-authn")).toBeUndefined();
 	});
 
 	it("clears an earlier user's refresh cookie when the new sign-in gets none", async () => {
@@ -202,7 +202,9 @@ describe("OIDC sign-in", () => {
 		);
 
 		expect(res.status).toBe(302);
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+			/Max-Age=0/,
+		);
 	});
 });
 
@@ -303,7 +305,7 @@ describe("OIDC refresh", () => {
 		const second = await refreshGet(app, jar);
 
 		expect(first.status).toBe(200);
-		expect(setCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
+		expect(authnSetCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
 		expect(second.status).toBe(200);
 	});
 
@@ -329,7 +331,7 @@ describe("OIDC refresh", () => {
 
 		expect(res.status).toBe(500);
 		expect(provider.refreshTokens.size).toBe(1);
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=2592000/,
 		);
 	});
@@ -361,7 +363,7 @@ describe("OIDC refresh", () => {
 			const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
 
 			expect(res.status).toBe(500);
-			expect(setCookieLine(res, "__Secure-authn-refresh")).toBeUndefined();
+			expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeUndefined();
 			expect(logError).toHaveBeenCalledOnce();
 		},
 	);
@@ -379,8 +381,10 @@ describe("OIDC sign-out", () => {
 		const location = new URL(res.headers.get("Location") ?? "");
 
 		expect(provider.revoked).toStrictEqual([refreshToken]);
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+			/Max-Age=0/,
+		);
 		expect(`${location.origin}${location.pathname}`).toBe(
 			`${idpOrigin}/logout`,
 		);
@@ -401,7 +405,7 @@ describe("OIDC sign-out", () => {
 		});
 
 		expect(res.status).toBe(302);
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
 	});
 });
 

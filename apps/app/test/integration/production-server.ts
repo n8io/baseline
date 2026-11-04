@@ -35,7 +35,7 @@ const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls `check` every 50 ms until it returns true, or throws `what` after `timeoutMs`.
-export const waitFor = async (
+export const productionServerWaitFor = async (
 	what: string,
 	check: () => Promise<boolean> | boolean,
 	timeoutMs = 10_000,
@@ -134,7 +134,7 @@ const appProcessStart = async (
 ): Promise<AppProcess> => {
 	const app = await appProcessSpawn(entry, options, extraEnv);
 	try {
-		await waitFor(
+		await productionServerWaitFor(
 			`${entry} /readyz 200`,
 			async () => {
 				if (hasExited(app.child)) {
@@ -164,7 +164,7 @@ export const httpStatus = async (
 
 /** Waits for /readyz 503 (shutdown started); throws if the process exits first. */
 export const shutdownStarted = (app: AppProcess): Promise<void> =>
-	waitFor("/readyz 503", async () => {
+	productionServerWaitFor("/readyz 503", async () => {
 		if (hasExited(app.child)) {
 			throw new Error("exited before /readyz answered 503");
 		}
@@ -172,7 +172,7 @@ export const shutdownStarted = (app: AppProcess): Promise<void> =>
 	});
 
 // Resolves with the error code of a new TCP connection, or "connected".
-export const connectResult = (port: number): Promise<string> =>
+export const productionServerConnectResult = (port: number): Promise<string> =>
 	new Promise((resolve) => {
 		const socket = connect(port, "127.0.0.1");
 		socket.once("connect", () => {
@@ -252,7 +252,7 @@ export const productionServerStart = async (
 		PORT: String(port),
 	});
 	try {
-		await waitFor(
+		await productionServerWaitFor(
 			"the server on PORT",
 			async () => (await httpStatus(port, "/auth/sign-in")) === 200,
 			20_000,

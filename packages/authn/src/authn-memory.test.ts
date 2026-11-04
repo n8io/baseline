@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { appCreate } from "./authn-test-app.ts";
 import {
 	appOrigin,
+	authnSetCookieLine,
 	cookieJar,
 	pageBody,
-	setCookieLine,
 } from "./authn-test-helpers.ts";
 import { authnMemoryTokenCreate } from "./index.ts";
 
@@ -98,8 +98,8 @@ describe("memory issuer sign-in", () => {
 describe("cookies", () => {
 	it("sets the access cookie on / and the refresh cookie on /auth, both HttpOnly, Secure and SameSite=Lax", async () => {
 		const { res } = await signIn("user");
-		const access = setCookieLine(res, "__Host-authn");
-		const refresh = setCookieLine(res, "__Secure-authn-refresh");
+		const access = authnSetCookieLine(res, "__Host-authn");
+		const refresh = authnSetCookieLine(res, "__Secure-authn-refresh");
 
 		expect(access).toMatch(/; Path=\/(;|$)/);
 		expect(refresh).toMatch(/; Path=\/auth(;|$)/);
@@ -153,8 +153,10 @@ describe("authnMiddleware with the cookie", () => {
 		expect(res.headers.get("Location")).toBe(
 			"/auth/sign-in?returnTo=%2Ffoos%3Fpage%3D2",
 		);
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+			/Max-Age=0/,
+		);
 	});
 
 	it("treats a cookie from another AUTHN_SECRET as invalid", async () => {
@@ -213,7 +215,7 @@ describe("authnMiddleware with the cookie", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
 	});
 
 	it("never reads the cookie on the API", async () => {
@@ -235,8 +237,8 @@ describe("/auth/refresh", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
-		expect(setCookieLine(res, "__Host-authn")).toBeDefined();
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toBeDefined();
+		expect(authnSetCookieLine(res, "__Host-authn")).toBeDefined();
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeDefined();
 		const body = await pageBody(await page("/foos"));
 		expect(body.actor?.id).toBe("dev-admin");
 		expect(body.expiresAt).toBeGreaterThan(Date.now() + 14 * 60_000);
@@ -284,8 +286,10 @@ describe("/auth/sign-out", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/");
-		expect(setCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0; Path=\//);
-		expect(setCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(
+			/Max-Age=0; Path=\//,
+		);
+		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=0; Path=\/auth/,
 		);
 	});

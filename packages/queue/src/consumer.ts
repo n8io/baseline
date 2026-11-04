@@ -1,6 +1,6 @@
 import type { Result } from "@n8io/baseline-result";
 import type { z } from "zod";
-import { type Queue, queueBoss } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue-create.ts";
 import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
@@ -46,7 +46,7 @@ export const consumersSubscribe = async (
 	queue: Queue,
 	consumers: Consumer[],
 ): Promise<void> => {
-	const boss = queueBoss(queue);
+	const boss = queueBossGet(queue);
 	for (const consumer of consumers) {
 		await queueWithDeadLetterCreate(boss, consumer.queueName);
 		await boss.subscribe(consumer.eventName, consumer.queueName);
@@ -67,7 +67,7 @@ export const consumersStart = async (
 	consumers: Consumer[],
 ): Promise<void> => {
 	await consumersSubscribe(queue, consumers);
-	const boss = queueBoss(queue);
+	const boss = queueBossGet(queue);
 	for (const consumer of consumers) {
 		await boss.work(
 			consumer.queueName,

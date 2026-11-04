@@ -1,0 +1,4 @@
+// A23: an exported name never starts with a verb; it reads generic to specific (barCreate, not createBar)
+// expect: src/domains/bar/use-cases/bar-create.ts: createBar starts with a verb; name it generic to specific, scope then subject then action: barCreate
+// @file src/domains/bar/use-cases/bar-create.ts
+export const createBar = (name: string): { name: string } => ({ name });

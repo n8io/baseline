@@ -32,7 +32,7 @@ import { fooLiveRoutes, fooRoutes } from "#domains/foo/api/index.ts";
 import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
-import { loadContextCreate } from "#ui/context.ts";
+import { uiLoadContextCreate } from "#ui/context.ts";
 import { seedsRun } from "./seed.ts";
 
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is
@@ -129,7 +129,7 @@ export default await createHonoServer({
 	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
 	defaultLogger: false,
 	getLoadContext: (c) =>
-		loadContextCreate(
+		uiLoadContextCreate(
 			c,
 			// domain-create: domains-start
 			{

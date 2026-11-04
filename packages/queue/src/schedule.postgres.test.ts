@@ -9,7 +9,7 @@ import {
 	scheduleCreate,
 	schedulesRegister,
 } from "./index.ts";
-import { queueBoss } from "./queue-create.ts";
+import { queueBossGet } from "./queue-create.ts";
 import { scheduleEnvName } from "./schedule.ts";
 
 let pgPool: pg.Pool;
@@ -26,7 +26,10 @@ const worker = async (): Promise<Queue> => {
 
 const held = async (queue: Queue): Promise<Record<string, string>> =>
 	Object.fromEntries(
-		(await queueBoss(queue).getSchedules()).map((row) => [row.name, row.cron]),
+		(await queueBossGet(queue).getSchedules()).map((row) => [
+			row.name,
+			row.cron,
+		]),
 	);
 
 beforeEach(async () => {
@@ -57,9 +60,11 @@ describe("schedulesRegister", () => {
 			"foo.stale-archive": "0 3 * * *",
 			"queue.inbox-prune": "0 4 * * *",
 		});
-		const [row] = await queueBoss(queue).getSchedules("foo.stale-archive");
+		const [row] = await queueBossGet(queue).getSchedules("foo.stale-archive");
 		expect(row?.options).toMatchObject({ missed: "once", tz: "UTC" });
-		expect(await queueBoss(queue).getQueue("foo.stale-archive")).toMatchObject({
+		expect(
+			await queueBossGet(queue).getQueue("foo.stale-archive"),
+		).toMatchObject({
 			deadLetter: "foo.stale-archive.dead",
 			policy: "exclusive",
 			retryBackoff: true,
@@ -67,7 +72,7 @@ describe("schedulesRegister", () => {
 			retryLimit: 4,
 		});
 		expect(
-			queueBoss(queue)
+			queueBossGet(queue)
 				.getWipData()
 				.map((wip) => wip.name),
 		).toContain("foo.stale-archive");

@@ -25,7 +25,7 @@ export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 };
 
 // The added lines of a unified diff, with their file and line number in the new version.
-export const diffAddedLines = (
+export const glossaryDiffAddedLines = (
 	diff: string,
 ): { file: string; line: number; text: string }[] => {
 	const added: { file: string; line: number; text: string }[] = [];
@@ -62,7 +62,7 @@ export const glossaryHitsFind = (
 		pattern: new RegExp(`(?<![\\w-])${RegExp.escape(a.alias)}(?![\\w-])`, "i"),
 	}));
 	const hits: GlossaryHit[] = [];
-	for (const added of diffAddedLines(diff)) {
+	for (const added of glossaryDiffAddedLines(diff)) {
 		// The glossary itself names every alias on purpose.
 		if (/(^|\/)CONTEXT\.md$/.test(added.file)) continue;
 		for (const { alias, term, pattern } of patterns) {

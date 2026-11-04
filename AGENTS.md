@@ -15,6 +15,10 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test (root files): `pnpm test` (needs Docker: it starts the Postgres and Redis containers)
 - full CI-equivalent: `pnpm turbo run check test build`
 
+## Naming
+
+Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app/src`.
+
 ## Tests
 
 - A test for one source file sits beside it as `<name>.test.ts`. Test helpers sit beside the tests that use them and are never exported from `index.ts`.

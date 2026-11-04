@@ -1,5 +1,5 @@
 import type { Result } from "@n8io/baseline-result";
-import { type Queue, queueBoss } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue-create.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 
@@ -28,7 +28,7 @@ export const schedulesRegister = async (
 	// env is the composition root's ENV (or any object): an undeclared or non-string item means no override.
 	options: { env: object },
 ): Promise<void> => {
-	const boss = queueBoss(queue);
+	const boss = queueBossGet(queue);
 	const active: { schedule: Schedule; cron: string }[] = [];
 	for (const schedule of schedules) {
 		const variable = scheduleEnvName(schedule.name);
