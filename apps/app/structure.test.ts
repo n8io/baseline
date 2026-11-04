@@ -117,6 +117,39 @@ const filesList = (dir: URL, prefix: string) =>
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
 
+// AGENTS.md loads on every task, so it stays short and links the rest. Each file it or a doc in
+// docs/agents/ links to must exist, and each docs/agents/ file must be linked from AGENTS.md.
+const agentsMaxLines = 200;
+
+const agentDocsViolations = (
+	docs: { path: string; text: string }[],
+	exists: (path: string) => boolean,
+): string[] => {
+	const problems: string[] = [];
+	const agents = docs.find((d) => d.path === "AGENTS.md");
+	if (agents && agents.text.split("\n").length > agentsMaxLines)
+		problems.push(
+			`AGENTS.md: keep it under ${agentsMaxLines} lines; move task-specific rules to docs/agents/`,
+		);
+	for (const { path, text } of docs) {
+		const dir = path.includes("/")
+			? path.slice(0, path.lastIndexOf("/") + 1)
+			: "";
+		for (const [, target = ""] of text.matchAll(
+			/\]\(([^)#\s]+\.md)(#[^)]*)?\)/g,
+		)) {
+			if (/^[a-z]+:/.test(target)) continue;
+			const resolved = new URL(target, `file:///${dir}`).pathname.slice(1);
+			if (!exists(resolved))
+				problems.push(`${path}: links ${target}, which does not exist`);
+		}
+	}
+	for (const { path } of docs.filter((d) => d.path.startsWith("docs/agents/")))
+		if (!agents?.text.includes(`](${path})`))
+			problems.push(`AGENTS.md: link ${path} under ## Read when`);
+	return problems;
+};
+
 const context = "**Bar**:\nA thing.\n";
 const barBase = [
 	"src/domains/bar/index.ts",
@@ -228,5 +261,58 @@ describe("test placement", () => {
 		expect(testPlacementViolations(paths)).toEqual([
 			expect.stringContaining("put a test beside the file it covers"),
 		]);
+	});
+});
+
+describe("agent docs", () => {
+	const read = (path: string) => ({
+		path,
+		text: readFileSync(new URL(path, appRoot), "utf8"),
+	});
+	const exists = (path: string) => existsSync(new URL(path, appRoot));
+
+	it("holds for the real files", () => {
+		const docs = existsSync(new URL("docs/agents/", appRoot))
+			? filesList(new URL("docs/agents/", appRoot), "docs/agents")
+			: [];
+		expect(
+			agentDocsViolations([read("AGENTS.md"), ...docs.map(read)], exists),
+		).toEqual([]);
+	});
+
+	it.each([
+		[
+			"an AGENTS.md over the line budget",
+			[{ path: "AGENTS.md", text: "line\n".repeat(agentsMaxLines) }],
+			"AGENTS.md: keep it under 200 lines; move task-specific rules to docs/agents/",
+		],
+		[
+			"a link to a missing file",
+			[{ path: "AGENTS.md", text: "[x](docs/agents/gone.md)" }],
+			"AGENTS.md: links docs/agents/gone.md, which does not exist",
+		],
+		[
+			"a doc AGENTS.md does not link",
+			[
+				{ path: "AGENTS.md", text: "" },
+				{ path: "docs/agents/data.md", text: "" },
+			],
+			"AGENTS.md: link docs/agents/data.md under ## Read when",
+		],
+	])("fails on %s", (_name, docs, problem) => {
+		expect(agentDocsViolations(docs, () => false)).toEqual([problem]);
+	});
+
+	it("resolves a link relative to the doc that holds it", () => {
+		expect(
+			agentDocsViolations(
+				[
+					{ path: "AGENTS.md", text: "[d](docs/agents/data.md)" },
+					{ path: "docs/agents/data.md", text: "[t](tracing.md#spans)" },
+				],
+				(path) =>
+					["docs/agents/data.md", "docs/agents/tracing.md"].includes(path),
+			),
+		).toEqual([]);
 	});
 });

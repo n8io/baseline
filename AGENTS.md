@@ -2,8 +2,7 @@
 
 A template repo for new projects: shared `@n8io/baseline-*` packages and the `apps/app` template that new repos are generated from.
 
-@CONTEXT.md
-@apps/app/CONTEXT.md
+Glossary: @CONTEXT.md. [CONTEXT-MAP.md](CONTEXT-MAP.md) lists every glossary; read [apps/app/CONTEXT.md](apps/app/CONTEXT.md) before naming anything in `apps/app`.
 
 ## Verify
 
@@ -28,4 +27,4 @@ Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md]
 
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
 
-In packages, only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself (`@n8io/baseline-pulsar`: `send` and `process`). Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/AGENTS.md](apps/app/AGENTS.md#tracing).
+In packages, only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself (`@n8io/baseline-pulsar`: `send` and `process`). Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](apps/app/docs/agents/tracing.md).
