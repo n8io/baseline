@@ -18,13 +18,14 @@
 		"dist"
 	],
 	"publishConfig": {
+		"access": "public",
 		"exports": {
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
 			}
 		},
-		"registry": "https://npm.pkg.github.com"
+		"registry": "https://registry.npmjs.org"
 	},
 	"scripts": {
 		"build": "tsdown",

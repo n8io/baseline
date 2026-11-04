@@ -1,18 +1,9 @@
 // node scripts/app-create.ts: makes a new project repository from the latest app@ release.
 // Renders apps/app, writes the project's answers, creates the first domain and its migration,
 // then creates the private GitHub repository, the CI ruleset and Dependabot security updates.
-// Installs use NODE_AUTH_TOKEN or `gh auth token`; the end of the run lists the package settings
-// pages that need the repo added.
 // Flags skip the questions: --name --description --domain --plural --definition [--owner].
 import { randomBytes } from "node:crypto";
-import {
-	existsSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
@@ -114,68 +105,8 @@ export const answersWrite = (
 	);
 };
 
-// The GitHub Packages token: NODE_AUTH_TOKEN in Actions, else the operator's `gh auth token`.
-// undefined means pnpm falls back to the operator's own ~/.npmrc.
-export const packagesToken = (): string | undefined => {
-	const fromEnv = process.env.NODE_AUTH_TOKEN;
-	if (fromEnv) return fromEnv;
-	try {
-		return run("gh", ["auth", "token"]).trim() || undefined;
-	} catch {
-		return undefined;
-	}
-};
-
-// The @n8io/baseline-* packages a template depends on, from its package.json.
-export const baselinePackages = (files: TemplateFile[]): string[] => {
-	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
-	const { dependencies = {}, devDependencies = {} } = JSON.parse(manifest) as {
-		dependencies?: Record<string, string>;
-		devDependencies?: Record<string, string>;
-	};
-	return [
-		...new Set(
-			Object.keys({ ...dependencies, ...devDependencies }).filter((name) =>
-				name.startsWith("@n8io/baseline-"),
-			),
-		),
-	].sort();
-};
-
-// GitHub has no API to add a repo to a package, so each one is a click in the UI.
-export const packageGrantLines = (
-	repository: string,
-	packages: string[],
-): string[] => [
-	`Add ${repository} with Read under Manage Actions access on each package:`,
-	...packages.map(
-		(name) =>
-			`  https://github.com/users/n8io/packages/npm/${name.replace("@n8io/", "")}/settings`,
-	),
-];
-
-// Runs pnpm with a userconfig holding the GitHub Packages token, as actions/setup-node writes
-// it, and removes that file after. Without a token pnpm uses the operator's own ~/.npmrc.
-export const pnpmWithToken = <T>(
-	token: string | undefined,
-	work: (pnpm: (directory: string, args: string[]) => void) => Promise<T>,
-): Promise<T> => {
-	if (token === undefined) {
-		return work((directory, args) => {
-			run("pnpm", args, { cwd: directory, inherit: true });
-		});
-	}
-	const folder = mkdtempSync(join(tmpdir(), "app-create-npmrc-"));
-	const userconfig = join(folder, ".npmrc");
-	writeFileSync(
-		userconfig,
-		`@n8io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=${token}\n`,
-		{ mode: 0o600 },
-	);
-	const env = { ...process.env, NPM_CONFIG_USERCONFIG: userconfig };
-	return work((directory, args) => {
-		run("pnpm", args, { cwd: directory, env, inherit: true });
-	}).finally(() => rmSync(folder, { force: true, recursive: true }));
+export const pnpmRun = (directory: string, args: string[]): void => {
+	run("pnpm", args, { cwd: directory, inherit: true });
 };
 
 export const gitCommitAll = (directory: string, message: string): void => {
@@ -279,15 +210,13 @@ const answersAsk = async (): Promise<AppCreateAnswers> => {
 
 const main = async () => {
 	const answers = await answersAsk();
-	const token = packagesToken();
 	const directory = resolve(process.cwd(), answers.name);
 	if (existsSync(directory)) throw new Error(`${directory} already exists`);
 	const repository = `${answers.owner}/${answers.name}`;
 	const release = releaseLatest();
 	console.log(`Rendering app@${release} into ${directory}`);
-	let files: TemplateFile[] = [];
 	try {
-		files = templateFetch(release);
+		const files = templateFetch(release);
 		await appRender(directory, files, answers);
 		answersWrite(directory, { ...answers, release }, [
 			{
@@ -295,16 +224,14 @@ const main = async () => {
 				term: glossaryTerm(answers.domain.kebab),
 			},
 		]);
-		await pnpmWithToken(token, async (pnpm) => {
-			pnpm(directory, ["install"]);
-			pnpm(directory, [
-				"domain-create",
-				answers.domain.kebab,
-				"--plural",
-				answers.domain.plural,
-			]);
-			pnpm(directory, ["codegen"]);
-		});
+		pnpmRun(directory, ["install"]);
+		pnpmRun(directory, [
+			"domain-create",
+			answers.domain.kebab,
+			"--plural",
+			answers.domain.plural,
+		]);
+		pnpmRun(directory, ["codegen"]);
 		gitCommitAll(directory, `🎉 Create ${answers.name} from app@${release}`);
 	} catch (error) {
 		console.error(
@@ -336,9 +263,6 @@ const main = async () => {
 	);
 	for (const args of securityUpdatesCalls(repository)) run("gh", args);
 	console.log(`Created https://github.com/${repository}`);
-	console.log(
-		packageGrantLines(repository, baselinePackages(files)).join("\n"),
-	);
 };
 
 if (import.meta.main) {

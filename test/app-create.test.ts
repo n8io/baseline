@@ -4,11 +4,9 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	answersWrite,
-	baselinePackages,
 	contextLanguageWrite,
 	envFilesWrite,
 	glossaryTerm,
-	packageGrantLines,
 	requiredJobs,
 	rulesetBody,
 	securityUpdatesCalls,
@@ -129,24 +127,6 @@ describe("app-create", () => {
 		expect(securityUpdatesCalls("n8io/x")).toEqual([
 			["api", "--method", "PUT", "repos/n8io/x/vulnerability-alerts"],
 			["api", "--method", "PUT", "repos/n8io/x/automated-security-fixes"],
-		]);
-	});
-
-	it("lists the baseline packages the template depends on", () => {
-		const text = JSON.stringify({
-			dependencies: { "@n8io/baseline-id": "1", hono: "1" },
-			devDependencies: { "@n8io/baseline-authn": "1" },
-		});
-		expect(baselinePackages([{ path: "package.json", text }])).toEqual([
-			"@n8io/baseline-authn",
-			"@n8io/baseline-id",
-		]);
-	});
-
-	it("prints one settings URL per package", () => {
-		expect(packageGrantLines("n8io/x", ["@n8io/baseline-id"])).toEqual([
-			"Add n8io/x with Read under Manage Actions access on each package:",
-			"  https://github.com/users/n8io/packages/npm/baseline-id/settings",
 		]);
 	});
 });

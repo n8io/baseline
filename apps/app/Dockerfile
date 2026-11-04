@@ -7,17 +7,14 @@
 # run the migrate entry once before rollout; server and worker may then start in any order and scale independently;
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
 # give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password; secrets are fetched at boot.
-# Build: docker build --secret id=packages_token,env=NODE_AUTH_TOKEN .
+# Build: docker build .
 
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build
 WORKDIR /app
 RUN npm install --global pnpm@12.17.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-# The GitHub Packages token lives in a user-level npmrc for this RUN only; no layer keeps it.
-RUN --mount=type=secret,id=packages_token,required=true \
-	--mount=type=cache,id=pnpm-store,target=/pnpm/store \
-	printf '//npm.pkg.github.com/:_authToken=%s\n' "$(cat /run/secrets/packages_token)" > "$HOME/.npmrc" \
-	&& pnpm fetch --store-dir /pnpm/store; status=$?; rm -f "$HOME/.npmrc"; exit $status
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+	pnpm fetch --store-dir /pnpm/store
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	pnpm install --frozen-lockfile --offline --store-dir /pnpm/store \

@@ -4,7 +4,6 @@
 // adds invoice-line and customer with this checkout's domain-create, and the second-domain
 // fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
 // deleted, and the bridge that reads customers. HEAD installs this checkout's packages/*.
-// Installs with NODE_AUTH_TOKEN or `gh auth token`.
 import {
 	appendFileSync,
 	cpSync,
@@ -36,8 +35,7 @@ import {
 	appRender,
 	gitCommitAll,
 	glossaryTerm,
-	packagesToken,
-	pnpmWithToken,
+	pnpmRun,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";
 
@@ -135,70 +133,65 @@ const main = async () => {
 	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
 	// Its own label: between releases the checkout's version equals the previous release's.
 	const version = `${(JSON.parse(manifest) as { version: string }).version}-checkout`;
-	const token = packagesToken();
 
-	await pnpmWithToken(token, async (pnpm) => {
-		console.log(`origin/main: app@${previous} with no domain`);
-		await appRender(directory, previousFiles, answers);
-		answersWrite(
-			directory,
-			{ ...answers, release: previous },
-			domains.map((d) => ({
-				definition: d.definition,
-				term: glossaryTerm(d.kebab),
-			})),
-		);
-		pnpm(directory, ["install"]);
-		gitCommitAll(directory, `Create render-test from app@${previous}`);
-		run("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
-			cwd: directory,
-		});
-
-		console.log(`HEAD: template-upgrade to this checkout (${version})`);
-		const { conflicts } = await templateUpgrade(directory, version, {
-			fetch: (release) => (release === version ? files : previousFiles),
-			finish: (tree) => templateFinish(tree, toolsDirectory),
-		});
-		if (conflicts.length > 0) {
-			throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
-		}
-		const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
-		console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
-		checkoutPackagesUse(directory);
-		// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
-		pnpm(directory, ["install", "--no-frozen-lockfile"]);
-
-		for (const names of domains) {
-			const refusal = domainNameRefusal(names, directory);
-			if (refusal !== undefined) throw new Error(refusal);
-			const created = domainFilesCreate(files, directory, names);
-			filesWrite(directory, created);
-			pnpm(directory, [
-				"exec",
-				"biome",
-				"check",
-				"--write",
-				...created.map((f) => f.path),
-			]);
-		}
-		if (process.env.RENDER_AND_TEST_STOP === "fixture") {
-			// To change the fixture: edit this tree, then copy its new files to second-domain/files
-			// and save `git diff` as second-domain/wiring.patch.
-			gitCommitAll(directory, "Add customer and invoice-line");
-			return;
-		}
-		cpSync(join(fixture, "files"), directory, { recursive: true });
-		run(
-			"git",
-			["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")],
-			{ cwd: directory },
-		);
-		pnpm(directory, ["exec", "biome", "check", "--write", "."]);
-		pnpm(directory, ["codegen"]);
-		pnpm(directory, ["check"]);
-		pnpm(directory, ["test"]);
-		gitCommitAll(directory, "Upgrade, add invoice-line and customer");
+	console.log(`origin/main: app@${previous} with no domain`);
+	await appRender(directory, previousFiles, answers);
+	answersWrite(
+		directory,
+		{ ...answers, release: previous },
+		domains.map((d) => ({
+			definition: d.definition,
+			term: glossaryTerm(d.kebab),
+		})),
+	);
+	pnpmRun(directory, ["install"]);
+	gitCommitAll(directory, `Create render-test from app@${previous}`);
+	run("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
+		cwd: directory,
 	});
+
+	console.log(`HEAD: template-upgrade to this checkout (${version})`);
+	const { conflicts } = await templateUpgrade(directory, version, {
+		fetch: (release) => (release === version ? files : previousFiles),
+		finish: (tree) => templateFinish(tree, toolsDirectory),
+	});
+	if (conflicts.length > 0) {
+		throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
+	}
+	const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
+	console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
+	checkoutPackagesUse(directory);
+	// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
+	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+
+	for (const names of domains) {
+		const refusal = domainNameRefusal(names, directory);
+		if (refusal !== undefined) throw new Error(refusal);
+		const created = domainFilesCreate(files, directory, names);
+		filesWrite(directory, created);
+		pnpmRun(directory, [
+			"exec",
+			"biome",
+			"check",
+			"--write",
+			...created.map((f) => f.path),
+		]);
+	}
+	if (process.env.RENDER_AND_TEST_STOP === "fixture") {
+		// To change the fixture: edit this tree, then copy its new files to second-domain/files
+		// and save `git diff` as second-domain/wiring.patch.
+		gitCommitAll(directory, "Add customer and invoice-line");
+		return;
+	}
+	cpSync(join(fixture, "files"), directory, { recursive: true });
+	run("git", ["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")], {
+		cwd: directory,
+	});
+	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
+	pnpmRun(directory, ["codegen"]);
+	pnpmRun(directory, ["check"]);
+	pnpmRun(directory, ["test"]);
+	gitCommitAll(directory, "Upgrade, add invoice-line and customer");
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));
 };
 
