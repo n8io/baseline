@@ -26,6 +26,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run check test build --affected
 
+  # The same Semgrep scan app-ci runs; apps/app is scanned through render-and-test.
+  sast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: >-
+          semgrep scan --error --metrics=off
+          --config p/typescript --config p/nodejs --config p/react --config p/secrets
+          packages scripts test
+
   # Renders apps/app as a project would hold it: origin/main is the previous release,
   # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
   render:
@@ -60,7 +72,7 @@ jobs:
       artifact: render-and-test
 
   automerge:
-    needs: [packages, render, render-and-test]
+    needs: [packages, render, render-and-test, sast]
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
       contents: write

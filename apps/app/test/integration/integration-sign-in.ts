@@ -17,6 +17,7 @@ const accessTokenFromCookie = (sealed: string): string => {
 		"aes-256-gcm",
 		Buffer.from(key),
 		Buffer.from(iv, "base64url"),
+		{ authTagLength: 16 },
 	);
 	decipher.setAAD(Buffer.from(header, "ascii"));
 	decipher.setAuthTag(Buffer.from(tag, "base64url"));

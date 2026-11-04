@@ -50,6 +50,19 @@ jobs:
       - name: src/env.d.ts matches .env.schema
         run: git diff --exit-code src/env.d.ts
 
+  # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
+  sast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - run: >-
+          semgrep scan --error --metrics=off
+          --config p/typescript --config p/nodejs --config p/react --config p/secrets
+
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 2

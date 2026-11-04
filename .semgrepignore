@@ -1,0 +1,3 @@
+# Semgrep reads this instead of its defaults, which skip test/. Generated paths only.
+dist/
+node_modules/

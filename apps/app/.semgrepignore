@@ -1,0 +1,6 @@
+# Semgrep reads this instead of its defaults, which skip tests. Generated paths only.
+.react-router/
+build/
+migrations/
+src/env.d.ts
+node_modules/
