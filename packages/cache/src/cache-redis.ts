@@ -1,5 +1,5 @@
 import { logger } from "@n8io/baseline-logger";
-import type { createClient, RedisClientOptions } from "redis";
+import type { createClient } from "redis";
 import { type Cache, type CacheOptions, cacheCreate } from "./cache.ts";
 
 export type RedisClient = ReturnType<typeof createClient>;
@@ -21,7 +21,8 @@ const cacheUrlCheck = (cacheUrl: string): void => {
 };
 
 // Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
-const cacheTimeLimit = async <T>(
+// node-redis's own command timeout stops once a command is sent.
+export const cacheTimeLimit = async <T>(
 	work: Promise<T>,
 	ms: number,
 	message: string,
@@ -43,25 +44,19 @@ const cacheTimeLimit = async <T>(
 // Throws when Redis is not reachable within the connect timeout.
 export const cacheRedisClientCreate = async ({
 	cacheUrl,
-	...options
 }: {
 	cacheUrl: string;
-} & Partial<RedisClientOptions>): Promise<RedisClient> => {
+}): Promise<RedisClient> => {
 	cacheUrlCheck(cacheUrl);
 	// Imported here so apps that only use cacheMemory need not install redis.
 	const { createClient } = await import("redis");
 	const redisClient: RedisClient = createClient({
-		...options,
 		// node-redis drops this timer once a command is sent, so it only limits
 		// the wait to send (while reconnecting); cacheRedis limits the reply.
-		commandOptions: {
-			timeout: cacheCommandTimeoutMs,
-			...options.commandOptions,
-		},
+		commandOptions: { timeout: cacheCommandTimeoutMs },
 		socket: {
 			connectTimeout: cacheConnectTimeoutMs,
 			reconnectStrategy: cacheReconnectDelay,
-			...options.socket,
 		},
 		url: cacheUrl,
 	});

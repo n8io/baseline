@@ -1,5 +1,15 @@
+// Live's Redis global setup starts the Redis these tests use (vitest.config.ts).
+/// <reference path="../../live/test/redis-global-setup.ts" />
 import { setTimeout as sleep } from "node:timers/promises";
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import {
+	afterAll,
+	beforeAll,
+	describe,
+	expect,
+	inject,
+	test,
+	vi,
+} from "vitest";
 import { z } from "zod";
 import {
 	cacheReconnectDelay,
@@ -9,9 +19,6 @@ import {
 } from "../src/cache-redis.ts";
 import type { Cache } from "../src/index.ts";
 import { cacheContract } from "./cache-contract.ts";
-
-// Integration: set CACHE_TEST_URL to a Redis 8 (redis://localhost:<port>).
-const cacheTestUrl = process.env.CACHE_TEST_URL;
 
 describe("cacheRedisClientCreate", () => {
 	// Load redis first so the timing tests measure the connect, not the import.
@@ -63,11 +70,13 @@ describe("cacheRedisClientCreate", () => {
 	});
 });
 
-describe.skipIf(cacheTestUrl === undefined)("cacheRedis on Redis", () => {
+describe("cacheRedis on Redis", () => {
 	let redisClient: RedisClient;
 
 	beforeAll(async () => {
-		redisClient = await cacheRedisClientCreate({ cacheUrl: `${cacheTestUrl}` });
+		redisClient = await cacheRedisClientCreate({
+			cacheUrl: inject("redisUrl"),
+		});
 	});
 
 	afterAll(async () => {
@@ -96,7 +105,7 @@ describe.skipIf(cacheTestUrl === undefined)("cacheRedis on Redis", () => {
 		["delete", (cache: Cache<string>) => cache.delete("foo_1")],
 	])("%s fails within 1 s when Redis does not answer", async (_, call) => {
 		const pauser = await cacheRedisClientCreate({
-			cacheUrl: `${cacheTestUrl}`,
+			cacheUrl: inject("redisUrl"),
 		});
 		const cache = cacheRedis({
 			prefix: "pause",

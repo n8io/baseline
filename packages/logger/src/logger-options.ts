@@ -24,11 +24,8 @@ const keyPath = (prefix: string, key: string): string =>
 		? `${prefix}${prefix === "" ? "" : "."}${key}`
 		: `${prefix}["${key}"]`;
 
-export const loggerRedactPaths: readonly string[] = fieldsSecret.flatMap(
-	(field) =>
-		["", "*", "*.headers", "*.*.headers"].map((prefix) =>
-			keyPath(prefix, field),
-		),
+const loggerRedactPaths: readonly string[] = fieldsSecret.flatMap((field) =>
+	["", "*", "*.headers", "*.*.headers"].map((prefix) => keyPath(prefix, field)),
 );
 
 const errFind = (first: unknown): unknown => {

@@ -6,6 +6,6 @@ export {
 	authnCreate,
 	authnMemoryTokenCreate,
 } from "./authn-create.ts";
-export { AuthnInvalidError, AuthnRequiredError } from "./authn-errors.ts";
+export { AuthnRequiredError } from "./authn-errors.ts";
 export { authnMiddleware } from "./authn-middleware.ts";
 export { authnRoutes } from "./authn-routes.ts";
