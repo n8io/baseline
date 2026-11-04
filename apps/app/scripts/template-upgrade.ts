@@ -1,7 +1,13 @@
 // pnpm template-upgrade [--to <version>]: renders the project's template release and the new one
 // with the saved answers, stores both as commits and cherry-picks the difference without
 // committing: a 3-way merge that leaves standard conflict markers and exits 1 on a conflict.
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -141,6 +147,16 @@ export const releaseRender = async (
 	}
 };
 
+// pnpm writes its own minimumReleaseAgeExclude of exact @n8io/baseline-* versions when they are
+// under a day old; once the template brings its own list, the merge holds the key twice.
+export const workspaceExcludesDedupe = (workspace: string): string => {
+	const pnpmList =
+		/^minimumReleaseAgeExclude:\n(?: {2}- "@n8io\/baseline-[^"@]+@[^"]+"\n)+/m;
+	if (workspace.match(/^minimumReleaseAgeExclude:/gm)?.length !== 2)
+		return workspace;
+	return workspace.replace(pnpmList, "");
+};
+
 export const templateUpgrade = async (
 	appDirectory: string,
 	to: string,
@@ -161,6 +177,11 @@ export const templateUpgrade = async (
 		tools,
 		{ from: template.release, to },
 	);
+	const workspace = join(appDirectory, "pnpm-workspace.yaml");
+	if (conflicts.length === 0 && existsSync(workspace)) {
+		const text = readFileSync(workspace, "utf8");
+		writeFileSync(workspace, workspaceExcludesDedupe(text));
+	}
 	writeFileSync(
 		join(appDirectory, ".template.json"),
 		`${JSON.stringify({ ...template, release: to }, null, "\t")}\n`,
