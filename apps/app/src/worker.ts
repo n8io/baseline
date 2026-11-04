@@ -1,7 +1,7 @@
 // Composition root for consumers and schedules; it never serves pages or the API.
 import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { healthServerCreate } from "@n8io/baseline-health";
-import { liveMemory, liveRedis } from "@n8io/baseline-live";
+import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	consumersStart,
@@ -31,7 +31,9 @@ const redisClient =
 		: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
 const queue = await queueCreate({ pgPool, role: "worker" });
 const liveHub =
-	redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+	redisClient === "memory"
+		? liveHubMemoryCreate()
+		: liveHubRedisCreate(redisClient);
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive(),
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,

@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
-import { liveMemory } from "@n8io/baseline-live";
+import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { afterEach, describe, expect, it } from "vitest";
 import { fooUseCasesCreate } from "../index.ts";
 import { fooPortsCreate } from "../spi/index.ts";
@@ -17,7 +17,7 @@ afterEach(async () => {
 const setup = (
 	options: { actor?: Actor; expiresAt?: number } = { actor: owner },
 ) => {
-	const liveHub = liveMemory();
+	const liveHub = liveHubMemoryCreate();
 	closers.push(() => liveHub.close());
 	const useCases = fooUseCasesCreate(
 		fooPortsCreate({

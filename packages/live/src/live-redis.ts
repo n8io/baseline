@@ -8,7 +8,7 @@ const liveCommandTimeoutMs = 1000;
 // Publishes to Redis channel `live:<channel>`, so every instance's streams get
 // the update. The subscriber connection, a duplicate of `redisClient`, opens
 // with the first stream; a worker that only sends never opens it.
-export const liveRedis = (redisClient: RedisClient): LiveHub => {
+export const liveHubRedisCreate = (redisClient: RedisClient): LiveHub => {
 	let subscriber: Promise<RedisClient> | undefined;
 
 	const subscriberConnect = async (): Promise<RedisClient> => {

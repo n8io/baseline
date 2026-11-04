@@ -15,7 +15,7 @@ import {
 	httpSecureHeaders,
 	httpServerClose,
 } from "@n8io/baseline-http";
-import { liveMemory, liveRedis } from "@n8io/baseline-live";
+import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import { consumersSubscribe, queueCreate } from "@n8io/baseline-queue";
@@ -60,7 +60,9 @@ const queue =
 		? "memory"
 		: await queueCreate({ pgPool, role: "publisher" });
 const liveHub =
-	redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+	redisClient === "memory"
+		? liveHubMemoryCreate()
+		: liveHubRedisCreate(redisClient);
 if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.
 	devRun.serverDevClose = async () => {

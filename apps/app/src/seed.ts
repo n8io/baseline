@@ -3,7 +3,7 @@
 
 import type { Actor } from "@n8io/baseline-authn";
 import { cacheRedisClientCreate } from "@n8io/baseline-cache";
-import { liveMemory, liveRedis } from "@n8io/baseline-live";
+import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import { queueCreate } from "@n8io/baseline-queue";
@@ -57,7 +57,9 @@ if (import.meta.main) {
 			: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
 	const queue = await queueCreate({ pgPool, role: "publisher" });
 	const liveHub =
-		redisClient === "memory" ? liveMemory() : liveRedis(redisClient);
+		redisClient === "memory"
+			? liveHubMemoryCreate()
+			: liveHubRedisCreate(redisClient);
 	// domain-create: domains-start
 	const ports = {
 		cache: redisClient,
