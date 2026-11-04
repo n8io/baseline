@@ -4,22 +4,21 @@ on: [pull_request]
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   packages:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: pnpm
           node-version-file: .node-version
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           path: .turbo/cache
@@ -27,36 +26,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run check test build --affected
 
-  # Renders apps/app as a project would hold it (spec 16.7): origin/main is the previous release,
+  # Renders apps/app as a project would hold it: origin/main is the previous release,
   # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
   render:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: pnpm
           node-version-file: .node-version
-          # Only for the previous app@ release, whose .npmrc still reads @n8io from GitHub Packages.
-          # Drop this and packages: read once that release installs from npmjs.
-          registry-url: https://npm.pkg.github.com
-          scope: "@n8io"
       - run: pnpm install --frozen-lockfile
       - name: Render, upgrade and add the domains
-        env:
-          # gh clones the previous release of this private repository.
-          GH_TOKEN: ${{ github.token }}
-          NODE_AUTH_TOKEN: ${{ github.token }}
         run: |
           git config --global user.name "render-and-test"
           git config --global user.email "render-and-test@users.noreply.github.com"
           node test/render/render-and-test.ts "$RUNNER_TEMP/app"
           tar -cf app.tar -C "$RUNNER_TEMP/app" .
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: render-and-test
           path: app.tar
@@ -67,7 +58,6 @@ jobs:
     uses: ./.github/workflows/app-ci.yml
     with:
       artifact: render-and-test
-    secrets: inherit
 
   automerge:
     needs: [packages, render, render-and-test]

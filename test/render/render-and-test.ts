@@ -128,7 +128,13 @@ const main = async () => {
 		);
 	}
 	const previous = releaseLatest();
-	const previousFiles = templateFetch(previous);
+	// TODO: drop the .npmrc rewrite once the previous release is app@2.0.0 or later. Earlier
+	// releases read @n8io from GitHub Packages, which needs a token; their versions are on npmjs too.
+	const previousFiles = templateFetch(previous).map((f) =>
+		f.path === ".npmrc"
+			? { ...f, text: f.text.replace(/^@n8io:registry=.*\n/m, "") }
+			: f,
+	);
 	const files = checkoutExport();
 	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
 	// Its own label: between releases the checkout's version equals the previous release's.
