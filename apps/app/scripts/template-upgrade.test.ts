@@ -8,6 +8,7 @@ import {
 	changelogBetween,
 	templateUpgradeRun,
 	type UpgradeTools,
+	workspaceExcludesDedupe,
 } from "./template-upgrade.ts";
 
 const directories: string[] = [];
@@ -145,6 +146,31 @@ describe("changelogBetween", () => {
 
 		expect(changelogBetween(changelog, "1.1.0", "1.10.0")).toBe(
 			"## 1.10.0\n\n- C\n\n## 1.2.0\n\n- B",
+		);
+	});
+});
+
+describe("workspaceExcludesDedupe", () => {
+	const template = 'minimumReleaseAgeExclude:\n  - "@n8io/baseline-*"\n';
+	const pnpmList =
+		'minimumReleaseAgeExclude:\n  - "@n8io/baseline-authn@2.0.0"\n  - "@n8io/baseline-cache@2.0.0"\n';
+
+	it("drops the exact-version list pnpm wrote when the template brings its own", () => {
+		expect(
+			workspaceExcludesDedupe(
+				`${template}allowBuilds:\n  a: true\n${pnpmList}x: 1\n`,
+			),
+		).toBe(`${template}allowBuilds:\n  a: true\nx: 1\n`);
+	});
+
+	it("keeps a single list, even one of exact versions", () => {
+		expect(workspaceExcludesDedupe(pnpmList)).toBe(pnpmList);
+	});
+
+	it("keeps a second list that names anything but baseline versions", () => {
+		const other = 'minimumReleaseAgeExclude:\n  - "react@19.0.0"\n';
+		expect(workspaceExcludesDedupe(`${template}${other}`)).toBe(
+			`${template}${other}`,
 		);
 	});
 });
