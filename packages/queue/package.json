@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-queue",
-	"version": "2.0.0",
+	"version": "3.0.0",
 	"description": "pg-boss events, consumers and schedules on the app's Postgres, with an inbox for duplicates.",
 	"type": "module",
 	"license": "MIT",

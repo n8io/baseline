@@ -1,5 +1,52 @@
 # app
 
+## 2.0.0
+
+### Major Changes
+
+- ecc00e0: The template's CI calls `app-ci.yml@v2`, which needs no token: the `PACKAGES_TOKEN` secret, the GitHub Packages registry setup and every `NODE_AUTH_TOKEN` are gone, and the caller drops `packages: read` and `secrets: inherit`. Every action is pinned to a commit SHA, and Dependabot keeps those pins current. Projects move to `app-ci.yml@v2` and `dependabot-automerge.yml@v2`; `v1` stays frozen where it is.
+
+### Minor Changes
+
+- ca7afb0: `httpSecureHeaders` applies Hono's secure headers (HSTS, nosniff, Referrer-Policy and the rest) with an enforced Content-Security-Policy: `default-src 'self'`, `script-src 'self'` plus a per-request nonce, `object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'`. The app uses it on every response and hands the nonce to React Router's server render, so every inline script carries it, in development too. Request bodies on `/api/*` are capped at 1 MB and a bigger one answers 413 `PayloadTooLarge`. The memory issuer's sign-in pages drop their inline styles, which the CSP blocks. Rate limiting stays at the load balancer or edge.
+- daecd9a: The @n8io/baseline-* packages publish publicly to npmjs, so installs need no npm token. Projects drop the `@n8io:registry` line from `.npmrc`, and the image builds with no `packages_token` secret.
+
+### Patch Changes
+
+- db838cc: Template docs: `AGENTS.md` keeps only the rules every task needs and ends with a `## Read when` index. Events, Bridges and Aggregates, Data rules, Tracing and spans, and Runtime notes move to `docs/agents/`, read only when the task needs them. `structure.test.ts` keeps `AGENTS.md` under 200 lines and checks that every linked doc exists and every doc is linked.
+- 5467b94: Factories that build and return a thing now end in `Create`: `cacheMemory` is `cacheMemoryCreate`, `cacheRedis` is `cacheRedisCreate`, `queueEventsMemory` is `queueEventsMemoryCreate`, `queueEventsPgBoss` is `queueEventsPgBossCreate` and `pulsarEvents` is `pulsarEventsCreate`. There are no deprecated aliases; rename the imports.
+- 2685036: The live hub factories follow the entity-first, verb-last naming: `liveMemory` is now `liveHubMemoryCreate` and `liveRedis` is now `liveHubRedisCreate`. There are no deprecated aliases; rename the imports in your composition roots and tests.
+- a37704e: `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`, so pnpm refuses any release younger than a day. `@n8io/baseline-*` packages are exempt.
+
+  If `pnpm install` then reports a duplicate `minimumReleaseAgeExclude` key, delete the older list of exact versions that pnpm wrote on its own.
+- 4d37e1c: Template naming: AGENTS.md spells out the generic-to-specific rule (scope, subject, then action; factories end in `Create`, predicates in `Is`), and architecture rule A23 fails an exported name that starts with a verb. The integration helpers become `integrationSignIn` (in `integration-sign-in.ts`), `productionServerWaitFor` and `productionServerConnectResult`, and `loadContextCreate` becomes `uiLoadContextCreate`.
+- 6e5f6e7: baseline is open source under the MIT license, and every package declares `"license": "MIT"`. The template is fetched over plain HTTPS, so `domain-create` and `template-upgrade` no longer need a `gh` login; `app-create` needs one only to create the project repo.
+- b73602b: Telemetry now builds the metric reader itself, like the span and log processors: `OTEL_METRICS_EXPORTER` (`otlp` by default, `console` or `none`) and `OTEL_METRIC_EXPORT_INTERVAL` choose a periodic reader. Every signal exports OTLP over http/protobuf only; the grpc and http/json exporters are gone, and an `OTEL_EXPORTER_OTLP_*PROTOCOL` set to anything else prints one warning at start. The app's integration tests read OTLP protobuf and prove the use case duration metric reaches a collector.
+- 2623e1e: The Node preloads live in one file, `src/preload.ts`: it loads varlock, registers the OpenTelemetry ESM loader hook and starts telemetry, in that order. Scripts run `node --import ./src/preload.ts <entry>`, and the image sets `NODE_OPTIONS="--import /app/src/preload.ts"` once, so its CMD and the compose worker are plain `node <entry>`. A runner that passes its own command should drop the flags and run `node src/worker.ts` or `node src/migrate.ts`. `dockerfile.test.ts` checks the one `NODE_OPTIONS` line and fails if the telemetry or loader-hook preload is named anywhere but `src/preload.ts`.
+- bbb9fd5: `app-ci.yml@v2` adds a required `sast` job: Semgrep CE (pinned image, metrics off) with the `p/typescript`, `p/nodejs`, `p/react` and `p/secrets` rulesets, failing on any finding. app-create requires `ci / sast`. A suppression is `// nosemgrep: <rule-id> -- <reason>`, and `.semgrepignore` lists generated paths only.
+- 3334669: Template docs: the Event entry says pg-boss carries Events by default and `@n8io/baseline-pulsar` is the one sanctioned swap, and Data rules say Drizzle stays on the pinned 1.0 rc until 1.0 GA.
+- Updated dependencies [5467b94]
+- Updated dependencies [ca7afb0]
+- Updated dependencies [2685036]
+- Updated dependencies [daecd9a]
+- Updated dependencies [6e5f6e7]
+- Updated dependencies [b73602b]
+- Updated dependencies [793ad13]
+- Updated dependencies [acaff2a]
+- Updated dependencies [33c61e9]
+  - @n8io/baseline-cache@3.0.0
+  - @n8io/baseline-queue@3.0.0
+  - @n8io/baseline-http@1.2.0
+  - @n8io/baseline-authn@2.1.0
+  - @n8io/baseline-live@3.0.0
+  - @n8io/baseline-health@1.1.0
+  - @n8io/baseline-id@1.1.0
+  - @n8io/baseline-logger@2.1.0
+  - @n8io/baseline-postgres@1.2.0
+  - @n8io/baseline-result@1.1.0
+  - @n8io/baseline-shutdown@2.1.0
+  - @n8io/baseline-telemetry@1.2.0
+
 ## 1.2.1
 
 ### Patch Changes

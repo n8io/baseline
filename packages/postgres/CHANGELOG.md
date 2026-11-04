@@ -1,5 +1,22 @@
 # @n8io/baseline-postgres
 
+## 1.2.0
+
+### Minor Changes
+
+- daecd9a: The @n8io/baseline-* packages publish publicly to npmjs, so installs need no npm token. Projects drop the `@n8io:registry` line from `.npmrc`, and the image builds with no `packages_token` secret.
+
+### Patch Changes
+
+- 6e5f6e7: baseline is open source under the MIT license, and every package declares `"license": "MIT"`. The template is fetched over plain HTTPS, so `domain-create` and `template-upgrade` no longer need a `gh` login; `app-create` needs one only to create the project repo.
+- 793ad13: Each package ships a README on npmjs: what it does, how to install it, its exports, an example, and the env vars and peers it needs.
+- Updated dependencies [daecd9a]
+- Updated dependencies [6e5f6e7]
+- Updated dependencies [793ad13]
+  - @n8io/baseline-id@1.1.0
+  - @n8io/baseline-logger@2.1.0
+  - @n8io/baseline-result@1.1.0
+
 ## 1.1.0
 
 ### Minor Changes
