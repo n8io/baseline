@@ -11,6 +11,7 @@ import {
 	packageGrantLines,
 	requiredJobs,
 	rulesetBody,
+	securityUpdatesCalls,
 } from "../scripts/app-create.ts";
 
 const directories: string[] = [];
@@ -124,6 +125,13 @@ describe("app-create", () => {
 			],
 			target: "branch",
 		});
+	});
+
+	it("turns on Dependabot alerts before Dependabot security updates", () => {
+		expect(securityUpdatesCalls("n8io/x")).toEqual([
+			["api", "--method", "PUT", "repos/n8io/x/vulnerability-alerts"],
+			["api", "--method", "PUT", "repos/n8io/x/automated-security-fixes"],
+		]);
 	});
 
 	it("lists the baseline packages the template depends on", () => {
