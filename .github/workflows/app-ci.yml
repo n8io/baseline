@@ -1,12 +1,10 @@
 # The CI every project made from baseline calls, as `ci / <job>` checks:
 #   jobs:
 #     ci:
-#       uses: n8io/baseline/.github/workflows/app-ci.yml@v1
-#       secrets: inherit
-# Callers grant `contents: read` and `packages: read`, and add the repository with Read to each
-# @n8io/baseline-* package (Manage Actions access). Jobs install with the built-in GITHUB_TOKEN.
+#       uses: n8io/baseline/.github/workflows/app-ci.yml@v2
+# v2 needs no token: the @n8io/baseline-* packages install from npmjs. Callers grant `contents: read`.
 # Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
-# A change that adds a failing check ships as the next major (v2), never inside v1.
+# A change that adds a failing check ships as the next major (v3), never inside v2.
 name: app-ci
 
 on:
@@ -19,43 +17,35 @@ on:
           the jobs check out the repository.
         default: ""
         type: string
-    secrets:
-      PACKAGES_TOKEN:
-        description: Optional PAT with read:packages for v1 callers; the built-in token is used without it.
-        required: false
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 3
     steps:
       - &checkout
         if: inputs.artifact == ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - &download
         if: inputs.artifact != ''
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ inputs.artifact }}
       - &extract
         if: inputs.artifact != ''
         run: tar -xf app.tar && rm app.tar
       - &pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - &node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: pnpm
           node-version-file: .node-version
-          registry-url: https://npm.pkg.github.com
-          scope: "@n8io"
       - &install
         id: install
         run: pnpm install --frozen-lockfile
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
       - run: timeout 30s pnpm check
       - name: src/env.d.ts matches .env.schema
         run: git diff --exit-code src/env.d.ts
@@ -165,8 +155,6 @@ jobs:
           echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
       - name: OpenAPI documents from main and this change
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
         run: |
           # Builds the server in $1, boots it with memory adapters on port $2, saves the document to $3.
           openapi() {
@@ -206,9 +194,7 @@ jobs:
       - *node
       - *install
       - name: Build the image (never pushed)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN || github.token }}
-        run: docker build --secret id=packages_token,env=NODE_AUTH_TOKEN --tag app:ci .
+        run: docker build --tag app:ci .
       - name: Image size within image-budget.json
         run: |
           bytes=$(docker image inspect --format '{{.Size}}' app:ci)

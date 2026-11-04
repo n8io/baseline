@@ -4,16 +4,14 @@ on: [pull_request]
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   ci:
-    uses: n8io/baseline/.github/workflows/app-ci.yml@v1
-    secrets: inherit
+    uses: n8io/baseline/.github/workflows/app-ci.yml@v2
 
   automerge:
     needs: ci
-    uses: n8io/baseline/.github/workflows/dependabot-automerge.yml@v1
+    uses: n8io/baseline/.github/workflows/dependabot-automerge.yml@v2
     permissions:
       contents: write
       pull-requests: write
