@@ -7,12 +7,10 @@ import {
 	type OtlpSpan,
 	otlpEnv,
 	otlpReceiverStart,
-	shutdownStarted,
 	spanAncestors,
 	spanAttribute,
-	waitFor,
-	workerStart,
-} from "./production-server.ts";
+} from "./otlp-receiver.ts";
+import { shutdownStarted, waitFor, workerStart } from "./production-server.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {

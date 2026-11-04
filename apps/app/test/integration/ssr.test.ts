@@ -3,9 +3,8 @@ import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
-	type SignedIn,
-	signIn,
 } from "./production-server.ts";
+import { type SignedIn, signIn } from "./sign-in.ts";
 
 let server: ProductionServer;
 let drop: () => Promise<void>;

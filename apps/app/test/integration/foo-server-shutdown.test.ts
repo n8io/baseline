@@ -4,9 +4,9 @@ import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	productionServerStart,
 	shutdownStarted,
-	signIn,
 	slowRequestStart,
 } from "./production-server.ts";
+import { signIn } from "./sign-in.ts";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {

@@ -3,8 +3,8 @@ import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
-	signIn,
 } from "./production-server.ts";
+import { signIn } from "./sign-in.ts";
 
 const servers: ProductionServer[] = [];
 let drop: () => Promise<void>;

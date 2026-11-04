@@ -9,7 +9,7 @@ declare module "vitest" {
 	}
 }
 
-// The compose.yaml services, unless the run passes real URLs (CI's service containers do).
+// The compose.yaml services (CI's service containers use the same ports), unless the run passes real URLs.
 const realUrl = (value: string | undefined, fallback: string): string =>
 	value?.startsWith("memory:") === false ? value : fallback;
 

@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { consumerCreate } from "@n8io/baseline-queue";
 import { customerDeleted } from "#domains/customer/index.ts";
-import type { InvoiceLineUseCases } from "../use-cases/invoice-line-use-cases-create.ts";
+import type { InvoiceLineUseCases } from "../index.ts";
 
 const invoiceLineCustomerDeletedConsumerActor: Actor = {
 	id: "invoice-line-customer-deleted-consumer",
