@@ -129,7 +129,7 @@ describe("httpRouterCreate", () => {
 	});
 });
 
-describe("Zod 4 issues (V17)", () => {
+describe("Zod 4 issues", () => {
 	it("leave the input out unless reportInput is set", () => {
 		const schema = z.object({ email: z.email(), name: z.string().min(3) });
 		const input = { email: "not-an-email", name: "ab" };

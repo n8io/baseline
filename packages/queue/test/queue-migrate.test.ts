@@ -41,7 +41,7 @@ const tables = async (schema: string): Promise<string[]> =>
 		)
 	).rows.map((row) => row.table_name);
 
-describe("queueMigrate (V5)", () => {
+describe("queueMigrate", () => {
 	it("installs pg-boss and queue.inbox in schema queue, then start() with migrate: false succeeds", async () => {
 		await queueMigrate({ databaseUrl });
 

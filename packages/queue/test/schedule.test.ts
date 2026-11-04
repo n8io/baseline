@@ -73,7 +73,7 @@ describe("schedulesRegister", () => {
 		).toContain("foo.stale-archive");
 	});
 
-	it("V13: unschedules what is no longer in code, and keeps the package's own", async () => {
+	it("unschedules what is no longer in code, and keeps the package's own", async () => {
 		const queue = await worker();
 		await schedulesRegister(
 			queue,
@@ -91,7 +91,7 @@ describe("schedulesRegister", () => {
 		});
 	});
 
-	it("V13: during a rollout, the version that registered last decides", async () => {
+	it("during a rollout, the version that registered last decides", async () => {
 		const old = await worker();
 		const next = await worker();
 

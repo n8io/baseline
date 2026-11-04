@@ -97,7 +97,7 @@ describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		);
 		expect(jobs).toEqual([{ state: "completed" }]);
 
-		// The native-TS worker exports its use case span with pg spans under it (V15).
+		// The native-TS worker exports its use case span with pg spans under it.
 		const spans = receiver.spans();
 		const useCase = spans.find((span) => span.name === "fooStaleArchive");
 		expect(useCase).toBeDefined();

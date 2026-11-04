@@ -4,7 +4,7 @@ import type { Actor, AuthnOptions } from "../src/index.ts";
 export const appOrigin: string = "https://app.test";
 export const secret: string = Buffer.alloc(32, 7).toString("base64url");
 
-// The template's default mapping (spec 7.1): `sub`, space-separated `scope`, `gty` for machines.
+// The template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
 export const actorFromClaims = (claims: JWTPayload): Actor => ({
 	id: String(claims.sub),
 	kind: claims.gty === "client-credentials" ? "client" : "user",

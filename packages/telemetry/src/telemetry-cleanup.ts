@@ -4,7 +4,7 @@ import { type Attributes, SpanStatusCode } from "@opentelemetry/api";
 import type { LogRecordProcessor } from "@opentelemetry/sdk-logs";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 
-// Export-time cleanup (spec 4.4, 15): nothing that can hold input text leaves
+// Export-time cleanup: nothing that can hold input text leaves
 // the process. Both processors run first, before the exporting processors.
 
 const queryValue = "REDACTED";

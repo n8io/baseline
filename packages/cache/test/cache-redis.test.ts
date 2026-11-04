@@ -97,7 +97,7 @@ describe("cacheRedis on Redis", () => {
 		expect(pttl).toBeLessThanOrEqual(60_000);
 	});
 
-	// V20: a Redis that takes a command and does not answer fails each call
+	// A Redis that takes a command and does not answer fails each call
 	// within 1 s. node-redis's own timeout stops once a command is sent.
 	test.each([
 		["get", (cache: Cache<string>) => cache.get("foo_1")],

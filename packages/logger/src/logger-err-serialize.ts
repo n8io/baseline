@@ -1,4 +1,4 @@
-// The only error shape that leaves the process (spec 4.2, 15): class name, code,
+// The only error shape that leaves the process: class name, code,
 // constraint and stack frames, down the cause chain. Never message or detail,
 // because both can hold input text.
 export type LoggerErr = {

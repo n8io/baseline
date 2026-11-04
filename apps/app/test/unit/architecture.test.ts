@@ -54,7 +54,7 @@ describe("architecture", () => {
 		expect(samples.map((s) => s.rule).sort()).toEqual([...ruleIds].sort());
 	});
 
-	// V23: the regex checks of A11 and A14 also pass the corrected sample.
+	// The regex checks of A11 and A14 also pass the corrected sample.
 	it.each([
 		[
 			"a11-bridge-writes.txt",

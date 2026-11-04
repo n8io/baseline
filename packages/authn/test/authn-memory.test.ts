@@ -89,7 +89,7 @@ describe("memory issuer sign-in", () => {
 });
 
 describe("cookies", () => {
-	it("sets the access and refresh cookies with the names, paths and flags of spec 4.10", async () => {
+	it("sets the access cookie on / and the refresh cookie on /auth, both HttpOnly, Secure and SameSite=Lax", async () => {
 		const { res } = await signIn("user");
 		const access = setCookieLine(res, "__Host-authn");
 		const refresh = setCookieLine(res, "__Secure-authn-refresh");
