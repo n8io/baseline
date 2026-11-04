@@ -18,6 +18,9 @@ describe("postgresCursor", () => {
 		expect(postgresCursorDecode("not-a-cursor", "foo")).toBeUndefined();
 		expect(postgresCursorDecode(encoded(null), "foo")).toBeUndefined();
 		expect(
+			postgresCursorDecode(encoded({ id: idCreate("foo"), k: 1 }), "foo"),
+		).toBeUndefined();
+		expect(
 			postgresCursorDecode(encoded({ id: "x", k: 1 }), "foo"),
 		).toBeUndefined();
 	});
