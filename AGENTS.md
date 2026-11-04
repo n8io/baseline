@@ -11,7 +11,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - setup: `pnpm install`
 - format: `pnpm format`
 - lint + typecheck (root files): `pnpm check`
-- test (root files): `pnpm test`
+- test (root files): `pnpm test` (needs Docker: it starts the Postgres and Redis containers)
 - full CI-equivalent: `pnpm turbo run check test build`
 
 ## Tests
