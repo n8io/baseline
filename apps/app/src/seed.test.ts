@@ -24,6 +24,9 @@ const seedRun = async (env: Record<string, string>) => {
 	return { code, output };
 };
 
+// Each test boots a fresh node process with varlock, which takes seconds under turbo's parallel load.
+const seedTimeout = 20_000;
+
 describe("src/seed.ts", () => {
 	it("refuses to run in production", async () => {
 		const { code, output } = await seedRun({
@@ -42,7 +45,7 @@ describe("src/seed.ts", () => {
 		expect(output).toContain(
 			"Seeds run only in development and test: APP_ENV is production",
 		);
-	});
+	}, seedTimeout);
 
 	it("leaves a memory database to the server and exits 0", async () => {
 		const { code, output } = await seedRun({
@@ -53,5 +56,5 @@ describe("src/seed.ts", () => {
 		});
 		expect(code).toBe(0);
 		expect(output).toContain("memory database: the server seeds itself");
-	});
+	}, seedTimeout);
 });
