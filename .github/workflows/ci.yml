@@ -66,3 +66,10 @@ jobs:
     with:
       artifact: render-and-test
     secrets: inherit
+
+  automerge:
+    needs: [packages, render, render-and-test]
+    uses: ./.github/workflows/dependabot-automerge.yml
+    permissions:
+      contents: write
+      pull-requests: write
