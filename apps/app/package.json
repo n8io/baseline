@@ -71,6 +71,7 @@
 		"@types/react-dom": "^19.3.0",
 		"drizzle-kit": "1.0.0-rc.5",
 		"es-module-lexer": "^3.0.4",
+		"protobufjs": "^8.8.1",
 		"shadcn": "4.23.0",
 		"tailwindcss": "^4.3.3",
 		"typescript": "^7.0.2",

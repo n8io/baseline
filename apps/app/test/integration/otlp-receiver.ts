@@ -1,5 +1,6 @@
 import { once } from "node:events";
 import { createServer, type Server } from "node:http";
+import protobuf from "protobufjs";
 import type { AppProcess } from "./production-server.ts";
 
 type OtlpAttribute = {
@@ -16,23 +17,68 @@ export type OtlpSpan = {
 	traceId: string;
 };
 
+export type OtlpHistogramPoint = { attributes: OtlpAttribute[]; count: string };
+
+export type OtlpMetric = {
+	histogram?: { dataPoints: OtlpHistogramPoint[] };
+	name: string;
+};
+
 export type OtlpReceiver = {
 	close: () => Promise<void>;
 	/** Every request body by signal path: /v1/traces, /v1/logs, /v1/metrics. */
-	bodies: Record<string, string[]>;
+	bodies: Record<string, Buffer[]>;
 	endpoint: string;
+	metrics: () => OtlpMetric[];
 	spans: () => OtlpSpan[];
 };
 
-/** A small OTLP/HTTP JSON receiver inside the test that keeps every body it is sent. */
+// The OTLP fields the tests read; decoding skips every other field.
+const otlpProto = protobuf.parse(`
+syntax = "proto3";
+message AnyValue { string string_value = 1; int64 int_value = 3; }
+message KeyValue { string key = 1; AnyValue value = 2; }
+message Span {
+	bytes trace_id = 1; bytes span_id = 2; bytes parent_span_id = 4;
+	string name = 5; int32 kind = 6; repeated KeyValue attributes = 9;
+}
+message ScopeSpans { repeated Span spans = 2; }
+message ResourceSpans { repeated ScopeSpans scope_spans = 2; }
+message TracesData { repeated ResourceSpans resource_spans = 1; }
+message HistogramDataPoint { fixed64 count = 4; repeated KeyValue attributes = 9; }
+message Histogram { repeated HistogramDataPoint data_points = 1; }
+message Metric { string name = 1; Histogram histogram = 9; }
+message ScopeMetrics { repeated Metric metrics = 2; }
+message ResourceMetrics { repeated ScopeMetrics scope_metrics = 2; }
+message MetricsData { repeated ResourceMetrics resource_metrics = 1; }
+`).root;
+
+// Decodes each body like the OTLP JSON encoding: camelCase keys, hex ids, 64-bit ints as strings.
+const otlpDecode = <T>(type: string, bodies: Buffer[] = []): T[] => {
+	const message = otlpProto.lookupType(type);
+	return bodies.map(
+		(body) =>
+			message.toObject(message.decode(body), {
+				arrays: true,
+				bytes: String,
+				longs: String,
+			}) as T,
+	);
+};
+
+// An absent id decodes to "", like a root span's parentSpanId in OTLP JSON.
+const hex = (base64 = ""): string =>
+	Buffer.from(base64, "base64").toString("hex");
+
+/** A small OTLP/HTTP protobuf receiver inside the test that keeps every body it is sent. */
 export const otlpReceiverStart = async (): Promise<OtlpReceiver> => {
-	const bodies: Record<string, string[]> = {};
+	const bodies: Record<string, Buffer[]> = {};
 	const server: Server = createServer(async (request, response) => {
-		let body = "";
-		for await (const chunk of request) body += chunk;
+		const chunks: Buffer[] = [];
+		for await (const chunk of request) chunks.push(chunk);
 		const path = request.url ?? "";
-		bodies[path] = [...(bodies[path] ?? []), body];
-		response.writeHead(200, { "content-type": "application/json" }).end("{}");
+		bodies[path] = [...(bodies[path] ?? []), Buffer.concat(chunks)];
+		response.writeHead(200, { "content-type": "application/x-protobuf" }).end();
 	});
 	server.listen(0, "127.0.0.1");
 	await once(server, "listening");
@@ -47,25 +93,37 @@ export const otlpReceiverStart = async (): Promise<OtlpReceiver> => {
 				server.close(() => resolve());
 			}),
 		endpoint: `http://127.0.0.1:${address.port}`,
+		metrics: () =>
+			otlpDecode<{
+				resourceMetrics: { scopeMetrics: { metrics: OtlpMetric[] }[] }[];
+			}>("MetricsData", bodies["/v1/metrics"]).flatMap((data) =>
+				data.resourceMetrics.flatMap((resource) =>
+					resource.scopeMetrics.flatMap((scope) => scope.metrics),
+				),
+			),
 		spans: () =>
-			(bodies["/v1/traces"] ?? []).flatMap((body) =>
-				(
-					JSON.parse(body) as {
-						resourceSpans: { scopeSpans: { spans: OtlpSpan[] }[] }[];
-					}
-				).resourceSpans.flatMap((resource) =>
-					resource.scopeSpans.flatMap((scope) => scope.spans),
+			otlpDecode<{
+				resourceSpans: { scopeSpans: { spans: OtlpSpan[] }[] }[];
+			}>("TracesData", bodies["/v1/traces"]).flatMap((data) =>
+				data.resourceSpans.flatMap((resource) =>
+					resource.scopeSpans.flatMap((scope) =>
+						scope.spans.map((span) => ({
+							...span,
+							parentSpanId: hex(span.parentSpanId),
+							spanId: hex(span.spanId),
+							traceId: hex(span.traceId),
+						})),
+					),
 				),
 			),
 	};
 };
 
-/** OTLP/HTTP JSON export settings for a child process, with short batch delays. */
+/** OTLP export settings for a child process, with short batch delays. */
 export const otlpEnv = (receiver: OtlpReceiver): Record<string, string> => ({
 	OTEL_BLRP_SCHEDULE_DELAY: "100",
 	OTEL_BSP_SCHEDULE_DELAY: "100",
 	OTEL_EXPORTER_OTLP_ENDPOINT: receiver.endpoint,
-	OTEL_EXPORTER_OTLP_PROTOCOL: "http/json",
 	OTEL_LOGS_EXPORTER: "otlp",
 	OTEL_METRIC_EXPORT_INTERVAL: "1000",
 	OTEL_METRICS_EXPORTER: "otlp",
@@ -108,16 +166,20 @@ export const canaries = {
 	health: "hypertension",
 };
 
+// Protobuf keeps strings as raw bytes, so a latin1 read finds any string sent.
+const bodiesText = (bodies: Buffer[] = []): string =>
+	bodies.map((body) => body.toString("latin1")).join("\n");
+
 /** Everything a server sent out of the process: stdout, stderr and each OTLP signal. */
 export const telemetrySignals = (
 	app: AppProcess,
 	receiver: OtlpReceiver,
 ): Record<string, string> => ({
-	logs: (receiver.bodies["/v1/logs"] ?? []).join("\n"),
-	metrics: (receiver.bodies["/v1/metrics"] ?? []).join("\n"),
+	logs: bodiesText(receiver.bodies["/v1/logs"]),
+	metrics: bodiesText(receiver.bodies["/v1/metrics"]),
 	stderr: app.stderr(),
 	stdout: app.stdout(),
-	traces: (receiver.bodies["/v1/traces"] ?? []).join("\n"),
+	traces: bodiesText(receiver.bodies["/v1/traces"]),
 });
 
 /** The names of the signals whose text contains `value`. */
