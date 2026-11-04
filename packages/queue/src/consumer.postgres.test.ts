@@ -20,7 +20,7 @@ import {
 	type Inbox,
 	type Queue,
 	queueCreate,
-	queueEventsPgBoss,
+	queueEventsPgBossCreate,
 	queueInboxInsert,
 	queueMigrate,
 } from "./index.ts";
@@ -57,7 +57,7 @@ const fooCreated = z.object({ fooId: z.string() });
 
 const publish = async (data: unknown): Promise<void> => {
 	await postgresTransaction(pgPool, async (pgClient) => {
-		await queueEventsPgBoss<{ "foo.created": unknown }>(
+		await queueEventsPgBossCreate<{ "foo.created": unknown }>(
 			queue,
 			pgClient,
 		).publish("foo.created", data);
@@ -166,7 +166,7 @@ describe("consumersStart", () => {
 		};
 
 		await postgresTransaction(pgPool, async (pgClient) => {
-			await queueEventsPgBoss<{ "foo.archived": unknown }>(
+			await queueEventsPgBossCreate<{ "foo.archived": unknown }>(
 				queue,
 				pgClient,
 			).publish("foo.archived", { fooId: "foo_2" });
@@ -240,7 +240,7 @@ describe("consumersStart trace context", () => {
 			.getTracer("test")
 			.startActiveSpan("fooCreate", async (span) => {
 				await postgresTransaction(pgPool, async (pgClient) => {
-					await queueEventsPgBoss<{ "foo.traced": unknown }>(
+					await queueEventsPgBossCreate<{ "foo.traced": unknown }>(
 						queue,
 						pgClient,
 					).publish("foo.traced", { fooId: "foo_3" });

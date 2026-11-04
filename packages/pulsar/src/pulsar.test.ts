@@ -27,7 +27,7 @@ import {
 	pulsarConsumersStart,
 	pulsarConsumersSubscribe,
 	pulsarCreate,
-	pulsarEvents,
+	pulsarEventsCreate,
 } from "./index.ts";
 
 const spans = new InMemorySpanExporter();
@@ -74,7 +74,7 @@ const commit = async (
 	event: FooCreated,
 	outcome: "commit" | "rollback" = "commit",
 ): Promise<void> => {
-	const events = pulsarEvents<Record<string, FooCreated>>(publisher);
+	const events = pulsarEventsCreate<Record<string, FooCreated>>(publisher);
 	const result = await postgresTransaction(pgPool, async () => {
 		await events.publish(eventName, event);
 		return outcome === "commit" ? ok(undefined) : err({ type: "rollback" });
@@ -91,7 +91,7 @@ const received = (
 	) => Promise<Result<unknown, { type: string }>>,
 ) => consumerCreate(queueName, eventName, fooCreated, run);
 
-describe("pulsarEvents and pulsarConsumersStart", () => {
+describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("sends a committed Event to each subscribed Consumer and nothing on rollback", async () => {
 		const eventName = eventNameCreate();
 		const billing: string[] = [];

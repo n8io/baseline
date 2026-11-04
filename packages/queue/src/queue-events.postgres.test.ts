@@ -12,8 +12,8 @@ import {
 	consumersSubscribe,
 	type Queue,
 	queueCreate,
-	queueEventsMemory,
-	queueEventsPgBoss,
+	queueEventsMemoryCreate,
+	queueEventsPgBossCreate,
 	queueMigrate,
 } from "./index.ts";
 
@@ -69,12 +69,12 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("queueEventsPgBoss", () => {
+describe("queueEventsPgBossCreate", () => {
 	it("publishes on postgresTransaction's guarded client, visible only after commit", async () => {
 		let seenInside: unknown[] = [];
 		const result = await postgresTransaction(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsPgBoss<FooEvents>(queue, pgClient).publish(
+			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 				"foo.created",
 				{ fooId: "foo_1" },
 			);
@@ -97,7 +97,7 @@ describe("queueEventsPgBoss", () => {
 	it("rolls the jobs back with the rows on err", async () => {
 		const result = await postgresTransaction(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsPgBoss<FooEvents>(queue, pgClient).publish(
+			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 				"foo.created",
 				{ fooId: "foo_1" },
 			);
@@ -114,7 +114,7 @@ describe("queueEventsPgBoss", () => {
 		const oneQueue = await queueCreate({ pgPool: onePool, role: "publisher" });
 		try {
 			const result = await postgresTransaction(onePool, async (pgClient) => {
-				await queueEventsPgBoss<FooEvents>(oneQueue, pgClient).publish(
+				await queueEventsPgBossCreate<FooEvents>(oneQueue, pgClient).publish(
 					"foo.created",
 					{ fooId: "foo_1" },
 				);
@@ -132,7 +132,7 @@ describe("queueEventsPgBoss", () => {
 	it("rolls the jobs back on a throw", async () => {
 		await expect(
 			postgresTransaction(pgPool, async (pgClient) => {
-				await queueEventsPgBoss<FooEvents>(queue, pgClient).publish(
+				await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 					"foo.created",
 					{ fooId: "foo_1" },
 				);
@@ -143,10 +143,10 @@ describe("queueEventsPgBoss", () => {
 	});
 });
 
-describe("queueEventsMemory", () => {
+describe("queueEventsMemoryCreate", () => {
 	it("records publishes and delivers nothing", async () => {
 		const published: { name: keyof FooEvents; data: unknown }[] = [];
-		const events = queueEventsMemory<FooEvents>(published);
+		const events = queueEventsMemoryCreate<FooEvents>(published);
 
 		await events.publish("foo.created", { fooId: "foo_1" });
 
@@ -157,7 +157,9 @@ describe("queueEventsMemory", () => {
 
 	it("works without an array", async () => {
 		await expect(
-			queueEventsMemory<FooEvents>().publish("foo.created", { fooId: "foo_1" }),
+			queueEventsMemoryCreate<FooEvents>().publish("foo.created", {
+				fooId: "foo_1",
+			}),
 		).resolves.toBeUndefined();
 	});
 });

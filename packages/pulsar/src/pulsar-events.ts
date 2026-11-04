@@ -86,7 +86,7 @@ const pulsarEventSend = (
 };
 
 // One per transaction: publish only buffers, so nothing reaches the broker before the commit.
-export const pulsarEvents = <M extends Record<string, unknown>>(
+export const pulsarEventsCreate = <M extends Record<string, unknown>>(
 	pulsar: Pulsar,
 ): PulsarEvents<M> => {
 	const state = pulsarState(pulsar);

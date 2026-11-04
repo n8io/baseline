@@ -5,7 +5,7 @@ import {
 import {
 	type Inbox,
 	type Queue,
-	queueEventsPgBoss,
+	queueEventsPgBossCreate,
 	queueInboxInsert,
 } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
@@ -34,7 +34,7 @@ export const fooTransactionPostgres = (
 			try {
 				return await work({
 					fooEvents: postgresPortsGuard(
-						queueEventsPgBoss<FooEventMap>(queue, pgClient),
+						queueEventsPgBossCreate<FooEventMap>(queue, pgClient),
 						isOpen,
 					),
 					fooRepository: postgresPortsGuard(
