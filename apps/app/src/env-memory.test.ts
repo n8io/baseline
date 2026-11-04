@@ -8,7 +8,7 @@ afterEach(() => {
 const envImport = (env: Record<string, string>) => {
 	vi.resetModules();
 	vi.doMock("varlock/env", () => ({ ENV: env }));
-	return import("../../src/env.ts");
+	return import("./env.ts");
 };
 
 const memoryEnv = {
@@ -19,7 +19,7 @@ const memoryEnv = {
 
 describe("varlock setup file", () => {
 	it("loads .env.test into process.env and ENV in this worker", async () => {
-		const { ENV } = await import("../../src/env.ts");
+		const { ENV } = await import("./env.ts");
 		expect(process.env.APP_ENV).toBe("test");
 		expect(process.env.LOG_LEVEL).toBe("silent");
 		expect(ENV.DATABASE_URL).toBe("memory://");

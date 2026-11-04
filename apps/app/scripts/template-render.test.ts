@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { domainsPairsFill } from "../../../scripts/domain-create.ts";
+import { domainsPairsFill } from "./domain-create.ts";
 import {
 	domainsPairsFind,
 	filesRead,
@@ -11,9 +11,9 @@ import {
 	linesRemove,
 	templateFileRender,
 	templateFilesRender,
-} from "../../../scripts/template-render.ts";
+} from "./template-render.ts";
 
-const appRoot = new URL("../../../", import.meta.url);
+const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const answers = { description: "Invoices for small shops.", name: "invoicing" };
 const domainsUrl = new URL("src/domains/", appRoot);
@@ -170,7 +170,10 @@ describe("templateFileRender", () => {
 		for (const path of [
 			"src/domains/foo/index.ts",
 			"src/ui/routes/foo-list.tsx",
+			"src/ui/routes/foo-list.test.ts",
 			"src/ui/routes/home.tsx",
+			"src/ui/routes/home.test.ts",
+			"src/server-seed.test.ts",
 			"test/integration/foo-live.test.ts",
 			"migrations/20261103125512_foo_create/migration.sql",
 			"CHANGELOG.md",

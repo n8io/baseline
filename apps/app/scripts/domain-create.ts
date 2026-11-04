@@ -34,13 +34,12 @@ const markerPattern =
 // The domain, its pages and the pages' unit tests.
 const copiedPaths = [
 	/^src\/domains\/foo\//,
-	/^src\/ui\/routes\/foo-(list|detail)\.tsx$/,
-	/^test\/unit\/foo-(list|detail)\.test\.ts$/,
+	/^src\/ui\/routes\/foo-(list|detail)(\.test)?\.tsx?$/,
 ];
 // home.tsx (the / redirect) and its test come back with the first domain, which it redirects to.
-const firstDomainPaths = new Map([
-	["src/ui/routes/home.tsx", "src/ui/routes/home.tsx"],
-	["test/unit/foo-home.test.ts", "test/unit/home.test.ts"],
+const firstDomainPaths = new Set([
+	"src/ui/routes/home.tsx",
+	"src/ui/routes/home.test.ts",
 ]);
 
 // The glossary term a domain name needs: invoice-line ↔ **Invoice line**:.
@@ -191,11 +190,9 @@ export const domainFilesCreate = (
 	const copied = (path: string) =>
 		copiedPaths.some((p) => p.test(path)) ||
 		(firstDomain && firstDomainPaths.has(path));
-	const copiedPath = (path: string) =>
-		firstDomainPaths.get(path) ?? fooPathRename(path, names);
 	// Checked before anything is built, so a refusal writes nothing.
 	for (const file of template.filter((f) => copied(f.path))) {
-		const path = copiedPath(file.path);
+		const path = fooPathRename(file.path, names);
 		if (existsSync(join(appDirectory, path))) {
 			throw new Error(`${path} already exists; move it aside first`);
 		}
@@ -204,7 +201,7 @@ export const domainFilesCreate = (
 	for (const file of template) {
 		if (copied(file.path)) {
 			files.push({
-				path: copiedPath(file.path),
+				path: fooPathRename(file.path, names),
 				text: fooRename(file.text, names, file.path),
 			});
 			continue;

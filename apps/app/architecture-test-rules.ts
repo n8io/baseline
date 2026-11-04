@@ -302,7 +302,9 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A10: (files) =>
 		importsCheck(
 			files,
-			(f) => f.path.startsWith("src/ui/") || domainOf(f.path) !== undefined,
+			(f) =>
+				(f.path.startsWith("src/ui/") || domainOf(f.path) !== undefined) &&
+				!testIs(f.path),
 			(imp, f) => {
 				if (f.path.startsWith("src/ui/")) {
 					const target = domainOf(imp.target);
@@ -599,7 +601,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A22: (files) => [
 		...importsCheck(
 			files,
-			() => true,
+			(f) => !testIs(f.path),
 			(imp, f) => {
 				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
 					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root";
@@ -612,7 +614,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		),
 		...textCheck(
 			files,
-			() => true,
+			(f) => !testIs(f.path),
 			/\bprocess\.env\b/g,
 			() =>
 				"process.env is read only through ENV from #env (declare the item in .env.schema)",

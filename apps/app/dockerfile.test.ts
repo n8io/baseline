@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
-	readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+	readFileSync(new URL(`./${path}`, import.meta.url), "utf8");
 
 type Instruction = { args: string; keyword: string };
 

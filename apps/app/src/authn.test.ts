@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorFromClaims, authnProviderOptions } from "../../src/authn.ts";
+import { actorFromClaims, authnProviderOptions } from "./authn.ts";
 
 describe("actorFromClaims", () => {
 	it("reads a user from sub and space-separated scope", () => {

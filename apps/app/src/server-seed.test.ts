@@ -8,7 +8,7 @@ vi.mock("react-router-hono-server/node", () => ({
 vi.mock("@n8io/baseline-health", () => ({
 	healthServerCreate: () => ({ close: async () => {}, ready: () => {} }),
 }));
-vi.mock("../../src/seed.ts", () => ({ seedsRun }));
+vi.mock("./seed.ts", () => ({ seedsRun }));
 
 afterEach(() => {
 	vi.doUnmock("varlock/env");
@@ -25,7 +25,7 @@ const serverImport = async (env: Record<string, string>) => {
 		get: (target, key: string) => target[key] ?? Reflect.get(actual.ENV, key),
 	});
 	vi.doMock("varlock/env", () => ({ ENV }));
-	await import("../../src/server.ts");
+	await import("./server.ts");
 };
 
 describe("server.ts seeding", () => {

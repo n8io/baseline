@@ -28,7 +28,7 @@ afterEach(() => {
 // What the dev server does after an edit: evaluate server.ts again in the same process.
 const serverRun = async () => {
 	vi.resetModules();
-	await import("../../src/server.ts");
+	await import("./server.ts");
 };
 
 describe("server.ts re-run in development", () => {

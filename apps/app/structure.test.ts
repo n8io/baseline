@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const appRoot = new URL("../../", import.meta.url);
+const appRoot = new URL("./", import.meta.url);
 
 const termOf = (name: string) => {
 	const [first = "", ...rest] = name.split("-");
@@ -63,6 +63,52 @@ const structureViolations = (paths: string[], context: string): string[] => {
 	}
 	return problems;
 };
+
+// A test sits beside the file it covers (<name>.test.ts or <name>-<aspect>.test.ts) in src/ or
+// scripts/, at the app root when it checks the whole app, or in test/integration/.
+const testPlacementViolations = (paths: string[]): string[] => {
+	const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+	const nameOf = (path: string) => path.slice(folderOf(path).length);
+	const sources = paths.filter((path) => !path.endsWith(".test.ts"));
+	return paths
+		.filter((path) => path.endsWith(".test.ts"))
+		.filter((path) => {
+			if (!path.includes("/") || path.startsWith("test/integration/"))
+				return false;
+			const name = nameOf(path).slice(0, -".test.ts".length);
+			const beside = sources.some((source) => {
+				const stem = nameOf(source).replace(/\.[^.]+$/, "");
+				return (
+					folderOf(source) === folderOf(path) &&
+					(name === stem ||
+						name.startsWith(`${stem}-`) ||
+						name.startsWith(`${stem}.`))
+				);
+			});
+			return !(beside && /^(src|scripts)\//.test(path));
+		})
+		.map(
+			(path) =>
+				`${path}: put a test beside the file it covers as <name>.test.ts, at the app root when it checks the whole app, or in test/integration/ when it boots a process or spans many modules`,
+		);
+};
+
+// Every file in the app, except dependencies, build output and dotfiles.
+const appFilesList = (dir: URL, prefix = ""): string[] =>
+	readdirSync(dir, { withFileTypes: true })
+		.filter(
+			(entry) =>
+				!entry.name.startsWith(".") &&
+				!["build", "node_modules"].includes(entry.name),
+		)
+		.flatMap((entry) =>
+			entry.isDirectory()
+				? appFilesList(
+						new URL(`${entry.name}/`, dir),
+						`${prefix}${entry.name}/`,
+					)
+				: [`${prefix}${entry.name}`],
+		);
 
 const filesList = (dir: URL, prefix: string) =>
 	readdirSync(dir, { encoding: "utf8", recursive: true })
@@ -145,5 +191,42 @@ describe("domain structure", () => {
 	it("passes a model once the glossary has its term", () => {
 		const paths = [...barBase, "src/domains/bar/models/bar-line.ts"];
 		expect(structureViolations(paths, `${context}**Bar line**:\n`)).toEqual([]);
+	});
+});
+
+describe("test placement", () => {
+	it("holds for the real tree", () => {
+		expect(testPlacementViolations(appFilesList(appRoot))).toEqual([]);
+	});
+
+	it("passes a test beside its source, a whole-app check and a process-level test", () => {
+		expect(
+			testPlacementViolations([
+				"src/env.ts",
+				"src/env.test.ts",
+				"src/server.ts",
+				"src/server-wiring.test.ts",
+				"src/domains/bar/spi/bar-repository.postgres.ts",
+				"src/domains/bar/spi/bar-repository.postgres.test.ts",
+				"scripts/glossary-check.ts",
+				"scripts/glossary-check.test.ts",
+				"structure.test.ts",
+				"test/integration/ssr.test.ts",
+			]),
+		).toEqual([]);
+	});
+
+	it.each([
+		["a test with no source beside it", ["src/env.ts", "src/seed.test.ts"]],
+		[
+			"a test whose name only starts like a source",
+			["src/server.ts", "src/serverless.test.ts"],
+		],
+		["a test in test/unit/", ["src/seed.ts", "test/unit/seed.test.ts"]],
+		["a test in another folder", ["docs/a.ts", "docs/a.test.ts"]],
+	])("fails on %s", (_name, paths) => {
+		expect(testPlacementViolations(paths)).toEqual([
+			expect.stringContaining("put a test beside the file it covers"),
+		]);
 	});
 });
