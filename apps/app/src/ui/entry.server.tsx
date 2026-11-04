@@ -44,6 +44,7 @@ export default function handleRequest(
 
 	// ServerRouter hands the nonce to <Scripts>, <ScrollRestoration> and the streamed data scripts.
 	const nonce = loadContext.get(cspNonceContext);
+	const nonceProps = nonce === undefined ? {} : { nonce };
 	return new Promise((resolve, reject) => {
 		let status = responseStatusCode;
 		let shellRendered = false;
@@ -55,9 +56,13 @@ export default function handleRequest(
 		const readyOption = routerContext.isSpaMode ? "onAllReady" : "onShellReady";
 
 		const { abort, pipe } = renderToPipeableStream(
-			<ServerRouter context={routerContext} nonce={nonce} url={request.url} />,
+			<ServerRouter
+				context={routerContext}
+				url={request.url}
+				{...nonceProps}
+			/>,
 			{
-				nonce,
+				...nonceProps,
 				onError(error: unknown) {
 					status = 500;
 					// Shell errors reject and reach handleError; log only later stream errors.
