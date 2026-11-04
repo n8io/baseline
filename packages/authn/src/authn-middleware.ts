@@ -84,7 +84,7 @@ const cookieMiddleware =
 			if (c.req.method === "GET" || c.req.method === "HEAD") {
 				return pageRedirect(c, "/auth/refresh");
 			}
-			// A form post without JavaScript cannot be replayed after a refresh (accepted, spec 4.10).
+			// A form post without JavaScript cannot be replayed after a refresh (accepted).
 			authnCookieClear(c, "access");
 			return pageRedirect(c, "/auth/sign-in");
 		}

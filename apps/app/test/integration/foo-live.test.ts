@@ -92,7 +92,7 @@ describe("live updates across server instances", { timeout: 30_000 }, () => {
 			expect(renamed.status).toBe(200);
 
 			// The event arrives while the stream stays open: @preventLeaks' response scan
-			// flushes each event rather than holding the body until it ends (V33).
+			// flushes each event rather than holding the body until it ends.
 			await streamUntil(body, received, "foo.updated");
 			expect(received.text).toContain(`{"id":"${id}","type":"foo.updated"}`);
 			await body.cancel();

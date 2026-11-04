@@ -69,7 +69,7 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("queueEventsPgBoss (V6)", () => {
+describe("queueEventsPgBoss", () => {
 	it("publishes on postgresTransaction's guarded client, visible only after commit", async () => {
 		let seenInside: unknown[] = [];
 		const result = await postgresTransaction(pgPool, async (pgClient) => {

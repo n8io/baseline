@@ -50,7 +50,7 @@ const publish = async (data: unknown): Promise<void> => {
 };
 
 describe("consumersStart", () => {
-	it("V8: a job keeps its id across retries, and the inbox skips the repeat", async () => {
+	it("a job keeps its id across retries, and the inbox skips the repeat", async () => {
 		const calls: Inbox[] = [];
 		// A use case whose first attempt commits, then fails before pg-boss hears back.
 		const invoiceCreate = async (
@@ -103,7 +103,7 @@ describe("consumersStart", () => {
 		]);
 	});
 
-	it("V8: a redriven job keeps its eventId, so redriving twice runs the work once", async () => {
+	it("a redriven job keeps its eventId, so redriving twice runs the work once", async () => {
 		const calls: Inbox[] = [];
 		// Commits, then fails until its third run: dead letter, redrive, dead letter, redrive.
 		const invoiceArchive = async (

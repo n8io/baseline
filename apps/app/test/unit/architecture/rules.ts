@@ -1,4 +1,4 @@
-// The architecture rules of spec 16.3 as pure checks over source files. Imports come from
+// The architecture rules as pure checks over source files. Imports come from
 // es-module-lexer; everything else is a regular expression over the source text.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";

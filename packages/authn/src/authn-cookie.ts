@@ -14,7 +14,7 @@ type AuthnCookieName = keyof typeof authnCookieNames;
 const signedInMaxAgeSeconds = 30 * 24 * 60 * 60;
 const flowMaxAgeSeconds = 10 * 60;
 
-// Paths and lifetimes per cookie (spec 4.10). Every cookie is HttpOnly, Secure and SameSite=Lax.
+// Paths and lifetimes per cookie. Every cookie is HttpOnly, Secure and SameSite=Lax.
 const cookieOptions: Record<AuthnCookieName, { maxAge: number; path: string }> =
 	{
 		access: { maxAge: signedInMaxAgeSeconds, path: "/" },

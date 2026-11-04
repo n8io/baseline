@@ -48,7 +48,7 @@ afterEach(async () => {
 });
 
 describe("queueCreate", () => {
-	it("V7: publisher and worker run on the shared pool, with no pool of pg-boss's own", async () => {
+	it("publisher and worker run on the shared pool, with no pool of pg-boss's own", async () => {
 		const pgPool = poolCreate();
 		await start(pgPool, "publisher");
 		await start(pgPool, "worker");
@@ -60,7 +60,7 @@ describe("queueCreate", () => {
 		expect(pgPool.totalCount).toBeGreaterThan(0);
 	});
 
-	it("V9: a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
+	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "publisher");
 		const boss = queueBoss(queue);
@@ -83,7 +83,7 @@ describe("queueCreate", () => {
 		]);
 	});
 
-	it("V9: a worker starts the cron pass and the inbox prune schedule", async () => {
+	it("a worker starts the cron pass and the inbox prune schedule", async () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBoss(queue);
 
@@ -98,7 +98,7 @@ describe("queueCreate", () => {
 		).toEqual(["queue.inbox-prune"]);
 	});
 
-	it("V10: every poll stamps the heartbeat, including empty ones", async () => {
+	it("every poll stamps the heartbeat, including empty ones", async () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBoss(queue);
 		const stamp = (): number =>
@@ -123,7 +123,7 @@ describe("queueCreate", () => {
 		expect(queue.isAlive()).toBe(true);
 	});
 
-	it("V14: stop waits for a running job, then stops the workers and the cron pass", async () => {
+	it("stop waits for a running job, then stops the workers and the cron pass", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "worker");
 		const boss = queueBoss(queue);
@@ -161,7 +161,7 @@ describe("queueCreate", () => {
 		await expect(pgPool.query("SELECT 1")).resolves.toBeDefined();
 	});
 
-	it("V14: a job still running at the timeout is failed, to be retried", async () => {
+	it("a job still running at the timeout is failed, to be retried", async () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBoss(queue);
 		await consumersStart(queue, [

@@ -61,7 +61,7 @@ afterEach(async () => {
 });
 
 describe("schedule settings under pg-boss's TestClock", () => {
-	it("V11: the exclusive policy skips a tick while a run is active", async () => {
+	it("the exclusive policy skips a tick while a run is active", async () => {
 		const clock = new TestClock(new Date("2026-11-03T00:00:30Z"));
 		await scheduleRegister(clock, "* * * * *");
 		const boss = await bossStart(clock);
@@ -90,7 +90,7 @@ describe("schedule settings under pg-boss's TestClock", () => {
 
 	// Every ten minutes, and every start at hh:m5:30, so a start's due window holds no occurrence:
 	// a run after the downtime can only be the catch-up (with missed: "skip" there is none).
-	it("V12: after downtime, missed: once sends one catch-up job", async () => {
+	it("after downtime, missed: once sends one catch-up job", async () => {
 		const clock = new TestClock(new Date("2026-11-03T00:05:30Z"));
 		const runAt: string[] = [];
 		const run = async (): Promise<void> => {

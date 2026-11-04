@@ -9,7 +9,7 @@ import {
 } from "node:http";
 import { connect, createServer as netServerCreate } from "node:net";
 
-// Every entry in the image starts with these, varlock first (spec 14.3).
+// Every entry in the image starts with these, varlock first.
 const preloadFlags = [
 	"--import",
 	"varlock/auto-load",

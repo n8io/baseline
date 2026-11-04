@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { describe, expect, it } from "vitest";
 
 describe("varlock redaction of stdout", { timeout: 30_000 }, () => {
-	it("masks a sensitive value in pino's stdout lines (V32)", async () => {
+	it("masks a sensitive value in pino's stdout lines", async () => {
 		const secret = `canary-client-secret-${randomUUID()}`;
 		const child = spawn(
 			process.execPath,

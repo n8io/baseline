@@ -28,7 +28,7 @@ import {
 	telemetrySpanCleanup,
 } from "./telemetry-cleanup.ts";
 
-// Probes are never traced (spec 4.6).
+// Probes are never traced.
 const pathsHealth = new Set(["/livez", "/readyz"]);
 
 // The OTEL_* settings NodeSDK reads only when it builds the processors itself.

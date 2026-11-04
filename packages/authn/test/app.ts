@@ -11,7 +11,7 @@ import {
 } from "../src/index.ts";
 import { memoryOptions } from "./helpers.ts";
 
-/** Wires authn the way `src/server.ts` does (spec 7.1), with one API route and one page route. */
+/** Wires authn the way `src/server.ts` does, with one API route and one page route. */
 export const appCreate = async (
 	options: AuthnOptions = memoryOptions,
 ): Promise<{ app: Hono; authn: Authn }> => {

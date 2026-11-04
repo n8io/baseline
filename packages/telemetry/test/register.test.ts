@@ -91,7 +91,7 @@ afterEach(() => {
 });
 
 describe("@n8io/baseline-telemetry/register", () => {
-	it("exports http server spans from a native TS process (V15)", async () => {
+	it("exports http server spans from a native TS process", async () => {
 		const started = await receiverStart();
 		receiver = started.server;
 		const { port } = started.server.address() as AddressInfo;
@@ -118,7 +118,7 @@ describe("@n8io/baseline-telemetry/register", () => {
 		expect(JSON.stringify(started.spans)).not.toContain("canary");
 	}, 30_000);
 
-	it("exports records from a logger the app creates after the preload (V16)", async () => {
+	it("exports records from a logger the app creates after the preload", async () => {
 		const started = await receiverStart();
 		receiver = started.server;
 		const { port } = started.server.address() as AddressInfo;
