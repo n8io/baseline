@@ -2,6 +2,7 @@
 	"name": "@n8io/baseline-result",
 	"version": "1.0.0",
 	"description": "Result, ok and err for expected business errors.",
+	"license": "MIT",
 	"type": "module",
 	"engines": {
 		"node": ">=26"

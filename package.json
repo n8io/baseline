@@ -1,5 +1,6 @@
 {
 	"name": "baseline",
+	"license": "MIT",
 	"private": true,
 	"type": "module",
 	"engines": {

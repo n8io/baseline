@@ -1,5 +1,5 @@
 // Shared by domain-create, template-upgrade and app-create: fetches a baseline release and renders
-// apps/app without the foo domain. Native TS, no dependencies; shells out to git, gh and pnpm.
+// apps/app without the foo domain. Native TS, no dependencies; shells out to git and pnpm.
 // Why a JS/TS-aware scanner renames foo instead of domain-create markers alone: foo also appears in
 // regex literals, JSX text and prose, where a plain replace or a marker would rename the wrong text
 // or miss it. render-and-test renders and tests a project on every PR, so it covers the scanner.
@@ -553,10 +553,6 @@ const releaseTag = (version: string): string => `app@${version}`;
 
 export const releaseLatest = (): string => {
 	const tags = run("git", [
-		"-c",
-		"credential.helper=",
-		"-c",
-		"credential.helper=!gh auth git-credential",
 		"ls-remote",
 		"--tags",
 		"--refs",
@@ -636,10 +632,6 @@ export const templateFetch = (version: string): TemplateFile[] => {
 	try {
 		const clone = join(work, "clone");
 		run("git", [
-			"-c",
-			"credential.helper=",
-			"-c",
-			"credential.helper=!gh auth git-credential",
 			"clone",
 			"--quiet",
 			"--filter=blob:none",
