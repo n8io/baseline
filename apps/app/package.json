@@ -15,7 +15,7 @@
 		"#ui/*": "./src/ui/*"
 	},
 	"scripts": {
-		"build": "react-router build",
+		"build": "NODE_ENV=production react-router build",
 		"check": "varlock codegen && react-router typegen && biome check . && tsc --noEmit",
 		"ci": "pnpm check && pnpm test && pnpm test:integration",
 		"codegen": "drizzle-kit generate",
@@ -27,7 +27,7 @@
 		"seed": "node --import varlock/auto-load --import @n8io/baseline-telemetry/register --experimental-loader=@opentelemetry/instrumentation/hook.mjs src/seed.ts",
 		"template-upgrade": "node scripts/template-upgrade.ts",
 		"test": "vitest run --project unit",
-		"test:integration": "react-router build && vitest run --project integration"
+		"test:integration": "pnpm build && vitest run --project integration"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",
