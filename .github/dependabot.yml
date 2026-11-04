@@ -1,0 +1,23 @@
+version: 2
+
+# Patch and minor updates merge themselves once CI passes (dependabot-automerge.yml). Each major is
+# its own PR for a human. Security updates skip the cooldown; pnpm's minimumReleaseAge still holds.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

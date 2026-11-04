@@ -103,6 +103,8 @@ pnpm turbo run check test build   # the full CI-equivalent
 
 A change that should ship needs a changeset. Run `pnpm changeset` and pick the packages it touches, plus `app` for template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the packages, tags `app@x.y.z`, and moves `v1`.
 
+Dependabot opens update PRs weekly, for releases at least 7 days old. Patch and minor updates come grouped in one PR that merges itself once CI passes; each major is its own PR to review and merge by hand. Update PRs carry no changeset, so they never publish. Add one to a major only if it should ship.
+
 > [!WARNING]
 > `v1` of `app-ci.yml` never gains a check that can fail on projects that passed before. A change like that ships as `v2`.
 
