@@ -1,6 +1,7 @@
 // Composition root for pages, the API and live streams.
 import type { Server } from "node:http";
 import {
+	authnActorRequire,
 	authnCreate,
 	authnMiddleware,
 	authnRoutes,
@@ -114,6 +115,14 @@ app.use(httpSecureHeaders);
 app.use("/api/*", bodyLimit({ maxSize: 1024 * 1024 }));
 app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
 app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
+// No Actor, no API: an anonymous request gets 401 before any route validates its input.
+app.use(
+	"/api/v1/*",
+	except("/api/v1/openapi.json", async (c, next) => {
+		authnActorRequire(c);
+		await next();
+	}),
+);
 app.route("/auth", authnRoutes(authn));
 app.route("/api/v1/foos", fooRoutes(fooUseCases));
 // domain-create: routes

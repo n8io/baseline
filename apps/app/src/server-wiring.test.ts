@@ -24,6 +24,19 @@ vi.mock("@n8io/baseline-health", () => ({
 
 let app: Hono;
 
+const bearer = async () => {
+	if (!authn) throw new Error("authn was not captured");
+	const token = await authnMemoryTokenCreate(authn, {
+		id: "user-1",
+		kind: "user",
+		scopes: [],
+	});
+	return {
+		Authorization: `Bearer ${token}`,
+		"Content-Type": "application/json",
+	};
+};
+
 beforeAll(async () => {
 	const server = (await import("./server.ts")).default as unknown as {
 		app: Hono;
@@ -47,7 +60,9 @@ describe("server wiring", () => {
 	});
 
 	it("answers an unknown /api path with JSON, before any page", async () => {
-		const res = await app.request("/api/v1/nothing-here");
+		const res = await app.request("/api/v1/nothing-here", {
+			headers: await bearer(),
+		});
 		expect(res.status).toBe(404);
 		expect(await res.json()).toEqual({
 			code: "NotFound",
@@ -58,7 +73,9 @@ describe("server wiring", () => {
 
 	it("skips the cookie middleware on /api, but runs it on pages", async () => {
 		const cookie = { Cookie: "__Host-authn=not-a-real-token" };
-		const api = await app.request("/api/v1/nothing-here", { headers: cookie });
+		const api = await app.request("/api/v1/nothing-here", {
+			headers: { ...(await bearer()), ...cookie },
+		});
 		expect(api.status).toBe(404);
 		expect(api.headers.get("set-cookie")).toBeNull();
 
@@ -75,19 +92,6 @@ describe("server wiring", () => {
 	});
 
 	describe("foo API", () => {
-		const bearer = async () => {
-			if (!authn) throw new Error("authn was not captured");
-			const token = await authnMemoryTokenCreate(authn, {
-				id: "user-1",
-				kind: "user",
-				scopes: [],
-			});
-			return {
-				Authorization: `Bearer ${token}`,
-				"Content-Type": "application/json",
-			};
-		};
-
 		it("creates a foo and reads it back with a bearer token", async () => {
 			const headers = await bearer();
 			const created = await app.request("/api/v1/foos", {
@@ -106,6 +110,32 @@ describe("server wiring", () => {
 		it("answers 401 without a token", async () => {
 			const res = await app.request("/api/v1/foos");
 			expect(res.status).toBe(401);
+		});
+
+		it("answers 401 without a token before validating the body", async () => {
+			const res = await app.request("/api/v1/foos", {
+				body: JSON.stringify({ unknown: true }),
+				headers: { "Content-Type": "application/json" },
+				method: "POST",
+			});
+			expect(res.status).toBe(401);
+			expect(res.headers.get("content-type")).toBe("application/problem+json");
+			expect(await res.json()).toMatchObject({ code: "AuthnRequired" });
+		});
+
+		it("validates the body once the request has an actor", async () => {
+			const res = await app.request("/api/v1/foos", {
+				body: JSON.stringify({ unknown: true }),
+				headers: await bearer(),
+				method: "POST",
+			});
+			expect(res.status).toBe(400);
+			expect(await res.json()).toMatchObject({ code: "ValidationFailed" });
+		});
+
+		it("serves the OpenAPI document without a token", async () => {
+			const res = await app.request("/api/v1/openapi.json");
+			expect(res.status).toBe(200);
 		});
 
 		it("documents the foo routes in the OpenAPI document", async () => {
