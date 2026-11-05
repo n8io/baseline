@@ -159,7 +159,7 @@ snapshots:
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: true
+  autoInstallPeers: false
   excludeLinksFromLockfile: false
 
 packageExtensionsChecksum: sha256-qfHJZ/cYyETwZQNn6h5Uimkqig4dIletHUDXjTj1yQ4=

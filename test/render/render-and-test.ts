@@ -110,9 +110,12 @@ const checkoutPackagesUse = (directory: string) => {
 	const dockerfile = join(directory, "Dockerfile");
 	let text = readFileSync(dockerfile, "utf8");
 	for (const [from, to] of [
-		[".npmrc ./\n", `.npmrc ./\nCOPY ${folder} ${folder}\n`],
+		[
+			"pnpm-workspace.yaml ./\n",
+			`pnpm-workspace.yaml ./\nCOPY ${folder} ${folder}\n`,
+		],
 		["cp package.json", "cp -R package.json"],
-		[".npmrc /prod/", `.npmrc ${folder} /prod/`],
+		["pnpm-workspace.yaml /prod/", `pnpm-workspace.yaml ${folder} /prod/`],
 	] as const) {
 		if (!text.includes(from)) throw new Error(`Dockerfile has no "${from}"`);
 		text = text.replace(from, to);
@@ -128,13 +131,7 @@ const main = async () => {
 		);
 	}
 	const previous = releaseLatest();
-	// TODO: drop the .npmrc rewrite once the previous release is app@2.0.0 or later. Earlier
-	// releases read @n8io from GitHub Packages, which needs a token; their versions are on npmjs too.
-	const previousFiles = templateFetch(previous).map((f) =>
-		f.path === ".npmrc"
-			? { ...f, text: f.text.replace(/^@n8io:registry=.*\n/m, "") }
-			: f,
-	);
+	const previousFiles = templateFetch(previous);
 	const files = checkoutExport();
 	const manifest = files.find((f) => f.path === "package.json")?.text ?? "{}";
 	// Its own label: between releases the checkout's version equals the previous release's.

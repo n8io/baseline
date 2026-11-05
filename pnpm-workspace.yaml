@@ -1,6 +1,9 @@
 packages:
   - apps/*
   - packages/*
+# pnpm reads only auth and registry lines from .npmrc; every other setting lives here.
+# Peers install only where a manifest lists them, so build-only peers stay out of the image.
+autoInstallPeers: false
 # Refuse releases younger than a day: hijacked npm releases are usually pulled within hours.
 # Our own packages are exempt so a baseline release flows at once.
 minimumReleaseAge: 1440

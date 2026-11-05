@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -186,5 +186,28 @@ describe("image-budget.json", () => {
 		expect(Number.isInteger((budget as { megabytes: number }).megabytes)).toBe(
 			true,
 		);
+	});
+});
+
+describe(".npmrc", () => {
+	// pnpm reads only auth and registry lines from .npmrc and ignores the rest, so settings
+	// belong in pnpm-workspace.yaml. Checks the workspace root's file too (../../ in baseline).
+	it("holds only auth and registry lines", () => {
+		const root = existsSync(new URL("./pnpm-workspace.yaml", import.meta.url))
+			? "./"
+			: "../../";
+		const settings = [...new Set(["./.npmrc", `${root}.npmrc`])]
+			.map((path) => new URL(path, import.meta.url))
+			.filter((url) => existsSync(url))
+			.flatMap((url) => readFileSync(url, "utf8").split("\n"))
+			.map((line) => line.trim())
+			.filter((line) => line !== "" && !/^[#;]/.test(line))
+			.filter(
+				(line) =>
+					!/^(@[\w.-]+:)?registry=|^\/\/[^=]+:(_authToken|_auth|_password|username|email|certfile|keyfile)=/.test(
+						line,
+					),
+			);
+		expect(settings).toEqual([]);
 	});
 });
