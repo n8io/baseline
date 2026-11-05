@@ -13,17 +13,17 @@
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build
 WORKDIR /app
 RUN npm install --global pnpm@12.17.0
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	pnpm fetch --store-dir /pnpm/store
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	pnpm install --frozen-lockfile --offline --store-dir /pnpm/store \
 	&& pnpm run build
-# Production dependencies only, without build-only peers (auto-install-peers=false in .npmrc).
+# Production dependencies only, without build-only peers (autoInstallPeers: false in pnpm-workspace.yaml).
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	mkdir /prod \
-	&& cp package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc /prod/ \
+	&& cp package.json pnpm-lock.yaml pnpm-workspace.yaml /prod/ \
 	&& cd /prod \
 	&& pnpm install --prod --frozen-lockfile --offline --store-dir /pnpm/store --package-import-method copy
 
