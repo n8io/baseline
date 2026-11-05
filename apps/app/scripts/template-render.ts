@@ -458,7 +458,7 @@ export const templateFileRender = (
 	if (templateUntouchedPaths.some((p) => p.test(path))) return file;
 	if (path === "CONTEXT.md")
 		return { path, text: contextRender(text, answers) };
-	// A generated repo's biome.json is its root config, not one nested in the monorepo.
+	// A Project's biome.json is its root config, not one nested in the monorepo.
 	if (path === "biome.json") {
 		return { path, text: text.replace(/\n\t"root": false,/, "") };
 	}
