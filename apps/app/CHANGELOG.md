@@ -1,5 +1,14 @@
 # app
 
+## 2.0.1
+
+### Patch Changes
+
+- ecc4ac7: An `/api/v1` request without a signed-in Actor now answers 401 before any route validates its input, so an anonymous caller no longer learns the API's input shape from 400 errors. `/api/v1/openapi.json` stays public.
+- da55733: `glossary-check` takes the glossary and the tree to scan (`pnpm glossary-check [glossary] [tree]`, defaults `CONTEXT.md` and `.`), and no longer flags an alias inside a path or script name such as `test/integration` or `test:integration`.
+- 11e525b: Move `autoInstallPeers: false` from `.npmrc`, which pnpm 12 ignores for non-auth settings, to `pnpm-workspace.yaml`, and delete `.npmrc`. Projects that upgrade lose `.npmrc` and the Dockerfile stops copying it; keep only auth and registry lines in any `.npmrc` you add.
+- b0fb22e: `docs/agents/template-upgrade.md` and `docs/agents/dependency-updates.md` walk a person through a Template upgrade and through dependency updates one step at a time. Ask your agent: "Walk me through a template upgrade with docs/agents/template-upgrade.md."
+
 ## 2.0.0
 
 ### Major Changes
