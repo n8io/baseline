@@ -65,6 +65,19 @@ describe("glossary-check", () => {
 		]);
 	});
 
+	it("skips an alias inside a path or script name but not at a sentence end", () => {
+		const aliases = [{ alias: "integration", term: "Bridge" }];
+		const pathDiff = [
+			"+++ b/src/a.ts",
+			"@@ -0,0 +1,3 @@",
+			"+import { db } from '../test/integration/db.ts';",
+			"+// see integration.test.ts, then run pnpm test:integration",
+			"+// Calls the integration.",
+		].join("\n");
+
+		expect(glossaryHitsFind(pathDiff, aliases).map((h) => h.line)).toEqual([3]);
+	});
+
 	it("prints a GitHub annotation in Actions and a plain line elsewhere", () => {
 		const hit = {
 			alias: "push",

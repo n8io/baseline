@@ -12,6 +12,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - format: `pnpm format`
 - lint + typecheck (root files): `pnpm check`
 - test (root files): `pnpm test` (needs Docker: it starts the Postgres and Redis containers)
+- glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
 - full CI-equivalent: `pnpm turbo run check test build`
 
 ## Naming

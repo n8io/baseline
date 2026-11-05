@@ -1,5 +1,7 @@
-// pnpm glossary-check: warns on every `_Avoid_:` alias from CONTEXT.md in lines added against
-// origin/main. Warnings only: the agent judges each hit, so it always exits 0.
+// pnpm glossary-check [glossary] [tree]: warns on every `_Avoid_:` alias from the glossary
+// (default CONTEXT.md) in lines added against origin/main under the tree (default "."). Baseline runs
+// it over the monorepo with its root CONTEXT.md. Warnings only: the agent judges each hit, so it
+// always exits 0.
 import { readFileSync } from "node:fs";
 import { run } from "./template-render.ts";
 
@@ -59,7 +61,12 @@ export const glossaryHitsFind = (
 ): GlossaryHit[] => {
 	const patterns = aliases.map((a) => ({
 		...a,
-		pattern: new RegExp(`(?<![\\w-])${RegExp.escape(a.alias)}(?![\\w-])`, "i"),
+		// Not inside a word or a path: test/integration, test:integration and
+		// integration.test.ts are no Bridge.
+		pattern: new RegExp(
+			`(?<![\\w-]|[/.:])${RegExp.escape(a.alias)}(?![\\w-]|[/.]\\w)`,
+			"i",
+		),
 	}));
 	const hits: GlossaryHit[] = [];
 	for (const added of glossaryDiffAddedLines(diff)) {
@@ -82,16 +89,18 @@ export const glossaryHitFormat = (
 		? `::warning file=${hit.file},line=${hit.line}::"${hit.alias}" is an alias of "${hit.term}"`
 		: `${hit.file}:${hit.line}: "${hit.alias}" is an alias of "${hit.term}"`;
 
-const main = () => {
+const main = (
+	[glossary = "CONTEXT.md", tree = "."] = process.argv.slice(2),
+) => {
 	try {
-		const aliases = glossaryAliasesRead(readFileSync("CONTEXT.md", "utf8"));
+		const aliases = glossaryAliasesRead(readFileSync(glossary, "utf8"));
 		const diff = run("git", [
 			"diff",
 			"--unified=0",
 			"--no-color",
 			"origin/main",
 			"--",
-			".",
+			tree,
 		]);
 		const hits = glossaryHitsFind(diff, aliases);
 		const actions = process.env.GITHUB_ACTIONS === "true";

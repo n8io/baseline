@@ -40,6 +40,19 @@ jobs:
           --config p/typescript --config p/nodejs --config p/react --config p/secrets
           packages scripts test
 
+  # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
+  glossary-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
+
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
   integration:
     runs-on: ubuntu-latest
