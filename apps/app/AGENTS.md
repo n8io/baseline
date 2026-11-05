@@ -129,3 +129,5 @@ These docs load only when the task needs them. Read the one that matches before 
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
+- Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
+- Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
