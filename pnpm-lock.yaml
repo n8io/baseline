@@ -247,8 +247,8 @@ importers:
         specifier: ^8.5.1
         version: 8.5.1(react-router@8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(typescript@7.0.2)
       '@varlock/1password-plugin':
-        specifier: ^1.2.0
-        version: 1.2.0(varlock@1.24.0)
+        specifier: ^2.0.6
+        version: 2.0.6(varlock@1.24.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2437,11 +2437,11 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@varlock/1password-plugin@1.2.0':
-    resolution: {integrity: sha512-uRSiVW67/AXbmTfpIyTWF/hot/MVE6+uzt8i6SOyALXHj7bHFeMqJiHjRjbiKGXDD9s7y8WIZkkQRYDCaUCILw==}
+  '@varlock/1password-plugin@2.0.6':
+    resolution: {integrity: sha512-MFW0sWdRy13dvqRZa2Ta8/1my/BhpEAKKd5+8a7yO/HN/XaJVdTb9yJW6Nk7DiCvweKxPsWgooIpK+jFsIOukw==}
     engines: {node: '>=22'}
     peerDependencies:
-      varlock: ^1.6.0
+      varlock: ^1.24.0
 
   '@varlock/native-helper-darwin@1.24.0':
     resolution: {integrity: sha512-/uMRBzTZxdtlwyszdPbamFojDfRQYTNY0l20SoX8UoTXrI+Kq7B3tt2ZDP0WfOhb9EAP1egAewBuGLj8NzemMQ==}
@@ -6476,7 +6476,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@varlock/1password-plugin@1.2.0(varlock@1.24.0)':
+  '@varlock/1password-plugin@2.0.6(varlock@1.24.0)':
     dependencies:
       varlock: 1.24.0
 
