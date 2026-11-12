@@ -169,12 +169,16 @@ describe("@n8io/baseline-telemetry/register", () => {
 			OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:9",
 		});
 		expect(code).toBe(0);
+		// Only Node's own warnings may print: Node 26 deprecates module.register()
+		// (DEP0205), which the preload file uses to add the OpenTelemetry hook.
 		const lines = stderr
 			.split("\n")
 			.filter(
 				(line) =>
 					line !== "" &&
-					!/ExperimentalWarning|^--import|--trace-warnings/.test(line),
+					!/ExperimentalWarning|DEP0205|--trace-deprecation|^--import|--trace-warnings/.test(
+						line,
+					),
 			);
 		expect(lines).toEqual([]);
 	}, 30_000);
