@@ -1,4 +1,4 @@
-# A starter app that shows every pattern a project made from baseline uses.
+# A starter app with the layout and patterns a project made from baseline uses. Its one Domain, Foo, shows the patterns inside a domain; Consumers and Bridges are shown in `docs/agents/events-and-bridges.md`.
 
 ## Architecture
 
@@ -30,6 +30,10 @@ _Avoid_: HTTP layer, routes, controllers, transport
 An interface a domain declares for something it needs from outside itself, such as saving or caching an entity.
 _Avoid_: Contract, gateway
 
+**Repository**:
+The port that saves and loads one aggregate. Each aggregate root has exactly one, named after it; a supporting model is saved through its root's repository.
+_Avoid_: DAO, data mapper
+
 **SPI**:
 The layer of adapters that implement ports with real technology. It holds no business rules. Domain code depends on ports, never on the SPI.
 _Avoid_: Infrastructure, providers, drivers
@@ -52,6 +56,10 @@ _Avoid_: message, signal, notification
 **Consumer**:
 An inbound adapter in a domain's API that receives one kind of event and calls a use case.
 _Avoid_: subscriber, listener, handler
+
+**Inbox**:
+The record that a consumer handled an event, written in the same transaction as the work it did, so a repeated delivery of that event is skipped.
+_Avoid_: dedupe table, processed events
 
 **Bridge**:
 An adapter outside every domain that fills one domain's read port by calling another domain's use case.

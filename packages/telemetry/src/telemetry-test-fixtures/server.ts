@@ -1,4 +1,4 @@
-// Started by register.test.ts with the preload and the loader hook. Serves one
+// Started by register.test.ts with telemetry-test-fixtures/preload.ts. Serves one
 // request with a query, one health probe, then flushes telemetry and exits.
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
