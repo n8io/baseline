@@ -52,6 +52,11 @@ const pieces = [
 		package: "@n8io/baseline-live",
 		paths: [/^src\/domains\/foo\/api\/foo-live(\.test)?\.ts$/],
 	},
+	{
+		name: "cache",
+		package: "@n8io/baseline-cache",
+		paths: [/^src\/domains\/foo\/spi\/foo-cache(d|\.[a-z.]+)\.ts$/],
+	},
 ];
 
 export const piecesRemovedFind = (appDirectory: string): string[] => {

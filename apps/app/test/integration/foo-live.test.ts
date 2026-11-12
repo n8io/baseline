@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
 import {
@@ -13,7 +13,6 @@ beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
 	drop = database.drop;
 	const options = {
-		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 	};
 	const started = await Promise.allSettled([

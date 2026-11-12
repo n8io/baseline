@@ -8,6 +8,7 @@ import {
 	request,
 } from "node:http";
 import { connect, createServer as netServerCreate } from "node:net";
+import { inject } from "vitest";
 
 // The preload every entry runs; the image sets it in NODE_OPTIONS.
 const preloadFlags = ["--import", "./src/preload.ts"];
@@ -72,7 +73,6 @@ export type AppProcess = {
 };
 
 type AppProcessOptions = {
-	cacheUrl: string;
 	databaseUrl: string;
 	/** Overrides, e.g. LOG_LEVEL or OTEL_* for the telemetry test. */
 	env?: Record<string, string>;
@@ -84,7 +84,7 @@ const hasExited = (child: ChildProcess): boolean =>
 // Spawns the entry with the image's preloads and env; does not wait for anything.
 const appProcessSpawn = async (
 	entry: string,
-	{ cacheUrl, databaseUrl, env = {} }: AppProcessOptions,
+	{ databaseUrl, env = {} }: AppProcessOptions,
 	extraEnv: Record<string, string>,
 ): Promise<AppProcess> => {
 	const healthPort = await portClaim();
@@ -94,7 +94,9 @@ const appProcessSpawn = async (
 			// The Vitest worker's serialized varlock env would win over every override below.
 			__VARLOCK_ENV: undefined,
 			APP_ENV: "test",
-			CACHE_URL: cacheUrl,
+			// piece-start: redis
+			CACHE_URL: inject("integrationCacheUrl"),
+			// piece-end: redis
 			DATABASE_URL: databaseUrl,
 			HEALTH_PORT: String(healthPort),
 			// A crash logs at fatal and then exits; anything quieter would hide why.

@@ -30,7 +30,9 @@ export const fooPortsMemoryCreate = (): {
 	// piece-end: live
 	return {
 		ports: {
+			// piece-start: cache
 			fooCache: fooCacheMemoryCreate(),
+			// piece-end: cache
 			// piece-start: live
 			fooLiveUpdates: {
 				send: async (update) => {

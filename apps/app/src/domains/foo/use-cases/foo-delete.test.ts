@@ -20,7 +20,7 @@ const setup = async () => {
 };
 
 describe("fooDelete", () => {
-	it("lets the owner delete, publishes, sends a live update and clears the cache", async () => {
+	it("lets the owner delete, publishes, sends a live update, and the next get finds nothing", async () => {
 		const {
 			ports,
 			published,

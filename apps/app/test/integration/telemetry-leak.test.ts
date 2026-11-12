@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
@@ -48,7 +48,6 @@ beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
 	drop = database.drop;
 	server = await productionServerStart({
-		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 		env: {
 			...otlpEnv(receiver),

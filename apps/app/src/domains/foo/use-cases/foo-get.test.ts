@@ -17,6 +17,7 @@ describe("fooGet", () => {
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
 	});
 
+	// piece-start: cache
 	it("reads the foo, then serves the second get from the cache", async () => {
 		const { ports, state } = fooPortsMemoryCreate();
 		const created = await fooCreate(ports)(actor, { name: "alpha" });
@@ -30,4 +31,5 @@ describe("fooGet", () => {
 		expect(first).toEqual({ ok: true, value: created.value });
 		expect(second).toEqual(first);
 	});
+	// piece-end: cache
 });

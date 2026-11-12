@@ -13,7 +13,6 @@ const envImport = (env: Record<string, string>) => {
 
 const memoryEnv = {
 	AUTHN_ISSUER_URL: "memory://",
-	CACHE_URL: "memory://",
 	DATABASE_URL: "memory://",
 };
 
@@ -37,12 +36,11 @@ describe("src/env.ts", () => {
 		await expect(
 			envImport({
 				APP_ENV: "production",
-				AUTHN_ISSUER_URL: "https://issuer.example.com",
-				CACHE_URL: "memory://",
+				AUTHN_ISSUER_URL: "memory://",
 				DATABASE_URL: "memory://",
 			}),
 		).rejects.toThrow(
-			"memory:// is allowed only in development and test: DATABASE_URL, CACHE_URL",
+			"memory:// is allowed only in development and test: DATABASE_URL, AUTHN_ISSUER_URL",
 		);
 	});
 
@@ -50,7 +48,6 @@ describe("src/env.ts", () => {
 		const { envLocal } = await envImport({
 			APP_ENV: "production",
 			AUTHN_ISSUER_URL: "https://issuer.example.com",
-			CACHE_URL: "rediss://cache.example.com",
 			DATABASE_URL: "postgres://db.example.com/app",
 		});
 		expect(envLocal).toBe(false);

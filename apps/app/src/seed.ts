@@ -2,7 +2,6 @@
 // The blank line below keeps this comment when the render's Biome pass drops the Actor import.
 
 import type { Actor } from "@n8io/baseline-authn";
-import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
@@ -19,6 +18,7 @@ import {
 } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
+import { redisClientCreate } from "./redis.ts";
 
 // domain-create: domains-start
 const devSeedActor: Actor = {
@@ -51,10 +51,12 @@ if (import.meta.main) {
 		process.exit(0);
 	}
 	const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+	// piece-start: redis
 	const redisClient =
 		ENV.CACHE_URL === "memory://"
 			? "memory"
-			: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
+			: await redisClientCreate(ENV.CACHE_URL);
+	// piece-end: redis
 	const queue = await queueCreate({ pgPool, role: "publisher" });
 	// piece-start: live
 	const liveHub =
@@ -64,7 +66,9 @@ if (import.meta.main) {
 	// piece-end: live
 	// domain-create: domains-start
 	const ports = {
+		// piece-start: cache
 		cache: redisClient,
+		// piece-end: cache
 		database: pgPool,
 		// piece-start: live
 		liveHub,
@@ -89,6 +93,8 @@ if (import.meta.main) {
 	await liveHub.close();
 	// piece-end: live
 	await pgPool.end();
+	// piece-start: redis
 	if (redisClient !== "memory") await redisClient.close();
+	// piece-end: redis
 	await telemetryShutdown();
 }

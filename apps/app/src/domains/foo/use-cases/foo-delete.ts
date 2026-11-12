@@ -9,14 +9,18 @@ import { fooDeleteCan } from "../rules/foo-delete-can.ts";
 export const fooDelete =
 	({
 		fooTransaction,
+		// piece-start: cache
 		fooCache,
+		// piece-end: cache
 		// piece-start: live
 		fooLiveUpdates,
 		// piece-end: live
 	}: Pick<
 		FooPorts,
 		| "fooTransaction"
+		// piece-start: cache
 		| "fooCache"
+		// piece-end: cache
 		// piece-start: live
 		| "fooLiveUpdates"
 		// piece-end: live
@@ -41,7 +45,9 @@ export const fooDelete =
 		});
 		// After commit, outside the callback.
 		if (result.ok) {
+			// piece-start: cache
 			await fooCache.delete(input.fooId);
+			// piece-end: cache
 			// piece-start: live
 			await fooLiveUpdates.send({ type: "foo.deleted", id: input.fooId });
 			// piece-end: live

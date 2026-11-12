@@ -23,7 +23,7 @@ const setup = async () => {
 };
 
 describe("fooUpdate", () => {
-	it("lets the owner rename, sends a live update and clears the cache", async () => {
+	it("lets the owner rename, sends a live update, and the next get reads the new name", async () => {
 		const {
 			ports,
 			// piece-start: live

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { httpStatus, workerStart } from "./production-server.ts";
 
@@ -12,7 +12,6 @@ describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		const { databaseUrl, drop } = await integrationDatabaseCreate();
 		cleanups.push(drop);
 		const worker = await workerStart({
-			cacheUrl: inject("integrationCacheUrl"),
 			databaseUrl,
 		});
 		cleanups.push(worker.stop);

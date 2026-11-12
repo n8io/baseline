@@ -7,7 +7,6 @@ import {
 	authnMiddlewareCreate,
 	authnRoutesCreate,
 } from "@n8io/baseline-authn";
-import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { healthServerCreate } from "@n8io/baseline-health";
 import {
 	httpCsrf,
@@ -42,6 +41,7 @@ import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
+import { redisClientCreate } from "./redis.ts";
 import { seedsRun } from "./seed.ts";
 
 // piece-start: ui
@@ -62,10 +62,12 @@ const pgPool =
 	ENV.DATABASE_URL === "memory://"
 		? "memory"
 		: postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+// piece-start: redis
 const redisClient =
 	ENV.CACHE_URL === "memory://"
 		? "memory"
-		: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
+		: await redisClientCreate(ENV.CACHE_URL);
+// piece-end: redis
 const queue =
 	pgPool === "memory"
 		? "memory"
@@ -85,14 +87,18 @@ if (import.meta.env.DEV) {
 		// piece-end: live
 		if (queue !== "memory") await queue.stop();
 		if (pgPool !== "memory") await pgPool.end();
+		// piece-start: redis
 		if (redisClient !== "memory") await redisClient.close();
+		// piece-end: redis
 		await health.close();
 	};
 }
 // piece-end: ui
 // domain-create: domains-start
 const ports = {
+	// piece-start: cache
 	cache: redisClient,
+	// piece-end: cache
 	database: pgPool,
 	// piece-start: live
 	liveHub,
@@ -185,11 +191,13 @@ const serverServe = (server: Server) => {
 				close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
 				name: "database",
 			},
+			// piece-start: redis
 			{
 				close: () =>
 					redisClient === "memory" ? Promise.resolve() : redisClient.close(),
-				name: "cache",
+				name: "redis",
 			},
+			// piece-end: redis
 			{ close: () => health.close(), name: "health" },
 			{ close: () => telemetryShutdown(), name: "telemetry" },
 		],

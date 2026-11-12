@@ -61,7 +61,9 @@ afterAll(async () => {
 describe("foo events on Postgres", () => {
 	const ports = () =>
 		fooPortsCreate({
+			// piece-start: cache
 			cache: "memory",
+			// piece-end: cache
 			database: pgPool,
 			// piece-start: live
 			liveHub: liveHubMemoryCreate(),

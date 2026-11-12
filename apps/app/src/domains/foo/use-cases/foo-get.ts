@@ -9,17 +9,29 @@ import type { FooPorts } from "../ports.ts";
 export const fooGet =
 	({
 		fooReadRepository,
+		// piece-start: cache
 		fooCache,
-	}: Pick<FooPorts, "fooReadRepository" | "fooCache">) =>
+		// piece-end: cache
+	}: Pick<
+		FooPorts,
+		| "fooReadRepository"
+		// piece-start: cache
+		| "fooCache"
+		// piece-end: cache
+	>) =>
 	async (
 		_actor: Actor,
 		input: FooGetInput,
 	): Promise<Result<Foo, FooNotFoundError>> => {
 		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
+		// piece-start: cache
 		const cached = await fooCache.get(input.fooId);
 		if (cached) return ok(cached);
+		// piece-end: cache
 		const foo = await fooReadRepository.findById(input.fooId);
 		if (!foo) return err(new FooNotFoundError(input.fooId));
+		// piece-start: cache
 		await fooCache.set(foo);
+		// piece-end: cache
 		return ok(foo);
 	};

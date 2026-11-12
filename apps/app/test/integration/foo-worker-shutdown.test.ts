@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type OtlpSpan,
@@ -67,7 +67,6 @@ describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
 			 VALUES (gen_random_uuid(), 'Stale', 'dev-admin', now() - interval '40 days', now() - interval '40 days')`,
 		);
 		const worker = await workerStart({
-			cacheUrl: inject("integrationCacheUrl"),
 			databaseUrl,
 			env: otlpEnv(receiver),
 		});

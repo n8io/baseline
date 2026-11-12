@@ -31,7 +31,6 @@ const databaseCreate = async (): Promise<string> => {
 
 const workerBoot = async (databaseUrl: string, schedule?: string) => {
 	const worker = await workerStart({
-		cacheUrl: "memory://",
 		databaseUrl,
 		env: schedule === undefined ? {} : { SCHEDULE_FOO_STALE_ARCHIVE: schedule },
 	});
@@ -69,7 +68,6 @@ describe("worker schedules", { timeout: 30_000 }, () => {
 	it("fails boot naming SCHEDULE_FOO_STALE_ARCHIVE when its cron is bad", async () => {
 		const databaseUrl = await databaseCreate();
 		const worker = await workerSpawn({
-			cacheUrl: "memory://",
 			databaseUrl,
 			env: { SCHEDULE_FOO_STALE_ARCHIVE: "every day" },
 		});

@@ -138,4 +138,4 @@ These docs load only when the task needs them. Read the one that matches before 
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
-- Adding or removing a piece of the stack (UI pages, live updates): [docs/agents/pieces.md](docs/agents/pieces.md)
+- Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis): [docs/agents/pieces.md](docs/agents/pieces.md)
