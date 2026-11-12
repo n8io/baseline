@@ -10,7 +10,7 @@ import {
 	queueMigrate,
 } from "@n8io/baseline-queue";
 import { err, ok, type Result } from "@n8io/baseline-result";
-import { context, SpanKind, trace } from "@opentelemetry/api";
+import { context, metrics, SpanKind, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import {
 	InMemorySpanExporter,
@@ -37,6 +37,12 @@ trace.setGlobalTracerProvider(
 		spanProcessors: [new SimpleSpanProcessor({ exporter: spans })],
 	}),
 );
+
+// The lost-Event counter is taken once per process, so every test shares this one.
+const eventsLost = vi.fn();
+vi.spyOn(metrics, "getMeter").mockReturnValue({
+	createCounter: () => ({ add: eventsLost }),
+} as unknown as ReturnType<typeof metrics.getMeter>);
 
 let pgPool: pg.Pool;
 let publisher: Pulsar;
@@ -282,6 +288,82 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 			expect(runs).toEqual(["foo_stop"]);
 		} finally {
 			await next.close();
+		}
+	});
+
+	it("sends after stop until close, then counts each Event it loses", async () => {
+		const eventName = eventNameCreate();
+		const runs: string[] = [];
+		await pulsarConsumersStart(worker, [
+			received(
+				`billing.foo-created-${randomUUID()}`,
+				eventName,
+				async ({ fooId }) => {
+					runs.push(fooId);
+					return ok(undefined);
+				},
+			),
+		]);
+		const sender = pulsarCreate({
+			serviceUrl: inject("pulsarUrl"),
+			token: inject("pulsarToken"),
+		});
+		eventsLost.mockClear();
+		await sender.stop();
+		const sent = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+		await sent.publish(eventName, { fooId: "foo_after_stop" });
+		await sent.send();
+		await vi.waitFor(() => expect(runs).toEqual(["foo_after_stop"]), {
+			timeout: 20_000,
+		});
+		expect(eventsLost).not.toHaveBeenCalled();
+		await sender.close();
+		// The change is already committed, so send resolves; the Event is only logged and counted.
+		const lost = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+		await lost.publish(eventName, { fooId: "foo_after_close" });
+		await expect(lost.send()).resolves.toBeUndefined();
+		expect(eventsLost).toHaveBeenCalledExactlyOnceWith(1, {
+			"messaging.destination.name": `persistent://public/default/${eventName}`,
+		});
+	});
+
+	it("tries a failed producer create again on the next send", async () => {
+		const eventName = eventNameCreate();
+		const runs: string[] = [];
+		await pulsarConsumersStart(worker, [
+			received(
+				`billing.foo-created-${randomUUID()}`,
+				eventName,
+				async ({ fooId }) => {
+					runs.push(fooId);
+					return ok(undefined);
+				},
+			),
+		]);
+		const createProducer = vi
+			.spyOn(PulsarClient.Client.prototype, "createProducer")
+			.mockRejectedValueOnce(new Error("Broker unavailable"));
+		const sender = pulsarCreate({
+			serviceUrl: inject("pulsarUrl"),
+			token: inject("pulsarToken"),
+		});
+		eventsLost.mockClear();
+		try {
+			const first = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+			await first.publish(eventName, { fooId: "foo_lost" });
+			await first.send();
+			expect(eventsLost).toHaveBeenCalledOnce();
+			const second = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+			await second.publish(eventName, { fooId: "foo_retried" });
+			await second.send();
+			await vi.waitFor(() => expect(runs).toEqual(["foo_retried"]), {
+				timeout: 20_000,
+			});
+			expect(createProducer).toHaveBeenCalledTimes(2);
+			expect(eventsLost).toHaveBeenCalledOnce();
+		} finally {
+			createProducer.mockRestore();
+			await sender.close();
 		}
 	});
 });

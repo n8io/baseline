@@ -3,8 +3,10 @@ import { logger } from "@n8io/baseline-logger";
 import type { QueueEvents } from "@n8io/baseline-queue";
 import {
 	type Context,
+	type Counter,
 	context,
 	defaultTextMapSetter,
+	metrics,
 	SpanKind,
 	SpanStatusCode,
 	type Tracer,
@@ -27,6 +29,19 @@ export type PulsarEvents<M> = QueueEvents<M> & {
 	// Sends what publish buffered. Call it once the transaction commits; on a rollback, drop the
 	// PulsarEvents instead. A failed send is logged, not thrown: the change is already committed.
 	send(): Promise<void>;
+};
+
+let eventsLost: Counter | undefined;
+
+// Taken on first use, after the telemetry preload has registered the meter provider.
+const pulsarEventsLostCounter = (): Counter => {
+	eventsLost ??= metrics
+		.getMeter("@n8io/baseline-pulsar")
+		.createCounter("baseline.pulsar.events_lost", {
+			description: "Events not sent after their transaction committed",
+			unit: "{event}",
+		});
+	return eventsLost;
 };
 
 type PulsarEventBuffered = {
@@ -78,6 +93,9 @@ const pulsarEventSend = (
 					{ err: error, eventId: event.eventId, topic },
 					"Event not sent after commit; it is lost",
 				);
+				pulsarEventsLostCounter().add(1, {
+					"messaging.destination.name": topic,
+				});
 			} finally {
 				span.end();
 			}

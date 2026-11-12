@@ -4,7 +4,7 @@ Events and Consumers on [Apache Pulsar](https://pulsar.apache.org) 5, for a proj
 
 How it differs from the queue package:
 
-- **Sent after commit.** `publish` only buffers; the transaction SPI calls `send()` after the commit and drops the buffer on a rollback. A crash between the commit and the send loses that Event.
+- **Sent after commit.** `publish` only buffers; the transaction SPI calls `send()` after the commit and drops the buffer on a rollback. A crash between the commit and the send loses that Event. A send that fails is logged and counted on `baseline.pulsar.events_lost`, by `messaging.destination.name`, so you can alert on it.
 - **Topics and subscriptions.** Each Event goes to `persistent://<namespace>/<event name>` (namespace `public/default` unless you pass one). Each Consumer is a Shared subscription named after its `queueName`, so every Worker instance takes a share.
 - **Retries and dead letters.** A Consumer that throws is tried five times in all, about 10 s, 20 s, 40 s and 80 s apart, then its Event moves to `<queueName>.dead`, which keeps a subscription of the same name.
 - **Duplicates.** Each Event carries an `event-id` property, kept through every retry and the dead letter. It is the inbox `eventId`, so `queueInboxInsert` skips a repeat as before.
