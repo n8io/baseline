@@ -10,10 +10,8 @@ pnpm add @n8io/baseline-postgres
 
 - `postgresPoolCreate({ databaseUrl, ...pg.PoolConfig })`: the process's one pool (10 connections, 3 s connect timeout).
 - `postgresTransactionRun(pgPool, work, { timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
-- `postgresPortsGuard(ports, isOpen)`: wraps a transaction's ports so a call after the transaction ended throws.
 - `postgresMigrate({ databaseUrl, migrationsFolder })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
-- `postgresCursorEncode(cursor)`, `postgresCursorDecode(text, prefix)`, `PostgresCursor`: a list page's position as base64url; a cursor that does not decode reads as none.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
 
 ## Example

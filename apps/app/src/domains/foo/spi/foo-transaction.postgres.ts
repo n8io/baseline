@@ -1,7 +1,4 @@
-import {
-	postgresPortsGuard,
-	postgresTransactionRun,
-} from "@n8io/baseline-postgres";
+import { postgresTransactionRun } from "@n8io/baseline-postgres";
 import {
 	type Inbox,
 	type Queue,
@@ -11,6 +8,7 @@ import {
 import { ok, type Result } from "@n8io/baseline-result";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
+import { transactionPortsGuard } from "../../../transaction-ports-guard.ts";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
@@ -40,12 +38,12 @@ export const fooTransactionPostgresCreate = (
 			try {
 				return await work({
 					// piece-start: queue
-					fooEvents: postgresPortsGuard(
+					fooEvents: transactionPortsGuard(
 						queueEventsPgBossCreate<FooEventMap>(queue, pgClient),
 						isOpen,
 					),
 					// piece-end: queue
-					fooRepository: postgresPortsGuard(
+					fooRepository: transactionPortsGuard(
 						fooRepositoryPostgresCreate(drizzle({ client: pgClient })),
 						isOpen,
 					),

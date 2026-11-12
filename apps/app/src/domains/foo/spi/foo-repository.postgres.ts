@@ -1,9 +1,5 @@
 import { idToUuid } from "@n8io/baseline-id";
-import {
-	postgresCursorDecode,
-	postgresCursorEncode,
-	postgresUniqueViolationIs,
-} from "@n8io/baseline-postgres";
+import { postgresUniqueViolationIs } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import {
 	and,
@@ -16,6 +12,7 @@ import {
 	sql,
 } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { cursorDecode, cursorEncode } from "../../../cursor.ts";
 import { FooNameTakenError } from "../foo-errors.ts";
 import type { Foo } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
@@ -72,9 +69,7 @@ export const fooRepositoryPostgresCreate = (
 		const sortColumn =
 			field === "name" ? sql`${foo.name} COLLATE "C"` : sql`${foo.createdAt}`;
 		const direction = descending ? sql`DESC` : sql`ASC`;
-		const after = input.cursor
-			? postgresCursorDecode(input.cursor, "foo")
-			: undefined;
+		const after = input.cursor ? cursorDecode(input.cursor, "foo") : undefined;
 		const keyset: SQL | undefined = after
 			? sql`(${sortColumn}, ${foo.id}) ${descending ? sql`<` : sql`>`} (${
 					field === "name"
@@ -93,7 +88,7 @@ export const fooRepositoryPostgresCreate = (
 		const last = page.at(-1);
 		const nextCursor =
 			rows.length > input.limit && last
-				? postgresCursorEncode({
+				? cursorEncode({
 						id: last.id,
 						k: field === "name" ? last.name : last.createdAt.toISOString(),
 					})

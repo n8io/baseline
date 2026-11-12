@@ -1,6 +1,7 @@
-// Ports that throw once their transaction has ended. Transaction adapters wrap each port with it;
-// on Postgres the client guard alone would surface as Drizzle's "Failed query" and hide why.
-export const postgresPortsGuard = <T extends object>(
+// Ports that throw once their transaction has ended. Every transaction adapter, memory or
+// Postgres, wraps each port with it; on Postgres the connection's own guard alone would surface as
+// Drizzle's "Failed query" and hide why.
+export const transactionPortsGuard = <T extends object>(
 	ports: T,
 	isOpen: () => boolean,
 ): T =>

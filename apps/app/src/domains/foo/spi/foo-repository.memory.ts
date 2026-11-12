@@ -1,9 +1,6 @@
 import type { Id } from "@n8io/baseline-id";
-import {
-	postgresCursorDecode,
-	postgresCursorEncode,
-} from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
+import { cursorDecode, cursorEncode } from "../../../cursor.ts";
 import { FooNameTakenError } from "../foo-errors.ts";
 import type { Foo, FooListInput } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
@@ -74,7 +71,7 @@ export const fooRepositoryMemoryCreate = (state: {
 				b: { k: string; id: string },
 			): number => direction * (fooOrder(a.k, b.k) || fooOrder(a.id, b.id));
 			const after = input.cursor
-				? postgresCursorDecode(input.cursor, "foo")
+				? cursorDecode(input.cursor, "foo")
 				: undefined;
 
 			const matching = [...state.foos.values()]
@@ -88,7 +85,7 @@ export const fooRepositoryMemoryCreate = (state: {
 			const last = page.at(-1);
 			const nextCursor =
 				rest.length > input.limit && last
-					? postgresCursorEncode({ id: last.id, k: last.k })
+					? cursorEncode({ id: last.id, k: last.k })
 					: null;
 			const items = page.map((row) => structuredClone(row.foo));
 			return input.count
