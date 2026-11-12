@@ -42,7 +42,7 @@ const firstDomainPaths = new Set([
 	"src/ui/routes/home.test.ts",
 ]);
 
-// The pieces of the stack a Project may remove with docs/agents/pieces.md. A removed piece's
+// The pieces of the stack a Project may remove with pnpm piece-remove. A removed piece's
 // package is gone from package.json; its files and its `piece-start:` blocks stay out of a new
 // domain.
 const pieces = [
@@ -65,7 +65,7 @@ const pieces = [
 			/^src\/domains\/foo\/api\/foo-schedule(\.test)?\.ts$/,
 			/^src\/domains\/foo\/spi\/foo-transaction\.postgres\.test\.ts$/,
 		],
-		// Env files carry no markers; this is the line pieces.md runs on .env.schema.
+		// Env files carry no markers; this is the line piece-remove.ts drops from .env.schema.
 		lines:
 			/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m,
 	},
