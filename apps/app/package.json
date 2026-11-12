@@ -20,7 +20,7 @@
 		"check": "varlock codegen && react-router typegen && biome check . && tsc --noEmit",
 		"ci": "pnpm check && pnpm test && pnpm test:integration",
 		"codegen": "drizzle-kit generate",
-		"dev": "node --import ./src/preload.ts src/migrate.ts && node --import ./src/preload.ts src/seed.ts && (HEALTH_PORT=9001 node --import ./src/preload.ts src/worker.ts & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
+		"dev": "docker compose up -d --wait && node --import ./src/preload.ts src/migrate.ts && node --import ./src/preload.ts src/seed.ts && (HEALTH_PORT=9001 node --watch --import ./src/preload.ts src/worker.ts & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
 		"domain-create": "node scripts/domain-create.ts",
 		"format": "biome format --write .",
 		"glossary-check": "node scripts/glossary-check.ts",
