@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { postgresPortsGuard } from "./index.ts";
+import { transactionPortsGuard } from "./transaction-ports-guard.ts";
 
-describe("postgresPortsGuard", () => {
+describe("transactionPortsGuard", () => {
 	it("passes calls through while the transaction is open", async () => {
-		const ports = postgresPortsGuard(
+		const ports = transactionPortsGuard(
 			{ label: "kept", sum: (a: number, b: number) => a + b },
 			() => true,
 		);
@@ -14,7 +14,10 @@ describe("postgresPortsGuard", () => {
 
 	it("throws once the transaction has ended", async () => {
 		let open = true;
-		const ports = postgresPortsGuard({ find: async () => "found" }, () => open);
+		const ports = transactionPortsGuard(
+			{ find: async () => "found" },
+			() => open,
+		);
 		open = false;
 
 		await expect(ports.find()).rejects.toThrow(

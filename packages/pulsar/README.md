@@ -40,8 +40,8 @@ How it differs from the queue package:
          const isOpen = (): boolean => open;
          try {
            return await work({
-             fooEvents: postgresPortsGuard(fooEvents, isOpen),
-             fooRepository: postgresPortsGuard(fooRepositoryPostgresCreate(drizzle({ client: pgClient })), isOpen),
+             fooEvents: transactionPortsGuard(fooEvents, isOpen),
+             fooRepository: transactionPortsGuard(fooRepositoryPostgresCreate(drizzle({ client: pgClient })), isOpen),
            });
          } finally {
            open = false;
