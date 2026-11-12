@@ -1,19 +1,19 @@
 import type { Id } from "@n8io/baseline-id";
 
 // A list page's position: the sort value and id of its last item, as base64url JSON. Every
-// repository adapter of a domain uses it, so a cursor from one reads the same in another.
-export type PostgresCursor<P extends string> = { k: string; id: Id<P> };
+// repository adapter of a Domain, memory or Postgres, uses it, so a cursor from one reads the
+// same in another.
+export type Cursor<P extends string> = { k: string; id: Id<P> };
 
-export const postgresCursorEncode = <P extends string>(
-	cursor: PostgresCursor<P>,
-): string => Buffer.from(JSON.stringify(cursor)).toString("base64url");
+export const cursorEncode = <P extends string>(cursor: Cursor<P>): string =>
+	Buffer.from(JSON.stringify(cursor)).toString("base64url");
 
 // A cursor that does not decode, or whose id has another prefix, reads as none, so a mangled
 // link shows the first page.
-export const postgresCursorDecode = <P extends string>(
+export const cursorDecode = <P extends string>(
 	cursor: string,
 	prefix: P,
-): PostgresCursor<P> | undefined => {
+): Cursor<P> | undefined => {
 	try {
 		const parsed: unknown = JSON.parse(
 			Buffer.from(cursor, "base64url").toString(),

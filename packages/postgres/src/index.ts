@@ -1,8 +1,3 @@
-export {
-	type PostgresCursor,
-	postgresCursorDecode,
-	postgresCursorEncode,
-} from "./postgres-cursor.ts";
 export { postgresIdColumnCreate } from "./postgres-id-column.ts";
 export { postgresMigrate } from "./postgres-migrate.ts";
 export { postgresPoolCreate } from "./postgres-pool.ts";
