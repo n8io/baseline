@@ -43,7 +43,7 @@ useLiveUpdates("foo", foo.id);
 ## Needs
 
 - Peers: `hono`, `react`, `react-router`, and `redis` unless you only use `liveHubMemoryCreate`.
-- The Redis client comes from `cacheRedisClientCreate` in `@n8io/baseline-cache`.
+- `liveHubRedisCreate` takes any connected node-redis client, such as the one `cacheRedisClientCreate` in `@n8io/baseline-cache` returns. live does not depend on cache.
 
 ## Tests
 

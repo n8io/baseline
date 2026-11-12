@@ -22,7 +22,7 @@ const cacheUrlCheck = (cacheUrl: string): void => {
 
 // Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
 // node-redis's own command timeout stops once a command is sent.
-export const cacheTimeLimit = async <T>(
+const cacheTimeLimit = async <T>(
 	work: Promise<T>,
 	ms: number,
 	message: string,

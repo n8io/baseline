@@ -1,24 +1,61 @@
-import { cacheTimeLimit, type RedisClient } from "@n8io/baseline-cache";
 import { logger } from "@n8io/baseline-logger";
 import { type LiveHub, liveHubCreate } from "./live-hub.ts";
+
+// The part of a connected node-redis client the hub uses.
+type LiveRedisClient = {
+	close(): Promise<unknown>;
+	connect(): Promise<unknown>;
+	destroy(): void;
+	duplicate(): LiveRedisClient;
+	on(event: "error", listener: (err: unknown) => void): unknown;
+	publish(channel: string, message: string): Promise<unknown>;
+	subscribe(
+		channel: string,
+		listener: (message: string) => void,
+	): Promise<unknown>;
+	unsubscribe(
+		channel: string,
+		listener: (message: string) => void,
+	): Promise<unknown>;
+};
 
 const liveConnectTimeoutMs = 3000;
 const liveCommandTimeoutMs = 1000;
 
+// Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
+const liveTimeLimit = async <T>(
+	work: Promise<T>,
+	ms: number,
+	message: string,
+): Promise<T> => {
+	let timer: NodeJS.Timeout | undefined;
+	const timedOut = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			reject(new DOMException(message, "TimeoutError"));
+		}, ms);
+	});
+	try {
+		return await Promise.race([work, timedOut]);
+	} finally {
+		clearTimeout(timer);
+	}
+};
+
 // Publishes to Redis channel `live:<channel>`, so every instance's streams get
 // the update. The subscriber connection, a duplicate of `redisClient`, opens
-// with the first stream; a worker that only sends never opens it.
-export const liveHubRedisCreate = (redisClient: RedisClient): LiveHub => {
-	let subscriber: Promise<RedisClient> | undefined;
+// with the first stream; a worker that only sends never opens it. Any
+// connected node-redis client works, such as cacheRedisClientCreate's.
+export const liveHubRedisCreate = (redisClient: LiveRedisClient): LiveHub => {
+	let subscriber: Promise<LiveRedisClient> | undefined;
 
-	const subscriberConnect = async (): Promise<RedisClient> => {
-		const connection: RedisClient = redisClient.duplicate();
+	const subscriberConnect = async (): Promise<LiveRedisClient> => {
+		const connection: LiveRedisClient = redisClient.duplicate();
 		// node-redis exits the process on an unlistened error event.
 		connection.on("error", (err: unknown) => {
 			logger.error({ err }, "Redis live subscriber error");
 		});
 		try {
-			await cacheTimeLimit(
+			await liveTimeLimit(
 				connection.connect(),
 				liveConnectTimeoutMs,
 				`Redis not reachable within ${liveConnectTimeoutMs} ms`,
@@ -30,7 +67,7 @@ export const liveHubRedisCreate = (redisClient: RedisClient): LiveHub => {
 		return connection;
 	};
 
-	const subscriberGet = (): Promise<RedisClient> => {
+	const subscriberGet = (): Promise<LiveRedisClient> => {
 		if (subscriber === undefined) {
 			const connecting = subscriberConnect();
 			subscriber = connecting;
@@ -48,7 +85,7 @@ export const liveHubRedisCreate = (redisClient: RedisClient): LiveHub => {
 			await connection?.close();
 		},
 		publish: async (channel, message) => {
-			await cacheTimeLimit(
+			await liveTimeLimit(
 				redisClient.publish(`live:${channel}`, message),
 				liveCommandTimeoutMs,
 				`Redis did not answer within ${liveCommandTimeoutMs} ms`,
@@ -57,7 +94,7 @@ export const liveHubRedisCreate = (redisClient: RedisClient): LiveHub => {
 		subscribe: async (channel, deliver) => {
 			const connection = await subscriberGet();
 			try {
-				await cacheTimeLimit(
+				await liveTimeLimit(
 					connection.subscribe(`live:${channel}`, deliver),
 					liveCommandTimeoutMs,
 					`Redis did not answer within ${liveCommandTimeoutMs} ms`,

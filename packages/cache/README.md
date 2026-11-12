@@ -12,7 +12,6 @@ pnpm add @n8io/baseline-cache
 - `cacheRedisClientCreate({ cacheUrl })`: connects one shared Redis client, and throws if Redis is not reachable at startup.
 - `cacheRedisCreate({ redisClient, prefix, schema, ttlMs? })`: a cache on that client. Keys are `<prefix>:<id>`, entries expire after `ttlMs` (default 60 s), and each call fails after 1 s without an answer.
 - `cacheMemoryCreate({ prefix, schema, ttlMs? })`: the same cache in process, for unit tests and `memory://`.
-- `cacheTimeLimit(work, ms, message)`: rejects with a `TimeoutError` when `work` takes longer than `ms`.
 - `RedisClient`: the client type.
 
 ## Example
