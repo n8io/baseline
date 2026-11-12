@@ -2,7 +2,7 @@
 "app": major
 ---
 
-The Template carries half as many piece blocks (87 pairs, down from 193, and none above 5 in a file). The composition roots open every connection through `connectionsOpen(ENV, role)` in the new `src/connections.ts`, which calls one file per piece (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`) and returns the shutdown steps too. Each Domain tests its cache, live updates and Events in files of their own (`use-cases/<domain>-use-cases-<piece>.test.ts`, `spi/index-queue.test.ts`), so the shared tests carry no blocks. Behaviour is unchanged.
+The Template carries half as many piece blocks (85 by `git grep -c piece-start`, down from 193, and none above 5 in a file). The composition roots open every connection through `connectionsOpen(ENV, role)` in the new `src/connections.ts`, which calls one file per piece (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`) and returns the shutdown steps too. Each Domain tests its cache, live updates and Events in files of their own (`use-cases/<domain>-use-cases-<piece>.test.ts`, `spi/index-queue.test.ts`), so the shared tests carry no blocks. Behaviour is unchanged.
 
 Upgrading changes every Domain. In each one:
 
