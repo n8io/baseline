@@ -57,6 +57,12 @@
 		"redis": "^6.3.1"
 	},
 	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		},
+		"react-router": {
+			"optional": true
+		},
 		"redis": {
 			"optional": true
 		}

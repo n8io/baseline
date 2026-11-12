@@ -5,7 +5,7 @@ type LiveEventSource = {
 
 export type LiveEventSourceCreate = (url: string) => LiveEventSource;
 
-// Opens the stream for (channel, id) and calls `onChange` on every live update
+// Opens the stream at `<pathPrefix>/<channel>/<id>` and calls `onChange` on every live update
 // and every (re)connect, since updates sent while it was down are not resent.
 // The server sends `ready` once each connection is subscribed.
 // Returns the close. EventSource reconnects after the server's `retry:`.
@@ -14,9 +14,10 @@ export const liveUpdatesOpen = (
 	id: string,
 	onChange: () => void,
 	eventSourceCreate: LiveEventSourceCreate,
+	pathPrefix = "/live",
 ): (() => void) => {
 	const source = eventSourceCreate(
-		`/live/${encodeURIComponent(channel)}/${encodeURIComponent(id)}`,
+		`${pathPrefix}/${encodeURIComponent(channel)}/${encodeURIComponent(id)}`,
 	);
 	source.addEventListener("ready", onChange);
 	source.addEventListener("message", onChange);

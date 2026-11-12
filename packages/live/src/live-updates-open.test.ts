@@ -26,6 +26,13 @@ describe("liveUpdatesOpen", () => {
 		expect(source.url).toBe("/live/foo/foo_1%2Fx");
 	});
 
+	test("opens the stream under a given path prefix", () => {
+		const { create, source } = eventSourceFake();
+		liveUpdatesOpen("invoice", "invoice_1", () => {}, create, "/api/live");
+
+		expect(source.url).toBe("/api/live/invoice/invoice_1");
+	});
+
 	test("calls onChange on each (re)connect and each live update", () => {
 		const { create, source } = eventSourceFake();
 		const onChange = vi.fn();
