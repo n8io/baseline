@@ -10,8 +10,8 @@
 // One render serves every case, to keep CI short.
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
 	domainFilesCreate,
 	domainNameRefusal,
@@ -182,6 +182,8 @@ const main = async () => {
 	console.log("api-only: every piece removed, then reverted, passes check");
 
 	git(directory, ["reset", "--hard", "--quiet", removed]);
+	// git ignores the types check generated after the revert; piece-remove ui deletes them.
+	rmSync(join(directory, ".react-router"), { force: true, recursive: true });
 	pnpmRun(directory, ["install"]);
 	domainAdd(directory, files, invoiceLine);
 	for (const script of checkTestBuild) pnpmRun(directory, [script]);
