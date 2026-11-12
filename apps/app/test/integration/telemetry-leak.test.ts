@@ -61,6 +61,7 @@ beforeAll(async () => {
 	expect(
 		await request("/auth/sign-in", {
 			body: new URLSearchParams({ who: canaries.email }),
+			headers: { origin: server.url },
 			method: "POST",
 		}),
 	).toBe(400);

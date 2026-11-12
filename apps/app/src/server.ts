@@ -9,6 +9,7 @@ import {
 import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { healthServerCreate } from "@n8io/baseline-health";
 import {
+	httpCsrf,
 	httpErrorHandle,
 	httpNotFoundHandle,
 	httpRouteName,
@@ -114,6 +115,8 @@ app.onError(httpErrorHandle);
 app.use(httpSecureHeaders);
 // A body over 1 MB throws a 413 that httpErrorHandle answers as PayloadTooLarge.
 app.use("/api/*", bodyLimit({ maxSize: 1024 * 1024 }));
+// Cookies ride along on a cross-site request, so cookie routes refuse one; /api uses bearer tokens.
+app.use("*", except(["/api/*"], httpCsrf));
 app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
 app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
 // No Actor, no API: an anonymous request gets 401 before any route validates its input.

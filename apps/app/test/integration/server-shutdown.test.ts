@@ -26,7 +26,10 @@ describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 		// The memory issuer's sign-in form needs no domain.
 		const slow = await slowRequestStart(server.port, {
 			body: new URLSearchParams({ who: "admin" }).toString(),
-			headers: { "content-type": "application/x-www-form-urlencoded" },
+			headers: {
+				"content-type": "application/x-www-form-urlencoded",
+				origin: server.url,
+			},
 			path: "/auth/sign-in",
 		});
 		// Runs before server.stop, which would otherwise wait for this request until its deadline.

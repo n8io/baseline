@@ -48,7 +48,7 @@ describe("server-rendered foo pages on the production build", {
 	it("creates a foo from a plain form post and renders it on both pages", async () => {
 		const created = await fetch(`${server.url}/foos`, {
 			body: new URLSearchParams({ name: "Rendered on the server" }),
-			headers: { cookie: session.cookie },
+			headers: { cookie: session.cookie, origin: server.url },
 			method: "POST",
 			redirect: "manual",
 		});
@@ -62,6 +62,20 @@ describe("server-rendered foo pages on the production build", {
 		expect(await (await page("/foos")).text()).toContain(
 			"Rendered on the server",
 		);
+	});
+
+	it("refuses a cross-site form post to the create action and creates nothing", async () => {
+		const name = "Posted from another site";
+		const res = await fetch(`${server.url}/foos`, {
+			body: new URLSearchParams({ name }),
+			headers: { cookie: session.cookie, origin: "https://evil.example" },
+			method: "POST",
+			redirect: "manual",
+		});
+
+		expect(res.status).toBe(403);
+		expect(res.headers.get("content-type")).toBe("application/problem+json");
+		expect(await (await page("/foos")).text()).not.toContain(name);
 	});
 
 	it("redirects a signed-out page load to sign-in", async () => {

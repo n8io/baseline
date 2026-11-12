@@ -46,6 +46,8 @@ export const integrationSignIn = async (
 ): Promise<SignedIn> => {
 	const res = await fetch(`${url}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),
+		// Node's fetch sends no Origin, and form posts without one answer 403.
+		headers: { origin: url },
 		method: "POST",
 		redirect: "manual",
 	});

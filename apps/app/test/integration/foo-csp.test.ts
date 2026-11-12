@@ -38,7 +38,7 @@ describe("security headers on the production build's foo pages", {
 	it("enforces the CSP on the foo list and detail pages, with the nonce on every script", async () => {
 		const created = await fetch(`${server.url}/foos`, {
 			body: new URLSearchParams({ name: "Under a CSP" }),
-			headers: { cookie: session.cookie },
+			headers: { cookie: session.cookie, origin: server.url },
 			method: "POST",
 			redirect: "manual",
 		});
