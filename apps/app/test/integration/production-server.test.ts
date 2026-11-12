@@ -13,7 +13,6 @@ describe("production server start", () => {
 		}
 		try {
 			const start = productionServerStart({
-				cacheUrl: "memory://",
 				databaseUrl: "memory://",
 				env: { PORT: String(address.port) },
 			});
