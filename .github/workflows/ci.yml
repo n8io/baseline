@@ -131,7 +131,7 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      - name: Render, remove every removable piece, then check, test, build and serve; then the cache alone
+      - name: Render, remove every removable piece, then check, test, build and serve; then the queue and the cache alone
         run: |
           git config --global user.name "api-only"
           git config --global user.email "api-only@users.noreply.github.com"

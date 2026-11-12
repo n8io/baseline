@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 # One image, three entries, picked by the last argument of the command:
 #   server:  the CMD below (build/server/index.js)
+# piece-start: queue
 #   worker:  ["node", "src/worker.ts"]
+# piece-end: queue
 #   migrate: ["node", "src/migrate.ts"]
 # NODE_OPTIONS preloads src/preload.ts (secrets, then tracing) for every entry.
 # Runner: allow a 30 s grace period; probe /livez and /readyz on HEALTH_PORT (9000);
-# run the migrate entry once before rollout; server and worker may then start in any order and scale independently;
+# run the migrate entry once before rollout; the other entries may then start in any order and scale independently;
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
 # give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password; secrets are fetched at boot.
 # Build: docker build .

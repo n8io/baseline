@@ -10,11 +10,18 @@ import type { FooRepository } from "../ports.ts";
 
 // Committed foos. The read repository and the transaction share one state object; a
 // transaction swaps in its copy of `foos` on commit.
-export type FooMemoryState = { foos: Map<Id<"foo">, Foo>; inbox: Set<string> };
+export type FooMemoryState = {
+	foos: Map<Id<"foo">, Foo>;
+	// piece-start: queue
+	inbox: Set<string>;
+	// piece-end: queue
+};
 
 export const fooMemoryStateCreate = (): FooMemoryState => ({
 	foos: new Map(),
+	// piece-start: queue
 	inbox: new Set(),
+	// piece-end: queue
 });
 
 // The sort value as the cursor stores it: an ISO string for dates.

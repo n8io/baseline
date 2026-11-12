@@ -21,7 +21,9 @@ const setup = async (actor: Actor | null = owner) => {
 			// piece-start: live
 			liveHub: liveHubMemoryCreate(),
 			// piece-end: live
+			// piece-start: queue
 			queue: "memory",
+			// piece-end: queue
 		}),
 	);
 	const created = await useCases.fooCreate(owner, { name: "alpha" });

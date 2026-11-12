@@ -68,10 +68,12 @@ const redisClient =
 		? "memory"
 		: await redisClientCreate(ENV.CACHE_URL);
 // piece-end: redis
+// piece-start: queue
 const queue =
 	pgPool === "memory"
 		? "memory"
 		: await queueCreate({ pgPool, role: "publisher" });
+// piece-end: queue
 // piece-start: live
 const liveHub =
 	redisClient === "memory"
@@ -85,7 +87,9 @@ if (import.meta.env.DEV) {
 		// piece-start: live
 		await liveHub.close();
 		// piece-end: live
+		// piece-start: queue
 		if (queue !== "memory") await queue.stop();
+		// piece-end: queue
 		if (pgPool !== "memory") await pgPool.end();
 		// piece-start: redis
 		if (redisClient !== "memory") await redisClient.close();
@@ -103,7 +107,9 @@ const ports = {
 	// piece-start: live
 	liveHub,
 	// piece-end: live
+	// piece-start: queue
 	queue,
+	// piece-end: queue
 } as const;
 
 const fooUseCases = telemetryUseCasesTrace(
@@ -120,12 +126,14 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
 }
 // domain-create: domains-end
 
+// piece-start: queue
 // Creates queues and subscriptions; consumers run only in the worker.
 if (queue !== "memory") {
 	await queueConsumersSubscribe(queue, [
 		// domain-create: consumers
 	]);
 }
+// piece-end: queue
 
 const authn = await authnCreate({
 	...authnProviderOptionsCreate(ENV),
@@ -183,10 +191,12 @@ const serverServe = (server: Server) => {
 			// piece-end: live
 		],
 		resources: [
+			// piece-start: queue
 			{
 				close: () => (queue === "memory" ? Promise.resolve() : queue.stop()),
 				name: "queue",
 			},
+			// piece-end: queue
 			{
 				close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
 				name: "database",

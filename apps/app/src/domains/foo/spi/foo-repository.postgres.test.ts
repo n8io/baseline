@@ -17,14 +17,18 @@ afterAll(async () => {
 fooRepositoryContract(async () => {
 	const { databaseUrl, drop } = await integrationDatabaseCreate();
 	const pgPool = postgresPoolCreate({ databaseUrl, max: 4 });
+	cleanups.push(() => pgPool.end(), drop);
+	// piece-start: queue
 	const queue = await queueCreate({ pgPool, role: "publisher" });
-	cleanups.push(
-		() => queue.stop(),
-		() => pgPool.end(),
-		drop,
-	);
+	cleanups.unshift(() => queue.stop());
+	// piece-end: queue
 	return {
 		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
-		fooTransaction: fooTransactionPostgresCreate(pgPool, queue),
+		fooTransaction: fooTransactionPostgresCreate(
+			pgPool,
+			// piece-start: queue
+			queue,
+			// piece-end: queue
+		),
 	};
 });

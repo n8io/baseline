@@ -11,32 +11,42 @@ import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
 // Picks each port's adapter from what the composition root passes: a connection, or "memory".
-// The queue lives in the same Postgres as the repository, so database and queue are both real
-// or both memory. Composition roots own every connection.
+// Composition roots own every connection.
 export const fooPortsCreate = (options: {
 	database: pg.Pool | "memory";
 	// piece-start: cache
 	cache: RedisClient | "memory";
 	// piece-end: cache
+	// piece-start: queue
+	// The queue lives in the same Postgres as the repository: both real or both memory.
 	queue: Queue | "memory";
+	// piece-end: queue
 	// piece-start: live
 	liveHub: LiveHub;
 	// piece-end: live
 }): FooPorts => {
-	const { database, queue } = options;
+	const { database } = options;
+	// piece-start: queue
+	const { queue } = options;
 	if ((database === "memory") !== (queue === "memory")) {
 		throw new TypeError(
 			"database and queue must both be Postgres or both memory",
 		);
 	}
+	// piece-end: queue
 	const repository =
-		database === "memory" || queue === "memory"
+		database === "memory"
 			? fooPortsMemoryCreate().ports
 			: {
 					fooReadRepository: fooRepositoryPostgresCreate(
 						drizzle({ client: database }),
 					),
-					fooTransaction: fooTransactionPostgresCreate(database, queue),
+					fooTransaction: fooTransactionPostgresCreate(
+						database,
+						// piece-start: queue
+						queue as Queue, // Postgres too: checked above.
+						// piece-end: queue
+					),
 				};
 	return {
 		fooReadRepository: repository.fooReadRepository,

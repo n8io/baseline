@@ -19,7 +19,9 @@ const setup = (actor: Actor | null = owner) => {
 			// piece-start: live
 			liveHub: liveHubMemoryCreate(),
 			// piece-end: live
+			// piece-start: queue
 			queue: "memory",
+			// piece-end: queue
 		}),
 	);
 	const context = routerContextCreate(actor ?? undefined, [

@@ -26,7 +26,9 @@ const setup = (
 			// piece-end: cache
 			database: "memory",
 			liveHub,
+			// piece-start: queue
 			queue: "memory",
+			// piece-end: queue
 		}),
 	);
 	const app = httpRouterCreate();

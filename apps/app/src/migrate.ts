@@ -12,4 +12,6 @@ await postgresMigrate({
 	databaseUrl: ENV.DATABASE_URL,
 	migrationsFolder: "./migrations",
 });
+// piece-start: queue
 await queueMigrate({ databaseUrl: ENV.DATABASE_URL });
+// piece-end: queue
