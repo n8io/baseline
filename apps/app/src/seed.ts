@@ -2,10 +2,7 @@
 // The blank line below keeps this comment when the render's Biome pass drops the Actor import.
 
 import type { Actor } from "@n8io/baseline-authn";
-import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
-import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { queueCreate } from "@n8io/baseline-queue";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
@@ -18,7 +15,7 @@ import {
 } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
-import { redisClientCreate } from "./redis.ts";
+import { connectionsOpen } from "./connections.ts";
 
 // domain-create: domains-start
 const devSeedActor: Actor = {
@@ -50,38 +47,10 @@ if (import.meta.main) {
 		logger.info("memory database: the server seeds itself at start");
 		process.exit(0);
 	}
-	const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
-	// piece-start: redis
-	const redisClient =
-		ENV.CACHE_URL === "memory://"
-			? "memory"
-			: await redisClientCreate(ENV.CACHE_URL);
-	// piece-end: redis
-	// piece-start: queue
-	const queue = await queueCreate({ pgPool, role: "publisher" });
-	// piece-end: queue
-	// piece-start: live
-	const liveHub =
-		redisClient === "memory"
-			? liveHubMemoryCreate()
-			: liveHubRedisCreate(redisClient);
-	// piece-end: live
+	const connections = await connectionsOpen(ENV, "publisher");
 	// domain-create: domains-start
-	const ports = {
-		// piece-start: cache
-		cache: redisClient,
-		// piece-end: cache
-		database: pgPool,
-		// piece-start: live
-		liveHub,
-		// piece-end: live
-		// piece-start: queue
-		queue,
-		// piece-end: queue
-	} as const;
-
 	const fooUseCases = telemetryUseCasesTrace(
-		fooUseCasesCreate(fooPortsCreate(ports)),
+		fooUseCasesCreate(fooPortsCreate(connections)),
 	);
 	// domain-create: use-cases
 
@@ -92,15 +61,8 @@ if (import.meta.main) {
 	// domain-create: domains-end
 	logger.info("seeds done");
 
-	// piece-start: queue
-	await queue.stop();
-	// piece-end: queue
-	// piece-start: live
-	await liveHub.close();
-	// piece-end: live
-	await pgPool.end();
-	// piece-start: redis
-	if (redisClient !== "memory") await redisClient.close();
-	// piece-end: redis
+	for (const step of [...connections.intakes, ...connections.resources]) {
+		await step.close();
+	}
 	await telemetryShutdown();
 }

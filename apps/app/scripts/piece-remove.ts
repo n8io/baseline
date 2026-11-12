@@ -136,7 +136,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	},
 	live: {
 		packages: ["@n8io/baseline-live"],
-		paths: [],
+		paths: ["src/live-hub-open.ts"],
 		srcFiles: /-live(\.test)?\.ts$/,
 	},
 	queue: {
@@ -149,7 +149,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			});
 		},
 		packages: ["@n8io/baseline-queue"],
-		paths: ["src/worker.ts", "test/integration/worker-shutdown.test.ts"],
+		paths: [
+			"src/queue-open.ts",
+			"src/worker.ts",
+			"test/integration/worker-shutdown.test.ts",
+		],
 		refusal: (directory) =>
 			trackedFiles(directory).some(
 				(path) =>
@@ -162,7 +166,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				? "Remove your Consumers first: they run only in the Worker."
 				: undefined,
 		srcFiles:
-			/(\/api\/[^/]*-schedule(\.test)?\.ts|\/spi\/[^/]*-transaction\.postgres\.test\.ts)$/,
+			/(\/api\/[^/]*-schedule(\.test)?\.ts|\/spi\/[^/]*-transaction\.postgres\.test\.ts|-queue\.test\.ts)$/,
 	},
 	redis: {
 		edit: (directory) => {

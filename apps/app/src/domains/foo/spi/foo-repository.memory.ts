@@ -2,7 +2,7 @@ import type { Id } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { cursorDecode, cursorEncode } from "../../../cursor.ts";
 import { FooNameTakenError } from "../foo-errors.ts";
-import type { Foo, FooListInput } from "../models/foo.ts";
+import type { Foo, FooEventMap, FooListInput } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
 
 // Committed foos. The read repository and the transaction share one state object; a
@@ -11,6 +11,8 @@ export type FooMemoryState = {
 	foos: Map<Id<"foo">, Foo>;
 	// piece-start: queue
 	inbox: Set<string>;
+	// Events reach it only on commit.
+	published: { name: keyof FooEventMap; data: unknown }[];
 	// piece-end: queue
 };
 
@@ -18,6 +20,7 @@ export const fooMemoryStateCreate = (): FooMemoryState => ({
 	foos: new Map(),
 	// piece-start: queue
 	inbox: new Set(),
+	published: [],
 	// piece-end: queue
 });
 

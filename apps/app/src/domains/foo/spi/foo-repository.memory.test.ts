@@ -9,7 +9,7 @@ describe("fooRepositoryMemoryCreate", () => {
 
 	// piece-start: queue
 	it("records events only when the transaction commits", async () => {
-		const { ports, published } = fooPortsMemoryCreate();
+		const { ports, state } = fooPortsMemoryCreate();
 		const fooId = idCreate("foo");
 		await expect(
 			ports.fooTransaction(async ({ fooEvents }) => {
@@ -17,12 +17,12 @@ describe("fooRepositoryMemoryCreate", () => {
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");
-		expect(published).toEqual([]);
+		expect(state.published).toEqual([]);
 		await ports.fooTransaction(async ({ fooEvents }) => {
 			await fooEvents.publish("foo.created", { fooId });
 			return ok(undefined);
 		});
-		expect(published).toEqual([{ data: { fooId }, name: "foo.created" }]);
+		expect(state.published).toEqual([{ data: { fooId }, name: "foo.created" }]);
 	});
 	// piece-end: queue
 });

@@ -11,24 +11,7 @@ import type { FooPorts } from "../ports.ts";
 import { fooUpdateCan } from "../rules/foo-update-can.ts";
 
 export const fooUpdate =
-	({
-		fooTransaction,
-		// piece-start: cache
-		fooCache,
-		// piece-end: cache
-		// piece-start: live
-		fooLiveUpdates,
-		// piece-end: live
-	}: Pick<
-		FooPorts,
-		| "fooTransaction"
-		// piece-start: cache
-		| "fooCache"
-		// piece-end: cache
-		// piece-start: live
-		| "fooLiveUpdates"
-		// piece-end: live
-	>) =>
+	(ports: FooPorts) =>
 	async (
 		actor: Actor,
 		input: FooUpdateInput,
@@ -36,7 +19,7 @@ export const fooUpdate =
 		Result<Foo, FooNotFoundError | FooNameTakenError | FooForbiddenError>
 	> => {
 		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
-		const result = await fooTransaction<
+		const result = await ports.fooTransaction<
 			Foo,
 			FooNotFoundError | FooNameTakenError | FooForbiddenError
 		>(async ({ fooRepository }) => {
@@ -54,10 +37,10 @@ export const fooUpdate =
 		// After commit, outside the callback.
 		if (result.ok) {
 			// piece-start: cache
-			await fooCache.delete(input.fooId);
+			await ports.fooCache.delete(input.fooId);
 			// piece-end: cache
 			// piece-start: live
-			await fooLiveUpdates.send({ type: "foo.updated", id: input.fooId });
+			await ports.fooLiveUpdates.send({ type: "foo.updated", id: input.fooId });
 			// piece-end: live
 		}
 		return result;

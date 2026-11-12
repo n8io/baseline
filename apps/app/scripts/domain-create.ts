@@ -50,12 +50,12 @@ const pieces = [
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
-		paths: [/^src\/domains\/foo\/api\/foo-live(\.test)?\.ts$/],
+		paths: [/^src\/domains\/foo\/.*-live(\.test)?\.ts$/],
 	},
 	{
 		name: "cache",
 		package: "@n8io/baseline-cache",
-		paths: [/^src\/domains\/foo\/spi\/foo-cache(d|\.[a-z.]+)\.ts$/],
+		paths: [/^src\/domains\/foo\/.*-cache(d|\.[a-z.]+)\.ts$/],
 	},
 	{
 		name: "queue",
@@ -64,6 +64,7 @@ const pieces = [
 			/^src\/worker\.ts$/,
 			/^src\/domains\/foo\/api\/foo-schedule(\.test)?\.ts$/,
 			/^src\/domains\/foo\/spi\/foo-transaction\.postgres\.test\.ts$/,
+			/^src\/domains\/foo\/.*-queue\.test\.ts$/,
 		],
 		// Env files carry no markers; this is the line piece-remove.ts drops from .env.schema.
 		lines:

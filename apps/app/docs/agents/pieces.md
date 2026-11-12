@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits in whole files and in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
 
 ## How to remove a piece
 
@@ -31,7 +31,7 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain crea
 
 The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block and the `api/*-live.ts` file and its test from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `api/*-live.ts` file and its test, and `use-cases/*-use-cases-live.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
 
 ## The cache
 
@@ -39,7 +39,7 @@ Add live updates back: `git revert` the "Remove live" commit. For each Domain cr
 
 Each Domain's cache port and its adapters (`spi/<domain>-cache.*.ts`, `spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block and the `spi/*-cache.*.ts` and `spi/*-cached.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and put `cache: redisClient` back in the `ports` of `src/server.ts`, `src/worker.ts` and `src/seed.ts`.
+Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cache.*.ts` and `spi/*-cached.ts` files and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
 
 ## Redis
 
@@ -57,6 +57,6 @@ The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Sche
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema` and takes the Worker out of `pnpm dev`. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts` and `spi/*-transaction.postgres.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` marker in `src/worker.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts`, `spi/*-transaction.postgres.test.ts`, `spi/index-queue.test.ts` and `use-cases/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` marker in `src/worker.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 To run Events on Apache Pulsar instead of the queue, follow the [Pulsar swap guide](https://github.com/n8io/baseline/blob/main/packages/pulsar/README.md).

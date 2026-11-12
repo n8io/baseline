@@ -239,7 +239,6 @@ describe.runIf(template)("the template's own files", () => {
 			"src/server.ts",
 			"src/ui/context.ts",
 			"src/ui/routes.ts",
-			"src/worker.ts",
 		]);
 		for (const { path, text } of paired) {
 			const rendered = templateFileRender({ path, text }, answers)?.text ?? "";

@@ -1,11 +1,13 @@
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import type { Foo } from "../models/foo.ts";
-import type { FooCache } from "../ports.ts";
+import type { FooPorts } from "../ports.ts";
 
-// Runs against every FooCache adapter: memory in unit tests, Redis in integration.
-export const fooCacheContract = (create: () => Promise<FooCache>): void => {
-	describe("FooCache", () => {
+// Runs against every fooCache adapter: in memory and on Redis.
+export const fooCacheContract = (
+	create: () => Promise<FooPorts["fooCache"]>,
+): void => {
+	describe("fooCache", () => {
 		it("misses, then returns the foo it stored with its dates intact", async () => {
 			const fooCache = await create();
 			const foo: Foo = {

@@ -1,6 +1,7 @@
-// The Redis connection the cache and live updates share. docs/agents/pieces.md deletes this file
-// with the redis piece, once neither of them is left.
+// The Redis connection the cache and live updates share. `pnpm piece-remove redis` deletes this
+// file, once neither of them is left.
 import { logger } from "@n8io/baseline-logger";
+import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { createClient } from "redis";
 
 export type RedisClient = ReturnType<typeof createClient>;
@@ -28,5 +29,17 @@ export const redisClientCreate = async (
 	});
 	await redisClient.connect();
 	connected = true;
+	return redisClient;
+};
+
+// The Redis connection for a composition root: "memory" for memory://, else one that
+// `resources` closes at shutdown.
+export const redisOpen = async (
+	cacheUrl: string,
+	resources: ShutdownStep[],
+): Promise<RedisClient | "memory"> => {
+	if (cacheUrl === "memory://") return "memory";
+	const redisClient = await redisClientCreate(cacheUrl);
+	resources.push({ close: () => redisClient.close(), name: "redis" });
 	return redisClient;
 };
