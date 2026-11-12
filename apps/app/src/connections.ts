@@ -18,6 +18,11 @@ export const connectionsOpen = async (
 	},
 	role: "publisher" | "worker",
 ) => {
+	if (role === "worker" && env.DATABASE_URL === "memory://") {
+		throw new Error(
+			"The worker needs a real database: DATABASE_URL is memory://",
+		);
+	}
 	const database =
 		env.DATABASE_URL === "memory://"
 			? ("memory" as const)

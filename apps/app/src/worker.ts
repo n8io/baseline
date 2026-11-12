@@ -18,15 +18,11 @@ import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 import { connectionsOpen } from "./connections.ts";
 
-if (ENV.DATABASE_URL === "memory://") {
-	throw new Error(
-		"The worker needs a real database: DATABASE_URL is memory://",
-	);
-}
 let shutdown: ShutdownHandle | undefined;
 const connections = await connectionsOpen(ENV, "worker");
 const { queue } = connections;
-if (queue === "memory") throw new Error("connectionsOpen gave a memory queue");
+// connectionsOpen refuses a memory database here, so the queue is real.
+if (queue === "memory") throw new Error("The worker needs a real queue");
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive(),
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
