@@ -25,6 +25,7 @@
 		"format": "biome format --write .",
 		"glossary-check": "node scripts/glossary-check.ts",
 		"migrate": "node --import ./src/preload.ts src/migrate.ts",
+		"piece-remove": "node scripts/piece-remove.ts",
 		"seed": "node --import ./src/preload.ts src/seed.ts",
 		"template-upgrade": "node scripts/template-upgrade.ts",
 		"test": "vitest run --project unit",

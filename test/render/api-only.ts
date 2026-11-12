@@ -1,14 +1,16 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
-// does, with the customer Domain, then removes live updates, the UI pages, the cache, Redis and
-// the queue by running the steps in the rendered docs/agents/pieces.md exactly as written, adds
-// invoice-line with domain-create, and requires check, unit tests, build and a served API.
-// A second render in <directory>-queue removes the queue with every other piece in place, then
-// the cache, and requires check, unit tests and build; one render covers both, to keep CI short.
-// The doc is the only copy of the steps, so it cannot drift from what this proves.
-import { spawn } from "node:child_process";
+// does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
+// - each of ui, live, cache and queue removed alone passes check, unit tests and build, and
+//   git revert of its commit gives back the starting tree;
+// - redis alone is refused, because the cache and live updates run on it;
+// - all five removed together, then reverted, give back the starting tree and pass check;
+// - all five removed, then invoice-line added with domain-create, pass check, unit tests and build
+//   and the built server serves the API.
+// One render serves every case, to keep CI short.
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import {
 	domainFilesCreate,
 	domainNameRefusal,
@@ -34,15 +36,7 @@ const invoiceLine = {
 	kebab: "invoice-line",
 	plural: "invoice-lines",
 };
-// Each piece's heading in pieces.md; its first sh block is the removal.
-const pieceHeadings = {
-	cache: "## The cache",
-	live: "## Live updates",
-	queue: "## The queue and the Worker",
-	redis: "## Redis",
-	ui: "## UI pages",
-};
-type Piece = keyof typeof pieceHeadings;
+type Piece = "cache" | "live" | "queue" | "redis" | "ui";
 
 const domainAdd = (
 	directory: string,
@@ -65,15 +59,6 @@ const domainAdd = (
 		...paths,
 	]);
 	pnpmRun(directory, ["exec", "biome", "check", "--write", ...paths]);
-};
-
-const removalStepsFind = (doc: string, heading: string): string => {
-	const section = doc.split(`\n${heading}\n`)[1]?.split("\n## ")[0];
-	const steps = section?.match(/```sh\n([\s\S]*?)\n```/)?.[1];
-	if (steps === undefined) {
-		throw new Error(`pieces.md has no sh block under "${heading}"`);
-	}
-	return steps;
 };
 
 // Serves build/server/index.js on memory adapters and asks for the OpenAPI document.
@@ -117,12 +102,35 @@ const apiServe = async (directory: string) => {
 	}
 };
 
-// Renders a Project with customer, removes the pieces in order, then adds invoice-line.
-const projectWithout = async (
-	directory: string,
-	files: ReturnType<typeof checkoutExport>,
-	removed: Piece[],
-) => {
+const git = (directory: string, args: string[]): string =>
+	run("git", args, { cwd: directory }).trim();
+
+const pieceRemove = (directory: string, piece: Piece) => {
+	console.log(`pnpm piece-remove ${piece}`);
+	pnpmRun(directory, ["piece-remove", piece]);
+	gitCommitAll(directory, `Remove ${piece}`);
+};
+
+// Reverts the commits after `before`, newest first, and requires the tree `before` had.
+const revertTo = (directory: string, before: string) => {
+	git(directory, ["revert", "--no-edit", `${before}..HEAD`]);
+	const diff = git(directory, ["diff", "--stat", before, "HEAD"]);
+	if (diff !== "") throw new Error(`git revert left a diff:\n${diff}`);
+	pnpmRun(directory, ["install"]);
+};
+
+const checkTestBuild = (directory: string) => {
+	for (const script of ["check", "test", "build"]) {
+		pnpmRun(directory, [script]);
+	}
+};
+
+const main = async () => {
+	const directory = resolve(process.argv[2] ?? "");
+	if (process.argv[2] === undefined || existsSync(directory)) {
+		throw new Error("usage: node test/render/api-only.ts <new directory>");
+	}
+	const files = checkoutExport();
 	await appRender(directory, files, answers);
 	answersWrite(
 		directory,
@@ -137,60 +145,44 @@ const projectWithout = async (
 	pnpmRun(directory, ["install"]);
 	domainAdd(directory, files, customer);
 	gitCommitAll(directory, "Create api-only with customer");
+	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
-	const doc = readFileSync(join(directory, "docs/agents/pieces.md"), "utf8");
-	for (const piece of removed) {
-		const heading = pieceHeadings[piece];
-		console.log(`Removing ${piece} with the steps under "${heading}"`);
-		run("bash", ["-euo", "pipefail", "-c", removalStepsFind(doc, heading)], {
-			cwd: directory,
-			inherit: true,
-		});
-		const left = run(
-			"bash",
-			[
-				"-c",
-				`git grep -lE '^[[:space:]]*(//|#) piece-start: ${piece}$' || true`,
-			],
-			{ cwd: directory },
-		).trim();
-		if (left !== "")
-			throw new Error(`piece-start: ${piece} is left in ${left}`);
-		gitCommitAll(directory, `Remove ${piece}`);
+	for (const piece of ["ui", "live", "cache", "queue"] as const) {
+		const before = head();
+		pieceRemove(directory, piece);
+		checkTestBuild(directory);
+		revertTo(directory, before);
+		console.log(
+			`api-only: ${piece} alone passes check, test and build, and reverts`,
+		);
 	}
 
-	domainAdd(directory, files, invoiceLine);
+	const refused = spawnSync("pnpm", ["piece-remove", "redis"], {
+		cwd: directory,
+		encoding: "utf8",
+	});
+	if (refused.status === 0 || !refused.stderr.includes("Remove the cache")) {
+		throw new Error(`piece-remove redis was not refused:\n${refused.stderr}`);
+	}
+	if (git(directory, ["status", "--porcelain"]) !== "") {
+		throw new Error("the refused piece-remove redis changed the tree");
+	}
+
+	const before = head();
+	const all: Piece[] = ["live", "ui", "cache", "redis", "queue"];
+	for (const piece of all) pieceRemove(directory, piece);
+	const removed = head();
+	revertTo(directory, before);
 	pnpmRun(directory, ["check"]);
-	pnpmRun(directory, ["test"]);
-	pnpmRun(directory, ["build"]);
-};
+	console.log("api-only: every piece removed, then reverted, passes check");
 
-const main = async () => {
-	const directory = resolve(process.argv[2] ?? "");
-	const queueFirst = `${directory}-queue`;
-	if (
-		process.argv[2] === undefined ||
-		existsSync(directory) ||
-		existsSync(queueFirst)
-	) {
-		throw new Error("usage: node test/render/api-only.ts <new directory>");
-	}
-	const files = checkoutExport();
-	await projectWithout(directory, files, [
-		"live",
-		"ui",
-		"cache",
-		"redis",
-		"queue",
-	]);
+	git(directory, ["reset", "--hard", "--quiet", removed]);
+	pnpmRun(directory, ["install"]);
+	domainAdd(directory, files, invoiceLine);
+	checkTestBuild(directory);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");
 	console.log("api-only: check, test, build and the served API pass");
-
-	await projectWithout(queueFirst, files, ["queue", "cache"]);
-	console.log(
-		"api-only without the queue, then the cache: check, test and build pass",
-	);
 };
 
 await main();
