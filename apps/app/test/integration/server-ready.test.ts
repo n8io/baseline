@@ -11,7 +11,7 @@ import {
 const readyLog = "Server listening and ready";
 
 describe("server readiness", { timeout: 30_000 }, () => {
-	it("reports ready once PORT is bound", async () => {
+	it("reports ready once PORT is bound, with no deprecation warning", async () => {
 		const server = await productionServerStart({
 			databaseUrl: "memory://",
 			env: { LOG_LEVEL: "info" },
@@ -21,6 +21,7 @@ describe("server readiness", { timeout: 30_000 }, () => {
 				server.stdout().includes(readyLog),
 			);
 			expect(server.stdout()).toContain(readyLog);
+			expect(server.stderr()).not.toContain("DeprecationWarning");
 		} finally {
 			await server.stop();
 		}
