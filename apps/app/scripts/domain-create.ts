@@ -57,6 +57,18 @@ const pieces = [
 		package: "@n8io/baseline-cache",
 		paths: [/^src\/domains\/foo\/spi\/foo-cache(d|\.[a-z.]+)\.ts$/],
 	},
+	{
+		name: "queue",
+		package: "@n8io/baseline-queue",
+		paths: [
+			/^src\/worker\.ts$/,
+			/^src\/domains\/foo\/api\/foo-schedule(\.test)?\.ts$/,
+			/^src\/domains\/foo\/spi\/foo-transaction\.postgres\.test\.ts$/,
+		],
+		// Env files carry no markers; this is the line pieces.md runs on .env.schema.
+		lines:
+			/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m,
+	},
 ];
 
 export const piecesRemovedFind = (appDirectory: string): string[] => {
@@ -98,7 +110,16 @@ export const templateWithoutPieces = (
 		)
 		.map((file) => ({
 			path: file.path,
-			text: removed.reduce(pieceBlocksRemove, file.text),
+			text: pieces
+				.filter((p) => removed.includes(p.name))
+				.reduce(
+					(text, p) =>
+						pieceBlocksRemove(
+							p.lines === undefined ? text : text.replace(p.lines, ""),
+							p.name,
+						),
+					file.text,
+				),
 		}));
 
 // The glossary term a domain name needs: invoice-line ↔ **Invoice line**:.

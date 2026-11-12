@@ -9,34 +9,44 @@ import {
 	fooRepositoryMemoryCreate,
 } from "./foo-repository.memory.ts";
 
+// piece-start: queue
 export type FooPublished = { name: keyof FooEventMap; data: unknown };
+// piece-end: queue
 
 // Runs the work on a copy of the committed foos and swaps it in on ok; drops it on err or a
-// throw. One transaction at a time. Events reach `published` only on commit; an inbox seen
-// before skips the work and returns ok.
+// throw. One transaction at a time.
 export const fooTransactionMemoryCreate = (
 	state: FooMemoryState,
+	// piece-start: queue
+	// Events reach `published` only on commit; an inbox seen before skips the work and returns ok.
 	published: FooPublished[] = [],
+	// piece-end: queue
 ): FooTransaction => {
 	let tail: Promise<unknown> = Promise.resolve();
 
 	const run = async <E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<unknown, E>>,
+		// piece-start: queue
 		inbox?: Inbox,
+		// piece-end: queue
 	): Promise<Result<unknown, E>> => {
+		// piece-start: queue
 		const inboxKey = inbox && JSON.stringify([inbox.consumer, inbox.eventId]);
 		if (inboxKey !== undefined && state.inbox.has(inboxKey)) {
 			return ok(undefined);
 		}
-		const scratch = { foos: structuredClone(state.foos) };
 		const pending: FooPublished[] = [];
+		// piece-end: queue
+		const scratch = { foos: structuredClone(state.foos) };
 		let open = true;
 		try {
 			const result = await work({
+				// piece-start: queue
 				fooEvents: postgresPortsGuard(
 					queueEventsMemoryCreate<FooEventMap>(pending),
 					() => open,
 				),
+				// piece-end: queue
 				fooRepository: postgresPortsGuard(
 					fooRepositoryMemoryCreate(scratch),
 					() => open,
@@ -44,8 +54,10 @@ export const fooTransactionMemoryCreate = (
 			});
 			if (result.ok) {
 				state.foos = scratch.foos;
+				// piece-start: queue
 				if (inboxKey !== undefined) state.inbox.add(inboxKey);
 				published.push(...pending);
+				// piece-end: queue
 			}
 			return result;
 		} finally {
@@ -53,8 +65,8 @@ export const fooTransactionMemoryCreate = (
 		}
 	};
 
-	return ((work, inbox) => {
-		const result = tail.then(() => run(work, inbox));
+	return ((...args: Parameters<typeof run>) => {
+		const result = tail.then(() => run(...args));
 		tail = result.catch(() => undefined);
 		return result;
 	}) as FooTransaction;

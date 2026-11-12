@@ -1,9 +1,10 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
-// does, with the customer Domain, then removes live updates, the UI pages, the cache and Redis
-// by running the steps in the rendered docs/agents/pieces.md exactly as written, adds
+// does, with the customer Domain, then removes live updates, the UI pages, the cache, Redis and
+// the queue by running the steps in the rendered docs/agents/pieces.md exactly as written, adds
 // invoice-line with domain-create, and requires check, unit tests, build and a served API.
-// A second render in <directory>-cache removes the cache alone and requires check, unit tests
-// and build. The doc is the only copy of the steps, so it cannot drift from what this proves.
+// A second render in <directory>-queue removes the queue with every other piece in place, then
+// the cache, and requires check, unit tests and build; one render covers both, to keep CI short.
+// The doc is the only copy of the steps, so it cannot drift from what this proves.
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
@@ -37,6 +38,7 @@ const invoiceLine = {
 const pieceHeadings = {
 	cache: "## The cache",
 	live: "## Live updates",
+	queue: "## The queue and the Worker",
 	redis: "## Redis",
 	ui: "## UI pages",
 };
@@ -165,22 +167,30 @@ const projectWithout = async (
 
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");
-	const cacheOnly = `${directory}-cache`;
+	const queueFirst = `${directory}-queue`;
 	if (
 		process.argv[2] === undefined ||
 		existsSync(directory) ||
-		existsSync(cacheOnly)
+		existsSync(queueFirst)
 	) {
 		throw new Error("usage: node test/render/api-only.ts <new directory>");
 	}
 	const files = checkoutExport();
-	await projectWithout(directory, files, ["live", "ui", "cache", "redis"]);
+	await projectWithout(directory, files, [
+		"live",
+		"ui",
+		"cache",
+		"redis",
+		"queue",
+	]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");
 	console.log("api-only: check, test, build and the served API pass");
 
-	await projectWithout(cacheOnly, files, ["cache"]);
-	console.log("api-only without the cache: check, test and build pass");
+	await projectWithout(queueFirst, files, ["queue", "cache"]);
+	console.log(
+		"api-only without the queue, then the cache: check, test and build pass",
+	);
 };
 
 await main();

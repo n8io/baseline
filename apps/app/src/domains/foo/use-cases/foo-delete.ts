@@ -33,16 +33,25 @@ export const fooDelete =
 		const result = await fooTransaction<
 			void,
 			FooNotFoundError | FooForbiddenError
-		>(async ({ fooRepository, fooEvents }) => {
-			const foo = await fooRepository.findById(input.fooId);
-			if (!foo) return err(new FooNotFoundError(input.fooId));
-			if (!fooDeleteCan(foo, actor)) {
-				return err(new FooForbiddenError(input.fooId));
-			}
-			await fooRepository.delete(foo.id);
-			await fooEvents.publish("foo.deleted", { fooId: foo.id });
-			return ok(undefined);
-		});
+		>(
+			async ({
+				fooRepository,
+				// piece-start: queue
+				fooEvents,
+				// piece-end: queue
+			}) => {
+				const foo = await fooRepository.findById(input.fooId);
+				if (!foo) return err(new FooNotFoundError(input.fooId));
+				if (!fooDeleteCan(foo, actor)) {
+					return err(new FooForbiddenError(input.fooId));
+				}
+				await fooRepository.delete(foo.id);
+				// piece-start: queue
+				await fooEvents.publish("foo.deleted", { fooId: foo.id });
+				// piece-end: queue
+				return ok(undefined);
+			},
+		);
 		// After commit, outside the callback.
 		if (result.ok) {
 			// piece-start: cache

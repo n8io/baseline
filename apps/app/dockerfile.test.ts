@@ -42,7 +42,7 @@ const tracingModules = [
 	"@opentelemetry/instrumentation/hook.mjs",
 ];
 
-// Every entry the image runs: the CMD, and the worker command compose passes.
+// Every entry the image runs: the CMD, and each command compose passes.
 const entries = (): string[][] => {
 	const commands = instructions
 		.filter(({ keyword }) => keyword === "CMD" || keyword === "ENTRYPOINT")
@@ -98,7 +98,9 @@ describe("Dockerfile", () => {
 		const all = entries();
 		expect(all.map((entry) => entry.at(-1))).toEqual([
 			"build/server/index.js",
+			// piece-start: queue
 			"src/worker.ts",
+			// piece-end: queue
 		]);
 		for (const entry of all) {
 			expect(entry).toHaveLength(2);
@@ -107,8 +109,10 @@ describe("Dockerfile", () => {
 		}
 	});
 
-	it("names the worker and migrate entries in its comments", () => {
+	it("names its other entries in its comments", () => {
+		// piece-start: queue
 		expect(dockerfile).toContain('worker:  ["node", "src/worker.ts"]');
+		// piece-end: queue
 		expect(dockerfile).toContain('migrate: ["node", "src/migrate.ts"]');
 		expect(dockerfile).toMatch(/30 s grace period/);
 	});

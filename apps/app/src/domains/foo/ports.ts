@@ -18,29 +18,35 @@ export type FooRepository = FooReadRepository & {
 	archiveStale(before: Date, now: Date): Promise<number>;
 };
 
+// piece-start: queue
 export type FooEvents = {
 	publish<K extends keyof FooEventMap>(
 		name: K,
 		data: FooEventMap[K],
 	): Promise<void>;
 };
+// piece-end: queue
 
 // No fooTransaction here: transactions do not nest.
 export type FooTransactionPorts = {
 	fooRepository: FooRepository;
+	// piece-start: queue
 	fooEvents: FooEvents;
+	// piece-end: queue
 };
 
-// Commits when the work returns ok, rolls back on err or a throw. With an inbox, a repeat
-// skips the work and returns ok.
+// Commits when the work returns ok, rolls back on err or a throw.
 export type FooTransaction = {
 	<T, E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
 	): Promise<Result<T, E>>;
+	// piece-start: queue
+	// With an inbox, a repeat skips the work and returns ok.
 	<E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<void, E>>,
 		inbox: Inbox,
 	): Promise<Result<void, E>>;
+	// piece-end: queue
 };
 
 // piece-start: cache

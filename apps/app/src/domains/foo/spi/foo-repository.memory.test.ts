@@ -7,6 +7,7 @@ import { fooRepositoryContract } from "./foo-repository.contract.ts";
 describe("fooRepositoryMemoryCreate", () => {
 	fooRepositoryContract(async () => fooPortsMemoryCreate().ports);
 
+	// piece-start: queue
 	it("records events only when the transaction commits", async () => {
 		const { ports, published } = fooPortsMemoryCreate();
 		const fooId = idCreate("foo");
@@ -23,4 +24,5 @@ describe("fooRepositoryMemoryCreate", () => {
 		});
 		expect(published).toEqual([{ data: { fooId }, name: "foo.created" }]);
 	});
+	// piece-end: queue
 });

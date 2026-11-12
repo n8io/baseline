@@ -45,6 +45,7 @@ export type FooList = {
 	total?: number;
 };
 
+// piece-start: queue
 export const fooCreated = z.object({ fooId: idSchemaCreate("foo") });
 export type FooCreated = z.infer<typeof fooCreated>;
 
@@ -55,3 +56,4 @@ export type FooEventMap = {
 	"foo.created": FooCreated;
 	"foo.deleted": FooDeleted;
 };
+// piece-end: queue

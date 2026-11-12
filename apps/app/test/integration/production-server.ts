@@ -308,6 +308,7 @@ export const productionServerStart = async (
 	return { ...app, port, url: `http://127.0.0.1:${port}` };
 };
 
+// piece-start: queue
 /** Boots `src/worker.ts` as native TS with the same preloads; resolves once /readyz is 200. */
 export const workerStart = (options: AppProcessOptions): Promise<AppProcess> =>
 	appProcessStart("src/worker.ts", options, {});
@@ -315,3 +316,4 @@ export const workerStart = (options: AppProcessOptions): Promise<AppProcess> =>
 /** Starts the worker without waiting for readiness, for boots that are meant to fail. */
 export const workerSpawn = (options: AppProcessOptions): Promise<AppProcess> =>
 	appProcessSpawn("src/worker.ts", options, {});
+// piece-end: queue

@@ -7,23 +7,33 @@ export {
 } from "./foo-errors.ts";
 export {
 	Foo,
+	// piece-start: queue
 	type FooCreated,
+	// piece-end: queue
 	FooCreateInput,
+	// piece-start: queue
 	type FooDeleted,
+	// piece-end: queue
 	FooDeleteInput,
+	// piece-start: queue
 	type FooEventMap,
+	// piece-end: queue
 	FooGetInput,
 	type FooList,
 	FooListInput,
 	FooUpdateInput,
+	// piece-start: queue
 	fooCreated,
 	fooDeleted,
+	// piece-end: queue
 } from "./models/foo.ts";
 export type {
 	// piece-start: cache
 	FooCache,
 	// piece-end: cache
+	// piece-start: queue
 	FooEvents,
+	// piece-end: queue
 	// piece-start: live
 	FooLiveUpdates,
 	// piece-end: live

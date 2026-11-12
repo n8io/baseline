@@ -45,6 +45,7 @@ const appCreate = (context: string): string => {
 	const dependencies = {
 		"@n8io/baseline-cache": "^3.0.0",
 		"@n8io/baseline-live": "^3.0.0",
+		"@n8io/baseline-queue": "^3.0.0",
 		"react-router": "^8.5.1",
 	};
 	writeFileSync(
@@ -252,6 +253,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			templateWithoutPieces(filesRead(appRoot.pathname), [
 				"cache",
 				"live",
+				"queue",
 				"ui",
 			]),
 		);
@@ -264,10 +266,16 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		const paths = created.map((f) => f.path);
 		expect(paths).toContain("src/domains/invoice-line/ports.ts");
 		expect(
-			paths.filter((p) => /^src\/ui\/|-live\.|-cached?\./.test(p)),
+			paths.filter((p) =>
+				/^src\/(ui\/|worker\.ts)|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test/.test(
+					p,
+				),
+			),
 		).toEqual([]);
 		expect(
-			created.filter((f) => /piece-(start|end): (cache|live|ui)/.test(f.text)),
+			created.filter((f) =>
+				/piece-(start|end): (cache|live|queue|ui)|SCHEDULE_/.test(f.text),
+			),
 		).toEqual([]);
 		const server = created.find((f) => f.path === "src/server.ts")?.text;
 		expect(server).toContain("invoiceLineRoutesCreate(invoiceLineUseCases)");

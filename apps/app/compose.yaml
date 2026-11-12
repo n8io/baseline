@@ -1,6 +1,6 @@
 # Local services: `docker compose up -d` for Postgres and Redis; `pnpm dev` runs it.
 # `--profile telemetry` adds a local trace and log viewer (Grafana on http://localhost:3001).
-# `--profile image` runs the production image's server and worker against these services.
+# `--profile image` runs the production image's entries against these services.
 services:
   postgres:
     image: postgres:18
@@ -55,6 +55,7 @@ services:
     # The shutdown deadline is 25 s; Docker's default 10 s would cut it off.
     stop_grace_period: 30s
 
+  # piece-start: queue
   worker:
     build: .
     profiles: [image]
@@ -68,3 +69,4 @@ services:
       <<: *image-env
       OTEL_SERVICE_NAME: app-worker
     stop_grace_period: 30s
+  # piece-end: queue

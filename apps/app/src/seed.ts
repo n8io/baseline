@@ -57,7 +57,9 @@ if (import.meta.main) {
 			? "memory"
 			: await redisClientCreate(ENV.CACHE_URL);
 	// piece-end: redis
+	// piece-start: queue
 	const queue = await queueCreate({ pgPool, role: "publisher" });
+	// piece-end: queue
 	// piece-start: live
 	const liveHub =
 		redisClient === "memory"
@@ -73,7 +75,9 @@ if (import.meta.main) {
 		// piece-start: live
 		liveHub,
 		// piece-end: live
+		// piece-start: queue
 		queue,
+		// piece-end: queue
 	} as const;
 
 	const fooUseCases = telemetryUseCasesTrace(
@@ -88,7 +92,9 @@ if (import.meta.main) {
 	// domain-create: domains-end
 	logger.info("seeds done");
 
+	// piece-start: queue
 	await queue.stop();
+	// piece-end: queue
 	// piece-start: live
 	await liveHub.close();
 	// piece-end: live

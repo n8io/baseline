@@ -15,7 +15,9 @@ const setup = async () => {
 	const memory = fooPortsMemoryCreate();
 	const created = await fooCreate(memory.ports)(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
+	// piece-start: queue
 	memory.published.length = 0;
+	// piece-end: queue
 	return { ...memory, foo: created.value };
 };
 
@@ -23,7 +25,9 @@ describe("fooDelete", () => {
 	it("lets the owner delete, publishes, sends a live update, and the next get finds nothing", async () => {
 		const {
 			ports,
+			// piece-start: queue
 			published,
+			// piece-end: queue
 			// piece-start: live
 			sent,
 			// piece-end: live
@@ -37,9 +41,11 @@ describe("fooDelete", () => {
 
 		expect(result).toEqual({ ok: true, value: undefined });
 		expect(state.foos.has(foo.id)).toBe(false);
+		// piece-start: queue
 		expect(published).toEqual([
 			{ data: { fooId: foo.id }, name: "foo.deleted" },
 		]);
+		// piece-end: queue
 		// piece-start: live
 		expect(sent).toEqual([{ id: foo.id, type: "foo.deleted" }]);
 		// piece-end: live
@@ -51,7 +57,9 @@ describe("fooDelete", () => {
 	it("forbids a stranger and changes nothing", async () => {
 		const {
 			ports,
+			// piece-start: queue
 			published,
+			// piece-end: queue
 			// piece-start: live
 			sent,
 			// piece-end: live
@@ -62,7 +70,9 @@ describe("fooDelete", () => {
 
 		expect(result).toEqual(err(expect.any(FooForbiddenError)));
 		expect(state.foos.get(foo.id)).toEqual(foo);
+		// piece-start: queue
 		expect(published).toEqual([]);
+		// piece-end: queue
 		// piece-start: live
 		expect(sent).toEqual([]);
 		// piece-end: live
@@ -82,7 +92,9 @@ describe("fooDelete", () => {
 	it("returns FooNotFoundError for an unknown id", async () => {
 		const {
 			ports,
+			// piece-start: queue
 			published,
+			// piece-end: queue
 			// piece-start: live
 			sent,
 			// piece-end: live
@@ -90,7 +102,9 @@ describe("fooDelete", () => {
 		const result = await fooDelete(ports)(owner, { fooId: idCreate("foo") });
 
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
+		// piece-start: queue
 		expect(published).toEqual([]);
+		// piece-end: queue
 		// piece-start: live
 		expect(sent).toEqual([]);
 		// piece-end: live

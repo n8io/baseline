@@ -50,7 +50,8 @@ if (import.meta.main) {
 }
 EOF
 perl -0pi -e 's/^import /import { serve } from "\@hono\/node-server";\nimport /m' src/server.ts
-npm pkg set scripts.build="vite build" scripts.check="varlock codegen && biome check . && tsc --noEmit" scripts.dev="docker compose up -d --wait && node --import ./src/preload.ts src/migrate.ts && node --import ./src/preload.ts src/seed.ts && (HEALTH_PORT=9001 node --watch --import ./src/preload.ts src/worker.ts & node --watch --import ./src/preload.ts src/server.ts)"
+npm pkg set scripts.build="vite build" scripts.check="varlock codegen && biome check . && tsc --noEmit"
+perl -pi -e 's{node --import \./src/preload\.ts --conditions=development \./node_modules/\@react-router/dev/bin\.cjs dev}{node --watch --import ./src/preload.ts src/server.ts}' package.json
 pnpm remove @react-router/dev @react-router/node @tailwindcss/vite @types/react @types/react-dom class-variance-authority cn radix-ui react react-dom react-router react-router-hono-server shadcn tailwindcss
 npm pkg delete "imports[#ui/*]"
 pnpm add @hono/node-server@^2.1.5
@@ -106,8 +107,24 @@ pnpm exec biome check --write .
 
 Add Redis back: `git revert` the "Remove redis" commit, before you add back the cache or live updates.
 
-## The queue and the Worker: not removable yet
+## The queue and the Worker
 
-Each Domain's transaction publishes its Events through the queue in the same Postgres transaction, and Consumers, Schedules and Bridges run only in the Worker. A Domain without Events needs a transaction with no outbox first: [#218](https://github.com/n8io/baseline/issues/218).
+The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, and the Worker (`src/worker.ts`, its compose service and its image entry). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and Bridges stay; a Bridge is a read port and runs in the server. A Project with Consumers removes them first; the first line stops while any is left.
+
+```sh
+if git grep -q queueConsumerCreate -- src; then echo "Remove your Consumers first: they run only in the Worker." >&2; exit 1; fi
+rm src/worker.ts test/integration/worker-shutdown.test.ts
+find src \( -path '*/api/*-schedule.ts' -o -path '*/api/*-schedule.test.ts' -o -path '*/spi/*-transaction.postgres.test.ts' \) -delete
+perl -0pi -e 's{^[ \t]*(//|#) piece-start: queue\n.*?^[ \t]*(//|#) piece-end: queue\n}{}gms' $(git grep -l 'piece-start: queue' -- ':!*.md') </dev/null
+perl -0pi -e 's/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*//m' .env.schema
+perl -pi -e 's{\(HEALTH_PORT=9001 node --watch --import \./src/preload\.ts src/worker\.ts & ([^)]*)\)}{$1}' package.json
+pnpm remove @n8io/baseline-queue
+pnpm exec biome lint --write --unsafe --only=correctness/noUnusedImports .
+pnpm exec biome check --write .
+```
+
+The fifth line drops the `SCHEDULE_*` overrides from `.env.schema`, and the sixth takes the Worker out of `pnpm dev`. `pnpm check` then regenerates `src/env.d.ts`.
+
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts` and `spi/*-transaction.postgres.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` marker in `src/worker.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 To run Events on Apache Pulsar instead of the queue, follow the [Pulsar swap guide](https://github.com/n8io/baseline/blob/main/packages/pulsar/README.md).

@@ -11,18 +11,27 @@ export const fooCreate =
 		actor: Actor,
 		input: FooCreateInput,
 	): Promise<Result<Foo, FooNameTakenError>> =>
-		fooTransaction(async ({ fooRepository, fooEvents }) => {
-			const now = new Date();
-			const result = await fooRepository.insert({
-				id: idCreate("foo"),
-				name: input.name,
-				createdBy: actor.id,
-				createdAt: now,
-				updatedAt: now,
-				archivedAt: null,
-			});
-			if (result.ok) {
-				await fooEvents.publish("foo.created", { fooId: result.value.id });
-			}
-			return result;
-		});
+		fooTransaction(
+			async ({
+				fooRepository,
+				// piece-start: queue
+				fooEvents,
+				// piece-end: queue
+			}) => {
+				const now = new Date();
+				const result = await fooRepository.insert({
+					id: idCreate("foo"),
+					name: input.name,
+					createdBy: actor.id,
+					createdAt: now,
+					updatedAt: now,
+					archivedAt: null,
+				});
+				// piece-start: queue
+				if (result.ok) {
+					await fooEvents.publish("foo.created", { fooId: result.value.id });
+				}
+				// piece-end: queue
+				return result;
+			},
+		);

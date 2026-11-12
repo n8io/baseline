@@ -79,11 +79,14 @@ export const fooRepositoryContract = (
 			await expect(async () =>
 				leaked?.fooRepository.findById(idCreate("foo")),
 			).rejects.toThrow("after");
+			// piece-start: queue
 			await expect(async () =>
 				leaked?.fooEvents.publish("foo.created", { fooId: idCreate("foo") }),
 			).rejects.toThrow("after");
+			// piece-end: queue
 		});
 
+		// piece-start: queue
 		it("skips a repeated inbox and commits nothing", async () => {
 			const ports = await create();
 			const inbox = { consumer: "bar.foo-created", eventId: "event-1" };
@@ -99,6 +102,7 @@ export const fooRepositoryContract = (
 			expect(await ports.fooReadRepository.findById(first.id)).toEqual(first);
 			expect(await ports.fooReadRepository.findById(repeat.id)).toBeUndefined();
 		});
+		// piece-end: queue
 	});
 
 	describe("names", () => {
