@@ -22,10 +22,12 @@ const git = (cwd: string, ...args: string[]) =>
 	execFileSync("git", args, { cwd, encoding: "utf8" });
 
 const manifest = '{\n\t"name": "invoicing"\n}\n';
+const lockfile = "biome: 2.6.5\nzod: 4.6.7\n";
 const releases: Record<string, TemplateFile[]> = {
 	"1.0.0": [
 		{ path: "CONTEXT.md", text: "# Template.\n" },
 		{ path: "package.json", text: '{ "name": "app" }' },
+		{ path: "pnpm-lock.yaml", text: "biome: 2.6.5\n" },
 		{ path: "src/a.ts", text: "one\ntwo\nthree\nfour\nfive\n" },
 	],
 	"1.1.0": [
@@ -35,6 +37,7 @@ const releases: Record<string, TemplateFile[]> = {
 		},
 		{ path: "CONTEXT.md", text: "# Template.\n" },
 		{ path: "package.json", text: '{ "name": "app" }' },
+		{ path: "pnpm-lock.yaml", text: "biome: 2.6.7\n" },
 		{ path: "src/a.ts", text: "one\ntwo\nthree\n4\nfive\n" },
 		{ path: "src/b.ts", text: "new\n" },
 	],
@@ -55,6 +58,7 @@ const projectCreate = (a: string): string => {
 		".template.json": '{ "release": "1.0.0", "description": "Invoices." }\n',
 		"CONTEXT.md": "# Invoices.\n",
 		"package.json": manifest,
+		"pnpm-lock.yaml": lockfile,
 		"src/a.ts": a,
 		"src/domains/.gitkeep": "",
 	};
@@ -79,6 +83,7 @@ describe("templateUpgradeRun", () => {
 		);
 		expect(readFileSync(join(app, "src/b.ts"), "utf8")).toBe("new\n");
 		expect(readFileSync(join(app, "package.json"), "utf8")).toBe(manifest);
+		expect(readFileSync(join(app, "pnpm-lock.yaml"), "utf8")).toBe(lockfile);
 		expect(
 			JSON.parse(readFileSync(join(app, ".template.json"), "utf8")).release,
 		).toBe("1.1.0");

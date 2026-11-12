@@ -573,9 +573,31 @@ export const releaseLatest = (): string => {
 const workspaceRender = (rootWorkspace: string): string =>
 	rootWorkspace.replace(/^packages:\n(?: {2}- .*\n)*/m, "");
 
+// The template's own lockfile: the root lockfile with apps/app as the only importer, so a project
+// installs the versions the release was tested with instead of resolving its ranges fresh, which
+// minimumReleaseAge can refuse on the day a dependency ships. The workspace links are dropped and
+// resolve from npm, exempt from the age check; the first install prunes what apps/app never used.
+export const lockfileRender = (rootLockfile: string): string => {
+	// pnpm writes its own install in a first YAML document; the dependencies are in the last.
+	const documents = rootLockfile.split(/^(?=---\n)/m);
+	const last = documents.at(-1) ?? "";
+	const app = /^ {2}apps\/app:\n((?: {4}.*\n)+)/m.exec(last)?.[1];
+	const importers = /^importers:\n\n[\s\S]*?\n(?=packages:\n)/m;
+	if (app === undefined || !importers.test(last)) {
+		throw new Error("the root lockfile has no apps/app importer");
+	}
+	const dependencies = app.replace(
+		/^ {6}\S.*:\n {8}specifier: .*\n {8}version: link:.*\n/gm,
+		"",
+	);
+	const own = last.replace(importers, `importers:\n\n  .:\n${dependencies}\n`);
+	return [...documents.slice(0, -1), own].join("");
+};
+
 // Exports apps/app at `ref` of a baseline checkout: files with `git archive`, package.json from
 // `pnpm pack` (workspace:^ becomes a caret range; pnpm pack writes a lockfile, so use a throwaway
-// checkout) and pnpm-workspace.yaml from the root. Returns the unrendered files, foo included.
+// checkout), pnpm-workspace.yaml from the root and pnpm-lock.yaml from lockfileRender. Returns the
+// unrendered files, foo included.
 export const templateExport = (
 	checkout: string,
 	ref: string,
@@ -619,6 +641,10 @@ export const templateExport = (
 			workspaceRender(
 				readFileSync(join(checkout, "pnpm-workspace.yaml"), "utf8"),
 			),
+		);
+		writeFileSync(
+			join(app, "pnpm-lock.yaml"),
+			lockfileRender(readFileSync(join(checkout, "pnpm-lock.yaml"), "utf8")),
 		);
 		return filesRead(app);
 	} finally {

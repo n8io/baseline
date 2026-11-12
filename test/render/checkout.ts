@@ -80,3 +80,41 @@ export const checkoutPackagesUse = (directory: string) => {
 	}
 	writeFileSync(dockerfile, text);
 };
+
+const importerVersions = (lockfile: string): Map<string, string> => {
+	const last = lockfile.split(/^(?=---\n)/m).at(-1) ?? "";
+	const importer = /^ {2}\.:\n((?: {4}.*\n)+)/m.exec(last)?.[1] ?? "";
+	return new Map(
+		[
+			...importer.matchAll(
+				/^ {6}(\S+):\n {8}specifier: .*\n {8}version: (.*)$/gm,
+			),
+		].map((m) => [m[1] ?? "", m[2] ?? ""] as const),
+	);
+};
+
+// Fails when the project's first install resolved a dependency fresh instead of taking the
+// template's locked version: a fresh resolution is what minimumReleaseAge can refuse on the day a
+// dependency ships. Our own packages resolve from npm (or the overrides) and are skipped.
+export const lockfileTemplateRequire = (
+	directory: string,
+	files: TemplateFile[],
+): void => {
+	const template = files.find((f) => f.path === "pnpm-lock.yaml")?.text;
+	if (template === undefined) throw new Error("the template has no lockfile");
+	const locked = importerVersions(template);
+	const project = importerVersions(
+		readFileSync(join(directory, "pnpm-lock.yaml"), "utf8"),
+	);
+	const fresh = [...project]
+		.filter(([name]) => !name.includes("@n8io/baseline-"))
+		.filter(([name, version]) => locked.get(name) !== version)
+		.map(
+			([name, version]) => `${name} ${version} (template: ${locked.get(name)})`,
+		);
+	if (project.size === 0 || fresh.length > 0) {
+		throw new Error(
+			`the first install resolved fresh instead of the template's lockfile:\n${fresh.join("\n")}`,
+		);
+	}
+};

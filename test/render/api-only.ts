@@ -24,7 +24,11 @@ import {
 	glossaryTerm,
 	pnpmRun,
 } from "../../scripts/app-create.ts";
-import { checkoutExport, checkoutPackagesUse } from "./checkout.ts";
+import {
+	checkoutExport,
+	checkoutPackagesUse,
+	lockfileTemplateRequire,
+} from "./checkout.ts";
 
 const answers = { description: "An API without pages.", name: "api-only" };
 const customer = {
@@ -148,7 +152,8 @@ const main = async () => {
 	);
 	run("git", ["init", "--quiet", "--initial-branch=main"], { cwd: directory });
 	checkoutPackagesUse(directory);
-	pnpmRun(directory, ["install"]);
+	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	lockfileTemplateRequire(directory, files);
 	domainAdd(directory, files, customer);
 	pnpmRun(directory, ["check"]);
 	gitCommitAll(directory, "Create api-only with customer");
