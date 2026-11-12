@@ -39,7 +39,7 @@ const preloadEnv = 'NODE_OPTIONS="--import /app/src/preload.ts"';
 // varlock/auto-load alone, so it is checked in src/preload.ts but allowed elsewhere.
 const tracingModules = [
 	"@n8io/baseline-telemetry/register",
-	"@opentelemetry/instrumentation/hook.mjs",
+	"import-in-the-middle/register-hooks.mjs",
 ];
 
 // Every entry the image runs: the CMD, and each command compose passes.
