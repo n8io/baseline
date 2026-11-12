@@ -170,10 +170,13 @@ export const templateUpgrade = async (
 	const answers: TemplateAnswers = templateAnswers(appDirectory, template);
 	const fromFiles = tools.fetch(template.release);
 	const toFiles = tools.fetch(to);
+	// The project's lockfile is its own after app-create: its next install moves only what changed.
+	const merged = (files: TemplateFile[]) =>
+		files.filter((f) => f.path !== "pnpm-lock.yaml");
 	const { conflicts } = templateMerge(
 		appDirectory,
-		await releaseRender(fromFiles, answers),
-		await releaseRender(toFiles, answers),
+		await releaseRender(merged(fromFiles), answers),
+		await releaseRender(merged(toFiles), answers),
 		tools,
 		{ from: template.release, to },
 	);

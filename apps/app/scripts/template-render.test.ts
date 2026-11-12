@@ -9,6 +9,7 @@ import {
 	fooPathRename,
 	fooRename,
 	linesRemove,
+	lockfileRender,
 	templateFileRender,
 	templateFilesRender,
 } from "./template-render.ts";
@@ -207,6 +208,87 @@ describe("templateFileRender", () => {
 			name: "invoicing",
 			private: true,
 		});
+	});
+});
+
+describe("lockfileRender", () => {
+	const install = [
+		"---",
+		"lockfileVersion: '9.0'",
+		"",
+		"importers:",
+		"",
+		"  .:",
+		"    configDependencies: {}",
+		"",
+		"packages:",
+		"",
+		"  pnpm@12.17.0: {}",
+		"",
+	].join("\n");
+	const workspace = [
+		"---",
+		"lockfileVersion: '9.0'",
+		"",
+		"importers:",
+		"",
+		"  .:",
+		"    devDependencies:",
+		"      turbo:",
+		"        specifier: ^2.11.10",
+		"        version: 2.11.10",
+		"",
+		"  apps/app:",
+		"    dependencies:",
+		"      '@n8io/baseline-id':",
+		"        specifier: workspace:^",
+		"        version: link:../../packages/id",
+		"      zod:",
+		"        specifier: ^4.6.5",
+		"        version: 4.6.7",
+		"    devDependencies:",
+		"      '@biomejs/biome':",
+		"        specifier: ^2.6.5",
+		"        version: 2.6.5",
+		"",
+		"  packages/id:",
+		"    dependencies: {}",
+		"",
+		"packages:",
+		"",
+		"  zod@4.6.7: {}",
+		"",
+	].join("\n");
+
+	it("keeps apps/app's locked versions as the only importer, without the workspace links", () => {
+		const rendered = lockfileRender(install + workspace);
+
+		expect(rendered.startsWith(install)).toBe(true);
+		expect(rendered.slice(install.length).split("\n")).toEqual([
+			"---",
+			"lockfileVersion: '9.0'",
+			"",
+			"importers:",
+			"",
+			"  .:",
+			"    dependencies:",
+			"      zod:",
+			"        specifier: ^4.6.5",
+			"        version: 4.6.7",
+			"    devDependencies:",
+			"      '@biomejs/biome':",
+			"        specifier: ^2.6.5",
+			"        version: 2.6.5",
+			"",
+			"packages:",
+			"",
+			"  zod@4.6.7: {}",
+			"",
+		]);
+	});
+
+	it("refuses a lockfile with no apps/app importer", () => {
+		expect(() => lockfileRender(install)).toThrow("no apps/app importer");
 	});
 });
 

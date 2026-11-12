@@ -225,7 +225,8 @@ const main = async () => {
 				term: glossaryTerm(answers.domain.kebab),
 			},
 		]);
-		pnpmRun(directory, ["install"]);
+		// The template's lockfile drops our own packages, so this install adds them.
+		pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 		pnpmRun(directory, [
 			"domain-create",
 			answers.domain.kebab,

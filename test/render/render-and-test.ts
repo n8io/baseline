@@ -4,7 +4,7 @@
 // adds invoice-line and customer with this checkout's domain-create, and the second-domain
 // fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
 // deleted, and the bridge that reads customers. HEAD installs this checkout's packages/*.
-import { cpSync, existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
 	domainFilesCreate,
@@ -26,7 +26,11 @@ import {
 	pnpmRun,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";
-import { checkoutExport, checkoutPackagesUse } from "./checkout.ts";
+import {
+	checkoutExport,
+	checkoutPackagesUse,
+	lockfileTemplateRequire,
+} from "./checkout.ts";
 
 const fixture = join(import.meta.dirname, "second-domain");
 
@@ -73,7 +77,9 @@ const main = async () => {
 			term: glossaryTerm(d.kebab),
 		})),
 	);
-	pnpmRun(directory, ["install"]);
+	// The template's lockfile drops our own packages, so this install adds them.
+	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	lockfileTemplateRequire(directory, previousFiles);
 	gitCommitAll(directory, `Create render-test from app@${previous}`);
 	run("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
 		cwd: directory,
@@ -90,8 +96,15 @@ const main = async () => {
 	const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
 	console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
 	checkoutPackagesUse(directory);
+	// template-upgrade leaves the project's lockfile alone, so the ranges this checkout changed
+	// would resolve fresh. This project holds nothing beyond the template: start from its lockfile.
+	writeFileSync(
+		join(directory, "pnpm-lock.yaml"),
+		files.find((f) => f.path === "pnpm-lock.yaml")?.text ?? "",
+	);
 	// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	lockfileTemplateRequire(directory, files);
 
 	for (const names of domains) {
 		const refusal = domainNameRefusal(names, directory);
