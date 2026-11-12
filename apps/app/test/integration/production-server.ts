@@ -14,15 +14,33 @@ const preloadFlags = ["--import", "./src/preload.ts"];
 
 const serverEntry = "build/server/index.js";
 
-const freePort = async (): Promise<number> => {
-	const server = netServerCreate().listen(0, "127.0.0.1");
-	await once(server, "listening");
-	const address = server.address();
-	server.close();
-	if (address === null || typeof address === "string") {
-		throw new Error("no free port");
+// Ports come from a block this Vitest worker owns, below the kernel's ephemeral range (32768 and
+// up on Linux, 49152 on macOS). A listen(0) port is free only until the probe closes it: the child
+// binds it seconds later, and any other process's listen(0) can get it first. Then the server's
+// listen fails with EADDRINUSE and it exits 1.
+const portBlockSize = 100;
+const portBlockStart =
+	20_000 + Number(process.env.VITEST_POOL_ID ?? 0) * portBlockSize;
+let portNext = 0;
+
+// The next port of this worker's block that nothing listens on, e.g. a child an earlier file leaked.
+const portClaim = async (): Promise<number> => {
+	for (let tries = 0; tries < portBlockSize; tries++) {
+		const port = portBlockStart + (portNext++ % portBlockSize);
+		const probe = netServerCreate().listen(port);
+		// once() rejects when the probe emits "error" (EADDRINUSE) first.
+		const free = await once(probe, "listening").then(
+			() => true,
+			() => false,
+		);
+		if (free) {
+			await new Promise((resolve) => probe.close(resolve));
+			return port;
+		}
 	}
-	return address.port;
+	throw new Error(
+		`no free port in ${portBlockStart}-${portBlockStart + portBlockSize - 1}`,
+	);
 };
 
 const sleep = (ms: number): Promise<void> =>
@@ -69,7 +87,7 @@ const appProcessSpawn = async (
 	{ cacheUrl, databaseUrl, env = {} }: AppProcessOptions,
 	extraEnv: Record<string, string>,
 ): Promise<AppProcess> => {
-	const healthPort = await freePort();
+	const healthPort = await portClaim();
 	const child = spawn(process.execPath, [...preloadFlags, entry], {
 		env: {
 			...process.env,
@@ -79,7 +97,8 @@ const appProcessSpawn = async (
 			CACHE_URL: cacheUrl,
 			DATABASE_URL: databaseUrl,
 			HEALTH_PORT: String(healthPort),
-			LOG_LEVEL: "silent",
+			// A crash logs at fatal and then exits; anything quieter would hide why.
+			LOG_LEVEL: "fatal",
 			// The production build listens on PORT; development leaves that to Vite.
 			NODE_ENV: "production",
 			OTEL_LOGS_EXPORTER: "none",
@@ -121,6 +140,38 @@ const appProcessSpawn = async (
 	};
 };
 
+// The error for a child that exited while a test waited for it to start, with everything it said.
+const appProcessExitError = async (
+	app: AppProcess,
+	entry: string,
+	waitingFor: string,
+): Promise<Error> => {
+	// "close" waits for stdout and stderr to drain, so the last lines are in.
+	const code = await app.exited;
+	return new Error(
+		`${entry} exited before ${waitingFor}: code ${code}, signal ${app.child.signalCode}\n` +
+			`stdout:\n${app.stdout()}\nstderr:\n${app.stderr()}`,
+	);
+};
+
+// Waits until `check` passes; throws the exit report as soon as the child exits.
+const appProcessWaitFor = (
+	app: AppProcess,
+	entry: string,
+	waitingFor: string,
+	check: () => Promise<boolean>,
+): Promise<void> =>
+	productionServerWaitFor(
+		waitingFor,
+		async () => {
+			if (hasExited(app.child)) {
+				throw await appProcessExitError(app, entry, waitingFor);
+			}
+			return check();
+		},
+		20_000,
+	);
+
 const appProcessStart = async (
 	entry: string,
 	options: AppProcessOptions,
@@ -128,15 +179,11 @@ const appProcessStart = async (
 ): Promise<AppProcess> => {
 	const app = await appProcessSpawn(entry, options, extraEnv);
 	try {
-		await productionServerWaitFor(
-			`${entry} /readyz 200`,
-			async () => {
-				if (hasExited(app.child)) {
-					throw new Error(`${entry} exited early: ${app.stderr()}`);
-				}
-				return (await httpStatus(app.healthPort, "/readyz")) === 200;
-			},
-			20_000,
+		await appProcessWaitFor(
+			app,
+			entry,
+			"/readyz answered 200",
+			async () => (await httpStatus(app.healthPort, "/readyz")) === 200,
 		);
 	} catch (error) {
 		await app.stop();
@@ -241,15 +288,16 @@ export const productionServerStart = async (
 	if (!existsSync(serverEntry)) {
 		throw new Error(`${serverEntry} is missing: run pnpm build first`);
 	}
-	const port = await freePort();
+	const port = await portClaim();
 	const app = await appProcessStart(serverEntry, options, {
 		PORT: String(port),
 	});
 	try {
-		await productionServerWaitFor(
-			"the server on PORT",
+		await appProcessWaitFor(
+			app,
+			serverEntry,
+			"PORT answered 200",
 			async () => (await httpStatus(port, "/auth/sign-in")) === 200,
-			20_000,
 		);
 	} catch (error) {
 		await app.stop();
