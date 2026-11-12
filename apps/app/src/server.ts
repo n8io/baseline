@@ -180,7 +180,7 @@ app.doc31("/api/v1/openapi.json", {
 // Unknown /api paths answer JSON, never a page.
 app.all("/api/*", httpNotFoundHandle);
 
-// Starts graceful shutdown on SIGTERM, then reports ready.
+// Starts graceful shutdown on SIGTERM; serverListening reports ready.
 const serverServe = (server: Server) => {
 	shutdown = shutdownHandleCreate({
 		drainDelayMs: envLocal ? 0 : 5_000,
@@ -212,10 +212,13 @@ const serverServe = (server: Server) => {
 			{ close: () => telemetryShutdown(), name: "telemetry" },
 		],
 	});
-	health.ready();
 };
-const serverListening = ({ port }: { port: number }) =>
-	logger.info({ port }, "Server listening");
+// Ready only once PORT is bound. A listen error such as EADDRINUSE never gets here: it reaches
+// the shutdown handle's uncaughtException handler, which logs it and exits 1.
+const serverListening = ({ port }: { port: number }) => {
+	health.ready();
+	logger.info({ port }, "Server listening and ready");
+};
 
 // piece-start: ui
 // React Router serves the pages and hosts app: Vite in development, its build in production.
