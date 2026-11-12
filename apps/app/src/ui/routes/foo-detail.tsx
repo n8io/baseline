@@ -1,4 +1,4 @@
-import { authnActorRequire } from "@n8io/baseline-authn";
+import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
 import { idSchema } from "@n8io/baseline-id";
 import { useLiveUpdates } from "@n8io/baseline-live/client";
 import { useState } from "react";
@@ -46,7 +46,7 @@ const fooIdParse = (params: { fooId?: string | undefined }) => {
 };
 
 export const loader = async (args: Route.LoaderArgs) => {
-	const actor = authnActorRequire(args);
+	const actor = authnPageActorRequire(args);
 	const fooId = fooIdParse(args.params);
 	const result = await args.context
 		.get(fooUseCasesContext)
@@ -61,7 +61,7 @@ export const loader = async (args: Route.LoaderArgs) => {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const actor = authnActorRequire(args);
+	const actor = authnPageActorRequire(args);
 	const fooId = fooIdParse(args.params);
 	const useCases = args.context.get(fooUseCasesContext);
 	const formData = await args.request.formData();

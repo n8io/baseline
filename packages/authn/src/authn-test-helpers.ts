@@ -21,6 +21,7 @@ export const memoryOptions: AuthnOptions = {
 	clientSecret: "dev",
 	issuerUrl: "memory://",
 	memoryAdminScopes: ["foo:delete", "foo:update"],
+	memoryIssuerAllowed: true,
 	secret,
 };
 

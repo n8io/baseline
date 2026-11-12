@@ -34,6 +34,20 @@ describe("authnCreate", () => {
 		expect(authn.issuer.kind).toBe("memory");
 	});
 
+	it("refuses memory:// without memoryIssuerAllowed", async () => {
+		const { memoryIssuerAllowed, ...options } = memoryOptions;
+
+		await expect(authnCreate(options)).rejects.toThrow(
+			"pass memoryIssuerAllowed: true",
+		);
+	});
+
+	it("refuses memory:// when memoryIssuerAllowed is false", async () => {
+		await expect(
+			authnCreate({ ...memoryOptions, memoryIssuerAllowed: false }),
+		).rejects.toThrow("pass memoryIssuerAllowed: true");
+	});
+
 	it.each(["http://idp.test", "postgres://idp.test", "idp.test"])(
 		"refuses the issuer URL %s, naming the valid schemes",
 		async (issuerUrl) => {

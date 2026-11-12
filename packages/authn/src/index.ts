@@ -1,4 +1,4 @@
-export { Actor, actorContext, authnExpiryContext } from "./actor.ts";
+export { Actor } from "./actor.ts";
 export { authnActorRequire } from "./authn-actor-require.ts";
 export {
 	type Authn,
