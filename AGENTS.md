@@ -12,6 +12,8 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - format: `pnpm format`
 - lint + typecheck (root files): `pnpm check`
 - test (root files): `pnpm test` (needs Docker: it starts the Postgres and Redis containers)
+- test in a package: `pnpm test` runs every test; in cache, live, postgres, queue and pulsar it needs Docker, which only the files named `*.redis.test.ts`, `*.postgres.test.ts` or `*.pulsar.test.ts` use
+- unit tests with no Docker: `pnpm test:unit` (root runs it in every package that has it, or run it inside one package)
 - glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
 - full CI-equivalent: `pnpm turbo run check test build`
 

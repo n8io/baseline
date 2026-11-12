@@ -11,6 +11,7 @@
 		"check": "biome check . && tsc --noEmit",
 		"format": "biome format --write .",
 		"test": "vitest run",
+		"test:unit": "turbo run test:unit",
 		"version": "changeset version && biome format --write ."
 	},
 	"devDependencies": {
