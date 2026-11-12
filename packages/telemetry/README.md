@@ -15,11 +15,17 @@ pnpm add @n8io/baseline-telemetry @opentelemetry/instrumentation
 
 ## Example
 
-Start each process with the preload and the ESM loader hook (without the hook, ESM modules are not patched):
+Start each process with one preload file that registers the ESM loader hook and then imports the telemetry preload (without the hook, ESM modules are not patched). The Template's is `src/preload.ts`:
+
+```ts
+import { register } from "node:module";
+
+register("@opentelemetry/instrumentation/hook.mjs", import.meta.url);
+await import("@n8io/baseline-telemetry/register");
+```
 
 ```sh
-node --import @n8io/baseline-telemetry/register \
-  --experimental-loader=@opentelemetry/instrumentation/hook.mjs src/server.ts
+node --import ./src/preload.ts src/server.ts
 ```
 
 ```ts
@@ -32,5 +38,5 @@ const fooUseCases = telemetryUseCasesTrace(
 
 ## Needs
 
-- Peer: `@opentelemetry/api`. Add `@opentelemetry/instrumentation` for the loader hook.
+- Peer: `@opentelemetry/api`. Add `@opentelemetry/instrumentation` for the loader hook the preload file registers.
 - Env: the standard `OTEL_*` variables, such as `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT`. Every signal, metrics included, exports OTLP over http/protobuf only; another `OTEL_EXPORTER_OTLP_*_PROTOCOL` is ignored with a warning. `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` take `otlp` (default), `console` or `none`.

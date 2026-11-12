@@ -12,6 +12,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+  # The Template's compose.yaml images (postgres, redis, otel-lgtm).
+  - package-ecosystem: docker-compose
+    directory: /apps/app
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: /
     schedule:

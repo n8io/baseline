@@ -23,6 +23,7 @@ pnpm add @n8io/baseline-queue
 ## Example
 
 ```ts
+import type { Actor } from "@n8io/baseline-authn";
 import {
 	consumerCreate,
 	consumersStart,
@@ -34,11 +35,22 @@ import {
 // The worker's composition root.
 const queue = await queueCreate({ pgPool, role: "worker" });
 
+// Each Consumer calls its Use case as its own machine Actor.
+const billingOrderPlacedConsumerActor: Actor = {
+	id: "billing-order-placed-consumer",
+	kind: "client",
+	scopes: ["billing:invoice-create"],
+};
 const billingOrderPlaced = consumerCreate(
 	"billing.order-placed", // queueName: <consumer domain>.<event>
 	"order.placed", // eventName
-	OrderPlaced, // Zod schema
-	(event, inbox) => billingUseCases.invoiceCreate(event, inbox),
+	orderPlaced, // Zod schema
+	(event, inbox) =>
+		billingUseCases.invoiceCreate(
+			billingOrderPlacedConsumerActor,
+			{ customerId: event.customerId, amountCents: event.totalCents },
+			inbox,
+		),
 );
 await consumersStart(queue, [billingOrderPlaced]);
 
