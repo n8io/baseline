@@ -20,6 +20,7 @@ describe("server readiness", { timeout: 30_000 }, () => {
 			await productionServerWaitFor("the ready log", () =>
 				server.stdout().includes(readyLog),
 			);
+			expect(server.stdout()).toContain(readyLog);
 		} finally {
 			await server.stop();
 		}
