@@ -15,6 +15,7 @@ pnpm add @n8io/baseline-http
 - `httpErrorResponses(table, types)`, `HttpErrorResponses`: a route's OpenAPI error responses from that map.
 - `HttpProblem`: the problem body type.
 - `httpRouteName`: middleware that names the HTTP server span after the route that answered.
+- `httpCsrf`: Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.
 - `httpSecureHeaders`: Hono's secure headers plus an enforced CSP whose `script-src` takes a fresh nonce per request (`c.get("secureHeadersNonce")`).
 - `httpServerClose(server)`: stops accepting connections and resolves once open requests finish.
 

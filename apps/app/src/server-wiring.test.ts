@@ -84,6 +84,37 @@ describe("server wiring", () => {
 		expect(page.headers.get("location")).toMatch(/^\/auth\/sign-in\?returnTo=/);
 	});
 
+	describe("cross-site requests", () => {
+		const evil = { Origin: "https://evil.example" };
+
+		it("refuses a cross-site sign-out with a 403 problem", async () => {
+			const res = await app.request("/auth/sign-out", {
+				headers: evil,
+				method: "POST",
+			});
+			expect(res.status).toBe(403);
+			expect(res.headers.get("content-type")).toBe("application/problem+json");
+			expect(await res.json()).toMatchObject({ code: "Forbidden" });
+		});
+
+		it("refuses a cross-site form post to a page", async () => {
+			const res = await app.request("/any-page", {
+				body: new URLSearchParams({ name: "forged" }),
+				headers: evil,
+				method: "POST",
+			});
+			expect(res.status).toBe(403);
+		});
+
+		it("signs out from the same origin", async () => {
+			const res = await app.request("/auth/sign-out", {
+				headers: { Origin: "http://localhost" },
+				method: "POST",
+			});
+			expect(res.status).toBe(302);
+		});
+	});
+
 	it("rejects an invalid bearer token on /api/v1 with 401", async () => {
 		const res = await app.request("/api/v1/nothing-here", {
 			headers: { Authorization: "Bearer not-a-real-token" },
@@ -105,6 +136,25 @@ describe("server wiring", () => {
 			const got = await app.request(`/api/v1/foos/${foo.id}`, { headers });
 			expect(got.status).toBe(200);
 			expect(await got.json()).toStrictEqual(foo);
+		});
+
+		it("leaves bearer requests to /api alone, whatever their Origin", async () => {
+			const json = await app.request("/api/v1/foos", {
+				body: JSON.stringify({ name: "from another origin" }),
+				headers: { ...(await bearer()), Origin: "https://evil.example" },
+				method: "POST",
+			});
+			expect(json.status).toBe(201);
+
+			const form = await app.request("/api/v1/foos", {
+				body: new URLSearchParams({ name: "form" }),
+				headers: {
+					Authorization: (await bearer()).Authorization,
+					Origin: "https://evil.example",
+				},
+				method: "POST",
+			});
+			expect(form.status).not.toBe(403);
 		});
 
 		it("answers 401 without a token", async () => {
@@ -163,6 +213,7 @@ describe("server wiring", () => {
 		const cookieSignIn = async () => {
 			const res = await app.request("/auth/sign-in", {
 				body: new URLSearchParams({ who: "user" }),
+				headers: { Origin: "http://localhost" },
 				method: "POST",
 			});
 			expect(res.status).toBe(302);
