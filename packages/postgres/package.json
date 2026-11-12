@@ -33,7 +33,8 @@
 		"build": "tsdown",
 		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
 		"prepack": "tsdown",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:unit": "vitest run --project unit --passWithNoTests"
 	},
 	"dependencies": {
 		"@n8io/baseline-id": "workspace:^",

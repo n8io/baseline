@@ -11,6 +11,7 @@
 		"check": {
 			"dependsOn": ["build"]
 		},
-		"test": {}
+		"test": {},
+		"test:unit": {}
 	}
 }
