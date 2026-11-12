@@ -6,7 +6,7 @@
 // - all five removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
 // - all five removed, then invoice-line added with domain-create, pass check, unit tests and build
-//   and the built server serves the API.
+//   and the built server serves the API with its security guards.
 // One render serves every case, to keep CI short.
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
@@ -66,7 +66,59 @@ const domainAdd = (
 	pnpmRun(directory, ["exec", "biome", "check", "--write", ...paths]);
 };
 
-// Serves build/server/index.js on memory adapters and asks for the OpenAPI document.
+const guardFail = (what: string, res: Response) => {
+	throw new Error(
+		`the served API ${what}: ${res.status} ${JSON.stringify([...res.headers])}`,
+	);
+};
+
+// The guards src/server-wiring.test.ts proves on app.request, once more through
+// @hono/node-server: the CSP and secure headers, 401 before a route reads the body, httpCsrf
+// on sign-in, and the __Host- session cookie.
+const apiGuardsRequire = async (url: string, openapi: Response) => {
+	const csp = /^base-uri 'self'; default-src 'self'; .*'nonce-/;
+	const anonymous = await fetch(`${url}/api/v1/invoice-lines`, {
+		body: "{not json",
+		headers: { "content-type": "application/json" },
+		method: "POST",
+	});
+	for (const res of [openapi, anonymous]) {
+		if (
+			!csp.test(res.headers.get("content-security-policy") ?? "") ||
+			res.headers.get("x-content-type-options") !== "nosniff" ||
+			!res.headers.get("strict-transport-security")?.startsWith("max-age=")
+		) {
+			guardFail("sent no CSP or secure headers", res);
+		}
+	}
+	if (anonymous.status !== 401)
+		guardFail("let an anonymous post in", anonymous);
+	const signIn = (origin: string) =>
+		fetch(`${url}/auth/sign-in`, {
+			body: new URLSearchParams({ who: "user" }),
+			headers: { origin },
+			method: "POST",
+			redirect: "manual",
+		});
+	const crossSite = await signIn("https://evil.example");
+	if (crossSite.status !== 403)
+		guardFail("took a cross-site sign-in", crossSite);
+	const signedIn = await signIn(url);
+	const cookie = signedIn.headers
+		.getSetCookie()
+		.find((line) => line.startsWith("__Host-authn="));
+	const flags = ["HttpOnly", "Path=/", "SameSite=Lax", "Secure"];
+	const attributes = cookie?.split(/;\s*/) ?? [];
+	if (
+		!flags.every((flag) => attributes.includes(flag)) ||
+		attributes.some((a) => a.startsWith("Domain="))
+	) {
+		guardFail("set no __Host- session cookie", signedIn);
+	}
+};
+
+// Serves build/server/index.js on memory adapters, asks for the OpenAPI document and checks the
+// guards on what it serves.
 const apiServe = async (directory: string) => {
 	const port = 3_100 + Math.floor(Math.random() * 800);
 	const server = spawn(
@@ -94,6 +146,7 @@ const apiServe = async (directory: string) => {
 				if (!("/api/v1/invoice-lines" in doc.paths)) {
 					throw new Error("the served API has no /api/v1/invoice-lines");
 				}
+				await apiGuardsRequire(`http://127.0.0.1:${port}`, res);
 				return;
 			}
 			if (Date.now() > deadline || server.exitCode !== null) {
