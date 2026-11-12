@@ -112,7 +112,7 @@ Add Redis back: `git revert` the "Remove redis" commit, before you add back the 
 The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, and the Worker (`src/worker.ts`, its compose service and its image entry). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and Bridges stay; a Bridge is a read port and runs in the server. A Project with Consumers removes them first; the first line stops while any is left.
 
 ```sh
-if git grep -q queueConsumerCreate -- src; then echo "Remove your Consumers first: they run only in the Worker." >&2; exit 1; fi
+if git grep -q queueConsumerCreate -- src ':!*.test.ts'; then echo "Remove your Consumers first: they run only in the Worker." >&2; exit 1; fi
 rm src/worker.ts test/integration/worker-shutdown.test.ts
 find src \( -path '*/api/*-schedule.ts' -o -path '*/api/*-schedule.test.ts' -o -path '*/spi/*-transaction.postgres.test.ts' \) -delete
 perl -0pi -e 's{^[ \t]*(//|#) piece-start: queue\n.*?^[ \t]*(//|#) piece-end: queue\n}{}gms' $(git grep -l 'piece-start: queue' -- ':!*.md') </dev/null
