@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appCreate } from "./authn-test-app.ts";
+import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
 	appOrigin,
 	authnSetCookieLine,
-	cookieJar,
-	pageBody,
+	authnTestCookieJarCreate,
+	authnTestPageBodyRead,
 } from "./authn-test-helpers.ts";
 import { authnMemoryTokenCreate } from "./index.ts";
 
 const signIn = async (who: "admin" | "user", returnTo = "/foos") => {
-	const { app, authn } = await appCreate();
-	const jar = cookieJar();
+	const { app, authn } = await authnTestAppCreate();
+	const jar = authnTestCookieJarCreate();
 	const res = await app.request(`${appOrigin}/auth/sign-in`, {
 		body: new URLSearchParams({ returnTo, who }),
 		method: "POST",
@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe("memory issuer sign-in", () => {
 	it("shows a dev page offering Dev user and Dev admin, keeping returnTo", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(
 			`${appOrigin}/auth/sign-in?returnTo=%2Ffoos%3Fpage%3D2`,
 		);
@@ -46,7 +46,7 @@ describe("memory issuer sign-in", () => {
 	});
 
 	it("escapes returnTo in the page", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(
 			`${appOrigin}/auth/sign-in?returnTo=${encodeURIComponent('/x"><script>')}`,
 		);
@@ -59,7 +59,7 @@ describe("memory issuer sign-in", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
-		const body = await pageBody(await page("/foos"));
+		const body = await authnTestPageBodyRead(await page("/foos"));
 		expect(body.actor).toStrictEqual({
 			id: "dev-admin",
 			kind: "user",
@@ -71,7 +71,9 @@ describe("memory issuer sign-in", () => {
 	it("signs in Dev user with no scopes", async () => {
 		const { page } = await signIn("user");
 
-		expect((await pageBody(await page("/foos"))).actor).toStrictEqual({
+		expect(
+			(await authnTestPageBodyRead(await page("/foos"))).actor,
+		).toStrictEqual({
 			id: "dev-user",
 			kind: "user",
 			scopes: [],
@@ -85,7 +87,7 @@ describe("memory issuer sign-in", () => {
 	});
 
 	it("refuses an unknown choice", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/auth/sign-in`, {
 			body: new URLSearchParams({ who: "root" }),
 			method: "POST",
@@ -134,9 +136,9 @@ describe("cookies", () => {
 	});
 });
 
-describe("authnMiddleware with the cookie", () => {
+describe("authnMiddlewareCreate with the cookie", () => {
 	it("leaves the actor undefined without a cookie and never rejects", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/foos`);
 
 		expect(res.status).toBe(200);
@@ -144,7 +146,7 @@ describe("authnMiddleware with the cookie", () => {
 	});
 
 	it("clears both cookies and redirects to sign-in for an invalid cookie, never anonymous", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/foos?page=2`, {
 			headers: { Cookie: "__Host-authn=forged" },
 		});
@@ -161,7 +163,7 @@ describe("authnMiddleware with the cookie", () => {
 
 	it("treats a cookie from another AUTHN_SECRET as invalid", async () => {
 		const { jar } = await signIn("user");
-		const { app } = await appCreate({
+		const { app } = await authnTestAppCreate({
 			...(await import("./authn-test-helpers.ts")).memoryOptions,
 			secret: Buffer.alloc(32, 9).toString("base64url"),
 		});
@@ -173,7 +175,7 @@ describe("authnMiddleware with the cookie", () => {
 	});
 
 	it("answers a React Router data request with its document-redirect signal", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/foos.data?_routes=root`, {
 			headers: { Cookie: "__Host-authn=forged" },
 		});
@@ -239,7 +241,7 @@ describe("/auth/refresh", () => {
 		expect(res.headers.get("Location")).toBe("/foos");
 		expect(authnSetCookieLine(res, "__Host-authn")).toBeDefined();
 		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeDefined();
-		const body = await pageBody(await page("/foos"));
+		const body = await authnTestPageBodyRead(await page("/foos"));
 		expect(body.actor?.id).toBe("dev-admin");
 		expect(body.expiresAt).toBeGreaterThan(Date.now() + 14 * 60_000);
 	});
@@ -256,13 +258,13 @@ describe("/auth/refresh", () => {
 	});
 
 	it("answers the client's fetch 401 without a refresh cookie", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 
 		expect((await app.request(`${appOrigin}/auth/refresh`)).status).toBe(401);
 	});
 
 	it("redirects to sign-in when there is no refresh token", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/auth/refresh?returnTo=%2Ffoos`);
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");

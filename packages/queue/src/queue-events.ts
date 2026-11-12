@@ -1,5 +1,5 @@
 import type pg from "pg";
-import { type Queue, queueBossGet } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue.ts";
 
 export type QueueEvents<M> = {
 	publish<K extends keyof M & string>(name: K, data: M[K]): Promise<void>;

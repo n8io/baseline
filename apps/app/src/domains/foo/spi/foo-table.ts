@@ -1,4 +1,4 @@
-import { postgresIdColumn } from "@n8io/baseline-postgres";
+import { postgresIdColumnCreate } from "@n8io/baseline-postgres";
 import {
 	index,
 	pgSchema,
@@ -12,7 +12,7 @@ export const fooSchema = pgSchema("foo");
 export const foo = fooSchema.table(
 	"foo",
 	{
-		id: postgresIdColumn("foo")().primaryKey(),
+		id: postgresIdColumnCreate("foo")().primaryKey(),
 		name: text().notNull(),
 		createdBy: text("created_by").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

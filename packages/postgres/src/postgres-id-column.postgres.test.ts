@@ -11,10 +11,10 @@ import {
 	it,
 } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresIdColumn, postgresPoolCreate } from "./index.ts";
+import { postgresIdColumnCreate, postgresPoolCreate } from "./index.ts";
 
 const fooTable = pgTable("foo", {
-	id: postgresIdColumn("foo")().primaryKey(),
+	id: postgresIdColumnCreate("foo")().primaryKey(),
 	name: text().notNull(),
 });
 
@@ -33,7 +33,7 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("postgresIdColumn", () => {
+describe("postgresIdColumnCreate", () => {
 	it("stores a uuid and reads back the prefixed id", async () => {
 		const db = drizzle({ client: pgPool });
 		const id = idCreate("foo");

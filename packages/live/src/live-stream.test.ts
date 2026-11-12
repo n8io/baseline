@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { liveHubMemoryCreate } from "./index.ts";
 import { liveHubStreams } from "./live-hub.ts";
 import { liveHeartbeatMs, liveStreamMaxMs } from "./live-stream.ts";
-import { liveAppCreate, sseRead } from "./live-test-sse.ts";
+import { liveAppCreate, liveTestSseRead } from "./live-test-sse.ts";
 
 const open = async (
 	app: ReturnType<typeof liveAppCreate>,
 	path = "/live/foo/foo_1",
 ) => {
 	const response = await app.request(path);
-	const sse = sseRead(response);
+	const sse = liveTestSseRead(response);
 	await sse.until("event: ready");
 	return { response, sse };
 };
@@ -103,7 +103,7 @@ describe("liveStreamCreate", () => {
 			vi.spyOn(Math, "random").mockReturnValue(random);
 			retries.push(
 				/retry: (\d+)/.exec(
-					await sseRead(await app.request("/live/foo/foo_1")).end(),
+					await liveTestSseRead(await app.request("/live/foo/foo_1")).end(),
 				)?.[1],
 			);
 		}
@@ -130,7 +130,7 @@ describe("liveStreamCreate", () => {
 
 		const response = await liveAppCreate(liveHub).request("/live/foo/foo_1");
 
-		expect(await sseRead(response).end()).toMatch(/^retry: \d+\n\n$/);
+		expect(await liveTestSseRead(response).end()).toMatch(/^retry: \d+\n\n$/);
 	});
 
 	test("a client that goes away stops listening and no longer holds close()", async () => {
@@ -162,7 +162,7 @@ describe("liveStreamCreate", () => {
 		vi.spyOn(liveHubStreams(liveHub), "listen").mockReturnValue(
 			listening.promise,
 		);
-		const sse = sseRead(
+		const sse = liveTestSseRead(
 			await liveAppCreate(liveHub).request("/live/foo/foo_1"),
 		);
 

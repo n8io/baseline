@@ -9,8 +9,8 @@ pnpm add @n8io/baseline-authn
 ## Exports
 
 - `authnCreate(options)`: discovers the OIDC provider, or starts the memory issuer when `issuerUrl` is `memory://`. The memory issuer signs anyone in without a password, so `memory://` also needs `memoryIssuerAllowed: true`; pass it only in development and test. Returns the `Authn` the other functions take.
-- `authnMiddleware(authn, { source })`: sets `c.var.actor` from a `"bearer"` token (API) or the `"cookie"` session (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in.
-- `authnRoutes(authn)`: `/sign-in`, `/callback`, `/refresh` and `/sign-out`, mounted at `/auth`.
+- `authnMiddlewareCreate(authn, { source })`: sets `c.var.actor` from a `"bearer"` token (API) or the `"cookie"` session (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in.
+- `authnRoutesCreate(authn)`: `/sign-in`, `/callback`, `/refresh` and `/sign-out`, mounted at `/auth`.
 - `authnActorRequire(c)`: the signed-in Actor of an API request, else 401.
 - `Actor`: `{ id, kind: "user" | "client", scopes }`, as a type and a Zod schema.
 - `AuthnRequiredError`: the 401 `authnActorRequire` throws.
@@ -26,8 +26,8 @@ The main entry imports nothing from React or React Router, so an API or Worker i
 ```ts
 import {
 	authnCreate,
-	authnMiddleware,
-	authnRoutes,
+	authnMiddlewareCreate,
+	authnRoutesCreate,
 } from "@n8io/baseline-authn";
 import { except } from "hono/combine";
 
@@ -46,9 +46,12 @@ const authn = await authnCreate({
 	secret: ENV.AUTHN_SECRET,
 });
 
-app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
-app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
-app.route("/auth", authnRoutes(authn));
+app.use(
+	"*",
+	except(["/api/*"], authnMiddlewareCreate(authn, { source: "cookie" })),
+);
+app.use("/api/v1/*", authnMiddlewareCreate(authn, { source: "bearer" }));
+app.route("/auth", authnRoutesCreate(authn));
 ```
 
 ## Needs

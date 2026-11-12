@@ -24,7 +24,7 @@ export type SseReader = {
 	cancel(): Promise<void>;
 };
 
-export const sseRead = (response: Response): SseReader => {
+export const liveTestSseRead = (response: Response): SseReader => {
 	if (response.body === null) throw new TypeError("No body");
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
 	let text = "";

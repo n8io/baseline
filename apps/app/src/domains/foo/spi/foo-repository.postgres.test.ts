@@ -4,8 +4,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { fooRepositoryContract } from "./foo-repository.contract.ts";
-import { fooRepositoryPostgres } from "./foo-repository.postgres.ts";
-import { fooTransactionPostgres } from "./foo-transaction.postgres.ts";
+import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
+import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
 const cleanups: (() => Promise<void>)[] = [];
 
@@ -24,7 +24,7 @@ fooRepositoryContract(async () => {
 		drop,
 	);
 	return {
-		fooReadRepository: fooRepositoryPostgres(drizzle({ client: pgPool })),
-		fooTransaction: fooTransactionPostgres(pgPool, queue),
+		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
+		fooTransaction: fooTransactionPostgresCreate(pgPool, queue),
 	};
 });

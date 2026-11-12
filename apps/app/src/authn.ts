@@ -9,7 +9,7 @@ type AuthnEnv = {
 	AUTHN_SECRET: string;
 };
 
-export const authnProviderOptions = (
+export const authnProviderOptionsCreate = (
 	env: AuthnEnv,
 ): Omit<AuthnOptions, "actorFromClaims" | "memoryAdminScopes"> => ({
 	audience: env.AUTHN_AUDIENCE,

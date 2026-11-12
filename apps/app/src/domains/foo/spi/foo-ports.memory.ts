@@ -1,19 +1,19 @@
 import type { FooLiveUpdates, FooPorts } from "../ports.ts";
-import { fooCacheMemory } from "./foo-cache.memory.ts";
+import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
 import {
 	type FooMemoryState,
 	fooMemoryStateCreate,
-	fooRepositoryMemory,
+	fooRepositoryMemoryCreate,
 } from "./foo-repository.memory.ts";
 import {
 	type FooPublished,
-	fooTransactionMemory,
+	fooTransactionMemoryCreate,
 } from "./foo-transaction.memory.ts";
 
 export type FooLiveUpdate = Parameters<FooLiveUpdates["send"]>[0];
 
 // Every foo port in memory, plus what they recorded: committed events and sent live updates.
-export const fooPortsMemory = (): {
+export const fooPortsMemoryCreate = (): {
 	ports: FooPorts;
 	published: FooPublished[];
 	sent: FooLiveUpdate[];
@@ -24,14 +24,14 @@ export const fooPortsMemory = (): {
 	const sent: FooLiveUpdate[] = [];
 	return {
 		ports: {
-			fooCache: fooCacheMemory(),
+			fooCache: fooCacheMemoryCreate(),
 			fooLiveUpdates: {
 				send: async (update) => {
 					sent.push(update);
 				},
 			},
-			fooReadRepository: fooRepositoryMemory(state),
-			fooTransaction: fooTransactionMemory(state, published),
+			fooReadRepository: fooRepositoryMemoryCreate(state),
+			fooTransaction: fooTransactionMemoryCreate(state, published),
 		},
 		published,
 		sent,

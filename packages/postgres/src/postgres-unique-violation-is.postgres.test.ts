@@ -2,15 +2,15 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresPoolCreate, postgresUniqueViolation } from "./index.ts";
+import { postgresPoolCreate, postgresUniqueViolationIs } from "./index.ts";
 
 const violation = { code: "23505", constraint: "foo_name_key" };
 
-describe("postgresUniqueViolation", () => {
+describe("postgresUniqueViolationIs", () => {
 	it("matches a 23505 on the constraint, directly or in the cause chain", () => {
-		expect(postgresUniqueViolation(violation, "foo_name_key")).toBe(true);
+		expect(postgresUniqueViolationIs(violation, "foo_name_key")).toBe(true);
 		expect(
-			postgresUniqueViolation(
+			postgresUniqueViolationIs(
 				new Error("outer", { cause: new Error("mid", { cause: violation }) }),
 				"foo_name_key",
 			),
@@ -18,22 +18,22 @@ describe("postgresUniqueViolation", () => {
 	});
 
 	it("rejects another constraint, another code or a non-error", () => {
-		expect(postgresUniqueViolation(violation, "foo_pkey")).toBe(false);
+		expect(postgresUniqueViolationIs(violation, "foo_pkey")).toBe(false);
 		expect(
-			postgresUniqueViolation(
+			postgresUniqueViolationIs(
 				{ code: "23503", constraint: "foo_name_key" },
 				"foo_name_key",
 			),
 		).toBe(false);
-		expect(postgresUniqueViolation(undefined, "foo_name_key")).toBe(false);
-		expect(postgresUniqueViolation("23505", "foo_name_key")).toBe(false);
+		expect(postgresUniqueViolationIs(undefined, "foo_name_key")).toBe(false);
+		expect(postgresUniqueViolationIs("23505", "foo_name_key")).toBe(false);
 	});
 
 	it("stops on a cause cycle", () => {
 		const first: { cause?: unknown } = {};
 		first.cause = { cause: first };
 
-		expect(postgresUniqueViolation(first, "foo_name_key")).toBe(false);
+		expect(postgresUniqueViolationIs(first, "foo_name_key")).toBe(false);
 	});
 
 	it("finds the pg error inside Drizzle's DrizzleQueryError", async () => {
@@ -52,8 +52,8 @@ describe("postgresUniqueViolation", () => {
 
 		expect(error).toBeInstanceOf(Error);
 		expect((error as Error).constructor.name).toBe("DrizzleQueryError");
-		expect(postgresUniqueViolation(error, "foo_name_key")).toBe(true);
-		expect(postgresUniqueViolation(error, "foo_pkey")).toBe(false);
+		expect(postgresUniqueViolationIs(error, "foo_name_key")).toBe(true);
+		expect(postgresUniqueViolationIs(error, "foo_pkey")).toBe(false);
 		await pgPool.end();
 	});
 });

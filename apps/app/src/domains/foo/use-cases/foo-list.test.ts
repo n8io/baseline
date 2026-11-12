@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
 import { FooListInput } from "../models/foo.ts";
-import { fooPortsMemory } from "../spi/foo-ports.memory.ts";
+import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooCreate } from "./foo-create.ts";
 import { fooList } from "./foo-list.ts";
 
@@ -9,7 +9,7 @@ const actor: Actor = { id: "u1", kind: "user", scopes: [] };
 
 describe("fooList", () => {
 	it("returns an empty page when there are no foos", async () => {
-		const { ports } = fooPortsMemory();
+		const { ports } = fooPortsMemoryCreate();
 		const result = await fooList(ports)(actor, FooListInput.parse({}));
 
 		expect(result).toEqual({
@@ -19,7 +19,7 @@ describe("fooList", () => {
 	});
 
 	it("passes the input through to the repository", async () => {
-		const { ports } = fooPortsMemory();
+		const { ports } = fooPortsMemoryCreate();
 		const create = fooCreate(ports);
 		await create(actor, { name: "b" });
 		await create(actor, { name: "a" });

@@ -1,0 +1,4 @@
+// A23: a function that builds and returns a thing ends in Create (barRepositoryMemoryCreate)
+// expect: src/domains/bar/spi/bar-repository.memory.ts: barRepositoryMemory builds and returns a thing; a factory ends in Create: barRepositoryMemoryCreate
+// @file src/domains/bar/spi/bar-repository.memory.ts
+export const barRepositoryMemory = (): { names: string[] } => ({ names: [] });

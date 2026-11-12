@@ -27,7 +27,7 @@ export type FakeProvider = {
 /** `fetch` for the stub: rejects like a network failure while `down`. */
 
 /** A minimal OIDC provider: discovery, JWKS, authorization code with PKCE, refresh, revocation, end session. */
-export const fakeProviderCreate = async (
+export const authnTestOidcProviderCreate = async (
 	clientId: string,
 ): Promise<FakeProvider> => {
 	const { privateKey, publicKey } = await generateKeyPair("RS256");

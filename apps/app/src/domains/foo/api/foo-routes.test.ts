@@ -3,14 +3,14 @@ import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import { fooUseCasesCreate } from "../index.ts";
-import { fooPortsMemory } from "../spi/foo-ports.memory.ts";
-import { fooRoutes } from "./foo-routes.ts";
+import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
+import { fooRoutesCreate } from "./foo-routes.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 const stranger: Actor = { id: "user-2", kind: "user", scopes: [] };
 
 const setup = () => {
-	const useCases = fooUseCasesCreate(fooPortsMemory().ports);
+	const useCases = fooUseCasesCreate(fooPortsMemoryCreate().ports);
 	let actor: Actor | undefined = owner;
 	const app = httpRouterCreate();
 	app.onError(httpErrorHandle);
@@ -18,7 +18,7 @@ const setup = () => {
 		if (actor) c.set("actor", actor);
 		await next();
 	});
-	app.route("/", fooRoutes(useCases));
+	app.route("/", fooRoutesCreate(useCases));
 	const send = (path: string, method = "GET", body?: unknown) =>
 		app.request(path, {
 			body: body === undefined ? null : JSON.stringify(body),

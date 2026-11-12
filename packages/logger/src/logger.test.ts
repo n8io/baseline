@@ -1,6 +1,6 @@
 import { pino } from "pino";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loggerOptions } from "./logger-options.ts";
+import { loggerOptionsCreate } from "./logger-options.ts";
 
 const canary = "canary@example.com";
 
@@ -11,7 +11,7 @@ const loggerCapture = () => {
 			lines.push(JSON.parse(line) as Record<string, unknown>);
 		},
 	};
-	return { lines, logger: pino(loggerOptions("info"), stream) };
+	return { lines, logger: pino(loggerOptionsCreate("info"), stream) };
 };
 
 describe("logger", () => {

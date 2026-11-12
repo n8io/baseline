@@ -121,7 +121,7 @@ export const gitCommitAll = (directory: string, message: string): void => {
 };
 
 // The ruleset on the default branch: every required app-ci.yml job, as `ci / <job>`.
-export const rulesetBody = () => ({
+export const rulesetBodyCreate = () => ({
 	conditions: { ref_name: { exclude: [], include: ["~DEFAULT_BRANCH"] } },
 	enforcement: "active",
 	name: "ci",
@@ -260,7 +260,7 @@ const main = async () => {
 	run(
 		"gh",
 		["api", "--method", "POST", `repos/${repository}/rulesets`, "--input", "-"],
-		{ input: JSON.stringify(rulesetBody()) },
+		{ input: JSON.stringify(rulesetBodyCreate()) },
 	);
 	for (const args of securityUpdatesCalls(repository)) run("gh", args);
 	console.log(`Created https://github.com/${repository}`);

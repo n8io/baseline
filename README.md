@@ -13,7 +13,7 @@ flowchart LR
   subgraph baseline
     P["packages/*"] -->|release| GP[("npmjs<br/>@n8io/baseline-*")]
     T["apps/app"] -->|release| R["app@x.y.z tag"]
-    W["app-ci.yml"] -->|tag| V2["v2"]
+    W["app-ci.yml"] -->|tag| V3["v3"]
   end
   R -->|app-create| Y["your project"]
   R -->|pnpm template-upgrade| Y
@@ -91,12 +91,12 @@ pnpm turbo run check test build   # the full CI-equivalent
 
 Docker must be running: the root tests and the `cache`, `live`, `postgres`, `queue` and `pulsar` tests start their own containers.
 
-A change that should ship needs a changeset. Run `pnpm changeset` and pick the packages it touches, plus `app` for template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the packages, tags `app@x.y.z`, and moves `v2`.
+A change that should ship needs a changeset. Run `pnpm changeset` and pick the packages it touches, plus `app` for template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the packages, tags `app@x.y.z`, and moves `v3`.
 
 Dependabot opens update PRs weekly, for releases at least 7 days old. Patch and minor updates come grouped in one PR that merges itself once CI passes; each major is its own PR to review and merge by hand. Update PRs carry no changeset, so they never publish. Add one to a major only if it should ship.
 
 > [!WARNING]
-> `v2` is the current major of `app-ci.yml`; `v1` stays frozen. `v2` never gains a check that can fail on projects that passed before. A change like that ships as `v3`.
+> `v3` is the current major of `app-ci.yml`; `v1` and `v2` stay frozen. `v3` never gains a check that can fail on projects that passed before. A change like that ships as `v4`.
 
 ## For AI agents
 

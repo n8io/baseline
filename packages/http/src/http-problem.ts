@@ -49,12 +49,12 @@ export const httpProblemCreate = (
 };
 
 /** The problem body for a domain error: `code` is the error's `type` tag. */
-export const httpErrorBody = (
+export const httpErrorBodyCreate = (
 	error: { type: string },
 	status: ContentfulStatusCode,
 ): HttpProblem => httpProblemCreate(status, error.type);
 
-export const httpProblemSchema = (
+export const httpProblemSchemaCreate = (
 	codes: [string, ...string[]],
 ): z.ZodType<HttpProblem> =>
 	z.object({

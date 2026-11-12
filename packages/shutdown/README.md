@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-shutdown
 
 ## Exports
 
-- `shutdownHandle({ intakes, resources, deadlineMs?, drainDelayMs? })`: owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash.
+- `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })`: owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash.
   1. Waits `drainDelayMs` (default 5 s; pass 0 outside production) while readiness answers 503.
   2. Closes every intake (HTTP server, live streams, Consumers) at once.
   3. Closes each resource (queue, pools, clients, health, telemetry last) in order.
@@ -20,10 +20,10 @@ pnpm add @n8io/baseline-shutdown
 
 ```ts
 import { httpServerClose } from "@n8io/baseline-http";
-import { shutdownHandle } from "@n8io/baseline-shutdown";
+import { shutdownHandleCreate } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 
-const shutdown = shutdownHandle({
+const shutdown = shutdownHandleCreate({
 	drainDelayMs: envLocal ? 0 : 5_000,
 	intakes: [
 		{ close: () => httpServerClose(server), name: "http" },

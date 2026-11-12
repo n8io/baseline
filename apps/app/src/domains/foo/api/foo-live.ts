@@ -1,6 +1,6 @@
 import { authnActorRequire } from "@n8io/baseline-authn";
 import {
-	httpErrorBody,
+	httpErrorBodyCreate,
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
@@ -9,7 +9,7 @@ import { FooGetInput, type FooUseCases } from "../index.ts";
 import { fooErrorStatus } from "./foo-error-status.ts";
 
 // Live updates for one foo: the stream opens only if fooGet succeeds for the actor (cookie auth).
-export const fooLiveRoutes = (u: FooUseCases, liveHub: LiveHub) =>
+export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
 	httpRouterCreate().get("/:fooId", async (c) => {
 		const actor = authnActorRequire(c);
 		const input = FooGetInput.safeParse(c.req.param());
@@ -19,7 +19,7 @@ export const fooLiveRoutes = (u: FooUseCases, liveHub: LiveHub) =>
 			const type = result?.error.type ?? "FooNotFound";
 			const status = fooErrorStatus[type];
 			return c.json(
-				httpErrorBody({ type }, status),
+				httpErrorBodyCreate({ type }, status),
 				status,
 				httpProblemHeaders,
 			);

@@ -1,7 +1,7 @@
 import { setTimeout } from "node:timers/promises";
 import { logger } from "@n8io/baseline-logger";
 import { PgBoss } from "pg-boss";
-import { queueSchema } from "./queue-create.ts";
+import { queueSchema } from "./queue.ts";
 import { queueInboxTableCreate } from "./queue-inbox.ts";
 
 // Only Postgres URLs; the composition root handles memory:// first. Never echoes the URL.

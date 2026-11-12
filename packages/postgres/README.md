@@ -9,33 +9,33 @@ pnpm add @n8io/baseline-postgres
 ## Exports
 
 - `postgresPoolCreate({ databaseUrl, ...pg.PoolConfig })`: the process's one pool (10 connections, 3 s connect timeout).
-- `postgresTransaction(pgPool, work, { timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
+- `postgresTransactionRun(pgPool, work, { timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresPortsGuard(ports, isOpen)`: wraps a transaction's ports so a call after the transaction ended throws.
 - `postgresMigrate({ databaseUrl, migrationsFolder })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once.
-- `postgresIdColumn(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
+- `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresCursorEncode(cursor)`, `postgresCursorDecode(text, prefix)`, `PostgresCursor`: a list page's position as base64url; a cursor that does not decode reads as none.
-- `postgresUniqueViolation(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
+- `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
 
 ## Example
 
 ```ts
 import {
-	postgresIdColumn,
+	postgresIdColumnCreate,
 	postgresPoolCreate,
-	postgresTransaction,
+	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, text } from "drizzle-orm/pg-core";
 
 export const fooTable = pgTable("foo", {
-	id: postgresIdColumn("foo")().primaryKey(),
+	id: postgresIdColumnCreate("foo")().primaryKey(),
 	name: text().notNull(),
 });
 
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
 
-const result = await postgresTransaction(pgPool, async (pgClient) => {
+const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 	const rows = await drizzle({ client: pgClient })
 		.insert(fooTable)
 		.values(foo)

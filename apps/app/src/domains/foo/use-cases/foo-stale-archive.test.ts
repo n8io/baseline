@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Foo } from "../models/foo.ts";
-import { fooPortsMemory } from "../spi/foo-ports.memory.ts";
+import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooStaleArchive } from "./foo-stale-archive.ts";
 
 const actor: Actor = { id: "system", kind: "client", scopes: [] };
@@ -32,7 +32,7 @@ describe("fooStaleArchive", () => {
 	});
 
 	it("archives only unarchived foos older than 30 days and returns the count", async () => {
-		const { ports, state } = fooPortsMemory();
+		const { ports, state } = fooPortsMemoryCreate();
 		const old = fooAt("old", daysAgo(31), null);
 		const older = fooAt("older", daysAgo(90), null);
 		const fresh = fooAt("fresh", daysAgo(29), null);
@@ -53,7 +53,7 @@ describe("fooStaleArchive", () => {
 	});
 
 	it("returns 0 when nothing is stale", async () => {
-		const { ports } = fooPortsMemory();
+		const { ports } = fooPortsMemoryCreate();
 
 		expect(await fooStaleArchive(ports)(actor)).toEqual({ ok: true, value: 0 });
 	});

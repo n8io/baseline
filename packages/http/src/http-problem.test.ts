@@ -2,8 +2,8 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 import {
 	type HttpErrorStatus,
-	httpErrorBody,
-	httpErrorResponses,
+	httpErrorBodyCreate,
+	httpErrorResponsesCreate,
 	httpProblemHeaders,
 } from "./index.ts";
 
@@ -19,13 +19,13 @@ const fooErrorStatus = {
 	FooNotFound: 404,
 } as const satisfies HttpErrorStatus<FooError>;
 
-describe("httpErrorBody", () => {
+describe("httpErrorBodyCreate", () => {
 	it("returns status, the reason phrase as title and the error's type as code, never its message", () => {
 		const error = Object.assign(new Error("canary@example.com is taken"), {
 			type: "FooNameTaken",
 		});
 
-		expect(httpErrorBody(error, 409)).toStrictEqual({
+		expect(httpErrorBodyCreate(error, 409)).toStrictEqual({
 			code: "FooNameTaken",
 			status: 409,
 			title: "Conflict",
@@ -36,9 +36,9 @@ describe("httpErrorBody", () => {
 	});
 });
 
-describe("httpErrorResponses", () => {
+describe("httpErrorResponsesCreate", () => {
 	it("builds one problem+json entry per status, listing the types that answer with it", () => {
-		const responses = httpErrorResponses(fooErrorStatus, [
+		const responses = httpErrorResponsesCreate(fooErrorStatus, [
 			"FooNameTaken",
 			"FooArchived",
 			"FooNotFound",
@@ -57,7 +57,7 @@ describe("httpErrorResponses", () => {
 			path: "/foos",
 			responses: {
 				201: { description: "Created" },
-				...httpErrorResponses(fooErrorStatus, ["FooNameTaken"]),
+				...httpErrorResponsesCreate(fooErrorStatus, ["FooNameTaken"]),
 			},
 		});
 		const app = new OpenAPIHono().openapi(route, (c) => c.body(null, 201));
@@ -85,7 +85,7 @@ describe("httpErrorResponses", () => {
 
 	it("type-checks the listed types against the status table", () => {
 		// @ts-expect-error "FooNameTakn" is not a key of the table
-		const responses = httpErrorResponses(fooErrorStatus, ["FooNameTakn"]);
+		const responses = httpErrorResponsesCreate(fooErrorStatus, ["FooNameTakn"]);
 
 		expect(Object.keys(responses)).toStrictEqual(["undefined"]);
 	});
@@ -100,18 +100,25 @@ describe("httpErrorResponses", () => {
 					content: { "application/json": { schema: z.object({}) } },
 					description: "Created",
 				},
-				...httpErrorResponses(fooErrorStatus, ["FooNameTaken", "FooNotFound"]),
+				...httpErrorResponsesCreate(fooErrorStatus, [
+					"FooNameTaken",
+					"FooNotFound",
+				]),
 			},
 		});
 		const error = { type: "FooNameTaken" } as const;
 		const app = new OpenAPIHono().openapi(route, (c) => {
 			const status = fooErrorStatus[error.type];
-			return c.json(httpErrorBody(error, status), status, httpProblemHeaders);
+			return c.json(
+				httpErrorBodyCreate(error, status),
+				status,
+				httpProblemHeaders,
+			);
 		});
 		new OpenAPIHono().openapi(
 			route,
 			// @ts-expect-error 403 is not listed for this route
-			(c) => c.json(httpErrorBody(error, 403), 403, httpProblemHeaders),
+			(c) => c.json(httpErrorBodyCreate(error, 403), 403, httpProblemHeaders),
 		);
 
 		const res = await app.request("/foos", { method: "POST" });

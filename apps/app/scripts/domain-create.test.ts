@@ -65,19 +65,19 @@ describe("domainNameRefusal", () => {
 
 describe("wiringInsert", () => {
 	const templateText = [
-		'import { fooRoutes } from "#domains/foo/api/index.ts";',
+		'import { fooRoutesCreate } from "#domains/foo/api/index.ts";',
 		'import { ENV } from "#env";',
 		"",
-		'app.route("/api/v1/foos", fooRoutes(fooUseCases));',
+		'app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));',
 		"// domain-create: routes",
 	].join("\n");
 
 	it("adds the renamed lines above the same marker and after the imports", () => {
 		const project = [
-			'import { barRoutes } from "#domains/bar/api/index.ts";',
+			'import { barRoutesCreate } from "#domains/bar/api/index.ts";',
 			'import { ENV } from "#env";',
 			"",
-			'app.route("/api/v1/bars", barRoutes(barUseCases));',
+			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
 			"// domain-create: routes",
 		].join("\n");
 
@@ -86,12 +86,12 @@ describe("wiringInsert", () => {
 				"\n",
 			),
 		).toEqual([
-			'import { barRoutes } from "#domains/bar/api/index.ts";',
+			'import { barRoutesCreate } from "#domains/bar/api/index.ts";',
 			'import { ENV } from "#env";',
-			'import { invoiceLineRoutes } from "#domains/invoice-line/api/index.ts";',
+			'import { invoiceLineRoutesCreate } from "#domains/invoice-line/api/index.ts";',
 			"",
-			'app.route("/api/v1/bars", barRoutes(barUseCases));',
-			'app.route("/api/v1/invoice-lines", invoiceLineRoutes(invoiceLineUseCases));',
+			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
+			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(invoiceLineUseCases));',
 			"// domain-create: routes",
 		]);
 	});
@@ -193,7 +193,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 
 	it("wires the use cases, routes and schedule in each composition root", () => {
 		expect(file("src/server.ts")).toContain(
-			'app.route("/api/v1/invoice-lines", invoiceLineRoutes(invoiceLineUseCases));\n// domain-create: routes',
+			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(invoiceLineUseCases));\n// domain-create: routes',
 		);
 		for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
 			expect(file(root)).toMatch(
@@ -201,7 +201,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			);
 		}
 		expect(file("src/worker.ts")).toContain(
-			"invoiceLineSchedule(invoiceLineUseCases),\n\t\t// domain-create: schedules",
+			"invoiceLineScheduleCreate(invoiceLineUseCases),\n\t\t// domain-create: schedules",
 		);
 		expect(file("src/ui/routes.ts")).toContain(
 			'route("invoice-lines/:invoiceLineId", "routes/invoice-line-detail.tsx"),',

@@ -8,7 +8,7 @@ import {
 	envFilesWrite,
 	glossaryTerm,
 	requiredJobs,
-	rulesetBody,
+	rulesetBodyCreate,
 	securityUpdatesCalls,
 } from "../scripts/app-create.ts";
 
@@ -106,7 +106,7 @@ describe("app-create", () => {
 		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((m) => m[1]);
 
 		expect([...requiredJobs, "glossary-check"].sort()).toEqual(jobs.sort());
-		expect(rulesetBody()).toMatchObject({
+		expect(rulesetBodyCreate()).toMatchObject({
 			conditions: { ref_name: { include: ["~DEFAULT_BRANCH"] } },
 			enforcement: "active",
 			rules: [

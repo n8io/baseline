@@ -2,15 +2,15 @@ export { httpCsrf } from "./http-csrf.ts";
 export { httpErrorHandle, httpNotFoundHandle } from "./http-error-handle.ts";
 export {
 	type HttpErrorResponses,
-	httpErrorResponses,
+	httpErrorResponsesCreate,
 } from "./http-error-responses.ts";
 export {
 	type HttpErrorStatus,
 	type HttpProblem,
-	httpErrorBody,
+	httpErrorBodyCreate,
 	httpProblemHeaders,
 } from "./http-problem.ts";
 export { httpRouteName } from "./http-route-name.ts";
-export { httpRouterCreate } from "./http-router-create.ts";
+export { httpRouterCreate } from "./http-router.ts";
 export { httpSecureHeaders } from "./http-secure-headers.ts";
 export { httpServerClose } from "./http-server-close.ts";

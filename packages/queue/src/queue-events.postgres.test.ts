@@ -1,6 +1,6 @@
 import {
 	postgresPoolCreate,
-	postgresTransaction,
+	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import type pg from "pg";
@@ -8,9 +8,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
-	consumerCreate,
-	consumersSubscribe,
 	type Queue,
+	queueConsumerCreate,
+	queueConsumersSubscribe,
 	queueCreate,
 	queueEventsMemoryCreate,
 	queueEventsPgBossCreate,
@@ -43,13 +43,13 @@ beforeAll(async () => {
 	// Three consumers of one event: pg-boss sends to every queue at once on the one client, and pg
 	// warns from the third query queued on a busy client.
 	const consumer = (name: string) =>
-		consumerCreate(
+		queueConsumerCreate(
 			name,
 			"foo.created",
 			z.object({ fooId: z.string() }),
 			async () => ok(undefined),
 		);
-	await consumersSubscribe(queue, [
+	await queueConsumersSubscribe(queue, [
 		consumer("bar.foo-created"),
 		consumer("baz.foo-created"),
 		consumer("qux.foo-created"),
@@ -70,9 +70,9 @@ afterAll(async () => {
 });
 
 describe("queueEventsPgBossCreate", () => {
-	it("publishes on postgresTransaction's guarded client, visible only after commit", async () => {
+	it("publishes on postgresTransactionRun's guarded client, visible only after commit", async () => {
 		let seenInside: unknown[] = [];
-		const result = await postgresTransaction(pgPool, async (pgClient) => {
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
 			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 				"foo.created",
@@ -95,7 +95,7 @@ describe("queueEventsPgBossCreate", () => {
 	});
 
 	it("rolls the jobs back with the rows on err", async () => {
-		const result = await postgresTransaction(pgPool, async (pgClient) => {
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
 			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 				"foo.created",
@@ -113,7 +113,7 @@ describe("queueEventsPgBossCreate", () => {
 		const onePool = postgresPoolCreate({ databaseUrl, max: 1 });
 		const oneQueue = await queueCreate({ pgPool: onePool, role: "publisher" });
 		try {
-			const result = await postgresTransaction(onePool, async (pgClient) => {
+			const result = await postgresTransactionRun(onePool, async (pgClient) => {
 				await queueEventsPgBossCreate<FooEvents>(oneQueue, pgClient).publish(
 					"foo.created",
 					{ fooId: "foo_1" },
@@ -131,7 +131,7 @@ describe("queueEventsPgBossCreate", () => {
 
 	it("rolls the jobs back on a throw", async () => {
 		await expect(
-			postgresTransaction(pgPool, async (pgClient) => {
+			postgresTransactionRun(pgPool, async (pgClient) => {
 				await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
 					"foo.created",
 					{ fooId: "foo_1" },

@@ -1,6 +1,6 @@
 import {
 	postgresPortsGuard,
-	postgresTransaction,
+	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import {
 	type Inbox,
@@ -13,11 +13,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
-import { fooRepositoryPostgres } from "./foo-repository.postgres.ts";
+import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 
 // One Postgres transaction: the rows and the events published with them commit or roll back
 // together. A repeated inbox skips the work and commits nothing else.
-export const fooTransactionPostgres = (
+export const fooTransactionPostgresCreate = (
 	pgPool: pg.Pool,
 	queue: Queue,
 ): FooTransaction =>
@@ -25,7 +25,7 @@ export const fooTransactionPostgres = (
 		work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
 		inbox?: Inbox,
 	) =>
-		postgresTransaction(pgPool, async (pgClient) => {
+		postgresTransactionRun(pgPool, async (pgClient) => {
 			if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 				return ok(undefined) as Result<T, E>;
 			}
@@ -38,7 +38,7 @@ export const fooTransactionPostgres = (
 						isOpen,
 					),
 					fooRepository: postgresPortsGuard(
-						fooRepositoryPostgres(drizzle({ client: pgClient })),
+						fooRepositoryPostgresCreate(drizzle({ client: pgClient })),
 						isOpen,
 					),
 				});

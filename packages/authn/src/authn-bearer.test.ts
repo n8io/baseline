@@ -1,6 +1,6 @@
 import { trace } from "@opentelemetry/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appCreate } from "./authn-test-app.ts";
+import { authnTestAppCreate } from "./authn-test-app.ts";
 import { appOrigin } from "./authn-test-helpers.ts";
 import { type Actor, authnMemoryTokenCreate } from "./index.ts";
 
@@ -15,9 +15,9 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe("authnMiddleware with the bearer token", () => {
+describe("authnMiddlewareCreate with the bearer token", () => {
 	it("sets the actor from a memory-issuer token through actorFromClaims", async () => {
-		const { app, authn } = await appCreate();
+		const { app, authn } = await authnTestAppCreate();
 		const token = await authnMemoryTokenCreate(authn, machine);
 		const res = await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${token}` },
@@ -32,7 +32,7 @@ describe("authnMiddleware with the bearer token", () => {
 		vi.spyOn(trace, "getActiveSpan").mockReturnValue({
 			setAttribute,
 		} as unknown as ReturnType<typeof trace.getActiveSpan>);
-		const { app, authn } = await appCreate();
+		const { app, authn } = await authnTestAppCreate();
 		const token = await authnMemoryTokenCreate(authn, machine);
 		await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${token}` },
@@ -45,7 +45,7 @@ describe("authnMiddleware with the bearer token", () => {
 	});
 
 	it("answers 401 AuthnRequired when a route needs an actor and none is sent", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/me`);
 
 		expect(res.status).toBe(401);
@@ -57,7 +57,7 @@ describe("authnMiddleware with the bearer token", () => {
 	});
 
 	it("leaves the actor undefined without a token and never rejects", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/whoami`);
 
 		expect(await res.json()).toStrictEqual({ actor: null });
@@ -68,7 +68,7 @@ describe("authnMiddleware with the bearer token", () => {
 		["a malformed header", "Bearer"],
 		["another scheme", "Basic dXNlcjpwYXNz"],
 	])("answers 401 AuthnInvalid for %s, never anonymous", async (_, header) => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
 			headers: { Authorization: header },
 		});
@@ -78,7 +78,7 @@ describe("authnMiddleware with the bearer token", () => {
 	});
 
 	it("answers 401 AuthnInvalid for an expired token and never redirects", async () => {
-		const { app, authn } = await appCreate();
+		const { app, authn } = await authnTestAppCreate();
 		const token = await authnMemoryTokenCreate(authn, machine);
 		vi.useFakeTimers({ now: Date.now() + 16 * 60_000, toFake: ["Date"] });
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
@@ -90,9 +90,9 @@ describe("authnMiddleware with the bearer token", () => {
 	});
 
 	it("answers 401 AuthnInvalid for a token from another memory issuer", async () => {
-		const other = await appCreate();
+		const other = await authnTestAppCreate();
 		const token = await authnMemoryTokenCreate(other.authn, machine);
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});
@@ -101,7 +101,7 @@ describe("authnMiddleware with the bearer token", () => {
 	});
 
 	it("never accepts the cookie on the API", async () => {
-		const { app } = await appCreate();
+		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Cookie: "__Host-authn=anything" },
 		});

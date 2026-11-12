@@ -5,13 +5,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
-	consumerCreate,
-	consumersStart,
 	type Queue,
+	queueConsumerCreate,
+	queueConsumersStart,
 	queueCreate,
 	queueMigrate,
 } from "./index.ts";
-import { queueBossGet } from "./queue-create.ts";
+import { queueBossGet } from "./queue.ts";
 
 let databaseUrl: string;
 const pools: pg.Pool[] = [];
@@ -128,8 +128,8 @@ describe("queueCreate", () => {
 		const queue = await start(pgPool, "worker");
 		const boss = queueBossGet(queue);
 		const finished: string[] = [];
-		await consumersStart(queue, [
-			consumerCreate(
+		await queueConsumersStart(queue, [
+			queueConsumerCreate(
 				"bar.foo-created",
 				"foo.created",
 				z.object({}),
@@ -164,8 +164,8 @@ describe("queueCreate", () => {
 	it("a job still running at the timeout is failed, to be retried", async () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBossGet(queue);
-		await consumersStart(queue, [
-			consumerCreate(
+		await queueConsumersStart(queue, [
+			queueConsumerCreate(
 				"baz.foo-deleted",
 				"foo.deleted",
 				z.object({}),

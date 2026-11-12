@@ -1,5 +1,5 @@
 import type { Result } from "@n8io/baseline-result";
-import { type Queue, queueBossGet } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 
@@ -10,19 +10,19 @@ export type Schedule = {
 };
 
 // name is `<domain>.<use case words, kebab>` (foo.stale-archive); cron is UTC, minute precision.
-export const scheduleCreate = (
+export const queueScheduleCreate = (
 	name: string,
 	cron: string,
 	run: () => Promise<Result<unknown, { type: string }>>,
 ): Schedule => ({ cron, name, run });
 
 // foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE
-export const scheduleEnvName = (name: string): string =>
+export const queueScheduleEnvName = (name: string): string =>
 	`SCHEDULE_${name.toUpperCase().replaceAll(/[.-]/g, "_")}`;
 
 // Registers each schedule (worker process only) and unschedules any pg-boss holds that is no longer
 // in code or is turned `off`. Every override is validated before anything registers.
-export const schedulesRegister = async (
+export const queueSchedulesRegister = async (
 	queue: Queue,
 	schedules: Schedule[],
 	// env is the composition root's ENV (or any object): an undeclared or non-string item means no override.
@@ -31,7 +31,7 @@ export const schedulesRegister = async (
 	const boss = queueBossGet(queue);
 	const active: { schedule: Schedule; cron: string }[] = [];
 	for (const schedule of schedules) {
-		const variable = scheduleEnvName(schedule.name);
+		const variable = queueScheduleEnvName(schedule.name);
 		const value: unknown = Reflect.get(options.env, variable);
 		const override = typeof value === "string" ? value : undefined;
 		if (override === "off") {

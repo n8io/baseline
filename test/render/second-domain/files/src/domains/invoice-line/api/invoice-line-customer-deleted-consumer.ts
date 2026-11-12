@@ -1,5 +1,5 @@
 import type { Actor } from "@n8io/baseline-authn";
-import { consumerCreate } from "@n8io/baseline-queue";
+import { queueConsumerCreate } from "@n8io/baseline-queue";
 import { customerDeleted } from "#domains/customer/index.ts";
 import type { InvoiceLineUseCases } from "../index.ts";
 
@@ -10,8 +10,10 @@ const invoiceLineCustomerDeletedConsumerActor: Actor = {
 };
 
 // Invoice lines stop naming a customer once it is deleted.
-export const invoiceLineCustomerDeletedConsumer = (u: InvoiceLineUseCases) =>
-	consumerCreate(
+export const invoiceLineCustomerDeletedConsumerCreate = (
+	u: InvoiceLineUseCases,
+) =>
+	queueConsumerCreate(
 		"invoice-line.customer-deleted",
 		"customer.deleted",
 		customerDeleted,

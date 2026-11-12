@@ -6,17 +6,17 @@ import {
 	type Queue,
 	queueCreate,
 	queueMigrate,
-	scheduleCreate,
-	schedulesRegister,
+	queueScheduleCreate,
+	queueSchedulesRegister,
 } from "./index.ts";
-import { queueBossGet } from "./queue-create.ts";
-import { scheduleEnvName } from "./schedule.ts";
+import { queueBossGet } from "./queue.ts";
+import { queueScheduleEnvName } from "./queue-schedule.ts";
 
 let pgPool: pg.Pool;
 const queues: Queue[] = [];
 
 const schedule = (name: string, cron = "0 3 * * *") =>
-	scheduleCreate(name, cron, async () => ok(undefined));
+	queueScheduleCreate(name, cron, async () => ok(undefined));
 
 const worker = async (): Promise<Queue> => {
 	const queue = await queueCreate({ pgPool, role: "worker" });
@@ -49,10 +49,10 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("schedulesRegister", () => {
+describe("queueSchedulesRegister", () => {
 	it("registers each schedule on an exclusive queue with a dead letter, and starts its worker", async () => {
 		const queue = await worker();
-		await schedulesRegister(queue, [schedule("foo.stale-archive")], {
+		await queueSchedulesRegister(queue, [schedule("foo.stale-archive")], {
 			env: {},
 		});
 
@@ -80,13 +80,13 @@ describe("schedulesRegister", () => {
 
 	it("unschedules what is no longer in code, and keeps the package's own", async () => {
 		const queue = await worker();
-		await schedulesRegister(
+		await queueSchedulesRegister(
 			queue,
 			[schedule("foo.stale-archive"), schedule("foo.report-send")],
 			{ env: {} },
 		);
 
-		await schedulesRegister(queue, [schedule("foo.stale-archive")], {
+		await queueSchedulesRegister(queue, [schedule("foo.stale-archive")], {
 			env: {},
 		});
 
@@ -100,15 +100,21 @@ describe("schedulesRegister", () => {
 		const old = await worker();
 		const next = await worker();
 
-		await schedulesRegister(old, [schedule("foo.report-send")], { env: {} });
-		await schedulesRegister(next, [schedule("foo.stale-archive")], { env: {} });
+		await queueSchedulesRegister(old, [schedule("foo.report-send")], {
+			env: {},
+		});
+		await queueSchedulesRegister(next, [schedule("foo.stale-archive")], {
+			env: {},
+		});
 		expect(Object.keys(await held(next)).sort()).toEqual([
 			"foo.stale-archive",
 			"queue.inbox-prune",
 		]);
 
 		// An old instance that restarts mid-rollout puts its own list back until a new one boots.
-		await schedulesRegister(old, [schedule("foo.report-send")], { env: {} });
+		await queueSchedulesRegister(old, [schedule("foo.report-send")], {
+			env: {},
+		});
 		expect(Object.keys(await held(next)).sort()).toEqual([
 			"foo.report-send",
 			"queue.inbox-prune",
@@ -117,13 +123,13 @@ describe("schedulesRegister", () => {
 
 	it("applies a cron override, and off unschedules", async () => {
 		const queue = await worker();
-		await schedulesRegister(
+		await queueSchedulesRegister(
 			queue,
 			[schedule("foo.stale-archive"), schedule("foo.report-send")],
 			{ env: {} },
 		);
 
-		await schedulesRegister(
+		await queueSchedulesRegister(
 			queue,
 			[schedule("foo.stale-archive"), schedule("foo.report-send")],
 			{
@@ -153,7 +159,7 @@ describe("schedulesRegister", () => {
 					})[String(name)],
 			},
 		);
-		await schedulesRegister(
+		await queueSchedulesRegister(
 			queue,
 			[schedule("foo.stale-archive"), schedule("foo.report-send")],
 			{ env },
@@ -170,7 +176,7 @@ describe("schedulesRegister", () => {
 		const queue = await worker();
 
 		await expect(
-			schedulesRegister(
+			queueSchedulesRegister(
 				queue,
 				[schedule("foo.report-send"), schedule("foo.stale-archive")],
 				{ env: { SCHEDULE_FOO_STALE_ARCHIVE: "every day" } },
@@ -185,16 +191,20 @@ describe("schedulesRegister", () => {
 		const queue = await worker();
 
 		await expect(
-			schedulesRegister(queue, [schedule("foo.stale-archive", "61 * * * *")], {
-				env: {},
-			}),
+			queueSchedulesRegister(
+				queue,
+				[schedule("foo.stale-archive", "61 * * * *")],
+				{
+					env: {},
+				},
+			),
 		).rejects.toThrow("Invalid cron for schedule foo.stale-archive");
 	});
 });
 
-describe("scheduleEnvName", () => {
+describe("queueScheduleEnvName", () => {
 	it("uppercases the name and turns . and - into _", () => {
-		expect(scheduleEnvName("foo.stale-archive")).toBe(
+		expect(queueScheduleEnvName("foo.stale-archive")).toBe(
 			"SCHEDULE_FOO_STALE_ARCHIVE",
 		);
 	});

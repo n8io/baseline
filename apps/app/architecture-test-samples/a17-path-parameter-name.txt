@@ -3,4 +3,4 @@
 // @file src/domains/bar/api/bar-routes.ts
 import { httpRouterCreate } from "@n8io/baseline-http";
 
-export const barRoutes = () => httpRouterCreate().get("/:bar", (c) => c.json({}));
+export const barRoutesCreate = () => httpRouterCreate().get("/:bar", (c) => c.json({}));

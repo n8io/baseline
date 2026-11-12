@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import {
 	postgresPoolCreate,
-	postgresTransaction,
+	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import {
-	consumerCreate,
 	type Inbox,
+	queueConsumerCreate,
 	queueInboxInsert,
 	queueMigrate,
 } from "@n8io/baseline-queue";
@@ -81,7 +81,7 @@ const commit = async (
 	outcome: "commit" | "rollback" = "commit",
 ): Promise<void> => {
 	const events = pulsarEventsCreate<Record<string, FooCreated>>(publisher);
-	const result = await postgresTransaction(pgPool, async () => {
+	const result = await postgresTransactionRun(pgPool, async () => {
 		await events.publish(eventName, event);
 		return outcome === "commit" ? ok(undefined) : err({ type: "rollback" });
 	});
@@ -95,7 +95,7 @@ const received = (
 		event: FooCreated,
 		inbox: Inbox,
 	) => Promise<Result<unknown, { type: string }>>,
-) => consumerCreate(queueName, eventName, fooCreated, run);
+) => queueConsumerCreate(queueName, eventName, fooCreated, run);
 
 describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("sends a committed Event to each subscribed Consumer and nothing on rollback", async () => {
@@ -169,7 +169,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 				eventName,
 				async ({ fooId }, inbox) => {
 					calls.push(inbox);
-					await postgresTransaction(pgPool, async (pgClient) => {
+					await postgresTransactionRun(pgPool, async (pgClient) => {
 						if (await queueInboxInsert(pgClient, inbox)) {
 							await pgClient.query("INSERT INTO invoice (foo_id) VALUES ($1)", [
 								fooId,

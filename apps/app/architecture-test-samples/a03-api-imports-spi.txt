@@ -4,4 +4,4 @@
 import { barUseCasesCreate } from "../index.ts";
 import { barPortsCreate } from "../spi/index.ts";
 
-export const barRoutes = () => barUseCasesCreate(barPortsCreate());
+export const barRoutesCreate = () => barUseCasesCreate(barPortsCreate());

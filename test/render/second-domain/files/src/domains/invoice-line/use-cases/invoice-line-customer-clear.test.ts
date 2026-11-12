@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
-import { invoiceLinePortsMemory } from "../spi/invoice-line-ports.memory.ts";
+import { invoiceLinePortsMemoryCreate } from "../spi/invoice-line-ports.memory.ts";
 import { invoiceLineCreate } from "./invoice-line-create.ts";
 import { invoiceLineCustomerAssign } from "./invoice-line-customer-assign.ts";
 import { invoiceLineCustomerClear } from "./invoice-line-customer-clear.ts";
@@ -16,7 +16,7 @@ const deleted = idCreate("customer");
 const kept = idCreate("customer");
 
 const setup = async () => {
-	const memory = invoiceLinePortsMemory();
+	const memory = invoiceLinePortsMemoryCreate();
 	const ports = {
 		...memory.ports,
 		invoiceLineCustomerReader: { get: async () => ({ name: "Acme" }) },

@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
-	consumerCreate,
-	consumersSubscribe,
 	type Queue,
+	queueConsumerCreate,
+	queueConsumersSubscribe,
 	queueCreate,
 	queueMigrate,
 } from "./index.ts";
@@ -73,9 +73,12 @@ describe("queueMigrate", () => {
 	it("deletes the queues of removed consumers, with their dead letters and subscriptions", async () => {
 		await queueMigrate({ databaseUrl });
 		const queue = await start();
-		await consumersSubscribe(queue, [
-			consumerCreate("bar.foo-created", "foo.created", z.object({}), async () =>
-				ok(undefined),
+		await queueConsumersSubscribe(queue, [
+			queueConsumerCreate(
+				"bar.foo-created",
+				"foo.created",
+				z.object({}),
+				async () => ok(undefined),
 			),
 		]);
 		await queue.stop();

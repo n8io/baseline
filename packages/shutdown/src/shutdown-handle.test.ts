@@ -1,6 +1,6 @@
 import { logger } from "@n8io/baseline-logger";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ShutdownStep, shutdownHandle } from "./index.ts";
+import { type ShutdownStep, shutdownHandleCreate } from "./index.ts";
 
 type Listener = (value?: unknown) => void;
 
@@ -72,9 +72,9 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe("shutdownHandle", () => {
+describe("shutdownHandleCreate", () => {
 	it("owns SIGTERM, SIGINT, uncaughtException and unhandledRejection", () => {
-		shutdownHandle({ intakes: [], resources: [] });
+		shutdownHandleCreate({ intakes: [], resources: [] });
 
 		expect([...listeners.keys()].sort()).toEqual([
 			"SIGINT",
@@ -85,7 +85,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("closes intakes together, then resources one by one in order, and exits 0", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			drainDelayMs: 0,
 			intakes: [step("http", 300), step("live", 100)],
 			resources: [step("postgres", 200), step("health", 0), step("telemetry")],
@@ -110,7 +110,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("reports shutting down at once and keeps serving for the drain delay", async () => {
-		const handle = shutdownHandle({
+		const handle = shutdownHandleCreate({
 			drainDelayMs: 5000,
 			intakes: [step("http")],
 			resources: [],
@@ -129,7 +129,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("defaults to a 5 s drain delay", async () => {
-		shutdownHandle({ intakes: [step("http")], resources: [] });
+		shutdownHandleCreate({ intakes: [step("http")], resources: [] });
 
 		emit("SIGINT");
 		await vi.advanceTimersByTimeAsync(4999);
@@ -140,7 +140,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("stops waiting for intakes 5 s before the deadline, logs each straggler and still closes the resources", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			intakes: [hanging("http"), step("live"), hanging("queue")],
 			resources: [step("postgres"), step("telemetry")],
 		});
@@ -170,7 +170,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("counts the cutoff and deadline from the signal, drain delay included", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			deadlineMs: 10_000,
 			drainDelayMs: 3000,
 			intakes: [hanging("http")],
@@ -196,7 +196,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("logs and skips a failing intake or resource, then exits 1", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			drainDelayMs: 0,
 			intakes: [failing("http"), step("queue")],
 			resources: [failing("postgres"), step("telemetry")],
@@ -221,7 +221,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("logs a step that throws instead of rejecting", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			drainDelayMs: 0,
 			intakes: [],
 			resources: [
@@ -247,7 +247,7 @@ describe("shutdownHandle", () => {
 	});
 
 	it("still exits 1 when the shutdown itself throws", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			drainDelayMs: 0,
 			intakes: [],
 			resources: [failing("postgres")],
@@ -265,7 +265,11 @@ describe("shutdownHandle", () => {
 	it("ignores a second signal", async () => {
 		const http = step("http");
 		const close = vi.spyOn(http, "close");
-		shutdownHandle({ drainDelayMs: 1000, intakes: [http], resources: [] });
+		shutdownHandleCreate({
+			drainDelayMs: 1000,
+			intakes: [http],
+			resources: [],
+		});
 
 		emit("SIGTERM");
 		await vi.advanceTimersByTimeAsync(500);
@@ -282,7 +286,7 @@ describe("shutdownHandle", () => {
 	it.each(["uncaughtException", "unhandledRejection"])(
 		"on %s logs the error, shuts down with no drain delay and exits 1",
 		async (event) => {
-			const handle = shutdownHandle({
+			const handle = shutdownHandleCreate({
 				drainDelayMs: 5000,
 				intakes: [step("http")],
 				resources: [step("telemetry")],
@@ -308,7 +312,7 @@ describe("shutdownHandle", () => {
 	);
 
 	it("keeps the cutoff and deadline on the crash path", async () => {
-		shutdownHandle({
+		shutdownHandleCreate({
 			intakes: [hanging("http")],
 			resources: [hanging("postgres")],
 		});
@@ -330,7 +334,11 @@ describe("shutdownHandle", () => {
 	it("logs a crash during shutdown without starting a second one, and exits 1", async () => {
 		const http = step("http");
 		const close = vi.spyOn(http, "close");
-		shutdownHandle({ drainDelayMs: 1000, intakes: [http], resources: [] });
+		shutdownHandleCreate({
+			drainDelayMs: 1000,
+			intakes: [http],
+			resources: [],
+		});
 
 		emit("SIGTERM");
 		const error = new Error("late");

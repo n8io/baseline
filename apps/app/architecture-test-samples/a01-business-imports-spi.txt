@@ -1,6 +1,6 @@
 // A1: business code (models/, rules/, use-cases/, ports.ts, <domain>-errors.ts, index.ts) imports nothing from api/ or spi/
 // expect: src/domains/bar/models/bar.ts imports ../spi/bar-cache.redis.ts: business code never imports api/ or spi/
 // @file src/domains/bar/models/bar.ts
-import { barCacheRedis } from "../spi/bar-cache.redis.ts";
+import { barCacheRedisCreate } from "../spi/bar-cache.redis.ts";
 
-export const barCached = barCacheRedis;
+export const barCached = barCacheRedisCreate;

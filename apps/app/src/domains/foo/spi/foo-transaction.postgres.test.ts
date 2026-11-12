@@ -3,9 +3,9 @@ import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
-	consumerCreate,
-	consumersSubscribe,
 	type Queue,
+	queueConsumerCreate,
+	queueConsumersSubscribe,
 	queueCreate,
 } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
@@ -13,7 +13,7 @@ import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { fooCreated, fooDeleted } from "../models/foo.ts";
-import { fooUseCasesCreate } from "../use-cases/foo-use-cases-create.ts";
+import { fooUseCasesCreate } from "../use-cases/foo-use-cases.ts";
 import { fooPortsCreate } from "./index.ts";
 
 const actor: Actor = { id: "owner", kind: "client", scopes: [] };
@@ -36,12 +36,18 @@ beforeAll(async () => {
 	pgPool = postgresPoolCreate({ databaseUrl: database.databaseUrl, max: 4 });
 	queue = await queueCreate({ pgPool, role: "publisher" });
 	// Stand-in consumers, so pg-boss copies each event into a queue we can read.
-	await consumersSubscribe(queue, [
-		consumerCreate("bar.foo-created", "foo.created", fooCreated, async () =>
-			ok(undefined),
+	await queueConsumersSubscribe(queue, [
+		queueConsumerCreate(
+			"bar.foo-created",
+			"foo.created",
+			fooCreated,
+			async () => ok(undefined),
 		),
-		consumerCreate("bar.foo-deleted", "foo.deleted", fooDeleted, async () =>
-			ok(undefined),
+		queueConsumerCreate(
+			"bar.foo-deleted",
+			"foo.deleted",
+			fooDeleted,
+			async () => ok(undefined),
 		),
 	]);
 });

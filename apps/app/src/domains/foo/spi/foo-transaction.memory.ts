@@ -6,7 +6,7 @@ import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
 import {
 	type FooMemoryState,
-	fooRepositoryMemory,
+	fooRepositoryMemoryCreate,
 } from "./foo-repository.memory.ts";
 
 export type FooPublished = { name: keyof FooEventMap; data: unknown };
@@ -14,7 +14,7 @@ export type FooPublished = { name: keyof FooEventMap; data: unknown };
 // Runs the work on a copy of the committed foos and swaps it in on ok; drops it on err or a
 // throw. One transaction at a time. Events reach `published` only on commit; an inbox seen
 // before skips the work and returns ok.
-export const fooTransactionMemory = (
+export const fooTransactionMemoryCreate = (
 	state: FooMemoryState,
 	published: FooPublished[] = [],
 ): FooTransaction => {
@@ -38,7 +38,7 @@ export const fooTransactionMemory = (
 					() => open,
 				),
 				fooRepository: postgresPortsGuard(
-					fooRepositoryMemory(scratch),
+					fooRepositoryMemoryCreate(scratch),
 					() => open,
 				),
 			});
