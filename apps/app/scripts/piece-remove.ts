@@ -199,7 +199,9 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"shadcn",
 			"tailwindcss",
 		],
+		// .react-router holds the types React Router generated; Biome stops skipping it.
 		paths: [
+			".react-router",
 			"src/ui",
 			"public",
 			"components.json",

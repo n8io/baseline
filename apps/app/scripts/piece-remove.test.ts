@@ -89,6 +89,9 @@ afterEach(() => {
 const projectCreate = (extra: Record<string, string> = {}): string => {
 	const directory = mkdtempSync(join(tmpdir(), "piece-remove-"));
 	directories.push(directory);
+	// Generated, and ignored by git.
+	mkdirSync(join(directory, ".react-router/types"), { recursive: true });
+	writeFileSync(join(directory, ".gitignore"), ".react-router/\n");
 	for (const [path, text] of Object.entries({ ...projectFiles, ...extra })) {
 		mkdirSync(dirname(join(directory, path)), { recursive: true });
 		writeFileSync(join(directory, path), text);
@@ -240,7 +243,12 @@ describe("pieceFilesRemove", () => {
 		const directory = projectCreate();
 		pieceFilesRemove(directory, "ui");
 		pieceFilesRemove(directory, "ui");
-		for (const path of ["src/ui", "public", "react-router.config.ts"]) {
+		for (const path of [
+			".react-router",
+			"src/ui",
+			"public",
+			"react-router.config.ts",
+		]) {
 			expect(existsSync(join(directory, path))).toBe(false);
 		}
 		const server = read(directory, "src/server.ts");
