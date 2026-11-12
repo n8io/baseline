@@ -39,8 +39,8 @@
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
 		"@n8io/baseline-result": "workspace:^",
-		"@opentelemetry/core": "3.0.0",
-		"pg-boss": "^12.38.0"
+		"@opentelemetry/core": "3.1.0",
+		"pg-boss": "^12.38.1"
 	},
 	"peerDependencies": {
 		"@opentelemetry/api": "^1.10.0",
@@ -56,8 +56,8 @@
 	"devDependencies": {
 		"@n8io/baseline-postgres": "workspace:^",
 		"@opentelemetry/api": "^1.10.0",
-		"@opentelemetry/context-async-hooks": "3.0.0",
-		"@opentelemetry/sdk-trace": "3.0.0",
+		"@opentelemetry/context-async-hooks": "3.1.0",
+		"@opentelemetry/sdk-trace": "3.1.0",
 		"@types/pg": "^8.23.1",
 		"pg": "^8.23.1",
 		"zod": "^4.6.7"
