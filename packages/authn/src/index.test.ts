@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const srcDir = new URL("./", import.meta.url);
-const importPattern = /(?:import|export)\s[^;]*?from\s+"([^"]+)"/g;
+// `from "x"`, a bare `import "x"` and a dynamic `import("x")`.
+const importPattern = /(?:\bfrom|\bimport)\s*\(?\s*"([^"]+)"/g;
 
 // Every specifier imported by index.ts and the files it reaches, keyed by file.
 const reachableImports = (entry: string): Map<string, string[]> => {
