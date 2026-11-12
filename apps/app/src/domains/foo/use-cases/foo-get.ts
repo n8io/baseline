@@ -7,31 +7,20 @@ import type { FooPorts } from "../ports.ts";
 
 // `actor` is unused but required, so every caller states who is asking.
 export const fooGet =
-	({
-		fooReadRepository,
-		// piece-start: cache
-		fooCache,
-		// piece-end: cache
-	}: Pick<
-		FooPorts,
-		| "fooReadRepository"
-		// piece-start: cache
-		| "fooCache"
-		// piece-end: cache
-	>) =>
+	(ports: FooPorts) =>
 	async (
 		_actor: Actor,
 		input: FooGetInput,
 	): Promise<Result<Foo, FooNotFoundError>> => {
 		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
 		// piece-start: cache
-		const cached = await fooCache.get(input.fooId);
+		const cached = await ports.fooCache.get(input.fooId);
 		if (cached) return ok(cached);
 		// piece-end: cache
-		const foo = await fooReadRepository.findById(input.fooId);
+		const foo = await ports.fooReadRepository.findById(input.fooId);
 		if (!foo) return err(new FooNotFoundError(input.fooId));
 		// piece-start: cache
-		await fooCache.set(foo);
+		await ports.fooCache.set(foo);
 		// piece-end: cache
 		return ok(foo);
 	};

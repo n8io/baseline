@@ -1,6 +1,5 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	type Queue,
@@ -9,12 +8,15 @@ import {
 	queueCreate,
 } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
+import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { fooCreated, fooDeleted } from "../models/foo.ts";
 import { fooUseCasesCreate } from "../use-cases/foo-use-cases.ts";
-import { fooPortsCreate } from "./index.ts";
+import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
+import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
+import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
 const actor: Actor = { id: "owner", kind: "client", scopes: [] };
 let pgPool: pg.Pool;
@@ -59,17 +61,11 @@ afterAll(async () => {
 });
 
 describe("foo events on Postgres", () => {
-	const ports = () =>
-		fooPortsCreate({
-			// piece-start: cache
-			cache: "memory",
-			// piece-end: cache
-			database: pgPool,
-			// piece-start: live
-			liveHub: liveHubMemoryCreate(),
-			// piece-end: live
-			queue,
-		});
+	const ports = () => ({
+		...fooPortsMemoryCreate().ports,
+		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
+		fooTransaction: fooTransactionPostgresCreate(pgPool, queue),
+	});
 
 	it("publishes foo.created and foo.deleted when their transactions commit", async () => {
 		const u = fooUseCasesCreate(ports());

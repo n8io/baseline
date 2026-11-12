@@ -1,5 +1,5 @@
-// Composition root for the HTTP server: the API, sign-in, pages and live streams. Each
-// `piece-start:` to `piece-end:` block belongs to one piece; docs/agents/pieces.md removes them.
+// Composition root for the HTTP server: the API, sign-in, pages and live streams. A block marked
+// with a piece's name belongs to that piece; `pnpm piece-remove` takes it out.
 import type { Server } from "node:http";
 import {
 	authnActorRequire,
@@ -17,10 +17,8 @@ import {
 	httpSecureHeaders,
 	httpServerClose,
 } from "@n8io/baseline-http";
-import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
-import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { queueConsumersSubscribe, queueCreate } from "@n8io/baseline-queue";
+import { queueConsumersSubscribe } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
@@ -41,7 +39,7 @@ import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
-import { redisClientCreate } from "./redis.ts";
+import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
 
 // piece-start: ui
@@ -57,68 +55,26 @@ const health = healthServerCreate({
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
-
-const pgPool =
-	ENV.DATABASE_URL === "memory://"
-		? "memory"
-		: postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
-// piece-start: redis
-const redisClient =
-	ENV.CACHE_URL === "memory://"
-		? "memory"
-		: await redisClientCreate(ENV.CACHE_URL);
-// piece-end: redis
-// piece-start: queue
-const queue =
-	pgPool === "memory"
-		? "memory"
-		: await queueCreate({ pgPool, role: "publisher" });
-// piece-end: queue
-// piece-start: live
-const liveHub =
-	redisClient === "memory"
-		? liveHubMemoryCreate()
-		: liveHubRedisCreate(redisClient);
-// piece-end: live
+const connections = await connectionsOpen(ENV, "publisher");
 // piece-start: ui
 if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.
 	devRun.serverDevClose = async () => {
-		// piece-start: live
-		await liveHub.close();
-		// piece-end: live
-		// piece-start: queue
-		if (queue !== "memory") await queue.stop();
-		// piece-end: queue
-		if (pgPool !== "memory") await pgPool.end();
-		// piece-start: redis
-		if (redisClient !== "memory") await redisClient.close();
-		// piece-end: redis
+		for (const step of [...connections.intakes, ...connections.resources]) {
+			await step.close();
+		}
 		await health.close();
 	};
 }
 // piece-end: ui
 // domain-create: domains-start
-const ports = {
-	// piece-start: cache
-	cache: redisClient,
-	// piece-end: cache
-	database: pgPool,
-	// piece-start: live
-	liveHub,
-	// piece-end: live
-	// piece-start: queue
-	queue,
-	// piece-end: queue
-} as const;
-
 const fooUseCases = telemetryUseCasesTrace(
-	fooUseCasesCreate(fooPortsCreate(ports)),
+	fooUseCasesCreate(fooPortsCreate(connections)),
 );
 // domain-create: use-cases
 // domain-create: bridges
 
-if (ENV.APP_ENV === "development" && pgPool === "memory") {
+if (ENV.APP_ENV === "development" && connections.database === "memory") {
 	await seedsRun({
 		fooUseCases,
 		// domain-create: seed-context
@@ -128,8 +84,8 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
 
 // piece-start: queue
 // Creates queues and subscriptions; consumers run only in the worker.
-if (queue !== "memory") {
-	await queueConsumersSubscribe(queue, [
+if (connections.queue !== "memory") {
+	await queueConsumersSubscribe(connections.queue, [
 		// domain-create: consumers
 	]);
 }
@@ -170,7 +126,7 @@ app.route("/auth", authnRoutesCreate(authn));
 app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));
 // domain-create: routes
 // piece-start: live
-app.route("/live/foo", fooLiveRoutesCreate(fooUseCases, liveHub));
+app.route("/live/foo", fooLiveRoutesCreate(fooUseCases, connections.liveHub));
 // domain-create: live
 // piece-end: live
 app.doc31("/api/v1/openapi.json", {
@@ -186,28 +142,10 @@ const serverServe = (server: Server) => {
 		drainDelayMs: envLocal ? 0 : 5_000,
 		intakes: [
 			{ close: () => httpServerClose(server), name: "http" },
-			// piece-start: live
-			{ close: () => liveHub.close(), name: "live" },
-			// piece-end: live
+			...connections.intakes,
 		],
 		resources: [
-			// piece-start: queue
-			{
-				close: () => (queue === "memory" ? Promise.resolve() : queue.stop()),
-				name: "queue",
-			},
-			// piece-end: queue
-			{
-				close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
-				name: "database",
-			},
-			// piece-start: redis
-			{
-				close: () =>
-					redisClient === "memory" ? Promise.resolve() : redisClient.close(),
-				name: "redis",
-			},
-			// piece-end: redis
+			...connections.resources,
 			{ close: () => health.close(), name: "health" },
 			{ close: () => telemetryShutdown(), name: "telemetry" },
 		],

@@ -18,20 +18,16 @@ export type FooRepository = FooReadRepository & {
 	archiveStale(before: Date, now: Date): Promise<number>;
 };
 
-// piece-start: queue
-export type FooEvents = {
-	publish<K extends keyof FooEventMap>(
-		name: K,
-		data: FooEventMap[K],
-	): Promise<void>;
-};
-// piece-end: queue
-
 // No fooTransaction here: transactions do not nest.
 export type FooTransactionPorts = {
 	fooRepository: FooRepository;
 	// piece-start: queue
-	fooEvents: FooEvents;
+	fooEvents: {
+		publish<K extends keyof FooEventMap>(
+			name: K,
+			data: FooEventMap[K],
+		): Promise<void>;
+	};
 	// piece-end: queue
 };
 
@@ -49,30 +45,22 @@ export type FooTransaction = {
 	// piece-end: queue
 };
 
-// piece-start: cache
-export type FooCache = {
-	get(id: Id<"foo">): Promise<Foo | undefined>;
-	set(foo: Foo): Promise<void>;
-	delete(id: Id<"foo">): Promise<void>;
-};
-// piece-end: cache
-
-// piece-start: live
-export type FooLiveUpdates = {
-	send(update: {
-		type: "foo.updated" | "foo.deleted";
-		id: Id<"foo">;
-	}): Promise<void>;
-};
-// piece-end: live
-
 export type FooPorts = {
-	fooReadRepository: FooReadRepository;
-	fooTransaction: FooTransaction;
 	// piece-start: cache
-	fooCache: FooCache;
+	fooCache: {
+		get(id: Id<"foo">): Promise<Foo | undefined>;
+		set(foo: Foo): Promise<void>;
+		delete(id: Id<"foo">): Promise<void>;
+	};
 	// piece-end: cache
 	// piece-start: live
-	fooLiveUpdates: FooLiveUpdates;
+	fooLiveUpdates: {
+		send(update: {
+			type: "foo.updated" | "foo.deleted";
+			id: Id<"foo">;
+		}): Promise<void>;
+	};
 	// piece-end: live
+	fooReadRepository: FooReadRepository;
+	fooTransaction: FooTransaction;
 };

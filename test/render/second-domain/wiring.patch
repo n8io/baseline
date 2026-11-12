@@ -8,27 +8,6 @@ index ca1d925..dbefcc7 100644
  // piece-start: live
  export { invoiceLineLiveRoutesCreate } from "./invoice-line-live.ts";
  // piece-end: live
-diff --git a/src/domains/invoice-line/index.ts b/src/domains/invoice-line/index.ts
-index 0ded9e5..0db8656 100644
---- a/src/domains/invoice-line/index.ts
-+++ b/src/domains/invoice-line/index.ts
-@@ -11,6 +11,8 @@ export {
- 	type InvoiceLineCreated,
- 	// piece-end: queue
- 	InvoiceLineCreateInput,
-+	InvoiceLineCustomerAssignInput,
-+	InvoiceLineCustomerClearInput,
- 	// piece-start: queue
- 	type InvoiceLineDeleted,
- 	// piece-end: queue
-@@ -31,6 +33,7 @@ export type {
- 	// piece-start: cache
- 	InvoiceLineCache,
- 	// piece-end: cache
-+	InvoiceLineCustomerReader,
- 	// piece-start: queue
- 	InvoiceLineEvents,
- 	// piece-end: queue
 diff --git a/src/domains/invoice-line/models/invoice-line.ts b/src/domains/invoice-line/models/invoice-line.ts
 index a4f7076..8e8a069 100644
 --- a/src/domains/invoice-line/models/invoice-line.ts
@@ -65,7 +44,7 @@ index a4f7076..8e8a069 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index 3604446..9cb31e8 100644
+index 282306f..fbe0663 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
 @@ -25,6 +25,13 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
@@ -81,68 +60,71 @@ index 3604446..9cb31e8 100644
 +	get(id: Id<"customer">): Promise<{ name: string } | undefined>;
  };
  
- // piece-start: queue
-@@ -81,6 +88,7 @@ export type InvoiceLinePorts = {
- 	// piece-start: cache
- 	invoiceLineCache: InvoiceLineCache;
+ // No invoiceLineTransaction here: transactions do not nest.
+@@ -62,6 +69,7 @@ export type InvoiceLinePorts = {
+ 		delete(id: Id<"invoice_line">): Promise<void>;
+ 	};
  	// piece-end: cache
 +	invoiceLineCustomerReader: InvoiceLineCustomerReader;
  	// piece-start: live
- 	invoiceLineLiveUpdates: InvoiceLineLiveUpdates;
- 	// piece-end: live
+ 	invoiceLineLiveUpdates: {
+ 		send(update: {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 0984c2a..a285327 100644
+index 21cc634..201a6de 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
-@@ -3,7 +3,7 @@ import type { LiveHub } from "@n8io/baseline-live";
+@@ -1,7 +1,7 @@
  import type { Queue } from "@n8io/baseline-queue";
  import { drizzle } from "drizzle-orm/node-postgres";
- import type pg from "pg";
+ import type { Connections } from "../../../connections.ts";
 -import type { InvoiceLinePorts } from "../ports.ts";
 +import type { InvoiceLineCustomerReader, InvoiceLinePorts } from "../ports.ts";
  import { invoiceLineCacheMemoryCreate } from "./invoice-line-cache.memory.ts";
  import { invoiceLineCacheRedisCreate } from "./invoice-line-cache.redis.ts";
  import { invoiceLinePortsMemoryCreate } from "./invoice-line-ports.memory.ts";
-@@ -24,8 +24,10 @@ export const invoiceLinePortsCreate = (options: {
- 	// piece-start: live
- 	liveHub: LiveHub;
- 	// piece-end: live
-+	// From src/bridges/invoice-line-customer.ts; without it no customer is found.
-+	customerReader?: InvoiceLineCustomerReader;
- }): InvoiceLinePorts => {
--	const { database } = options;
-+	const { customerReader, database } = options;
+@@ -11,9 +11,12 @@ import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction
+ // Picks each port's adapter from the connections the composition root opened: a real one, or
+ // "memory". Composition roots own every connection.
+ export const invoiceLinePortsCreate = (
+-	connections: Connections,
++	connections: Connections & {
++		// From src/bridges/invoice-line-customer.ts; without it no customer is found.
++		customerReader?: InvoiceLineCustomerReader;
++	},
+ ): InvoiceLinePorts => {
+-	const { database } = connections;
++	const { customerReader, database } = connections;
  	// piece-start: queue
- 	const { queue } = options;
- 	if ((database === "memory") !== (queue === "memory")) {
-@@ -57,6 +59,9 @@ export const invoiceLinePortsCreate = (options: {
+ 	// The queue lives in the same Postgres as the repository: both real or both memory.
+ 	const { queue } = connections;
+@@ -44,6 +47,9 @@ export const invoiceLinePortsCreate = (
  				? invoiceLineCacheMemoryCreate()
- 				: invoiceLineCacheRedisCreate(options.cache),
+ 				: invoiceLineCacheRedisCreate(connections.redis),
  		// piece-end: cache
 +		invoiceLineCustomerReader: customerReader ?? {
 +			get: async () => undefined,
 +		},
+ 		invoiceLineReadRepository: repository.invoiceLineReadRepository,
+ 		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
- 		invoiceLineLiveUpdates: {
- 			send: (update) => options.liveHub.send("invoice_line", update),
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index 3eeb4f0..d315d93 100644
+index 18947b7..5698d04 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -39,6 +39,8 @@ export const invoiceLinePortsMemoryCreate = (): {
+@@ -19,6 +19,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  			// piece-start: cache
  			invoiceLineCache: invoiceLineCacheMemoryCreate(),
  			// piece-end: cache
 +			// No customers; tests that assign one pass their own reader.
 +			invoiceLineCustomerReader: { get: async () => undefined },
  			// piece-start: live
- 			invoiceLineLiveUpdates: {
- 				send: async (update) => {
+ 			invoiceLineLiveUpdates: { send: async () => undefined },
+ 			// piece-end: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-index dfdf2a5..96fae7f 100644
+index 89e810a..171c316 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-@@ -58,6 +58,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
+@@ -59,6 +59,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  			}
  			return archived;
  		},
@@ -160,10 +142,10 @@ index dfdf2a5..96fae7f 100644
  			state.invoiceLines.delete(id);
  		},
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-index 3ab15e6..5622985 100644
+index 6b319fa..37a1c75 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-@@ -30,6 +30,7 @@ const invoiceLineFromRow = (
+@@ -27,6 +27,7 @@ const invoiceLineFromRow = (
  	archivedAt: row.archivedAt,
  	createdAt: row.createdAt,
  	createdBy: row.createdBy,
@@ -171,7 +153,7 @@ index 3ab15e6..5622985 100644
  	id: row.id,
  	name: row.name,
  	updatedAt: row.updatedAt,
-@@ -48,6 +49,14 @@ export const invoiceLineRepositoryPostgresCreate = (
+@@ -45,6 +46,14 @@ export const invoiceLineRepositoryPostgresCreate = (
  			.returning({ id: invoiceLine.id });
  		return archived.length;
  	},
@@ -281,10 +263,10 @@ index a37e604..e0d4382 100644
  }
 \ No newline at end of file
 diff --git a/src/seed.ts b/src/seed.ts
-index 49c2ab4..8c01c9a 100644
+index 0465f85..4be65f8 100644
 --- a/src/seed.ts
 +++ b/src/seed.ts
-@@ -10,6 +10,7 @@ import {
+@@ -7,6 +7,7 @@ import {
  	telemetryShutdown,
  	telemetryUseCasesTrace,
  } from "@n8io/baseline-telemetry";
@@ -292,14 +274,14 @@ index 49c2ab4..8c01c9a 100644
  import { customerSeed } from "#domains/customer/api/index.ts";
  import {
  	type CustomerUseCases,
-@@ -94,7 +95,12 @@ if (import.meta.main) {
- 		customerUseCasesCreate(customerPortsCreate(ports)),
+@@ -63,7 +64,12 @@ if (import.meta.main) {
+ 		customerUseCasesCreate(customerPortsCreate(connections)),
  	);
  	const invoiceLineUseCases = telemetryUseCasesTrace(
--		invoiceLineUseCasesCreate(invoiceLinePortsCreate(ports)),
+-		invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
 +		invoiceLineUseCasesCreate(
 +			invoiceLinePortsCreate({
-+				...ports,
++				...connections,
 +				customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +			}),
 +		),
@@ -307,10 +289,10 @@ index 49c2ab4..8c01c9a 100644
  	// domain-create: use-cases
  
 diff --git a/src/server.ts b/src/server.ts
-index 986b06b..782a64b 100644
+index f824649..fb17bb6 100644
 --- a/src/server.ts
 +++ b/src/server.ts
-@@ -33,6 +33,7 @@ import { bodyLimit } from "hono/body-limit";
+@@ -31,6 +31,7 @@ import { bodyLimit } from "hono/body-limit";
  import { except } from "hono/combine";
  import { createHonoServer } from "react-router-hono-server/node";
  import { actorFromClaims, authnProviderOptionsCreate } from "#authn";
@@ -318,7 +300,7 @@ index 986b06b..782a64b 100644
  import {
  	customerLiveRoutesCreate,
  	customerRoutesCreate,
-@@ -43,6 +44,7 @@ import {
+@@ -41,6 +42,7 @@ import {
  } from "#domains/customer/index.ts";
  import { customerPortsCreate } from "#domains/customer/spi/index.ts";
  import {
@@ -326,33 +308,33 @@ index 986b06b..782a64b 100644
  	invoiceLineLiveRoutesCreate,
  	invoiceLineRoutesCreate,
  } from "#domains/invoice-line/api/index.ts";
-@@ -128,7 +130,12 @@ const customerUseCases = telemetryUseCasesTrace(
- 	customerUseCasesCreate(customerPortsCreate(ports)),
+@@ -84,7 +86,12 @@ const customerUseCases = telemetryUseCasesTrace(
+ 	customerUseCasesCreate(customerPortsCreate(connections)),
  );
  const invoiceLineUseCases = telemetryUseCasesTrace(
--	invoiceLineUseCasesCreate(invoiceLinePortsCreate(ports)),
+-	invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
 +	invoiceLineUseCasesCreate(
 +		invoiceLinePortsCreate({
-+			...ports,
++			...connections,
 +			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +		}),
 +	),
  );
  // domain-create: use-cases
  // domain-create: bridges
-@@ -146,6 +153,7 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
+@@ -102,6 +109,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
  // Creates queues and subscriptions; consumers run only in the worker.
- if (queue !== "memory") {
- 	await queueConsumersSubscribe(queue, [
+ if (connections.queue !== "memory") {
+ 	await queueConsumersSubscribe(connections.queue, [
 +		invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
  		// domain-create: consumers
  	]);
  }
 diff --git a/src/worker.ts b/src/worker.ts
-index d4dbeee..fa819bd 100644
+index 1e95424..d8e53a7 100644
 --- a/src/worker.ts
 +++ b/src/worker.ts
-@@ -15,10 +15,14 @@ import {
+@@ -12,10 +12,14 @@ import {
  	telemetryShutdown,
  	telemetryUseCasesTrace,
  } from "@n8io/baseline-telemetry";
@@ -368,14 +350,14 @@ index d4dbeee..fa819bd 100644
  import { invoiceLineUseCasesCreate } from "#domains/invoice-line/index.ts";
  import { invoiceLinePortsCreate } from "#domains/invoice-line/spi/index.ts";
  import { ENV, envLocal } from "#env";
-@@ -66,12 +70,18 @@ const customerUseCases = telemetryUseCasesTrace(
- 	customerUseCasesCreate(customerPortsCreate(ports)),
+@@ -36,12 +40,18 @@ const customerUseCases = telemetryUseCasesTrace(
+ 	customerUseCasesCreate(customerPortsCreate(connections)),
  );
  const invoiceLineUseCases = telemetryUseCasesTrace(
--	invoiceLineUseCasesCreate(invoiceLinePortsCreate(ports)),
+-	invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
 +	invoiceLineUseCasesCreate(
 +		invoiceLinePortsCreate({
-+			...ports,
++			...connections,
 +			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +		}),
 +	),

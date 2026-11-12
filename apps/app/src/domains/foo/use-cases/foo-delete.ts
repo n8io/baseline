@@ -7,58 +7,34 @@ import type { FooPorts } from "../ports.ts";
 import { fooDeleteCan } from "../rules/foo-delete-can.ts";
 
 export const fooDelete =
-	({
-		fooTransaction,
-		// piece-start: cache
-		fooCache,
-		// piece-end: cache
-		// piece-start: live
-		fooLiveUpdates,
-		// piece-end: live
-	}: Pick<
-		FooPorts,
-		| "fooTransaction"
-		// piece-start: cache
-		| "fooCache"
-		// piece-end: cache
-		// piece-start: live
-		| "fooLiveUpdates"
-		// piece-end: live
-	>) =>
+	(ports: FooPorts) =>
 	async (
 		actor: Actor,
 		input: FooDeleteInput,
 	): Promise<Result<void, FooNotFoundError | FooForbiddenError>> => {
 		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
-		const result = await fooTransaction<
+		const result = await ports.fooTransaction<
 			void,
 			FooNotFoundError | FooForbiddenError
-		>(
-			async ({
-				fooRepository,
-				// piece-start: queue
-				fooEvents,
-				// piece-end: queue
-			}) => {
-				const foo = await fooRepository.findById(input.fooId);
-				if (!foo) return err(new FooNotFoundError(input.fooId));
-				if (!fooDeleteCan(foo, actor)) {
-					return err(new FooForbiddenError(input.fooId));
-				}
-				await fooRepository.delete(foo.id);
-				// piece-start: queue
-				await fooEvents.publish("foo.deleted", { fooId: foo.id });
-				// piece-end: queue
-				return ok(undefined);
-			},
-		);
+		>(async (transaction) => {
+			const foo = await transaction.fooRepository.findById(input.fooId);
+			if (!foo) return err(new FooNotFoundError(input.fooId));
+			if (!fooDeleteCan(foo, actor)) {
+				return err(new FooForbiddenError(input.fooId));
+			}
+			await transaction.fooRepository.delete(foo.id);
+			// piece-start: queue
+			await transaction.fooEvents.publish("foo.deleted", { fooId: foo.id });
+			// piece-end: queue
+			return ok(undefined);
+		});
 		// After commit, outside the callback.
 		if (result.ok) {
 			// piece-start: cache
-			await fooCache.delete(input.fooId);
+			await ports.fooCache.delete(input.fooId);
 			// piece-end: cache
 			// piece-start: live
-			await fooLiveUpdates.send({ type: "foo.deleted", id: input.fooId });
+			await ports.fooLiveUpdates.send({ type: "foo.deleted", id: input.fooId });
 			// piece-end: live
 		}
 		return result;

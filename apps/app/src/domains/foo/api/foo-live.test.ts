@@ -3,11 +3,15 @@ import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { afterEach, describe, expect, it } from "vitest";
+import { ENV } from "#env";
+import { connectionsOpen } from "../../../connections.ts";
 import { fooUseCasesCreate } from "../index.ts";
 import { fooPortsCreate } from "../spi/index.ts";
 import { fooLiveRoutesCreate } from "./foo-live.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
+
+const connections = await connectionsOpen(ENV, "publisher");
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -20,16 +24,7 @@ const setup = (
 	const liveHub = liveHubMemoryCreate();
 	closers.push(() => liveHub.close());
 	const useCases = fooUseCasesCreate(
-		fooPortsCreate({
-			// piece-start: cache
-			cache: "memory",
-			// piece-end: cache
-			database: "memory",
-			liveHub,
-			// piece-start: queue
-			queue: "memory",
-			// piece-end: queue
-		}),
+		fooPortsCreate({ ...connections, liveHub }),
 	);
 	const app = httpRouterCreate();
 	app.onError(httpErrorHandle);

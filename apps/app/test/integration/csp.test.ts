@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scriptsNonce } from "./csp-nonce.ts";
 import { integrationDatabaseCreate } from "./integration-database.ts";
-import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
+import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
@@ -9,9 +9,6 @@ import {
 
 let server: ProductionServer;
 let drop: () => Promise<void>;
-// piece-start: ui
-let session: SignedIn;
-// piece-end: ui
 
 beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
@@ -19,9 +16,6 @@ beforeAll(async () => {
 	server = await productionServerStart({
 		databaseUrl: database.databaseUrl,
 	});
-	// piece-start: ui
-	session = await integrationSignIn(server.url);
-	// piece-end: ui
 }, 30_000);
 
 afterAll(async () => {
@@ -35,6 +29,7 @@ describe("security headers on the production build", {
 }, () => {
 	// piece-start: ui
 	it("enforces the CSP on a rendered page, with a new nonce on every script each time", async () => {
+		const session = await integrationSignIn(server.url);
 		const nonces: string[] = [];
 		for (let i = 0; i < 2; i += 1) {
 			const res = await fetch(`${server.url}/no-such-page`, {

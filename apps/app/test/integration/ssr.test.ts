@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
-import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
+import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	type ProductionServer,
 	productionServerStart,
@@ -8,9 +8,6 @@ import {
 
 let server: ProductionServer;
 let drop: () => Promise<void>;
-// piece-start: ui
-let session: SignedIn;
-// piece-end: ui
 
 beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
@@ -18,9 +15,6 @@ beforeAll(async () => {
 	server = await productionServerStart({
 		databaseUrl: database.databaseUrl,
 	});
-	// piece-start: ui
-	session = await integrationSignIn(server.url);
-	// piece-end: ui
 }, 30_000);
 
 afterAll(async () => {
@@ -28,23 +22,22 @@ afterAll(async () => {
 	await drop?.();
 });
 
-// piece-start: ui
-const notFound = async (headers: Record<string, string>): Promise<string> => {
-	const res = await fetch(`${server.url}/no-such-page`, {
-		headers,
-		redirect: "manual",
-	});
-	expect(res.status).toBe(404);
-	expect(res.headers.get("content-type")).toMatch(/^text\/html/);
-	return res.text();
-};
-// piece-end: ui
-
 describe("server-rendered pages on the production build", {
 	timeout: 30_000,
 }, () => {
 	// piece-start: ui
+	const notFound = async (headers: Record<string, string>): Promise<string> => {
+		const res = await fetch(`${server.url}/no-such-page`, {
+			headers,
+			redirect: "manual",
+		});
+		expect(res.status).toBe(404);
+		expect(res.headers.get("content-type")).toMatch(/^text\/html/);
+		return res.text();
+	};
+
 	it("renders an unknown page as the root error boundary's 404", async () => {
+		const session = await integrationSignIn(server.url);
 		const html = await notFound({ cookie: session.cookie });
 
 		expect(html).toMatch(/^<!DOCTYPE html>/i);

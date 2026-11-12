@@ -235,7 +235,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		);
 		for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
 			expect(file(root)).toMatch(
-				/telemetryUseCasesTrace\(\s*invoiceLineUseCasesCreate\(invoiceLinePortsCreate\(ports\)\),/,
+				/telemetryUseCasesTrace\(\s*invoiceLineUseCasesCreate\(invoiceLinePortsCreate\(connections\)\),/,
 			);
 		}
 		expect(file("src/worker.ts")).toContain(

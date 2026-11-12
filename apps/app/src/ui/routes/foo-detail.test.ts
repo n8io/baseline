@@ -1,31 +1,21 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { describe, expect, it } from "vitest";
 import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
+import { ENV } from "#env";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-detail.tsx";
+import { connectionsOpen } from "../../connections.ts";
 import { routeArgs, routerContextCreate } from "./router-test-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "stranger", kind: "user", scopes: [] };
 
+const connections = await connectionsOpen(ENV, "publisher");
+
 const setup = async (actor: Actor | null = owner) => {
-	const useCases = fooUseCasesCreate(
-		fooPortsCreate({
-			// piece-start: cache
-			cache: "memory",
-			// piece-end: cache
-			database: "memory",
-			// piece-start: live
-			liveHub: liveHubMemoryCreate(),
-			// piece-end: live
-			// piece-start: queue
-			queue: "memory",
-			// piece-end: queue
-		}),
-	);
+	const useCases = fooUseCasesCreate(fooPortsCreate(connections));
 	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) {
 		throw created.error;
