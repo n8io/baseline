@@ -9,6 +9,9 @@ const integration: TestProjectConfiguration = {
 			"test/integration/**/*.test.ts",
 		],
 		globalSetup: ["test/integration/global-setup.ts"],
+		// A guard, not the fix: DROP DATABASE forces a Postgres checkpoint, and one took 8.4 s on a
+		// CI runner, past the 10 s default. Files drop their databases in parallel so they share one.
+		hookTimeout: 30_000,
 		name: "integration",
 		setupFiles: ["varlock/auto-load"],
 	},
