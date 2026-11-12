@@ -681,7 +681,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			([, constName, functionName]) => {
 				const name = constName ?? functionName ?? "";
 				return !exemptIs(name) && !/(Is|Has|Can)$/.test(name)
-					? `${name} returns a boolean; a predicate ends in Is, Has or Can (fooDeleteCan, fooStaleIs)`
+					? `${name} returns a boolean; a predicate ends in Is, Has or Can (barDeleteCan, barStaleIs)`
 					: undefined;
 			},
 		),
