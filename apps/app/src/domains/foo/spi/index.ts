@@ -1,22 +1,18 @@
-// piece-start: cache
 import type { RedisClient } from "@n8io/baseline-cache";
-// piece-end: cache
 import type { LiveHub } from "@n8io/baseline-live";
 import type { Queue } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
 import type { FooPorts } from "../ports.ts";
-// piece-start: cache
 import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
 import { fooCacheRedisCreate } from "./foo-cache.redis.ts";
-// piece-end: cache
 import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
-// Picks the adapters for each port: Postgres or memory for the repository and transaction
-// (the queue lives in the same Postgres, so database and queue are both real or both memory),
-// and Redis or memory for the cache. Composition roots own every connection.
+// Picks each port's adapter from what the composition root passes: a connection, or "memory".
+// The queue lives in the same Postgres as the repository, so database and queue are both real
+// or both memory. Composition roots own every connection.
 export const fooPortsCreate = (options: {
 	database: pg.Pool | "memory";
 	// piece-start: cache

@@ -1,7 +1,5 @@
 import type { FooLiveUpdates, FooPorts } from "../ports.ts";
-// piece-start: cache
 import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
-// piece-end: cache
 import {
 	type FooMemoryState,
 	fooMemoryStateCreate,
