@@ -4,7 +4,9 @@ import type { TestProject } from "vitest/node";
 
 declare module "vitest" {
 	export interface ProvidedContext {
+		// piece-start: redis
 		integrationCacheUrl: string;
+		// piece-end: redis
 		integrationDatabaseUrl: string;
 	}
 }
@@ -24,7 +26,10 @@ export default async function integrationGlobalSetup(
 		process.env.DATABASE_URL,
 		"postgres://baseline:baseline@localhost:5432/baseline",
 	);
+	// piece-start: redis
 	const cacheUrl = realUrl(process.env.CACHE_URL, "redis://localhost:6379");
+	project.provide("integrationCacheUrl", cacheUrl);
+	// piece-end: redis
 	const pgClient = new pg.Client({ connectionString: databaseUrl });
 	await pgClient.connect();
 	try {
@@ -41,11 +46,9 @@ export default async function integrationGlobalSetup(
 		env: {
 			...process.env,
 			APP_ENV: "test",
-			CACHE_URL: cacheUrl,
 			DATABASE_URL: templateUrl.toString(),
 		},
 		stdio: "inherit",
 	});
-	project.provide("integrationCacheUrl", cacheUrl);
 	project.provide("integrationDatabaseUrl", databaseUrl);
 }

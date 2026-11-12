@@ -1,5 +1,5 @@
 import pg from "pg";
-import { afterEach, describe, expect, inject, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
 import {
@@ -21,7 +21,6 @@ describe("server shutdown on SIGTERM with a write in flight", {
 		const { databaseUrl, drop } = await integrationDatabaseCreate();
 		cleanups.push(drop);
 		const server = await productionServerStart({
-			cacheUrl: inject("integrationCacheUrl"),
 			databaseUrl,
 		});
 		cleanups.push(server.stop);

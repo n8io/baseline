@@ -14,7 +14,9 @@ const stranger: Actor = { id: "stranger", kind: "user", scopes: [] };
 const setup = async (actor: Actor | null = owner) => {
 	const useCases = fooUseCasesCreate(
 		fooPortsCreate({
+			// piece-start: cache
 			cache: "memory",
+			// piece-end: cache
 			database: "memory",
 			// piece-start: live
 			liveHub: liveHubMemoryCreate(),

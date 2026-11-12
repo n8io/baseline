@@ -21,7 +21,9 @@ const setup = (
 	closers.push(() => liveHub.close());
 	const useCases = fooUseCasesCreate(
 		fooPortsCreate({
+			// piece-start: cache
 			cache: "memory",
+			// piece-end: cache
 			database: "memory",
 			liveHub,
 			queue: "memory",

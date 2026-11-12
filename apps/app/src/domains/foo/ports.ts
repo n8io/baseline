@@ -43,11 +43,13 @@ export type FooTransaction = {
 	): Promise<Result<void, E>>;
 };
 
+// piece-start: cache
 export type FooCache = {
 	get(id: Id<"foo">): Promise<Foo | undefined>;
 	set(foo: Foo): Promise<void>;
 	delete(id: Id<"foo">): Promise<void>;
 };
+// piece-end: cache
 
 // piece-start: live
 export type FooLiveUpdates = {
@@ -61,7 +63,9 @@ export type FooLiveUpdates = {
 export type FooPorts = {
 	fooReadRepository: FooReadRepository;
 	fooTransaction: FooTransaction;
+	// piece-start: cache
 	fooCache: FooCache;
+	// piece-end: cache
 	// piece-start: live
 	fooLiveUpdates: FooLiveUpdates;
 	// piece-end: live

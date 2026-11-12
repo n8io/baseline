@@ -12,7 +12,9 @@ const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const setup = (actor: Actor | null = owner) => {
 	const useCases = fooUseCasesCreate(
 		fooPortsCreate({
+			// piece-start: cache
 			cache: "memory",
+			// piece-end: cache
 			database: "memory",
 			// piece-start: live
 			liveHub: liveHubMemoryCreate(),

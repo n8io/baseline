@@ -1,5 +1,7 @@
 import type { FooLiveUpdates, FooPorts } from "../ports.ts";
+// piece-start: cache
 import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
+// piece-end: cache
 import {
 	type FooMemoryState,
 	fooMemoryStateCreate,
@@ -30,7 +32,9 @@ export const fooPortsMemoryCreate = (): {
 	// piece-end: live
 	return {
 		ports: {
+			// piece-start: cache
 			fooCache: fooCacheMemoryCreate(),
+			// piece-end: cache
 			// piece-start: live
 			fooLiveUpdates: {
 				send: async (update) => {

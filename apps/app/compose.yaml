@@ -15,6 +15,7 @@ services:
       interval: 2s
       retries: 15
 
+  # piece-start: redis
   redis:
     image: redis:8
     ports:
@@ -23,6 +24,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       retries: 15
+  # piece-end: redis
 
   otel:
     image: grafana/otel-lgtm:0.40.0
@@ -37,11 +39,15 @@ services:
     profiles: [image]
     depends_on:
       postgres: { condition: service_healthy }
+      # piece-start: redis
       redis: { condition: service_healthy }
+      # piece-end: redis
     environment: &image-env
       APP_ENV: test
       DATABASE_URL: postgres://baseline:baseline@postgres:5432/baseline
+      # piece-start: redis
       CACHE_URL: redis://redis:6379
+      # piece-end: redis
       OTEL_SERVICE_NAME: app-server
     ports:
       - "3000:3000"
@@ -55,7 +61,9 @@ services:
     command: ["node", "src/worker.ts"]
     depends_on:
       postgres: { condition: service_healthy }
+      # piece-start: redis
       redis: { condition: service_healthy }
+      # piece-end: redis
     environment:
       <<: *image-env
       OTEL_SERVICE_NAME: app-worker

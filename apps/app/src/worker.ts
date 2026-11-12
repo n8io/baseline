@@ -1,5 +1,4 @@
 // Composition root for consumers and schedules; it never serves pages or the API.
-import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { healthServerCreate } from "@n8io/baseline-health";
 import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
@@ -20,6 +19,7 @@ import { fooScheduleCreate } from "#domains/foo/api/index.ts";
 import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
+import { redisClientCreate } from "./redis.ts";
 
 if (ENV.DATABASE_URL === "memory://") {
 	throw new Error(
@@ -28,10 +28,12 @@ if (ENV.DATABASE_URL === "memory://") {
 }
 let shutdown: ShutdownHandle | undefined;
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+// piece-start: redis
 const redisClient =
 	ENV.CACHE_URL === "memory://"
 		? "memory"
-		: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
+		: await redisClientCreate(ENV.CACHE_URL);
+// piece-end: redis
 const queue = await queueCreate({ pgPool, role: "worker" });
 // piece-start: live
 const liveHub =
@@ -46,7 +48,9 @@ const health = healthServerCreate({
 });
 // domain-create: domains-start
 const ports = {
+	// piece-start: cache
 	cache: redisClient,
+	// piece-end: cache
 	database: pgPool,
 	// piece-start: live
 	liveHub,
@@ -81,11 +85,13 @@ shutdown = shutdownHandleCreate({
 		{ close: () => liveHub.close(), name: "live" },
 		// piece-end: live
 		{ close: () => pgPool.end(), name: "database" },
+		// piece-start: redis
 		{
 			close: () =>
 				redisClient === "memory" ? Promise.resolve() : redisClient.close(),
-			name: "cache",
+			name: "redis",
 		},
+		// piece-end: redis
 		{ close: () => health.close(), name: "health" },
 		{ close: () => telemetryShutdown(), name: "telemetry" },
 	],

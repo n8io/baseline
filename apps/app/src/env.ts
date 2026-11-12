@@ -4,7 +4,13 @@ import { ENV } from "varlock/env";
 export const envLocal = ENV.APP_ENV === "development" || ENV.APP_ENV === "test";
 
 // The one rule varlock can't express: memory:// only where envLocal is true.
-const memoryNames = ["DATABASE_URL", "CACHE_URL", "AUTHN_ISSUER_URL"] as const;
+const memoryNames = [
+	"DATABASE_URL",
+	// piece-start: redis
+	"CACHE_URL",
+	// piece-end: redis
+	"AUTHN_ISSUER_URL",
+] as const;
 const memoryRefused = envLocal
 	? []
 	: memoryNames.filter((name) => ENV[name] === "memory://");

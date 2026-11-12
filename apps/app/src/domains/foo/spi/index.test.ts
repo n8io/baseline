@@ -8,7 +8,9 @@ describe("fooPortsCreate", () => {
 		const queue: Queue = { isAlive: () => true, stop: async () => undefined };
 		expect(() =>
 			fooPortsCreate({
+				// piece-start: cache
 				cache: "memory",
+				// piece-end: cache
 				database: "memory",
 				// piece-start: live
 				liveHub: liveHubMemoryCreate(),

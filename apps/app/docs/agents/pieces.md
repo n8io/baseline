@@ -62,7 +62,7 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain crea
 
 ## Live updates
 
-The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. The cache's Redis stays.
+The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
 ```sh
 find src \( -name '*-live.ts' -o -name '*-live.test.ts' \) -delete
@@ -74,9 +74,37 @@ pnpm exec biome check --write .
 
 Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block and the `api/*-live.ts` file and its test from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
 
-## The cache: not removable yet
+## The cache
 
-Every Domain reads through its cache port (`spi/<domain>-cached.ts`) and clears it in the update and delete Use cases, and live updates share the cache's Redis connection. Removing it needs those wired as blocks first: [#217](https://github.com/n8io/baseline/issues/217).
+Each Domain's cache port and its adapters (`spi/<domain>-cache.*.ts`, `spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+
+```sh
+find src \( -name '*-cache.*.ts' -o -name '*-cached.ts' \) -delete
+perl -0pi -e 's{^[ \t]*(//|#) piece-start: cache\n.*?^[ \t]*(//|#) piece-end: cache\n}{}gms' $(git grep -l 'piece-start: cache' -- ':!*.md') </dev/null
+pnpm remove @n8io/baseline-cache
+pnpm exec biome lint --write --unsafe --only=correctness/noUnusedImports .
+pnpm exec biome check --write .
+```
+
+A Project with no Domain yet has no cache blocks, so the second line reads `/dev/null` instead of waiting for input.
+
+Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block and the `spi/*-cache.*.ts` and `spi/*-cached.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and put `cache: redisClient` back in the `ports` of `src/server.ts`, `src/worker.ts` and `src/seed.ts`.
+
+## Redis
+
+The Redis connection (`src/redis.ts`), `CACHE_URL` and the Redis container. The cache and live updates both run on it, so remove them first; the first line stops while either is installed.
+
+```sh
+if grep -qE '"@n8io/baseline-(cache|live)"' package.json; then echo "Remove the cache and live updates first: both run on Redis." >&2; exit 1; fi
+rm src/redis.ts src/redis.redis.test.ts
+perl -0pi -e 's{^[ \t]*(//|#) piece-start: redis\n.*?^[ \t]*(//|#) piece-end: redis\n}{}gms' $(git grep -l 'piece-start: redis' -- ':!*.md')
+perl -0pi -e 's/^(#.*\n)*CACHE_URL=.*\n//m' .env.schema .env.development .env.production .env.test
+pnpm remove redis
+pnpm exec biome lint --write --unsafe --only=correctness/noUnusedImports .
+pnpm exec biome check --write .
+```
+
+Add Redis back: `git revert` the "Remove redis" commit, before you add back the cache or live updates.
 
 ## The queue and the Worker: not removable yet
 

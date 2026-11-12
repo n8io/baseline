@@ -13,14 +13,18 @@ import { fooUpdateCan } from "../rules/foo-update-can.ts";
 export const fooUpdate =
 	({
 		fooTransaction,
+		// piece-start: cache
 		fooCache,
+		// piece-end: cache
 		// piece-start: live
 		fooLiveUpdates,
 		// piece-end: live
 	}: Pick<
 		FooPorts,
 		| "fooTransaction"
+		// piece-start: cache
 		| "fooCache"
+		// piece-end: cache
 		// piece-start: live
 		| "fooLiveUpdates"
 		// piece-end: live
@@ -49,7 +53,9 @@ export const fooUpdate =
 		});
 		// After commit, outside the callback.
 		if (result.ok) {
+			// piece-start: cache
 			await fooCache.delete(input.fooId);
+			// piece-end: cache
 			// piece-start: live
 			await fooLiveUpdates.send({ type: "foo.updated", id: input.fooId });
 			// piece-end: live

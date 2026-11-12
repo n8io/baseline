@@ -20,7 +20,9 @@ export {
 	fooDeleted,
 } from "./models/foo.ts";
 export type {
+	// piece-start: cache
 	FooCache,
+	// piece-end: cache
 	FooEvents,
 	// piece-start: live
 	FooLiveUpdates,

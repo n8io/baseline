@@ -1,8 +1,9 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
-// does, with the customer Domain, then removes the UI pages and live updates by running the
-// steps in the rendered docs/agents/pieces.md exactly as written, adds invoice-line with
-// domain-create, and requires check, unit tests, build and a served API. The doc is the
-// only copy of the steps, so it cannot drift from what this proves.
+// does, with the customer Domain, then removes live updates, the UI pages, the cache and Redis
+// by running the steps in the rendered docs/agents/pieces.md exactly as written, adds
+// invoice-line with domain-create, and requires check, unit tests, build and a served API.
+// A second render in <directory>-cache removes the cache alone and requires check, unit tests
+// and build. The doc is the only copy of the steps, so it cannot drift from what this proves.
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
@@ -33,10 +34,13 @@ const invoiceLine = {
 	plural: "invoice-lines",
 };
 // Each piece's heading in pieces.md; its first sh block is the removal.
-const removed = [
-	{ heading: "## Live updates", piece: "live" },
-	{ heading: "## UI pages", piece: "ui" },
-];
+const pieceHeadings = {
+	cache: "## The cache",
+	live: "## Live updates",
+	redis: "## Redis",
+	ui: "## UI pages",
+};
+type Piece = keyof typeof pieceHeadings;
 
 const domainAdd = (
 	directory: string,
@@ -111,12 +115,12 @@ const apiServe = async (directory: string) => {
 	}
 };
 
-const main = async () => {
-	const directory = resolve(process.argv[2] ?? "");
-	if (process.argv[2] === undefined || existsSync(directory)) {
-		throw new Error("usage: node test/render/api-only.ts <new directory>");
-	}
-	const files = checkoutExport();
+// Renders a Project with customer, removes the pieces in order, then adds invoice-line.
+const projectWithout = async (
+	directory: string,
+	files: ReturnType<typeof checkoutExport>,
+	removed: Piece[],
+) => {
 	await appRender(directory, files, answers);
 	answersWrite(
 		directory,
@@ -133,7 +137,8 @@ const main = async () => {
 	gitCommitAll(directory, "Create api-only with customer");
 
 	const doc = readFileSync(join(directory, "docs/agents/pieces.md"), "utf8");
-	for (const { heading, piece } of removed) {
+	for (const piece of removed) {
+		const heading = pieceHeadings[piece];
 		console.log(`Removing ${piece} with the steps under "${heading}"`);
 		run("bash", ["-euo", "pipefail", "-c", removalStepsFind(doc, heading)], {
 			cwd: directory,
@@ -156,9 +161,26 @@ const main = async () => {
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);
 	pnpmRun(directory, ["build"]);
+};
+
+const main = async () => {
+	const directory = resolve(process.argv[2] ?? "");
+	const cacheOnly = `${directory}-cache`;
+	if (
+		process.argv[2] === undefined ||
+		existsSync(directory) ||
+		existsSync(cacheOnly)
+	) {
+		throw new Error("usage: node test/render/api-only.ts <new directory>");
+	}
+	const files = checkoutExport();
+	await projectWithout(directory, files, ["live", "ui", "cache", "redis"]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");
 	console.log("api-only: check, test, build and the served API pass");
+
+	await projectWithout(cacheOnly, files, ["cache"]);
+	console.log("api-only without the cache: check, test and build pass");
 };
 
 await main();

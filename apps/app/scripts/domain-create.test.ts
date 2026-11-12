@@ -43,6 +43,7 @@ const appCreate = (context: string): string => {
 	writeFileSync(join(directory, "CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
 	const dependencies = {
+		"@n8io/baseline-cache": "^3.0.0",
 		"@n8io/baseline-live": "^3.0.0",
 		"react-router": "^8.5.1",
 	};
@@ -248,7 +249,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		const app = appCreate("**Invoice line**:\nA line.\n");
 		filesWrite(
 			app,
-			templateWithoutPieces(filesRead(appRoot.pathname), ["live", "ui"]),
+			templateWithoutPieces(filesRead(appRoot.pathname), [
+				"cache",
+				"live",
+				"ui",
+			]),
 		);
 		writeFileSync(
 			join(app, "package.json"),
@@ -258,9 +263,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		const created = domainFilesCreate(filesRead(appRoot.pathname), app, names);
 		const paths = created.map((f) => f.path);
 		expect(paths).toContain("src/domains/invoice-line/ports.ts");
-		expect(paths.filter((p) => /^src\/ui\/|-live\./.test(p))).toEqual([]);
 		expect(
-			created.filter((f) => /piece-(start|end): (live|ui)/.test(f.text)),
+			paths.filter((p) => /^src\/ui\/|-live\.|-cached?\./.test(p)),
+		).toEqual([]);
+		expect(
+			created.filter((f) => /piece-(start|end): (cache|live|ui)/.test(f.text)),
 		).toEqual([]);
 		const server = created.find((f) => f.path === "src/server.ts")?.text;
 		expect(server).toContain("invoiceLineRoutesCreate(invoiceLineUseCases)");
