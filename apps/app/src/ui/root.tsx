@@ -1,5 +1,5 @@
-import { authnExpiryContext } from "@n8io/baseline-authn";
 import { authnRefreshClientMiddleware } from "@n8io/baseline-authn/client";
+import { authnExpiryContext } from "@n8io/baseline-authn/react-router";
 import type { ReactNode } from "react";
 import {
 	isRouteErrorResponse,

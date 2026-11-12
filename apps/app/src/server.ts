@@ -105,6 +105,7 @@ const authn = await authnCreate({
 		...fooScopes,
 		// domain-create: scopes
 	],
+	memoryIssuerAllowed: envLocal,
 });
 
 const app = httpRouterCreate();

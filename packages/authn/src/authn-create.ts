@@ -27,6 +27,8 @@ export type AuthnOptions = {
 	actorFromClaims: (claims: JWTPayload) => Actor;
 	/** Scopes of the memory issuer's "Dev admin". */
 	memoryAdminScopes?: string[];
+	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
+	memoryIssuerAllowed?: boolean;
 };
 
 export type AuthnVerified =
@@ -65,8 +67,14 @@ const memoryAccessTtl = "15m";
 const memoryRefreshTtl = "30d";
 const memoryRefreshAudience = "baseline-authn-memory-refresh";
 
-const issuerUrlCheck = (issuerUrl: string): void => {
-	if (issuerUrl === memoryIssuerUrl || issuerUrl.startsWith("https://")) return;
+const issuerUrlCheck = (options: AuthnOptions): void => {
+	if (options.issuerUrl === memoryIssuerUrl) {
+		if (options.memoryIssuerAllowed === true) return;
+		throw new TypeError(
+			"authnCreate: issuerUrl memory:// signs anyone in without a password; pass memoryIssuerAllowed: true, in development and test only",
+		);
+	}
+	if (options.issuerUrl.startsWith("https://")) return;
 	throw new TypeError(
 		"authnCreate: issuerUrl must start with https:// or be memory://",
 	);
@@ -241,10 +249,11 @@ const oidcIssuerCreate = async (
 /**
  * Discovers the provider (or starts the memory issuer for `memory://`) and returns what the
  * routes, middleware and `authnMemoryTokenCreate` need. Throws on a secret under 32 bytes, a
- * URL scheme other than https:// or memory://, or an unreachable provider.
+ * URL scheme other than https:// or memory://, memory:// without `memoryIssuerAllowed`, or an
+ * unreachable provider.
  */
 export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
-	issuerUrlCheck(options.issuerUrl);
+	issuerUrlCheck(options);
 	const cookieKey = authnCookieKey(options.secret);
 	if (options.issuerUrl === memoryIssuerUrl) {
 		const { issuer, jwks } = await memoryIssuerCreate(options);

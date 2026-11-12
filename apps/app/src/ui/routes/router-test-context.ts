@@ -1,8 +1,8 @@
+import type { Actor } from "@n8io/baseline-authn";
 import {
-	type Actor,
 	actorContext,
 	authnExpiryContext,
-} from "@n8io/baseline-authn";
+} from "@n8io/baseline-authn/react-router";
 import { type RouterContext, RouterContextProvider } from "react-router";
 
 export const routerContextCreate = (

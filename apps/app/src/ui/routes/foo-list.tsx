@@ -1,4 +1,4 @@
-import { authnActorRequire } from "@n8io/baseline-authn";
+import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
 import { FooCreateInput, FooListInput } from "#domains/foo/index.ts";
@@ -23,7 +23,7 @@ import { fooUseCasesContext } from "#ui/context.ts";
 import type { Route } from "./+types/foo-list.ts";
 
 export const loader = async (args: Route.LoaderArgs) => {
-	const actor = authnActorRequire(args);
+	const actor = authnPageActorRequire(args);
 	const cursor = new URL(args.request.url).searchParams.get("cursor");
 	const input = FooListInput.parse(cursor === null ? {} : { cursor });
 	const result = await args.context
@@ -36,7 +36,7 @@ export const loader = async (args: Route.LoaderArgs) => {
 };
 
 export const action = async (args: Route.ActionArgs) => {
-	const actor = authnActorRequire(args);
+	const actor = authnPageActorRequire(args);
 	const formData = await args.request.formData();
 	const name = String(formData.get("name") ?? "");
 	const values = { name };

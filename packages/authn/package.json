@@ -18,7 +18,8 @@
 	],
 	"exports": {
 		".": "./src/index.ts",
-		"./client": "./src/client.ts"
+		"./client": "./src/client.ts",
+		"./react-router": "./src/react-router.ts"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -30,6 +31,10 @@
 			"./client": {
 				"types": "./dist/client.d.ts",
 				"default": "./dist/client.js"
+			},
+			"./react-router": {
+				"types": "./dist/react-router.d.ts",
+				"default": "./dist/react-router.js"
 			}
 		},
 		"registry": "https://registry.npmjs.org"
@@ -59,5 +64,13 @@
 		"react": "^19.3.1",
 		"react-router": "^8.5.1",
 		"zod": "^4.6.7"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		},
+		"react-router": {
+			"optional": true
+		}
 	}
 }

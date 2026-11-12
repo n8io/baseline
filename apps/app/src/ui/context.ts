@@ -1,5 +1,8 @@
 // Hands each domain's use cases to loaders and actions. Type-only imports from domains.
-import { actorContext, authnExpiryContext } from "@n8io/baseline-authn";
+import {
+	actorContext,
+	authnExpiryContext,
+} from "@n8io/baseline-authn/react-router";
 import type { Context } from "hono";
 import {
 	createContext,
