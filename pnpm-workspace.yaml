@@ -12,6 +12,7 @@ minimumReleaseAgeExclude:
 allowBuilds:
   protobufjs: false
   pulsar-client: true
+# piece-start: ui
 # The built server never imports these peers; optional keeps them out of production installs.
 packageExtensions:
   react-router-hono-server:
@@ -20,3 +21,4 @@ packageExtensions:
         optional: true
       vite:
         optional: true
+# piece-end: ui

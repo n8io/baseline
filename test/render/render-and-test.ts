@@ -4,17 +4,7 @@
 // adds invoice-line and customer with this checkout's domain-create, and the second-domain
 // fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
 // deleted, and the bridge that reads customers. HEAD installs this checkout's packages/*.
-import {
-	appendFileSync,
-	cpSync,
-	existsSync,
-	mkdtempSync,
-	readdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
 	domainFilesCreate,
@@ -24,8 +14,6 @@ import {
 	filesWrite,
 	releaseLatest,
 	run,
-	type TemplateFile,
-	templateExport,
 	templateFetch,
 	templateFinish,
 } from "../../apps/app/scripts/template-render.ts";
@@ -38,8 +26,8 @@ import {
 	pnpmRun,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";
+import { checkoutExport, checkoutPackagesUse } from "./checkout.ts";
 
-const monorepo = resolve(import.meta.dirname, "../..");
 const fixture = join(import.meta.dirname, "second-domain");
 
 const answers = {
@@ -60,68 +48,6 @@ const domains = [
 		plural: "invoice-lines",
 	},
 ];
-
-// This checkout's apps/app, exported from a throwaway clone of HEAD as a release would be.
-const checkoutExport = (): TemplateFile[] => {
-	const work = mkdtempSync(join(tmpdir(), "render-and-test-"));
-	try {
-		const clone = join(work, "clone");
-		run("git", ["clone", "--quiet", "--shared", monorepo, clone]);
-		return templateExport(clone, "HEAD");
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
-};
-
-// Packs this checkout's packages/* into the project and points every @n8io/baseline-* dependency
-// at the tarballs with pnpm overrides, so HEAD tests the package code that releases with this
-// template. The tarballs travel in app.tar for app-ci's frozen installs; git ignores them, and the
-// project's checks never read .tgz files.
-const checkoutPackagesUse = (directory: string) => {
-	const folder = ".baseline-packages";
-	run(
-		"pnpm",
-		[
-			"-r",
-			"--filter",
-			"./packages/*",
-			"pack",
-			"--pack-destination",
-			join(directory, folder),
-		],
-		{ cwd: monorepo },
-	);
-	const overrides = readdirSync(join(monorepo, "packages")).map((name) => {
-		const { name: scoped, version } = JSON.parse(
-			readFileSync(join(monorepo, "packages", name, "package.json"), "utf8"),
-		) as { name: string; version: string };
-		const tarball = `${folder}/${scoped.slice(1).replace("/", "-")}-${version}.tgz`;
-		if (!existsSync(join(directory, tarball))) {
-			throw new Error(`pnpm pack wrote no ${tarball}`);
-		}
-		return `  "${scoped}": file:./${tarball}\n`;
-	});
-	appendFileSync(
-		join(directory, "pnpm-workspace.yaml"),
-		`overrides:\n${overrides.join("")}`,
-	);
-	appendFileSync(join(directory, ".git/info/exclude"), `/${folder}/\n`);
-	// The image installs from the manifests before it copies the project, and again in /prod.
-	const dockerfile = join(directory, "Dockerfile");
-	let text = readFileSync(dockerfile, "utf8");
-	for (const [from, to] of [
-		[
-			"pnpm-workspace.yaml ./\n",
-			`pnpm-workspace.yaml ./\nCOPY ${folder} ${folder}\n`,
-		],
-		["cp package.json", "cp -R package.json"],
-		["pnpm-workspace.yaml /prod/", `pnpm-workspace.yaml ${folder} /prod/`],
-	] as const) {
-		if (!text.includes(from)) throw new Error(`Dockerfile has no "${from}"`);
-		text = text.replace(from, to);
-	}
-	writeFileSync(dockerfile, text);
-};
 
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");

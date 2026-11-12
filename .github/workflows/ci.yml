@@ -119,8 +119,26 @@ jobs:
     with:
       artifact: render-and-test
 
+  # The steps in apps/app/docs/agents/pieces.md, run as written on a fresh render.
+  api-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - name: Render, remove the UI pages and live updates, then check, test, build and serve
+        run: |
+          git config --global user.name "api-only"
+          git config --global user.email "api-only@users.noreply.github.com"
+          node test/render/api-only.ts "$RUNNER_TEMP/api-only"
+
   automerge:
-    needs: [integration, packages, render, render-and-test, sast]
+    needs: [api-only, integration, packages, render, render-and-test, sast]
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
       contents: write

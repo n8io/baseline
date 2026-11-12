@@ -7,12 +7,15 @@ const healthServerCreate = vi.fn(() => {
 	healthServers.push(server);
 	return server;
 });
+// piece-start: live
 const liveClose = vi.fn(async () => {});
+// piece-end: live
 
 vi.mock("react-router-hono-server/node", () => ({
 	createHonoServer: async (options: unknown) => options,
 }));
 vi.mock("@n8io/baseline-health", () => ({ healthServerCreate }));
+// piece-start: live
 vi.mock("@n8io/baseline-live", async (importOriginal) => {
 	const original = await importOriginal<typeof import("@n8io/baseline-live")>();
 	return {
@@ -23,6 +26,7 @@ vi.mock("@n8io/baseline-live", async (importOriginal) => {
 		}),
 	};
 });
+// piece-end: live
 
 afterEach(() => {
 	delete (globalThis as { serverDevClose?: unknown }).serverDevClose;
@@ -35,7 +39,7 @@ const serverRun = async () => {
 };
 
 describe("server.ts re-run in development", () => {
-	it("closes the last run's live hub, then its health server, before listening again", async () => {
+	it("closes the last run's resources, its health server last, before listening again", async () => {
 		await serverRun();
 		await serverRun();
 
@@ -43,11 +47,15 @@ describe("server.ts re-run in development", () => {
 		const [first, second] = healthServers;
 		expect(first?.close).toHaveBeenCalledOnce();
 		expect(second?.close).not.toHaveBeenCalled();
+		// piece-start: live
 		expect(liveClose).toHaveBeenCalledOnce();
+		// piece-end: live
 
 		const order = (fn: unknown, call = 0) =>
 			vi.mocked(fn as () => unknown).mock.invocationCallOrder[call] ?? 0;
+		// piece-start: live
 		expect(order(liveClose)).toBeLessThan(order(first?.close));
+		// piece-end: live
 		expect(order(first?.close)).toBeLessThan(order(healthServerCreate, 1));
 	});
 });

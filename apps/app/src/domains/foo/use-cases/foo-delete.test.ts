@@ -21,7 +21,15 @@ const setup = async () => {
 
 describe("fooDelete", () => {
 	it("lets the owner delete, publishes, sends a live update and clears the cache", async () => {
-		const { ports, published, sent, state, foo } = await setup();
+		const {
+			ports,
+			published,
+			// piece-start: live
+			sent,
+			// piece-end: live
+			state,
+			foo,
+		} = await setup();
 		const get = fooGet(ports);
 		await get(owner, { fooId: foo.id });
 
@@ -32,20 +40,32 @@ describe("fooDelete", () => {
 		expect(published).toEqual([
 			{ data: { fooId: foo.id }, name: "foo.deleted" },
 		]);
+		// piece-start: live
 		expect(sent).toEqual([{ id: foo.id, type: "foo.deleted" }]);
+		// piece-end: live
 		expect(await get(owner, { fooId: foo.id })).toEqual(
 			err(expect.any(FooNotFoundError)),
 		);
 	});
 
 	it("forbids a stranger and changes nothing", async () => {
-		const { ports, published, sent, state, foo } = await setup();
+		const {
+			ports,
+			published,
+			// piece-start: live
+			sent,
+			// piece-end: live
+			state,
+			foo,
+		} = await setup();
 		const result = await fooDelete(ports)(stranger, { fooId: foo.id });
 
 		expect(result).toEqual(err(expect.any(FooForbiddenError)));
 		expect(state.foos.get(foo.id)).toEqual(foo);
 		expect(published).toEqual([]);
+		// piece-start: live
 		expect(sent).toEqual([]);
+		// piece-end: live
 	});
 
 	it("lets a holder of foo:delete delete", async () => {
@@ -60,11 +80,19 @@ describe("fooDelete", () => {
 	});
 
 	it("returns FooNotFoundError for an unknown id", async () => {
-		const { ports, published, sent } = await setup();
+		const {
+			ports,
+			published,
+			// piece-start: live
+			sent,
+			// piece-end: live
+		} = await setup();
 		const result = await fooDelete(ports)(owner, { fooId: idCreate("foo") });
 
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
 		expect(published).toEqual([]);
+		// piece-start: live
 		expect(sent).toEqual([]);
+		// piece-end: live
 	});
 });

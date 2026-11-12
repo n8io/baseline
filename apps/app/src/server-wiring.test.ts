@@ -1,11 +1,12 @@
 import { type Authn, authnMemoryTokenCreate } from "@n8io/baseline-authn";
-import type { Hono } from "hono";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-// Builds the real server.ts app without serving it: no React Router build, no health port.
+// Imports the real server.ts app without serving it or opening a health port.
+// piece-start: ui
 vi.mock("react-router-hono-server/node", () => ({
 	createHonoServer: async (options: unknown) => options,
 }));
+// piece-end: ui
 let authn: Authn | undefined;
 vi.mock("@n8io/baseline-authn", async (importOriginal) => {
 	const original =
@@ -22,7 +23,7 @@ vi.mock("@n8io/baseline-health", () => ({
 	healthServerCreate: () => ({ close: async () => {}, ready: () => {} }),
 }));
 
-let app: Hono;
+let app: typeof import("./server.ts")["app"];
 
 const bearer = async () => {
 	if (!authn) throw new Error("authn was not captured");
@@ -38,10 +39,7 @@ const bearer = async () => {
 };
 
 beforeAll(async () => {
-	const server = (await import("./server.ts")).default as unknown as {
-		app: Hono;
-	};
-	app = server.app;
+	app = (await import("./server.ts")).app;
 	app.get("/wiring/boom", () => {
 		throw new Error("boom");
 	});

@@ -10,7 +10,9 @@ describe("fooPortsCreate", () => {
 			fooPortsCreate({
 				cache: "memory",
 				database: "memory",
+				// piece-start: live
 				liveHub: liveHubMemoryCreate(),
+				// piece-end: live
 				queue,
 			}),
 		).toThrow("both be Postgres or both memory");

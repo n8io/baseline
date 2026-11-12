@@ -63,7 +63,9 @@ describe("foo events on Postgres", () => {
 		fooPortsCreate({
 			cache: "memory",
 			database: pgPool,
+			// piece-start: live
 			liveHub: liveHubMemoryCreate(),
+			// piece-end: live
 			queue,
 		});
 

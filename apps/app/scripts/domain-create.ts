@@ -42,6 +42,60 @@ const firstDomainPaths = new Set([
 	"src/ui/routes/home.test.ts",
 ]);
 
+// The pieces of the stack a Project may remove with docs/agents/pieces.md. A removed piece's
+// package is gone from package.json; its files and its `piece-start:` blocks stay out of a new
+// domain.
+const pieces = [
+	{ name: "ui", package: "react-router", paths: [/^src\/ui\//] },
+	{
+		name: "live",
+		package: "@n8io/baseline-live",
+		paths: [/^src\/domains\/foo\/api\/foo-live(\.test)?\.ts$/],
+	},
+];
+
+export const piecesRemovedFind = (appDirectory: string): string[] => {
+	const manifest = JSON.parse(
+		readFileSync(join(appDirectory, "package.json"), "utf8"),
+	) as {
+		dependencies?: Record<string, string>;
+		devDependencies?: Record<string, string>;
+	};
+	const installed = {
+		...manifest.dependencies,
+		...manifest.devDependencies,
+	};
+	return pieces.filter((p) => !(p.package in installed)).map((p) => p.name);
+};
+
+// Drops every block from a `piece-start: <name>` line through its `piece-end: <name>` line.
+export const pieceBlocksRemove = (text: string, name: string): string =>
+	text.replaceAll(
+		new RegExp(
+			`^[ \\t]*(//|#) piece-start: ${name}\\n[\\s\\S]*?^[ \\t]*(//|#) piece-end: ${name}\\n`,
+			"gm",
+		),
+		"",
+	);
+
+// The template as a Project that removed those pieces would have it.
+export const templateWithoutPieces = (
+	template: TemplateFile[],
+	removed: string[],
+): TemplateFile[] =>
+	template
+		.filter(
+			(file) =>
+				!pieces.some(
+					(p) =>
+						removed.includes(p.name) && p.paths.some((r) => r.test(file.path)),
+				),
+		)
+		.map((file) => ({
+			path: file.path,
+			text: removed.reduce(pieceBlocksRemove, file.text),
+		}));
+
 // The glossary term a domain name needs: invoice-line ↔ **Invoice line**:.
 export const domainTerm = (kebab: string): string => {
 	const words = kebab.replaceAll("-", " ");
@@ -177,10 +231,14 @@ export const wiringInsert = (
 
 // The files a new domain adds or changes, from the template's files and the project's.
 export const domainFilesCreate = (
-	template: TemplateFile[],
+	templateFull: TemplateFile[],
 	appDirectory: string,
 	names: DomainNames,
 ): TemplateFile[] => {
+	const template = templateWithoutPieces(
+		templateFull,
+		piecesRemovedFind(appDirectory),
+	);
 	const domains = join(appDirectory, "src/domains");
 	const firstDomain =
 		!existsSync(domains) ||
@@ -261,13 +319,19 @@ const main = () => {
 	}
 	console.log(`Created src/domains/${kebab}/; checking it.`);
 	try {
+		const paths = files.map((f) => f.path);
+		// A removed piece's blocks leave imports nothing uses.
+		const unusedImports = "--only=correctness/noUnusedImports";
 		run(
 			"pnpm",
-			["exec", "biome", "check", "--write", ...files.map((f) => f.path)],
+			["exec", "biome", "lint", "--write", "--unsafe", unusedImports, ...paths],
 			{
 				cwd: appDirectory,
 			},
 		);
+		run("pnpm", ["exec", "biome", "check", "--write", ...paths], {
+			cwd: appDirectory,
+		});
 		for (const script of ["check", "test"]) {
 			run("pnpm", ["run", script], { cwd: appDirectory, inherit: true });
 		}

@@ -55,6 +55,7 @@ describe("cross-site requests to cookie routes on the production build", {
 		expect(res.headers.get("set-cookie")).toBeNull();
 	});
 
+	// piece-start: ui
 	it("refuses a cross-site post to a page or a React Router data request", async () => {
 		for (const path of ["/no-such-page", "/no-such-page.data"]) {
 			const res = await formPost(path, crossSite);
@@ -70,6 +71,7 @@ describe("cross-site requests to cookie routes on the production build", {
 			await res.body?.cancel();
 		}
 	});
+	// piece-end: ui
 
 	it("signs in behind a TLS proxy that sets x-forwarded-proto", async () => {
 		const res = await formPost("/auth/sign-in", {

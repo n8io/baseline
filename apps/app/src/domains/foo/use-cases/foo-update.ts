@@ -14,8 +14,17 @@ export const fooUpdate =
 	({
 		fooTransaction,
 		fooCache,
+		// piece-start: live
 		fooLiveUpdates,
-	}: Pick<FooPorts, "fooTransaction" | "fooCache" | "fooLiveUpdates">) =>
+		// piece-end: live
+	}: Pick<
+		FooPorts,
+		| "fooTransaction"
+		| "fooCache"
+		// piece-start: live
+		| "fooLiveUpdates"
+		// piece-end: live
+	>) =>
 	async (
 		actor: Actor,
 		input: FooUpdateInput,
@@ -41,7 +50,9 @@ export const fooUpdate =
 		// After commit, outside the callback.
 		if (result.ok) {
 			await fooCache.delete(input.fooId);
+			// piece-start: live
 			await fooLiveUpdates.send({ type: "foo.updated", id: input.fooId });
+			// piece-end: live
 		}
 		return result;
 	};

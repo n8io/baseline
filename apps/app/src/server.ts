@@ -1,4 +1,5 @@
-// Composition root for pages, the API and live streams.
+// Composition root for the HTTP server: the API, sign-in, pages and live streams. Each
+// `piece-start:` to `piece-end:` block belongs to one piece; docs/agents/pieces.md removes them.
 import type { Server } from "node:http";
 import {
 	authnActorRequire,
@@ -43,10 +44,12 @@ import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
 import { seedsRun } from "./seed.ts";
 
+// piece-start: ui
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is
 // undefined there, so each run first closes what the last one opened.
 const devRun = globalThis as { serverDevClose?: () => Promise<void> };
 if (import.meta.env.DEV) await devRun.serverDevClose?.();
+// piece-end: ui
 
 let shutdown: ShutdownHandle | undefined;
 const health = healthServerCreate({
@@ -67,22 +70,35 @@ const queue =
 	pgPool === "memory"
 		? "memory"
 		: await queueCreate({ pgPool, role: "publisher" });
+// piece-start: live
 const liveHub =
 	redisClient === "memory"
 		? liveHubMemoryCreate()
 		: liveHubRedisCreate(redisClient);
+// piece-end: live
+// piece-start: ui
 if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.
 	devRun.serverDevClose = async () => {
+		// piece-start: live
 		await liveHub.close();
+		// piece-end: live
 		if (queue !== "memory") await queue.stop();
 		if (pgPool !== "memory") await pgPool.end();
 		if (redisClient !== "memory") await redisClient.close();
 		await health.close();
 	};
 }
+// piece-end: ui
 // domain-create: domains-start
-const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
+const ports = {
+	cache: redisClient,
+	database: pgPool,
+	// piece-start: live
+	liveHub,
+	// piece-end: live
+	queue,
+} as const;
 
 const fooUseCases = telemetryUseCasesTrace(
 	fooUseCasesCreate(fooPortsCreate(ports)),
@@ -115,7 +131,7 @@ const authn = await authnCreate({
 	memoryIssuerAllowed: envLocal,
 });
 
-const app = httpRouterCreate();
+export const app = httpRouterCreate();
 app.use(httpRouteName);
 app.onError(httpErrorHandle);
 app.use(httpSecureHeaders);
@@ -139,15 +155,52 @@ app.use(
 app.route("/auth", authnRoutesCreate(authn));
 app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));
 // domain-create: routes
+// piece-start: live
 app.route("/live/foo", fooLiveRoutesCreate(fooUseCases, liveHub));
 // domain-create: live
+// piece-end: live
 app.doc31("/api/v1/openapi.json", {
 	info: { title: "app", version: "1" },
 	openapi: "3.1.0",
 });
-// Unknown /api paths answer JSON, never a React Router page.
+// Unknown /api paths answer JSON, never a page.
 app.all("/api/*", httpNotFoundHandle);
 
+// Starts graceful shutdown on SIGTERM, then reports ready.
+const serverServe = (server: Server) => {
+	shutdown = shutdownHandleCreate({
+		drainDelayMs: envLocal ? 0 : 5_000,
+		intakes: [
+			{ close: () => httpServerClose(server), name: "http" },
+			// piece-start: live
+			{ close: () => liveHub.close(), name: "live" },
+			// piece-end: live
+		],
+		resources: [
+			{
+				close: () => (queue === "memory" ? Promise.resolve() : queue.stop()),
+				name: "queue",
+			},
+			{
+				close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
+				name: "database",
+			},
+			{
+				close: () =>
+					redisClient === "memory" ? Promise.resolve() : redisClient.close(),
+				name: "cache",
+			},
+			{ close: () => health.close(), name: "health" },
+			{ close: () => telemetryShutdown(), name: "telemetry" },
+		],
+	});
+	health.ready();
+};
+const serverListening = ({ port }: { port: number }) =>
+	logger.info({ port }, "Server listening");
+
+// piece-start: ui
+// React Router serves the pages and hosts app: Vite in development, its build in production.
 export default await createHonoServer({
 	app,
 	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
@@ -162,35 +215,12 @@ export default await createHonoServer({
 			},
 			// domain-create: domains-end
 		),
-	listeningListener: ({ port }) => logger.info({ port }, "Server listening"),
+	listeningListener: serverListening,
 	onServe: (server) => {
 		// Development: Vite owns the server and Ctrl-C.
 		if (!import.meta.env.PROD) return health.ready();
-		shutdown = shutdownHandleCreate({
-			drainDelayMs: envLocal ? 0 : 5_000,
-			intakes: [
-				{ close: () => httpServerClose(server as Server), name: "http" },
-				{ close: () => liveHub.close(), name: "live" },
-			],
-			resources: [
-				{
-					close: () => (queue === "memory" ? Promise.resolve() : queue.stop()),
-					name: "queue",
-				},
-				{
-					close: () => (pgPool === "memory" ? Promise.resolve() : pgPool.end()),
-					name: "database",
-				},
-				{
-					close: () =>
-						redisClient === "memory" ? Promise.resolve() : redisClient.close(),
-					name: "cache",
-				},
-				{ close: () => health.close(), name: "health" },
-				{ close: () => telemetryShutdown(), name: "telemetry" },
-			],
-		});
-		health.ready();
+		serverServe(server as Server);
 	},
 	port: ENV.PORT,
 });
+// piece-end: ui

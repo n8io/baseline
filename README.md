@@ -57,6 +57,8 @@ Open the URL `pnpm dev` prints. The Worker restarts when a file it imports chang
 | Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen`              |
 | Pull the newest template release                      | `pnpm template-upgrade`     |
 
+A project that does not need UI pages or live updates removes them with the steps in [`docs/agents/pieces.md`](apps/app/docs/agents/pieces.md).
+
 The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the rules every task needs: where new work goes, secrets rules, and when to stop and ask. It links the task-specific rules in [`docs/agents/`](apps/app/docs/agents/), which an agent reads only when the task needs them.
 
 > [!TIP]

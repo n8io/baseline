@@ -8,7 +8,9 @@ import {
 
 let server: ProductionServer;
 let drop: () => Promise<void>;
+// piece-start: ui
 let session: SignedIn;
+// piece-end: ui
 
 beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
@@ -17,7 +19,9 @@ beforeAll(async () => {
 		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 	});
+	// piece-start: ui
 	session = await integrationSignIn(server.url);
+	// piece-end: ui
 }, 30_000);
 
 afterAll(async () => {
@@ -25,6 +29,7 @@ afterAll(async () => {
 	await drop?.();
 });
 
+// piece-start: ui
 const notFound = async (headers: Record<string, string>): Promise<string> => {
 	const res = await fetch(`${server.url}/no-such-page`, {
 		headers,
@@ -34,10 +39,12 @@ const notFound = async (headers: Record<string, string>): Promise<string> => {
 	expect(res.headers.get("content-type")).toMatch(/^text\/html/);
 	return res.text();
 };
+// piece-end: ui
 
 describe("server-rendered pages on the production build", {
 	timeout: 30_000,
 }, () => {
+	// piece-start: ui
 	it("renders an unknown page as the root error boundary's 404", async () => {
 		const html = await notFound({ cookie: session.cookie });
 
@@ -50,6 +57,7 @@ describe("server-rendered pages on the production build", {
 	it("renders the same 404 signed out", async () => {
 		expect(await notFound({})).toContain("This page does not exist.");
 	});
+	// piece-end: ui
 
 	it("serves the memory issuer's sign-in page as HTML", async () => {
 		const res = await fetch(`${server.url}/auth/sign-in`);
