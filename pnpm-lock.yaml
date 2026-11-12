@@ -411,9 +411,6 @@ importers:
 
   packages/live:
     dependencies:
-      '@n8io/baseline-cache':
-        specifier: workspace:^
-        version: link:../cache
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger

@@ -41,7 +41,6 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@n8io/baseline-cache": "workspace:^",
 		"@n8io/baseline-logger": "workspace:^"
 	},
 	"devDependencies": {
