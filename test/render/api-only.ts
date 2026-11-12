@@ -3,7 +3,8 @@
 // - each of ui, live, cache and queue removed alone passes check, unit tests and build, and
 //   git revert of its commit gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it;
-// - all five removed together, then reverted, give back the starting tree and pass check;
+// - all five removed together, each passing check, then reverted, give back the starting tree,
+//   which passes check unchanged;
 // - all five removed, then invoice-line added with domain-create, pass check, unit tests and build
 //   and the built server serves the API.
 // One render serves every case, to keep CI short.
@@ -105,10 +106,18 @@ const apiServe = async (directory: string) => {
 const git = (directory: string, args: string[]): string =>
 	run("git", args, { cwd: directory }).trim();
 
-const pieceRemove = (directory: string, piece: Piece) => {
+// As pieces.md says: remove, then the checks the command prints (only check when every piece
+// goes), then commit, so the commit carries what check regenerates.
+const pieceRemove = (directory: string, piece: Piece, scripts: string[]) => {
 	console.log(`pnpm piece-remove ${piece}`);
 	pnpmRun(directory, ["piece-remove", piece]);
+	for (const script of scripts) pnpmRun(directory, [script]);
 	gitCommitAll(directory, `Remove ${piece}`);
+};
+
+const treeCleanRequire = (directory: string, after: string) => {
+	const status = git(directory, ["status", "--porcelain"]);
+	if (status !== "") throw new Error(`${after} changed the tree:\n${status}`);
 };
 
 // Reverts the commits after `before`, newest first, and requires the tree `before` had.
@@ -117,13 +126,10 @@ const revertTo = (directory: string, before: string) => {
 	const diff = git(directory, ["diff", "--stat", before, "HEAD"]);
 	if (diff !== "") throw new Error(`git revert left a diff:\n${diff}`);
 	pnpmRun(directory, ["install"]);
+	treeCleanRequire(directory, "pnpm install after the revert");
 };
 
-const checkTestBuild = (directory: string) => {
-	for (const script of ["check", "test", "build"]) {
-		pnpmRun(directory, [script]);
-	}
-};
+const checkTestBuild = ["check", "test", "build"];
 
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");
@@ -144,13 +150,13 @@ const main = async () => {
 	checkoutPackagesUse(directory);
 	pnpmRun(directory, ["install"]);
 	domainAdd(directory, files, customer);
+	pnpmRun(directory, ["check"]);
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
 	for (const piece of ["ui", "live", "cache", "queue"] as const) {
 		const before = head();
-		pieceRemove(directory, piece);
-		checkTestBuild(directory);
+		pieceRemove(directory, piece, checkTestBuild);
 		revertTo(directory, before);
 		console.log(
 			`api-only: ${piece} alone passes check, test and build, and reverts`,
@@ -164,22 +170,21 @@ const main = async () => {
 	if (refused.status === 0 || !refused.stderr.includes("Remove the cache")) {
 		throw new Error(`piece-remove redis was not refused:\n${refused.stderr}`);
 	}
-	if (git(directory, ["status", "--porcelain"]) !== "") {
-		throw new Error("the refused piece-remove redis changed the tree");
-	}
+	treeCleanRequire(directory, "the refused piece-remove redis");
 
 	const before = head();
 	const all: Piece[] = ["live", "ui", "cache", "redis", "queue"];
-	for (const piece of all) pieceRemove(directory, piece);
+	for (const piece of all) pieceRemove(directory, piece, ["check"]);
 	const removed = head();
 	revertTo(directory, before);
 	pnpmRun(directory, ["check"]);
+	treeCleanRequire(directory, "check after the revert");
 	console.log("api-only: every piece removed, then reverted, passes check");
 
 	git(directory, ["reset", "--hard", "--quiet", removed]);
 	pnpmRun(directory, ["install"]);
 	domainAdd(directory, files, invoiceLine);
-	checkTestBuild(directory);
+	for (const script of checkTestBuild) pnpmRun(directory, [script]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");
 	console.log("api-only: check, test, build and the served API pass");
