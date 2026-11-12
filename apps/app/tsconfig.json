@@ -4,14 +4,18 @@
 		"erasableSyntaxOnly": true,
 		"exactOptionalPropertyTypes": true,
 		"isolatedModules": true,
+		// piece-start: ui
 		"jsx": "react-jsx",
+		// piece-end: ui
 		"lib": ["esnext", "dom", "dom.iterable"],
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"noEmit": true,
 		"noImplicitOverride": true,
 		"noUncheckedIndexedAccess": true,
+		// piece-start: ui
 		"rootDirs": [".", "./.react-router/types"],
+		// piece-end: ui
 		"skipLibCheck": true,
 		"strict": true,
 		"target": "esnext",
@@ -19,5 +23,13 @@
 		"verbatimModuleSyntax": true
 	},
 	"files": ["src/env.d.ts"],
-	"include": ["*.ts", "scripts", "src", "test", ".react-router/types/**/*"]
+	"include": [
+		"*.ts",
+		"scripts",
+		"src",
+		"test",
+		// piece-start: ui
+		".react-router/types/**/*"
+		// piece-end: ui
+	]
 }

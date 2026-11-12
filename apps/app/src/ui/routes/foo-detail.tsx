@@ -108,7 +108,9 @@ export const action = async (args: Route.ActionArgs) => {
 
 const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 	const { foo } = loaderData;
+	// piece-start: live
 	useLiveUpdates("foo", foo.id);
+	// piece-end: live
 	const [open, setOpen] = useState(false);
 	const navigation = useNavigation();
 	const pendingIntent =

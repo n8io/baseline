@@ -56,15 +56,19 @@ if (import.meta.main) {
 			? "memory"
 			: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
 	const queue = await queueCreate({ pgPool, role: "publisher" });
+	// piece-start: live
 	const liveHub =
 		redisClient === "memory"
 			? liveHubMemoryCreate()
 			: liveHubRedisCreate(redisClient);
+	// piece-end: live
 	// domain-create: domains-start
 	const ports = {
 		cache: redisClient,
 		database: pgPool,
+		// piece-start: live
 		liveHub,
+		// piece-end: live
 		queue,
 	} as const;
 
@@ -81,7 +85,9 @@ if (import.meta.main) {
 	logger.info("seeds done");
 
 	await queue.stop();
+	// piece-start: live
 	await liveHub.close();
+	// piece-end: live
 	await pgPool.end();
 	if (redisClient !== "memory") await redisClient.close();
 	await telemetryShutdown();

@@ -33,17 +33,26 @@ const redisClient =
 		? "memory"
 		: await cacheRedisClientCreate({ cacheUrl: ENV.CACHE_URL });
 const queue = await queueCreate({ pgPool, role: "worker" });
+// piece-start: live
 const liveHub =
 	redisClient === "memory"
 		? liveHubMemoryCreate()
 		: liveHubRedisCreate(redisClient);
+// piece-end: live
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive(),
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
 // domain-create: domains-start
-const ports = { cache: redisClient, database: pgPool, liveHub, queue } as const;
+const ports = {
+	cache: redisClient,
+	database: pgPool,
+	// piece-start: live
+	liveHub,
+	// piece-end: live
+	queue,
+} as const;
 // domain-create: domains-end
 
 const fooUseCases = telemetryUseCasesTrace(
@@ -68,7 +77,9 @@ shutdown = shutdownHandleCreate({
 	drainDelayMs: envLocal ? 0 : 5_000,
 	intakes: [{ close: () => queue.stop(), name: "queue" }],
 	resources: [
+		// piece-start: live
 		{ close: () => liveHub.close(), name: "live" },
+		// piece-end: live
 		{ close: () => pgPool.end(), name: "database" },
 		{
 			close: () =>

@@ -49,16 +49,20 @@ export type FooCache = {
 	delete(id: Id<"foo">): Promise<void>;
 };
 
+// piece-start: live
 export type FooLiveUpdates = {
 	send(update: {
 		type: "foo.updated" | "foo.deleted";
 		id: Id<"foo">;
 	}): Promise<void>;
 };
+// piece-end: live
 
 export type FooPorts = {
 	fooReadRepository: FooReadRepository;
 	fooTransaction: FooTransaction;
 	fooCache: FooCache;
+	// piece-start: live
 	fooLiveUpdates: FooLiveUpdates;
+	// piece-end: live
 };

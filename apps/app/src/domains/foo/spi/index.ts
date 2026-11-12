@@ -17,9 +17,11 @@ export const fooPortsCreate = (options: {
 	database: pg.Pool | "memory";
 	cache: RedisClient | "memory";
 	queue: Queue | "memory";
+	// piece-start: live
 	liveHub: LiveHub;
+	// piece-end: live
 }): FooPorts => {
-	const { cache, database, liveHub, queue } = options;
+	const { cache, database, queue } = options;
 	if ((database === "memory") !== (queue === "memory")) {
 		throw new TypeError(
 			"database and queue must both be Postgres or both memory",
@@ -39,6 +41,10 @@ export const fooPortsCreate = (options: {
 		fooTransaction: repository.fooTransaction,
 		fooCache:
 			cache === "memory" ? fooCacheMemoryCreate() : fooCacheRedisCreate(cache),
-		fooLiveUpdates: { send: (update) => liveHub.send("foo", update) },
+		// piece-start: live
+		fooLiveUpdates: {
+			send: (update) => options.liveHub.send("foo", update),
+		},
+		// piece-end: live
 	};
 };

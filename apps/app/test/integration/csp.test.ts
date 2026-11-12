@@ -9,7 +9,9 @@ import {
 
 let server: ProductionServer;
 let drop: () => Promise<void>;
+// piece-start: ui
 let session: SignedIn;
+// piece-end: ui
 
 beforeAll(async () => {
 	const database = await integrationDatabaseCreate();
@@ -18,7 +20,9 @@ beforeAll(async () => {
 		cacheUrl: inject("integrationCacheUrl"),
 		databaseUrl: database.databaseUrl,
 	});
+	// piece-start: ui
 	session = await integrationSignIn(server.url);
+	// piece-end: ui
 }, 30_000);
 
 afterAll(async () => {
@@ -30,6 +34,7 @@ afterAll(async () => {
 describe("security headers on the production build", {
 	timeout: 30_000,
 }, () => {
+	// piece-start: ui
 	it("enforces the CSP on a rendered page, with a new nonce on every script each time", async () => {
 		const nonces: string[] = [];
 		for (let i = 0; i < 2; i += 1) {
@@ -44,6 +49,7 @@ describe("security headers on the production build", {
 		}
 		expect(nonces[0]).not.toBe(nonces[1]);
 	});
+	// piece-end: ui
 
 	it("serves the sign-in page under the CSP with no inline styles", async () => {
 		const res = await fetch(`${server.url}/auth/sign-in`);

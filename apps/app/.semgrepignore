@@ -1,5 +1,7 @@
 # Semgrep reads this instead of its defaults, which skip tests. Generated paths only.
+# piece-start: ui
 .react-router/
+# piece-end: ui
 build/
 migrations/
 src/env.d.ts

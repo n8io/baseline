@@ -80,7 +80,7 @@ const appProcessSpawn = async (
 			DATABASE_URL: databaseUrl,
 			HEALTH_PORT: String(healthPort),
 			LOG_LEVEL: "silent",
-			// react-router-hono-server listens on PORT only outside development.
+			// The production build listens on PORT; development leaves that to Vite.
 			NODE_ENV: "production",
 			OTEL_LOGS_EXPORTER: "none",
 			OTEL_METRICS_EXPORTER: "none",
@@ -231,7 +231,7 @@ export const slowRequestStart = async (
 export type ProductionServer = AppProcess & { port: number; url: string };
 
 /**
- * Boots the production build (`react-router build` output) the way the image runs it: the three
+ * Boots the production build (`pnpm build` output) the way the image runs it: the three
  * preload flags, NODE_ENV=production, APP_ENV=test, real Postgres and Redis, the memory issuer.
  * Resolves once /readyz answers 200 and the server answers on PORT.
  */
@@ -239,7 +239,7 @@ export const productionServerStart = async (
 	options: AppProcessOptions,
 ): Promise<ProductionServer> => {
 	if (!existsSync(serverEntry)) {
-		throw new Error(`${serverEntry} is missing: run react-router build first`);
+		throw new Error(`${serverEntry} is missing: run pnpm build first`);
 	}
 	const port = await freePort();
 	const app = await appProcessStart(serverEntry, options, {

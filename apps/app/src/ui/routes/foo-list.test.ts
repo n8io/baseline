@@ -14,7 +14,9 @@ const setup = (actor: Actor | null = owner) => {
 		fooPortsCreate({
 			cache: "memory",
 			database: "memory",
+			// piece-start: live
 			liveHub: liveHubMemoryCreate(),
+			// piece-end: live
 			queue: "memory",
 		}),
 	);

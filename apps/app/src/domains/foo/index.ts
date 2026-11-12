@@ -22,7 +22,9 @@ export {
 export type {
 	FooCache,
 	FooEvents,
+	// piece-start: live
 	FooLiveUpdates,
+	// piece-end: live
 	FooPorts,
 	FooReadRepository,
 	FooRepository,

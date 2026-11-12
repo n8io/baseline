@@ -24,7 +24,13 @@ const setup = async () => {
 
 describe("fooUpdate", () => {
 	it("lets the owner rename, sends a live update and clears the cache", async () => {
-		const { ports, sent, foo } = await setup();
+		const {
+			ports,
+			// piece-start: live
+			sent,
+			// piece-end: live
+			foo,
+		} = await setup();
 		const get = fooGet(ports);
 		await get(owner, { fooId: foo.id });
 
@@ -37,7 +43,9 @@ describe("fooUpdate", () => {
 			ok: true,
 			value: expect.objectContaining({ id: foo.id, name: "beta" }),
 		});
+		// piece-start: live
 		expect(sent).toEqual([{ id: foo.id, type: "foo.updated" }]);
+		// piece-end: live
 		expect(await get(owner, { fooId: foo.id })).toEqual({
 			ok: true,
 			value: expect.objectContaining({ name: "beta" }),
@@ -45,7 +53,14 @@ describe("fooUpdate", () => {
 	});
 
 	it("forbids a stranger and changes nothing", async () => {
-		const { ports, sent, state, foo } = await setup();
+		const {
+			ports,
+			// piece-start: live
+			sent,
+			// piece-end: live
+			state,
+			foo,
+		} = await setup();
 		const result = await fooUpdate(ports)(stranger, {
 			fooId: foo.id,
 			name: "beta",
@@ -53,7 +68,9 @@ describe("fooUpdate", () => {
 
 		expect(result).toEqual(err(expect.any(FooForbiddenError)));
 		expect(state.foos.get(foo.id)).toEqual(foo);
+		// piece-start: live
 		expect(sent).toEqual([]);
+		// piece-end: live
 	});
 
 	it("lets a holder of foo:update rename", async () => {
@@ -67,18 +84,32 @@ describe("fooUpdate", () => {
 	});
 
 	it("returns FooNotFoundError for an unknown id", async () => {
-		const { ports, sent } = await setup();
+		const {
+			ports,
+			// piece-start: live
+			sent,
+			// piece-end: live
+		} = await setup();
 		const result = await fooUpdate(ports)(owner, {
 			fooId: idCreate("foo"),
 			name: "beta",
 		});
 
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
+		// piece-start: live
 		expect(sent).toEqual([]);
+		// piece-end: live
 	});
 
 	it("returns FooNameTakenError when another foo has the name", async () => {
-		const { ports, sent, state, foo } = await setup();
+		const {
+			ports,
+			// piece-start: live
+			sent,
+			// piece-end: live
+			state,
+			foo,
+		} = await setup();
 		await fooCreate(ports)(owner, { name: "beta" });
 
 		const result = await fooUpdate(ports)(owner, {
@@ -88,6 +119,8 @@ describe("fooUpdate", () => {
 
 		expect(result).toEqual(err(expect.any(FooNameTakenError)));
 		expect(state.foos.get(foo.id)?.name).toBe("alpha");
+		// piece-start: live
 		expect(sent).toEqual([]);
+		// piece-end: live
 	});
 });
