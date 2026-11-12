@@ -31,11 +31,13 @@ afterAll(async () => {
 describe("the customer.deleted consumer on Postgres", () => {
 	const portsCreate = () =>
 		invoiceLinePortsCreate({
-			cache: "memory",
 			customerReader: { get: async () => ({ name: "Acme" }) },
 			database: pgPool,
+			intakes: [],
 			liveHub: liveHubMemoryCreate(),
 			queue,
+			redis: "memory",
+			resources: [],
 		});
 
 	it("clears the customer once and skips a repeat of the same event", async () => {
