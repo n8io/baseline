@@ -6,7 +6,7 @@ Run with Node 26 (`.node-version`) and the pnpm version pinned in `packageManage
 
 ## Verify
 
-Commands by role. Integration tests and the dev server need `docker compose up -d`.
+Commands by role. Integration tests need `docker compose up -d`; `pnpm dev` runs it itself.
 
 - setup: `pnpm install`
 - format: `pnpm format`
@@ -14,7 +14,7 @@ Commands by role. Integration tests and the dev server need `docker compose up -
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (3 min budget)
 - full CI-equivalent: `pnpm run ci` (`pnpm ci` is pnpm's own clean install)
-- dev server: `pnpm dev` (runs migrate and seed, then the Worker, with health on port 9001, beside the dev server)
+- dev server: `pnpm dev` (starts Postgres and Redis, runs migrate and seed, then the Worker, with health on port 9001, beside the dev server; the Worker restarts when a file it imports changes)
 - build: `pnpm build`
 - codegen: `pnpm codegen` (run after editing a `spi/*-table.ts` file)
 - migrate: `pnpm migrate`

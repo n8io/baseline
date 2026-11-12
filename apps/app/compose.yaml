@@ -1,4 +1,4 @@
-# Local services: `docker compose up -d` for Postgres and Redis.
+# Local services: `docker compose up -d` for Postgres and Redis; `pnpm dev` runs it.
 # `--profile telemetry` adds a local trace and log viewer (Grafana on http://localhost:3001).
 # `--profile image` runs the production image's server and worker against these services.
 services:

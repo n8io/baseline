@@ -40,11 +40,10 @@ It asks five questions. You can pass them as flags instead: `--name --descriptio
 
 ```sh
 cd <your-project>
-docker compose up -d   # Postgres 18 and Redis 8
-pnpm dev               # migrate, seed, then the Worker and the dev server
+pnpm dev   # starts Postgres 18 and Redis 8, migrates, seeds, then runs the Worker and the dev server
 ```
 
-Open the URL `pnpm dev` prints. Development uses a memory sign-in, so no identity provider is needed.
+Open the URL `pnpm dev` prints. The Worker restarts when a file it imports changes. Development uses a memory sign-in, so no identity provider is needed.
 
 ## In a project
 
