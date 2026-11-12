@@ -1,14 +1,14 @@
 import { idCreate } from "@n8io/baseline-id";
 import { ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
-import { fooPortsMemory } from "./foo-ports.memory.ts";
+import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
 import { fooRepositoryContract } from "./foo-repository.contract.ts";
 
-describe("fooRepositoryMemory", () => {
-	fooRepositoryContract(async () => fooPortsMemory().ports);
+describe("fooRepositoryMemoryCreate", () => {
+	fooRepositoryContract(async () => fooPortsMemoryCreate().ports);
 
 	it("records events only when the transaction commits", async () => {
-		const { ports, published } = fooPortsMemory();
+		const { ports, published } = fooPortsMemoryCreate();
 		const fooId = idCreate("foo");
 		await expect(
 			ports.fooTransaction(async ({ fooEvents }) => {

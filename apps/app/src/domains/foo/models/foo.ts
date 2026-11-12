@@ -1,8 +1,8 @@
-import { idSchema } from "@n8io/baseline-id";
+import { idSchemaCreate } from "@n8io/baseline-id";
 import { z } from "zod";
 
 export const Foo = z.object({
-	id: idSchema("foo"),
+	id: idSchemaCreate("foo"),
 	name: z.string().trim().min(1).max(100),
 	// The creating Actor's id.
 	createdBy: z.string(),
@@ -15,16 +15,16 @@ export type Foo = z.infer<typeof Foo>;
 export const FooCreateInput = Foo.pick({ name: true });
 export type FooCreateInput = z.infer<typeof FooCreateInput>;
 
-export const FooGetInput = z.object({ fooId: idSchema("foo") });
+export const FooGetInput = z.object({ fooId: idSchemaCreate("foo") });
 export type FooGetInput = z.infer<typeof FooGetInput>;
 
 export const FooUpdateInput = z.object({
-	fooId: idSchema("foo"),
+	fooId: idSchemaCreate("foo"),
 	name: Foo.shape.name,
 });
 export type FooUpdateInput = z.infer<typeof FooUpdateInput>;
 
-export const FooDeleteInput = z.object({ fooId: idSchema("foo") });
+export const FooDeleteInput = z.object({ fooId: idSchemaCreate("foo") });
 export type FooDeleteInput = z.infer<typeof FooDeleteInput>;
 
 export const FooListInput = z.object({
@@ -45,10 +45,10 @@ export type FooList = {
 	total?: number;
 };
 
-export const fooCreated = z.object({ fooId: idSchema("foo") });
+export const fooCreated = z.object({ fooId: idSchemaCreate("foo") });
 export type FooCreated = z.infer<typeof fooCreated>;
 
-export const fooDeleted = z.object({ fooId: idSchema("foo") });
+export const fooDeleted = z.object({ fooId: idSchemaCreate("foo") });
 export type FooDeleted = z.infer<typeof fooDeleted>;
 
 export type FooEventMap = {

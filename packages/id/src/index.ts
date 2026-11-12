@@ -58,7 +58,9 @@ export const idCreate = <P extends string>(prefix: P): Id<P> => {
 };
 
 // Accepts only ids with exactly this prefix, so a `bar` id never passes as a `foo` id.
-export const idSchema = <P extends string>(prefix: P): z.ZodType<Id<P>> => {
+export const idSchemaCreate = <P extends string>(
+	prefix: P,
+): z.ZodType<Id<P>> => {
 	prefixAssert(prefix);
 	return z
 		.string()

@@ -10,9 +10,9 @@ pnpm add @n8io/baseline-http
 
 - `httpRouterCreate()`: an `OpenAPIHono` router whose request validation answers 400 with a problem body.
 - `httpErrorHandle`, `httpNotFoundHandle`: `app.onError` and the API's not-found route; both answer `application/problem+json`, never error text.
-- `httpErrorBody(error, status)`, `httpProblemHeaders`: the problem body and headers for a domain error. The body carries the request's `traceId`.
+- `httpErrorBodyCreate(error, status)`, `httpProblemHeaders`: the problem body and headers for a domain error. The body carries the request's `traceId`.
 - `HttpErrorStatus<E>`: a domain's map from error `type` to status; a missing type fails type-checking.
-- `httpErrorResponses(table, types)`, `HttpErrorResponses`: a route's OpenAPI error responses from that map.
+- `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses`: a route's OpenAPI error responses from that map.
 - `HttpProblem`: the problem body type.
 - `httpRouteName`: middleware that names the HTTP server span after the route that answered.
 - `httpCsrf`: Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.
@@ -25,8 +25,8 @@ pnpm add @n8io/baseline-http
 import { createRoute } from "@hono/zod-openapi";
 import {
 	type HttpErrorStatus,
-	httpErrorBody,
-	httpErrorResponses,
+	httpErrorBodyCreate,
+	httpErrorResponsesCreate,
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
@@ -44,17 +44,17 @@ const fooGetRoute = createRoute({
 			content: { "application/json": { schema: FooResponse } },
 			description: "The foo",
 		},
-		...httpErrorResponses(fooErrorStatus, ["FooNotFound"]),
+		...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
 	},
 });
 
-export const fooRoutes = (u: FooUseCases) =>
+export const fooRoutesCreate = (u: FooUseCases) =>
 	httpRouterCreate().openapi(fooGetRoute, async (c) => {
 		const result = await u.fooGet(c.req.valid("param"));
 		if (!result.ok) {
 			const status = fooErrorStatus[result.error.type];
 			return c.json(
-				httpErrorBody(result.error, status),
+				httpErrorBodyCreate(result.error, status),
 				status,
 				httpProblemHeaders,
 			);

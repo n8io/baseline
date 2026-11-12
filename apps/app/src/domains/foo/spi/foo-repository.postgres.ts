@@ -2,7 +2,7 @@ import { idToUuid } from "@n8io/baseline-id";
 import {
 	postgresCursorDecode,
 	postgresCursorEncode,
-	postgresUniqueViolation,
+	postgresUniqueViolationIs,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import {
@@ -33,7 +33,9 @@ const fooFromRow = (row: typeof foo.$inferSelect): Foo => ({
 	updatedAt: row.updatedAt,
 });
 
-export const fooRepositoryPostgres = (db: FooDatabase): FooRepository => ({
+export const fooRepositoryPostgresCreate = (
+	db: FooDatabase,
+): FooRepository => ({
 	archiveStale: async (before, now) => {
 		const archived = await db
 			.update(foo)
@@ -55,7 +57,7 @@ export const fooRepositoryPostgres = (db: FooDatabase): FooRepository => ({
 			if (!row) throw new Error(`Foo ${value.id} was not inserted`);
 			return ok(fooFromRow(row));
 		} catch (error) {
-			if (postgresUniqueViolation(error, "foo_name_key")) {
+			if (postgresUniqueViolationIs(error, "foo_name_key")) {
 				return err(new FooNameTakenError(value.name));
 			}
 			throw error;
@@ -113,7 +115,7 @@ export const fooRepositoryPostgres = (db: FooDatabase): FooRepository => ({
 			if (!row) throw new Error(`Foo ${value.id} to update does not exist`);
 			return ok(fooFromRow(row));
 		} catch (error) {
-			if (postgresUniqueViolation(error, "foo_name_key")) {
+			if (postgresUniqueViolationIs(error, "foo_name_key")) {
 				return err(new FooNameTakenError(value.name));
 			}
 			throw error;

@@ -4,10 +4,10 @@ index a9ff7fc..1b55b6c 100644
 +++ b/src/domains/invoice-line/api/index.ts
 @@ -1,4 +1,5 @@
  // The domain's inbound adapters, for the composition roots.
-+export { invoiceLineCustomerDeletedConsumer } from "./invoice-line-customer-deleted-consumer.ts";
- export { invoiceLineLiveRoutes } from "./invoice-line-live.ts";
- export { invoiceLineRoutes } from "./invoice-line-routes.ts";
- export { invoiceLineSchedule } from "./invoice-line-schedule.ts";
++export { invoiceLineCustomerDeletedConsumerCreate } from "./invoice-line-customer-deleted-consumer.ts";
+ export { invoiceLineLiveRoutesCreate } from "./invoice-line-live.ts";
+ export { invoiceLineRoutesCreate } from "./invoice-line-routes.ts";
+ export { invoiceLineScheduleCreate } from "./invoice-line-schedule.ts";
 diff --git a/src/domains/invoice-line/index.ts b/src/domains/invoice-line/index.ts
 index bed9141..b0ab906 100644
 --- a/src/domains/invoice-line/index.ts
@@ -38,7 +38,7 @@ index fa5dc0b..2d68a02 100644
  	updatedAt: z.date(),
  	archivedAt: z.date().nullable(),
 +	// The customer billed, if any; cleared when that customer is deleted.
-+	customerId: idSchema("customer").optional(),
++	customerId: idSchemaCreate("customer").optional(),
  });
  export type InvoiceLine = z.infer<typeof InvoiceLine>;
  
@@ -47,15 +47,15 @@ index fa5dc0b..2d68a02 100644
  export type InvoiceLineDeleteInput = z.infer<typeof InvoiceLineDeleteInput>;
  
 +export const InvoiceLineCustomerAssignInput = z.object({
-+	invoiceLineId: idSchema("invoice_line"),
-+	customerId: idSchema("customer"),
++	invoiceLineId: idSchemaCreate("invoice_line"),
++	customerId: idSchemaCreate("customer"),
 +});
 +export type InvoiceLineCustomerAssignInput = z.infer<
 +	typeof InvoiceLineCustomerAssignInput
 +>;
 +
 +export const InvoiceLineCustomerClearInput = z.object({
-+	customerId: idSchema("customer"),
++	customerId: idSchemaCreate("customer"),
 +});
 +export type InvoiceLineCustomerClearInput = z.infer<
 +	typeof InvoiceLineCustomerClearInput
@@ -98,9 +98,9 @@ index 78a2ee0..6a39778 100644
  import type pg from "pg";
 -import type { InvoiceLinePorts } from "../ports.ts";
 +import type { InvoiceLineCustomerReader, InvoiceLinePorts } from "../ports.ts";
- import { invoiceLineCacheMemory } from "./invoice-line-cache.memory.ts";
- import { invoiceLineCacheRedis } from "./invoice-line-cache.redis.ts";
- import { invoiceLinePortsMemory } from "./invoice-line-ports.memory.ts";
+ import { invoiceLineCacheMemoryCreate } from "./invoice-line-cache.memory.ts";
+ import { invoiceLineCacheRedisCreate } from "./invoice-line-cache.redis.ts";
+ import { invoiceLinePortsMemoryCreate } from "./invoice-line-ports.memory.ts";
 @@ -18,8 +18,10 @@ export const invoiceLinePortsCreate = (options: {
  	cache: RedisClient | "memory";
  	queue: Queue | "memory";
@@ -115,8 +115,8 @@ index 78a2ee0..6a39778 100644
  			"database and queue must both be Postgres or both memory",
 @@ -44,6 +46,9 @@ export const invoiceLinePortsCreate = (options: {
  			cache === "memory"
- 				? invoiceLineCacheMemory()
- 				: invoiceLineCacheRedis(cache),
+ 				? invoiceLineCacheMemoryCreate()
+ 				: invoiceLineCacheRedisCreate(cache),
 +		invoiceLineCustomerReader: customerReader ?? {
 +			get: async () => undefined,
 +		},
@@ -127,10 +127,10 @@ diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/dom
 index 4447c7e..1adfb18 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -27,6 +27,8 @@ export const invoiceLinePortsMemory = (): {
+@@ -27,6 +27,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  	return {
  		ports: {
- 			invoiceLineCache: invoiceLineCacheMemory(),
+ 			invoiceLineCache: invoiceLineCacheMemoryCreate(),
 +			// No customers; tests that assign one pass their own reader.
 +			invoiceLineCustomerReader: { get: async () => undefined },
  			invoiceLineLiveUpdates: {
@@ -140,7 +140,7 @@ diff --git a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts b/sr
 index 17086c1..c051273 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-@@ -54,6 +54,16 @@ export const invoiceLineRepositoryMemory = (state: {
+@@ -54,6 +54,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  			}
  			return archived;
  		},
@@ -169,7 +169,7 @@ index 495bee7..ec8f942 100644
  	id: row.id,
  	name: row.name,
  	updatedAt: row.updatedAt,
-@@ -48,6 +49,14 @@ export const invoiceLineRepositoryPostgres = (
+@@ -48,6 +49,14 @@ export const invoiceLineRepositoryPostgresCreate = (
  			.returning({ id: invoiceLine.id });
  		return archived.length;
  	},
@@ -192,7 +192,7 @@ index 6991369..29ce17d 100644
  		createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
  		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
  		archivedAt: timestamp("archived_at", { withTimezone: true }),
-+		customerId: postgresIdColumn("customer")("customer_id"),
++		customerId: postgresIdColumnCreate("customer")("customer_id"),
  	},
  	(t) => [
  		uniqueIndex("invoice_line_name_key").on(t.name),
@@ -201,10 +201,10 @@ index 6991369..29ce17d 100644
 +		index("invoice_line_customer_id_idx").on(t.customerId),
  	],
  );
-diff --git a/src/domains/invoice-line/use-cases/invoice-line-use-cases-create.ts b/src/domains/invoice-line/use-cases/invoice-line-use-cases-create.ts
+diff --git a/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts b/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts
 index 05a645f..9117d03 100644
---- a/src/domains/invoice-line/use-cases/invoice-line-use-cases-create.ts
-+++ b/src/domains/invoice-line/use-cases/invoice-line-use-cases-create.ts
+--- a/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts
++++ b/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts
 @@ -1,5 +1,7 @@
  import type { InvoiceLinePorts } from "../ports.ts";
  import { invoiceLineCreate } from "./invoice-line-create.ts";
@@ -230,7 +230,7 @@ index eb8d591..55fea9f 100644
  	telemetryShutdown,
  	telemetryUseCasesTrace,
  } from "@n8io/baseline-telemetry";
-+import { invoiceLineCustomerReader } from "#bridges/invoice-line-customer.ts";
++import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
  import { customerSeed } from "#domains/customer/api/index.ts";
  import {
  	type CustomerUseCases,
@@ -242,7 +242,7 @@ index eb8d591..55fea9f 100644
 +		invoiceLineUseCasesCreate(
 +			invoiceLinePortsCreate({
 +				...ports,
-+				customerReader: invoiceLineCustomerReader(customerUseCases),
++				customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +			}),
 +		),
  	);
@@ -255,18 +255,18 @@ index 37b6804..aca4297 100644
 @@ -30,6 +30,7 @@ import {
  import { except } from "hono/combine";
  import { createHonoServer } from "react-router-hono-server/node";
- import { actorFromClaims, authnProviderOptions } from "#authn";
-+import { invoiceLineCustomerReader } from "#bridges/invoice-line-customer.ts";
+ import { actorFromClaims, authnProviderOptionsCreate } from "#authn";
++import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
  import {
- 	customerLiveRoutes,
- 	customerRoutes,
+ 	customerLiveRoutesCreate,
+ 	customerRoutesCreate,
 @@ -40,6 +41,7 @@ import {
  } from "#domains/customer/index.ts";
  import { customerPortsCreate } from "#domains/customer/spi/index.ts";
  import {
-+	invoiceLineCustomerDeletedConsumer,
- 	invoiceLineLiveRoutes,
- 	invoiceLineRoutes,
++	invoiceLineCustomerDeletedConsumerCreate,
+ 	invoiceLineLiveRoutesCreate,
+ 	invoiceLineRoutesCreate,
  } from "#domains/invoice-line/api/index.ts";
 @@ -94,7 +96,12 @@ const customerUseCases = telemetryUseCasesTrace(
  	customerUseCasesCreate(customerPortsCreate(ports)),
@@ -276,7 +276,7 @@ index 37b6804..aca4297 100644
 +	invoiceLineUseCasesCreate(
 +		invoiceLinePortsCreate({
 +			...ports,
-+			customerReader: invoiceLineCustomerReader(customerUseCases),
++			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +		}),
 +	),
  );
@@ -285,8 +285,8 @@ index 37b6804..aca4297 100644
 @@ -110,6 +117,7 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
  // Creates queues and subscriptions; consumers run only in the worker.
  if (queue !== "memory") {
- 	await consumersSubscribe(queue, [
-+		invoiceLineCustomerDeletedConsumer(invoiceLineUseCases),
+ 	await queueConsumersSubscribe(queue, [
++		invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
  		// domain-create: consumers
  	]);
  }
@@ -298,14 +298,14 @@ index c290673..18588ce 100644
  	telemetryShutdown,
  	telemetryUseCasesTrace,
  } from "@n8io/baseline-telemetry";
-+import { invoiceLineCustomerReader } from "#bridges/invoice-line-customer.ts";
- import { customerSchedule } from "#domains/customer/api/index.ts";
++import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
+ import { customerScheduleCreate } from "#domains/customer/api/index.ts";
  import { customerUseCasesCreate } from "#domains/customer/index.ts";
  import { customerPortsCreate } from "#domains/customer/spi/index.ts";
--import { invoiceLineSchedule } from "#domains/invoice-line/api/index.ts";
+-import { invoiceLineScheduleCreate } from "#domains/invoice-line/api/index.ts";
 +import {
-+	invoiceLineCustomerDeletedConsumer,
-+	invoiceLineSchedule,
++	invoiceLineCustomerDeletedConsumerCreate,
++	invoiceLineScheduleCreate,
 +} from "#domains/invoice-line/api/index.ts";
  import { invoiceLineUseCasesCreate } from "#domains/invoice-line/index.ts";
  import { invoiceLinePortsCreate } from "#domains/invoice-line/spi/index.ts";
@@ -318,15 +318,15 @@ index c290673..18588ce 100644
 +	invoiceLineUseCasesCreate(
 +		invoiceLinePortsCreate({
 +			...ports,
-+			customerReader: invoiceLineCustomerReader(customerUseCases),
++			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
 +		}),
 +	),
  );
  // domain-create: use-cases
  // domain-create: bridges
  
- await consumersStart(queue, [
-+	invoiceLineCustomerDeletedConsumer(invoiceLineUseCases),
+ await queueConsumersStart(queue, [
++	invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
  	// domain-create: consumers
  ]);
- await schedulesRegister(
+ await queueSchedulesRegister(

@@ -32,7 +32,7 @@ export type {
 export {
 	type FooUseCases,
 	fooUseCasesCreate,
-} from "./use-cases/foo-use-cases-create.ts";
+} from "./use-cases/foo-use-cases.ts";
 
 // Scopes an actor may hold to change other people's foos.
 export const fooScopes = ["foo:update", "foo:delete"] as const;

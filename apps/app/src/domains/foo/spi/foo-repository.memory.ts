@@ -25,7 +25,7 @@ const fooSortValue = (foo: Foo, field: "createdAt" | "name"): string =>
 const fooOrder = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 // Like Postgres: the unique index on name, and copies in and out so no caller shares a row.
-export const fooRepositoryMemory = (state: {
+export const fooRepositoryMemoryCreate = (state: {
 	foos: Map<Id<"foo">, Foo>;
 }): FooRepository => {
 	const nameTaken = (foo: Foo): boolean =>

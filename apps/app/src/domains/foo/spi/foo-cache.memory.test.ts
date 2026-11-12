@@ -1,4 +1,4 @@
 import { fooCacheContract } from "./foo-cache.contract.ts";
-import { fooCacheMemory } from "./foo-cache.memory.ts";
+import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
 
-fooCacheContract(async () => fooCacheMemory());
+fooCacheContract(async () => fooCacheMemoryCreate());

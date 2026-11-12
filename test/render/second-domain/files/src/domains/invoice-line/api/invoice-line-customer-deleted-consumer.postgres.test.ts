@@ -7,8 +7,8 @@ import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { invoiceLinePortsCreate } from "../spi/index.ts";
-import { invoiceLineUseCasesCreate } from "../use-cases/invoice-line-use-cases-create.ts";
-import { invoiceLineCustomerDeletedConsumer } from "./invoice-line-customer-deleted-consumer.ts";
+import { invoiceLineUseCasesCreate } from "../use-cases/invoice-line-use-cases.ts";
+import { invoiceLineCustomerDeletedConsumerCreate } from "./invoice-line-customer-deleted-consumer.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 let pgPool: pg.Pool;
@@ -52,7 +52,7 @@ describe("the customer.deleted consumer on Postgres", () => {
 			expect(assigned.value.customerId).toBe(customerId);
 			return created.value.id;
 		};
-		const consumer = invoiceLineCustomerDeletedConsumer(u);
+		const consumer = invoiceLineCustomerDeletedConsumerCreate(u);
 		const inbox = { consumer: consumer.queueName, eventId: "job-1" };
 		const first = await billed("Billed before the event");
 

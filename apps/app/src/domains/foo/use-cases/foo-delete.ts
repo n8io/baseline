@@ -4,7 +4,7 @@ import { trace } from "@opentelemetry/api";
 import { FooForbiddenError, FooNotFoundError } from "../foo-errors.ts";
 import type { FooDeleteInput } from "../models/foo.ts";
 import type { FooPorts } from "../ports.ts";
-import { fooDeletable } from "../rules/foo-deletable.ts";
+import { fooDeleteCan } from "../rules/foo-delete-can.ts";
 
 export const fooDelete =
 	({
@@ -23,7 +23,7 @@ export const fooDelete =
 		>(async ({ fooRepository, fooEvents }) => {
 			const foo = await fooRepository.findById(input.fooId);
 			if (!foo) return err(new FooNotFoundError(input.fooId));
-			if (!fooDeletable(foo, actor)) {
+			if (!fooDeleteCan(foo, actor)) {
 				return err(new FooForbiddenError(input.fooId));
 			}
 			await fooRepository.delete(foo.id);

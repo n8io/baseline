@@ -1,6 +1,6 @@
 import type { Result } from "@n8io/baseline-result";
 import type { z } from "zod";
-import { type Queue, queueBossGet } from "./queue-create.ts";
+import { type Queue, queueBossGet } from "./queue.ts";
 import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
@@ -17,7 +17,7 @@ export type Consumer = {
 
 // queueName is `<consumer domain>.<event entity>-<event verb>` (billing.order-placed); it is also the
 // inbox `consumer` key.
-export const consumerCreate = <S extends z.ZodType>(
+export const queueConsumerCreate = <S extends z.ZodType>(
 	queueName: string,
 	eventName: string,
 	schema: S,
@@ -42,7 +42,7 @@ export const consumerCreate = <S extends z.ZodType>(
 
 // pg-boss copies a published event only into queues already subscribed to it, so every instance
 // that may publish subscribes at boot. Safe to repeat on any number of instances.
-export const consumersSubscribe = async (
+export const queueConsumersSubscribe = async (
 	queue: Queue,
 	consumers: Consumer[],
 ): Promise<void> => {
@@ -62,11 +62,11 @@ const consumerEventId = (job: {
 }): string => job.sourceRootId ?? job.id;
 
 // Subscribes, then starts a worker per consumer (worker process only).
-export const consumersStart = async (
+export const queueConsumersStart = async (
 	queue: Queue,
 	consumers: Consumer[],
 ): Promise<void> => {
-	await consumersSubscribe(queue, consumers);
+	await queueConsumersSubscribe(queue, consumers);
 	const boss = queueBossGet(queue);
 	for (const consumer of consumers) {
 		await boss.work(

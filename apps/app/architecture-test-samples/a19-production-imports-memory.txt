@@ -1,6 +1,6 @@
 // A19: only *.test.ts files import spi/*.memory.ts from inside a domain (spi/ itself may, to pick adapters)
 // expect: src/domains/bar/api/bar-seed.ts imports ../spi/bar-ports.memory.ts: only *.test.ts files (and spi/) import memory adapters
 // @file src/domains/bar/api/bar-seed.ts
-import { barPortsMemory } from "../spi/bar-ports.memory.ts";
+import { barPortsMemoryCreate } from "../spi/bar-ports.memory.ts";
 
-export const barSeed = () => barPortsMemory();
+export const barSeed = () => barPortsMemoryCreate();

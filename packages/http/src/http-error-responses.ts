@@ -1,6 +1,6 @@
 import type { z } from "@hono/zod-openapi";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { type HttpProblem, httpProblemSchema } from "./http-problem.ts";
+import { type HttpProblem, httpProblemSchemaCreate } from "./http-problem.ts";
 
 /** One problem+json response per status, typed so route handlers may return those statuses. */
 export type HttpErrorResponses<S extends ContentfulStatusCode> = {
@@ -16,7 +16,7 @@ export type HttpErrorResponses<S extends ContentfulStatusCode> = {
  * Builds a route's OpenAPI error responses from its domain's status table: one entry per status,
  * listing the error types that answer with it.
  */
-export const httpErrorResponses = <
+export const httpErrorResponsesCreate = <
 	const Table extends Record<string, ContentfulStatusCode>,
 	T extends keyof Table & string,
 >(
@@ -35,7 +35,7 @@ export const httpErrorResponses = <
 	for (const [status, codes] of byStatus) {
 		responses[status] = {
 			content: {
-				"application/problem+json": { schema: httpProblemSchema(codes) },
+				"application/problem+json": { schema: httpProblemSchemaCreate(codes) },
 			},
 			description: codes.join(", "),
 		};

@@ -11,7 +11,7 @@ import type {
 	InvoiceLineCustomerAssignInput,
 } from "../models/invoice-line.ts";
 import type { InvoiceLinePorts } from "../ports.ts";
-import { invoiceLineUpdatable } from "../rules/invoice-line-updatable.ts";
+import { invoiceLineUpdateCan } from "../rules/invoice-line-update-can.ts";
 
 // Bills an invoice line to a customer the customer domain knows, read through the bridge
 // before the transaction opens. An unknown customer answers not found, like the invoice line.
@@ -52,7 +52,7 @@ export const invoiceLineCustomerAssign =
 			);
 			if (!invoiceLine)
 				return err(new InvoiceLineNotFoundError(input.invoiceLineId));
-			if (!invoiceLineUpdatable(invoiceLine, actor)) {
+			if (!invoiceLineUpdateCan(invoiceLine, actor)) {
 				return err(new InvoiceLineForbiddenError(input.invoiceLineId));
 			}
 			return invoiceLineRepository.update({

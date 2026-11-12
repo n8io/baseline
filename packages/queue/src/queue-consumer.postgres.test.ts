@@ -1,6 +1,6 @@
 import {
 	postgresPoolCreate,
-	postgresTransaction,
+	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { err, ok, type Result } from "@n8io/baseline-result";
 import { context, metrics, trace } from "@opentelemetry/api";
@@ -15,16 +15,16 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
-	consumerCreate,
-	consumersStart,
 	type Inbox,
 	type Queue,
+	queueConsumerCreate,
+	queueConsumersStart,
 	queueCreate,
 	queueEventsPgBossCreate,
 	queueInboxInsert,
 	queueMigrate,
 } from "./index.ts";
-import { queueBossGet } from "./queue-create.ts";
+import { queueBossGet } from "./queue.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 
 let pgPool: pg.Pool;
@@ -56,7 +56,7 @@ afterAll(async () => {
 const fooCreated = z.object({ fooId: z.string() });
 
 const publish = async (data: unknown): Promise<void> => {
-	await postgresTransaction(pgPool, async (pgClient) => {
+	await postgresTransactionRun(pgPool, async (pgClient) => {
 		await queueEventsPgBossCreate<{ "foo.created": unknown }>(
 			queue,
 			pgClient,
@@ -65,7 +65,7 @@ const publish = async (data: unknown): Promise<void> => {
 	});
 };
 
-describe("consumersStart", () => {
+describe("queueConsumersStart", () => {
 	it("a job keeps its id across retries, and the inbox skips the repeat", async () => {
 		const calls: Inbox[] = [];
 		// A use case whose first attempt commits, then fails before pg-boss hears back.
@@ -74,7 +74,7 @@ describe("consumersStart", () => {
 			inbox: Inbox,
 		): Promise<Result<undefined, { type: string }>> => {
 			calls.push(inbox);
-			const result = await postgresTransaction<undefined, { type: string }>(
+			const result = await postgresTransactionRun<undefined, { type: string }>(
 				pgPool,
 				async (pgClient) => {
 					if (!(await queueInboxInsert(pgClient, inbox))) {
@@ -91,8 +91,8 @@ describe("consumersStart", () => {
 			}
 			return result;
 		};
-		await consumersStart(queue, [
-			consumerCreate(
+		await queueConsumersStart(queue, [
+			queueConsumerCreate(
 				"billing.foo-created",
 				"foo.created",
 				fooCreated,
@@ -127,7 +127,7 @@ describe("consumersStart", () => {
 			inbox: Inbox,
 		): Promise<Result<undefined, { type: string }>> => {
 			calls.push(inbox);
-			const result = await postgresTransaction<undefined, { type: string }>(
+			const result = await postgresTransactionRun<undefined, { type: string }>(
 				pgPool,
 				async (pgClient) => {
 					if (!(await queueInboxInsert(pgClient, inbox))) {
@@ -144,8 +144,8 @@ describe("consumersStart", () => {
 			}
 			return result;
 		};
-		await consumersStart(queue, [
-			consumerCreate(
+		await queueConsumersStart(queue, [
+			queueConsumerCreate(
 				"billing.foo-archived",
 				"foo.archived",
 				fooCreated,
@@ -165,7 +165,7 @@ describe("consumersStart", () => {
 			);
 		};
 
-		await postgresTransaction(pgPool, async (pgClient) => {
+		await postgresTransactionRun(pgPool, async (pgClient) => {
 			await queueEventsPgBossCreate<{ "foo.archived": unknown }>(
 				queue,
 				pgClient,
@@ -199,8 +199,8 @@ describe("consumersStart", () => {
 
 	it("fails a job whose data does not match the schema, without echoing it", async () => {
 		const run = vi.fn(async () => ok(undefined));
-		await consumersStart(queue, [
-			consumerCreate("audit.foo-created", "foo.created", fooCreated, run),
+		await queueConsumersStart(queue, [
+			queueConsumerCreate("audit.foo-created", "foo.created", fooCreated, run),
 		]);
 
 		await publish({ fooId: 42, secret: "hunter2" });
@@ -221,11 +221,11 @@ describe("consumersStart", () => {
 	});
 });
 
-describe("consumersStart trace context", () => {
+describe("queueConsumersStart trace context", () => {
 	it("runs the Consumer in the publishing request's trace", async () => {
 		let consumerTraceId: string | undefined;
-		await consumersStart(queue, [
-			consumerCreate(
+		await queueConsumersStart(queue, [
+			queueConsumerCreate(
 				"billing.foo-traced",
 				"foo.traced",
 				fooCreated,
@@ -239,7 +239,7 @@ describe("consumersStart trace context", () => {
 		const publisherTraceId = await trace
 			.getTracer("test")
 			.startActiveSpan("fooCreate", async (span) => {
-				await postgresTransaction(pgPool, async (pgClient) => {
+				await postgresTransactionRun(pgPool, async (pgClient) => {
 					await queueEventsPgBossCreate<{ "foo.traced": unknown }>(
 						queue,
 						pgClient,
@@ -257,10 +257,10 @@ describe("consumersStart trace context", () => {
 	});
 });
 
-describe("consumerCreate", () => {
+describe("queueConsumerCreate", () => {
 	it("parses the event and passes the inbox through", async () => {
 		const run = vi.fn(async () => ok("done"));
-		const consumer = consumerCreate(
+		const consumer = queueConsumerCreate(
 			"billing.foo-created",
 			"foo.created",
 			fooCreated,

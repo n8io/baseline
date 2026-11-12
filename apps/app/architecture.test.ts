@@ -50,8 +50,10 @@ describe("architecture", () => {
 		expect(architectureRules[rule]?.(files)).toEqual([]);
 	});
 
-	it("has one failing sample per rule", () => {
-		expect(samples.map((s) => s.rule).sort()).toEqual([...ruleIds].sort());
+	it("has a failing sample for every rule", () => {
+		expect([...new Set(samples.map((s) => s.rule))].sort()).toEqual(
+			[...ruleIds].sort(),
+		);
 	});
 
 	// The regex checks of A11 and A14 also pass the corrected sample.

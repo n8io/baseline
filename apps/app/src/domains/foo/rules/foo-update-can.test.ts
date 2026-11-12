@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import type { Foo } from "../models/foo.ts";
-import { fooDeletable } from "./foo-deletable.ts";
+import { fooUpdateCan } from "./foo-update-can.ts";
 
 const now = new Date("2026-01-01T00:00:00Z");
 const foo: Foo = {
@@ -19,17 +19,17 @@ const actor = (id: string, scopes: string[] = []): Actor => ({
 	scopes,
 });
 
-describe("fooDeletable", () => {
+describe("fooUpdateCan", () => {
 	it("allows the owner", () => {
-		expect(fooDeletable(foo, actor("owner"))).toBe(true);
+		expect(fooUpdateCan(foo, actor("owner"))).toBe(true);
 	});
 
-	it("allows a holder of foo:delete", () => {
-		expect(fooDeletable(foo, actor("other", ["foo:delete"]))).toBe(true);
+	it("allows a holder of foo:update", () => {
+		expect(fooUpdateCan(foo, actor("other", ["foo:update"]))).toBe(true);
 	});
 
-	it("denies a stranger, including one with only foo:update", () => {
-		expect(fooDeletable(foo, actor("other"))).toBe(false);
-		expect(fooDeletable(foo, actor("other", ["foo:update"]))).toBe(false);
+	it("denies a stranger, including one with only foo:delete", () => {
+		expect(fooUpdateCan(foo, actor("other"))).toBe(false);
+		expect(fooUpdateCan(foo, actor("other", ["foo:delete"]))).toBe(false);
 	});
 });

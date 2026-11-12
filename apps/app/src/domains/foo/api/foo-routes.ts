@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { authnActorRequire } from "@n8io/baseline-authn";
 import {
-	httpErrorBody,
-	httpErrorResponses,
+	httpErrorBodyCreate,
+	httpErrorResponsesCreate,
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
@@ -77,7 +77,7 @@ const fooCreateRoute = createRoute({
 	},
 	responses: {
 		201: json(FooResponse, "Created"),
-		...httpErrorResponses(fooErrorStatus, ["FooNameTaken"]),
+		...httpErrorResponsesCreate(fooErrorStatus, ["FooNameTaken"]),
 	},
 });
 
@@ -94,7 +94,7 @@ const fooGetRoute = createRoute({
 	request: { params: FooParams },
 	responses: {
 		200: json(FooResponse, "The foo"),
-		...httpErrorResponses(fooErrorStatus, ["FooNotFound"]),
+		...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
 	},
 });
 
@@ -111,7 +111,7 @@ const fooUpdateRoute = createRoute({
 	},
 	responses: {
 		200: json(FooResponse, "Updated"),
-		...httpErrorResponses(fooErrorStatus, [
+		...httpErrorResponsesCreate(fooErrorStatus, [
 			"FooNotFound",
 			"FooNameTaken",
 			"FooForbidden",
@@ -125,12 +125,15 @@ const fooDeleteRoute = createRoute({
 	request: { params: FooParams },
 	responses: {
 		204: { description: "Deleted" },
-		...httpErrorResponses(fooErrorStatus, ["FooNotFound", "FooForbidden"]),
+		...httpErrorResponsesCreate(fooErrorStatus, [
+			"FooNotFound",
+			"FooForbidden",
+		]),
 	},
 });
 
 // Mounted at /api/v1/foos. Each route calls exactly one use case.
-export const fooRoutes = (u: FooUseCases) =>
+export const fooRoutesCreate = (u: FooUseCases) =>
 	httpRouterCreate()
 		.openapi(fooCreateRoute, async (c) => {
 			const result = await u.fooCreate(
@@ -140,7 +143,7 @@ export const fooRoutes = (u: FooUseCases) =>
 			if (!result.ok) {
 				const status = fooErrorStatus[result.error.type];
 				return c.json(
-					httpErrorBody(result.error, status),
+					httpErrorBodyCreate(result.error, status),
 					status,
 					httpProblemHeaders,
 				);
@@ -164,7 +167,7 @@ export const fooRoutes = (u: FooUseCases) =>
 			if (!result.ok) {
 				const status = fooErrorStatus[result.error.type];
 				return c.json(
-					httpErrorBody(result.error, status),
+					httpErrorBodyCreate(result.error, status),
 					status,
 					httpProblemHeaders,
 				);
@@ -179,7 +182,7 @@ export const fooRoutes = (u: FooUseCases) =>
 			if (!result.ok) {
 				const status = fooErrorStatus[result.error.type];
 				return c.json(
-					httpErrorBody(result.error, status),
+					httpErrorBodyCreate(result.error, status),
 					status,
 					httpProblemHeaders,
 				);
@@ -194,7 +197,7 @@ export const fooRoutes = (u: FooUseCases) =>
 			if (!result.ok) {
 				const status = fooErrorStatus[result.error.type];
 				return c.json(
-					httpErrorBody(result.error, status),
+					httpErrorBodyCreate(result.error, status),
 					status,
 					httpProblemHeaders,
 				);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actorFromClaims, authnProviderOptions } from "./authn.ts";
+import { actorFromClaims, authnProviderOptionsCreate } from "./authn.ts";
 
 describe("actorFromClaims", () => {
 	it("reads a user from sub and space-separated scope", () => {
@@ -46,10 +46,10 @@ describe("actorFromClaims", () => {
 	);
 });
 
-describe("authnProviderOptions", () => {
+describe("authnProviderOptionsCreate", () => {
 	it("maps the AUTHN_* values", () => {
 		expect(
-			authnProviderOptions({
+			authnProviderOptionsCreate({
 				AUTHN_AUDIENCE: "api",
 				AUTHN_CLIENT_ID: "web",
 				AUTHN_CLIENT_SECRET: "shh",

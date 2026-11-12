@@ -13,7 +13,7 @@ import {
 	trace,
 } from "@opentelemetry/api";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { type Pulsar, type PulsarState, pulsarState } from "./pulsar-create.ts";
+import { type Pulsar, type PulsarState, pulsarState } from "./pulsar.ts";
 
 // Set at publish and kept through every redelivery and the dead letter; it is the inbox eventId.
 export const pulsarEventIdProperty = "event-id";

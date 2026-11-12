@@ -6,7 +6,7 @@ import {
 	InvoiceLineForbiddenError,
 	InvoiceLineNotFoundError,
 } from "../invoice-line-errors.ts";
-import { invoiceLinePortsMemory } from "../spi/invoice-line-ports.memory.ts";
+import { invoiceLinePortsMemoryCreate } from "../spi/invoice-line-ports.memory.ts";
 import { invoiceLineCreate } from "./invoice-line-create.ts";
 import { invoiceLineCustomerAssign } from "./invoice-line-customer-assign.ts";
 import { invoiceLineGet } from "./invoice-line-get.ts";
@@ -16,7 +16,7 @@ const stranger: Actor = { id: "other", kind: "user", scopes: [] };
 const customerId = idCreate("customer");
 
 const setup = async () => {
-	const memory = invoiceLinePortsMemory();
+	const memory = invoiceLinePortsMemoryCreate();
 	const ports = {
 		...memory.ports,
 		invoiceLineCustomerReader: {

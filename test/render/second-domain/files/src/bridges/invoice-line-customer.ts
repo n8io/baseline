@@ -9,7 +9,7 @@ const invoiceLineCustomerBridgeActor: Actor = {
 };
 
 // The only file that knows both domains: invoice lines read customers through customerGet.
-export const invoiceLineCustomerReader = (
+export const invoiceLineCustomerReaderCreate = (
 	customer: Pick<CustomerUseCases, "customerGet">,
 ): InvoiceLineCustomerReader => ({
 	get: async (id) => {

@@ -1,0 +1,4 @@
+// A23: a predicate ends in Is, Has or Can (barDeleteCan, not barDeletable)
+// expect: src/domains/bar/rules/bar-delete-can.ts: barDeletable returns a boolean; a predicate ends in Is, Has or Can
+// @file src/domains/bar/rules/bar-delete-can.ts
+export const barDeletable = (bar: { locked: boolean }): boolean => !bar.locked;

@@ -43,7 +43,7 @@ const errFind = (first: unknown): unknown => {
 	return undefined;
 };
 
-export const loggerOptions = (level: string): LoggerOptions => ({
+export const loggerOptionsCreate = (level: string): LoggerOptions => ({
 	hooks: {
 		// pino copies err.message into msg when a call gives no message. Use the
 		// class name instead, so no message text reaches a log record.

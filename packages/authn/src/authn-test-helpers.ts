@@ -5,7 +5,7 @@ export const appOrigin: string = "https://app.test";
 export const secret: string = Buffer.alloc(32, 7).toString("base64url");
 
 // The template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
-export const actorFromClaims = (claims: JWTPayload): Actor => ({
+export const authnTestActorFromClaims = (claims: JWTPayload): Actor => ({
 	id: String(claims.sub),
 	kind: claims.gty === "client-credentials" ? "client" : "user",
 	scopes:
@@ -15,7 +15,7 @@ export const actorFromClaims = (claims: JWTPayload): Actor => ({
 });
 
 export const memoryOptions: AuthnOptions = {
-	actorFromClaims,
+	actorFromClaims: authnTestActorFromClaims,
 	audience: "dev",
 	clientId: "dev",
 	clientSecret: "dev",
@@ -32,7 +32,7 @@ export type CookieJar = {
 	store: (res: Response) => void;
 };
 
-export const cookieJar = (): CookieJar => {
+export const authnTestCookieJarCreate = (): CookieJar => {
 	const cookies = new Map<string, string>();
 	return {
 		get: (name: string): string | undefined => cookies.get(name),
@@ -60,6 +60,6 @@ export const authnSetCookieLine = (
 
 export type PageBody = { actor: Actor | null; expiresAt: number | null };
 
-/** The test page route's JSON: what `authnMiddleware` set. */
-export const pageBody = async (res: Response): Promise<PageBody> =>
+/** The test page route's JSON: what `authnMiddlewareCreate` set. */
+export const authnTestPageBodyRead = async (res: Response): Promise<PageBody> =>
 	(await res.json()) as PageBody;

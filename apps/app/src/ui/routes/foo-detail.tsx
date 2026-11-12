@@ -1,5 +1,5 @@
 import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
-import { idSchema } from "@n8io/baseline-id";
+import { idSchemaCreate } from "@n8io/baseline-id";
 import { useLiveUpdates } from "@n8io/baseline-live/client";
 import { useState } from "react";
 import {
@@ -38,7 +38,7 @@ const notFound = () =>
 	data({ type: "FooNotFound", message: "Foo not found" }, { status: 404 });
 
 const fooIdParse = (params: { fooId?: string | undefined }) => {
-	const parsed = idSchema("foo").safeParse(params.fooId);
+	const parsed = idSchemaCreate("foo").safeParse(params.fooId);
 	if (!parsed.success) {
 		throw notFound();
 	}

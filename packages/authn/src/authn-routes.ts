@@ -18,12 +18,12 @@ import {
 	WWWAuthenticateChallengeError,
 } from "openid-client";
 import { z } from "zod";
+import type { Authn, AuthnOidcIssuer, AuthnTokens } from "./authn.ts";
 import {
 	authnCookieClear,
 	authnCookieGet,
 	authnCookieSet,
 } from "./authn-cookie.ts";
-import type { Authn, AuthnOidcIssuer, AuthnTokens } from "./authn-create.ts";
 import { authnMemorySignInPage, authnSignInFailedPage } from "./authn-pages.ts";
 import { authnPublicUrl, authnReturnToSafe } from "./authn-return-to.ts";
 
@@ -254,8 +254,8 @@ const MemorySignIn = z.object({
 	who: z.enum(["admin", "user"]),
 });
 
-/** `/sign-in`, `/callback`, `/refresh` and `/sign-out`; mount with `app.route("/auth", authnRoutes(authn))`. */
-export const authnRoutes = (authn: Authn): Hono => {
+/** `/sign-in`, `/callback`, `/refresh` and `/sign-out`; mount with `app.route("/auth", authnRoutesCreate(authn))`. */
+export const authnRoutesCreate = (authn: Authn): Hono => {
 	const routes = new Hono();
 	const { issuer } = authn;
 	routes.use("*", async (c, next) => {

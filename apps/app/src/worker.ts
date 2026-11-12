@@ -4,16 +4,19 @@ import { healthServerCreate } from "@n8io/baseline-health";
 import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
-	consumersStart,
+	queueConsumersStart,
 	queueCreate,
-	schedulesRegister,
+	queueSchedulesRegister,
 } from "@n8io/baseline-queue";
-import { type ShutdownHandle, shutdownHandle } from "@n8io/baseline-shutdown";
+import {
+	type ShutdownHandle,
+	shutdownHandleCreate,
+} from "@n8io/baseline-shutdown";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
 } from "@n8io/baseline-telemetry";
-import { fooSchedule } from "#domains/foo/api/index.ts";
+import { fooScheduleCreate } from "#domains/foo/api/index.ts";
 import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
@@ -49,19 +52,19 @@ const fooUseCases = telemetryUseCasesTrace(
 // domain-create: use-cases
 // domain-create: bridges
 
-await consumersStart(queue, [
+await queueConsumersStart(queue, [
 	// domain-create: consumers
 ]);
-await schedulesRegister(
+await queueSchedulesRegister(
 	queue,
 	[
-		fooSchedule(fooUseCases),
+		fooScheduleCreate(fooUseCases),
 		// domain-create: schedules
 	],
 	{ env: ENV },
 );
 
-shutdown = shutdownHandle({
+shutdown = shutdownHandleCreate({
 	drainDelayMs: envLocal ? 0 : 5_000,
 	intakes: [{ close: () => queue.stop(), name: "queue" }],
 	resources: [

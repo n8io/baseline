@@ -14,7 +14,7 @@ import {
 	vi,
 } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresPoolCreate, postgresTransaction } from "./index.ts";
+import { postgresPoolCreate, postgresTransactionRun } from "./index.ts";
 
 let pgPool: pg.Pool;
 
@@ -39,9 +39,9 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("postgresTransaction", () => {
+describe("postgresTransactionRun", () => {
 	it("commits on ok, through Drizzle on the guarded client", async () => {
-		const result = await postgresTransaction(pgPool, async (pgClient) => {
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			const db = drizzle({ client: pgClient });
 			await db.execute(sql`INSERT INTO foo (name) VALUES ('one')`);
 			return ok("done");
@@ -53,7 +53,7 @@ describe("postgresTransaction", () => {
 	});
 
 	it("rolls back on err and returns it", async () => {
-		const result = await postgresTransaction(pgPool, async (pgClient) => {
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (name) VALUES ('one')");
 			return err("FooForbidden");
 		});
@@ -66,7 +66,7 @@ describe("postgresTransaction", () => {
 		const error = new Error("boom");
 
 		await expect(
-			postgresTransaction(pgPool, async (pgClient) => {
+			postgresTransactionRun(pgPool, async (pgClient) => {
 				await pgClient.query("INSERT INTO foo (name) VALUES ('one')");
 				throw error;
 			}),
@@ -76,7 +76,7 @@ describe("postgresTransaction", () => {
 	});
 
 	it("runs every query on one client in one transaction", async () => {
-		await postgresTransaction(pgPool, async (pgClient) => {
+		await postgresTransactionRun(pgPool, async (pgClient) => {
 			const first = await pgClient.query<{ id: string }>(
 				"SELECT txid_current() AS id",
 			);
@@ -90,7 +90,7 @@ describe("postgresTransaction", () => {
 
 	it("throws when the client is used after the transaction ended", async () => {
 		let leaked: pg.PoolClient | undefined;
-		await postgresTransaction(pgPool, async (pgClient) => {
+		await postgresTransactionRun(pgPool, async (pgClient) => {
 			leaked = pgClient;
 			return ok(undefined);
 		});
@@ -103,7 +103,7 @@ describe("postgresTransaction", () => {
 
 	it("closes the client before rolling back a throw, too", async () => {
 		let leaked: pg.PoolClient | undefined;
-		await postgresTransaction(pgPool, async (pgClient) => {
+		await postgresTransactionRun(pgPool, async (pgClient) => {
 			leaked = pgClient;
 			throw new Error("boom");
 		}).catch(() => undefined);
@@ -114,7 +114,7 @@ describe("postgresTransaction", () => {
 	});
 
 	it("sets transaction_timeout to 5 s by default", async () => {
-		const result = await postgresTransaction(pgPool, async (pgClient) => {
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			const { rows } = await pgClient.query<{ transaction_timeout: string }>(
 				"SHOW transaction_timeout",
 			);
@@ -128,7 +128,7 @@ describe("postgresTransaction", () => {
 		vi.spyOn(logger, "error").mockReturnValue(undefined);
 
 		await expect(
-			postgresTransaction(
+			postgresTransactionRun(
 				pgPool,
 				async (pgClient) => {
 					await pgClient.query("INSERT INTO foo (name) VALUES ('slow')");
@@ -144,10 +144,12 @@ describe("postgresTransaction", () => {
 
 	it("refuses a timeoutMs that is not a positive integer", async () => {
 		await expect(
-			postgresTransaction(pgPool, async () => ok(undefined), { timeoutMs: 0 }),
+			postgresTransactionRun(pgPool, async () => ok(undefined), {
+				timeoutMs: 0,
+			}),
 		).rejects.toThrow(new TypeError("timeoutMs must be a positive integer"));
 		await expect(
-			postgresTransaction(pgPool, async () => ok(undefined), {
+			postgresTransactionRun(pgPool, async () => ok(undefined), {
 				timeoutMs: 1.5,
 			}),
 		).rejects.toThrow(TypeError);
@@ -173,11 +175,11 @@ const fakePoolCreate = (
 	return { pgClient, pgPool, queries };
 };
 
-describe("postgresTransaction client handling", () => {
+describe("postgresTransactionRun client handling", () => {
 	it("returns a healthy client to the pool", async () => {
 		const { pgClient, pgPool, queries } = fakePoolCreate();
 
-		await postgresTransaction(pgPool, async () => ok(undefined));
+		await postgresTransactionRun(pgPool, async () => ok(undefined));
 
 		expect(queries).toEqual([
 			"BEGIN",
@@ -191,7 +193,7 @@ describe("postgresTransaction client handling", () => {
 		const { pgClient, pgPool } = fakePoolCreate(["ROLLBACK"]);
 
 		await expect(
-			postgresTransaction(pgPool, async () => {
+			postgresTransactionRun(pgPool, async () => {
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");
@@ -203,7 +205,7 @@ describe("postgresTransaction client handling", () => {
 		const { pgClient, pgPool } = fakePoolCreate();
 		const error = new Error("connection reset");
 
-		await postgresTransaction(pgPool, async () => {
+		await postgresTransactionRun(pgPool, async () => {
 			pgClient.emit("error", error);
 			return ok(undefined);
 		});
@@ -221,7 +223,7 @@ describe("postgresTransaction client handling", () => {
 		let leaked: pg.PoolClient | undefined;
 		let lateError: unknown;
 
-		await postgresTransaction(pgPool, async (pgClient) => {
+		await postgresTransactionRun(pgPool, async (pgClient) => {
 			leaked = pgClient;
 			// Read once the callback has returned and before COMMIT is sent.
 			return {

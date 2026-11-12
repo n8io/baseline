@@ -3,7 +3,7 @@
 import { createClient } from "redis";
 import { afterEach, describe, expect, inject, test, vi } from "vitest";
 import { liveHubRedisCreate } from "./index.ts";
-import { liveAppCreate, sseRead } from "./live-test-sse.ts";
+import { liveAppCreate, liveTestSseRead } from "./live-test-sse.ts";
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -40,7 +40,7 @@ describe("liveHubRedisCreate", () => {
 	test("a note published on one hub instance reaches a stream on another", async () => {
 		const serverHub = liveHubRedisCreate(await redisClientCreate());
 		const workerHub = liveHubRedisCreate(await redisClientCreate());
-		const sse = sseRead(
+		const sse = liveTestSseRead(
 			await liveAppCreate(serverHub).request("/live/foo/foo_1"),
 		);
 		await sse.until("event: ready");
@@ -77,9 +77,11 @@ describe("liveHubRedisCreate", () => {
 		expect(await subscriberCount(channel)).toBe(0);
 
 		const app = liveAppCreate(liveHub);
-		const first = sseRead(await app.request(`/live/${name}/foo_1`));
-		const second = sseRead(await app.request(`/live/${name}/foo_2`));
-		const other = sseRead(await app.request(`/live/${name}-other/foo_1`));
+		const first = liveTestSseRead(await app.request(`/live/${name}/foo_1`));
+		const second = liveTestSseRead(await app.request(`/live/${name}/foo_2`));
+		const other = liveTestSseRead(
+			await app.request(`/live/${name}-other/foo_1`),
+		);
 		await first.until("event: ready");
 		await second.until("event: ready");
 		await other.until("event: ready");
@@ -93,7 +95,7 @@ describe("liveHubRedisCreate", () => {
 	test("drops a malformed message and keeps streaming", async () => {
 		const publisher = await redisClientCreate();
 		const liveHub = liveHubRedisCreate(await redisClientCreate());
-		const sse = sseRead(
+		const sse = liveTestSseRead(
 			await liveAppCreate(liveHub).request("/live/foo/foo_1"),
 		);
 		await sse.until("event: ready");
@@ -146,10 +148,12 @@ describe("liveHubRedisCreate", () => {
 				throw new Error("Redis refused");
 			});
 
-		const failed = await sseRead(await app.request("/live/foo/foo_1")).end();
+		const failed = await liveTestSseRead(
+			await app.request("/live/foo/foo_1"),
+		).end();
 		expect(failed).toMatch(/^retry: \d+\n\n$/);
 
-		const sse = sseRead(await app.request("/live/foo/foo_1"));
+		const sse = liveTestSseRead(await app.request("/live/foo/foo_1"));
 		expect(await sse.until("event: ready")).toBe("event: ready\ndata: \n\n");
 		expect(duplicate).toHaveBeenCalledTimes(2);
 		await liveHub.close();

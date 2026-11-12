@@ -1,0 +1,4 @@
+// A23: every exported function in a Domain or package starts with its name (barNameNormalize)
+// expect: src/domains/bar/rules/bar-name-normalize.ts: nameNormalize is exported from bar; start every exported function with its package or Domain name: barNameNormalize
+// @file src/domains/bar/rules/bar-name-normalize.ts
+export const nameNormalize = (name: string): string => name.trim();

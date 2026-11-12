@@ -8,7 +8,7 @@ type PostgresIdColumnBuilder<P extends string> = PgCustomColumnBuilder<{
 }>;
 
 // A `uuid` column in the database that reads and writes prefixed ids (`foo_…`) in code.
-export const postgresIdColumn = <P extends string>(
+export const postgresIdColumnCreate = <P extends string>(
 	prefix: P,
 ): ((name?: string) => PostgresIdColumnBuilder<P>) => {
 	const column = customType<{ data: Id<P>; driverData: string }>({

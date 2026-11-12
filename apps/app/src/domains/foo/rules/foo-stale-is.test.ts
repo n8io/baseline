@@ -1,7 +1,7 @@
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import type { Foo } from "../models/foo.ts";
-import { FOO_STALE_DAYS, fooStale, fooStaleBefore } from "./foo-stale.ts";
+import { FOO_STALE_DAYS, fooStaleBefore, fooStaleIs } from "./foo-stale-is.ts";
 
 const now = new Date("2026-06-01T00:00:00Z");
 const fooAt = (updatedAt: Date, archivedAt: Date | null = null): Foo => ({
@@ -20,20 +20,20 @@ describe("fooStaleBefore", () => {
 	});
 });
 
-describe("fooStale", () => {
+describe("fooStaleIs", () => {
 	it("is stale just over 30 days old", () => {
-		expect(fooStale(fooAt(msBefore(30 * 86_400_000 + 1)), now)).toBe(true);
+		expect(fooStaleIs(fooAt(msBefore(30 * 86_400_000 + 1)), now)).toBe(true);
 	});
 
 	it("is not stale at exactly 30 days", () => {
-		expect(fooStale(fooAt(msBefore(30 * 86_400_000)), now)).toBe(false);
+		expect(fooStaleIs(fooAt(msBefore(30 * 86_400_000)), now)).toBe(false);
 	});
 
 	it("is not stale when recent", () => {
-		expect(fooStale(fooAt(now), now)).toBe(false);
+		expect(fooStaleIs(fooAt(now), now)).toBe(false);
 	});
 
 	it("is not stale when already archived", () => {
-		expect(fooStale(fooAt(msBefore(90 * 86_400_000), now), now)).toBe(false);
+		expect(fooStaleIs(fooAt(msBefore(90 * 86_400_000), now), now)).toBe(false);
 	});
 });

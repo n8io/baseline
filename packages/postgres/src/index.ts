@@ -3,9 +3,9 @@ export {
 	postgresCursorDecode,
 	postgresCursorEncode,
 } from "./postgres-cursor.ts";
-export { postgresIdColumn } from "./postgres-id-column.ts";
+export { postgresIdColumnCreate } from "./postgres-id-column.ts";
 export { postgresMigrate } from "./postgres-migrate.ts";
-export { postgresPoolCreate } from "./postgres-pool-create.ts";
+export { postgresPoolCreate } from "./postgres-pool.ts";
 export { postgresPortsGuard } from "./postgres-ports-guard.ts";
-export { postgresTransaction } from "./postgres-transaction.ts";
-export { postgresUniqueViolation } from "./postgres-unique-violation.ts";
+export { postgresTransactionRun } from "./postgres-transaction-run.ts";
+export { postgresUniqueViolationIs } from "./postgres-unique-violation-is.ts";

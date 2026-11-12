@@ -1,24 +1,24 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { appCreate } from "./authn-test-app.ts";
+import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
-	actorFromClaims,
 	appOrigin,
 	authnSetCookieLine,
+	authnTestActorFromClaims,
+	authnTestCookieJarCreate,
+	authnTestPageBodyRead,
 	type CookieJar,
-	cookieJar,
-	pageBody,
 	secret,
 } from "./authn-test-helpers.ts";
 import {
+	authnTestOidcProviderCreate,
 	type FakeProvider,
-	fakeProviderCreate,
 	idpOrigin,
 } from "./authn-test-oidc-provider.ts";
 
 const oidcOptions = {
-	actorFromClaims,
+	actorFromClaims: authnTestActorFromClaims,
 	audience: "api",
 	clientId: "app-client",
 	clientSecret: "app-secret",
@@ -29,7 +29,7 @@ const oidcOptions = {
 let provider: FakeProvider;
 
 beforeEach(async () => {
-	provider = await fakeProviderCreate(oidcOptions.clientId);
+	provider = await authnTestOidcProviderCreate(oidcOptions.clientId);
 	const realFetch = globalThis.fetch;
 	vi.stubGlobal(
 		"fetch",
@@ -50,7 +50,7 @@ afterEach(() => {
 });
 
 const signInStart = async (app: Hono, returnTo = "/foos") => {
-	const jar = cookieJar();
+	const jar = authnTestCookieJarCreate();
 	const res = await app.request(
 		`${appOrigin}/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
 	);
@@ -72,7 +72,7 @@ const signIn = async (app: Hono) => {
 
 describe("OIDC sign-in", () => {
 	it("redirects to the provider with PKCE, state, nonce and offline_access", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, res } = await signInStart(app);
 		const params = new URL(authorizeUrl).searchParams;
 
@@ -89,7 +89,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("scopes the flow cookie to /auth/callback for 10 minutes", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { res } = await signInStart(app);
 		const line = authnSetCookieLine(res, "__Secure-authn-flow");
 
@@ -101,7 +101,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("passes authorizeParams, such as Auth0's audience", async () => {
-		const { app } = await appCreate({
+		const { app } = await authnTestAppCreate({
 			...oidcOptions,
 			authorizeParams: { audience: "https://api.example" },
 		});
@@ -113,7 +113,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("builds the https redirect_uri behind a TLS proxy", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const res = await app.request("http://app.test/auth/sign-in", {
 			headers: { "X-Forwarded-Proto": "https" },
 		});
@@ -126,7 +126,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("exchanges the code, sets both cookies, clears the flow cookie and returns", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar, res } = await signIn(app);
 
 		expect(res.status).toBe(302);
@@ -135,7 +135,7 @@ describe("OIDC sign-in", () => {
 		const page = await app.request(`${appOrigin}/foos`, {
 			headers: { Cookie: jar.header() },
 		});
-		expect((await pageBody(page)).actor).toStrictEqual({
+		expect((await authnTestPageBodyRead(page)).actor).toStrictEqual({
 			id: "user-1",
 			kind: "user",
 			scopes: ["foo:read"],
@@ -143,7 +143,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("shows the failure page when state does not match", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, jar } = await signInStart(app);
 		const code = provider.authorize(authorizeUrl);
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
@@ -160,7 +160,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("shows the failure page when the provider refuses", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, jar } = await signInStart(app);
 		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
@@ -174,7 +174,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("shows the failure page without the flow cookie", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const res = await app.request(`${appOrigin}/auth/callback?code=x&state=y`);
 
 		expect(res.status).toBe(400);
@@ -182,7 +182,7 @@ describe("OIDC sign-in", () => {
 
 	it("refuses an access token for another audience", async () => {
 		provider.options.accessAudience = "someone-else";
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { res } = await signIn(app);
 
 		expect(res.status).toBe(400);
@@ -190,7 +190,7 @@ describe("OIDC sign-in", () => {
 	});
 
 	it("clears an earlier user's refresh cookie when the new sign-in gets none", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.options.noRefreshToken = true;
 		const { authorizeUrl, jar: secondJar } = await signInStart(app);
@@ -210,7 +210,7 @@ describe("OIDC sign-in", () => {
 
 describe("OIDC bearer tokens", () => {
 	it("verifies a provider token through the remote JWKS", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const res = await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${await provider.accessToken()}` },
 		});
@@ -238,7 +238,7 @@ describe("OIDC bearer tokens", () => {
 	])(
 		"answers 500, not 401, when the provider's JWKS %s",
 		async (_, breakJwks) => {
-			const { app } = await appCreate(oidcOptions);
+			const { app } = await authnTestAppCreate(oidcOptions);
 			const token = await provider.accessToken();
 			breakJwks();
 			const logError = vi
@@ -267,7 +267,7 @@ const refreshGet = (app: Hono, jar: CookieJar, query = "") =>
 
 describe("OIDC refresh", () => {
 	it("refreshes with the refresh token and stores the rotated one", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
 		nearExpiry();
@@ -282,7 +282,7 @@ describe("OIDC refresh", () => {
 	});
 
 	it("answers without a grant while the access cookie has over a minute left", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
 		const res = await refreshGet(app, jar);
@@ -296,7 +296,7 @@ describe("OIDC refresh", () => {
 
 	it("keeps the refresh token when the provider does not rotate", async () => {
 		provider.options.rotate = false;
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		nearExpiry();
 		const first = await refreshGet(app, jar);
@@ -310,7 +310,7 @@ describe("OIDC refresh", () => {
 	});
 
 	it("sends the user to sign-in when the provider refuses, leaving the cookies to another tab", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.refreshTokens.clear();
 		nearExpiry();
@@ -321,7 +321,7 @@ describe("OIDC refresh", () => {
 	});
 
 	it("keeps the rotated refresh token when checking the new access token fails", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		// Past the JWKS cache's 10 minutes, so verifying the new token fetches the key set again.
 		vi.useFakeTimers({ now: Date.now() + 11 * 60_000, toFake: ["Date"] });
@@ -353,7 +353,7 @@ describe("OIDC refresh", () => {
 	])(
 		"answers 500 rather than signing out when the provider %s",
 		async (_, breakProvider) => {
-			const { app } = await appCreate(oidcOptions);
+			const { app } = await authnTestAppCreate(oidcOptions);
 			const { jar } = await signIn(app);
 			nearExpiry();
 			breakProvider();
@@ -371,7 +371,7 @@ describe("OIDC refresh", () => {
 
 describe("OIDC sign-out", () => {
 	it("revokes the refresh token, clears both cookies and redirects to end_session", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const refreshToken = [...provider.refreshTokens][0];
 		const res = await app.request(`${appOrigin}/auth/sign-out`, {
@@ -395,7 +395,7 @@ describe("OIDC sign-out", () => {
 	});
 
 	it("still signs out locally when revocation fails", async () => {
-		const { app } = await appCreate(oidcOptions);
+		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.options.revokeFails = true;
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
@@ -413,12 +413,12 @@ describe("authnCreate with a provider", () => {
 	it("throws when the provider cannot be discovered, stopping startup", async () => {
 		provider.options.down = true;
 
-		await expect(appCreate(oidcOptions)).rejects.toThrow();
+		await expect(authnTestAppCreate(oidcOptions)).rejects.toThrow();
 	});
 
 	it("refuses authnMemoryTokenCreate", async () => {
 		const { authnMemoryTokenCreate } = await import("./index.ts");
-		const { authn } = await appCreate(oidcOptions);
+		const { authn } = await authnTestAppCreate(oidcOptions);
 
 		await expect(
 			authnMemoryTokenCreate(authn, { id: "x", kind: "user", scopes: [] }),

@@ -1,10 +1,10 @@
+export { type Queue, queueCreate } from "./queue.ts";
 export {
 	type Consumer,
-	consumerCreate,
-	consumersStart,
-	consumersSubscribe,
-} from "./consumer.ts";
-export { type Queue, queueCreate } from "./queue-create.ts";
+	queueConsumerCreate,
+	queueConsumersStart,
+	queueConsumersSubscribe,
+} from "./queue-consumer.ts";
 export {
 	type QueueEvents,
 	queueEventsMemoryCreate,
@@ -15,7 +15,7 @@ export { queueJobRun } from "./queue-job-run.ts";
 export { queueMigrate } from "./queue-migrate.ts";
 export { queueRetryLimit } from "./queue-retry.ts";
 export {
+	queueScheduleCreate,
+	queueSchedulesRegister,
 	type Schedule,
-	scheduleCreate,
-	schedulesRegister,
-} from "./schedule.ts";
+} from "./queue-schedule.ts";

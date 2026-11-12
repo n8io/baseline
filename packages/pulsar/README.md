@@ -31,17 +31,17 @@ How it differs from the queue package:
    ```ts
    import { type Pulsar, pulsarEventsCreate } from "@n8io/baseline-pulsar";
 
-   export const fooTransactionPostgres = (pgPool: pg.Pool, pulsar: Pulsar): FooTransaction =>
+   export const fooTransactionPostgresCreate = (pgPool: pg.Pool, pulsar: Pulsar): FooTransaction =>
      (async (work, inbox) => {
        const fooEvents = pulsarEventsCreate<FooEventMap>(pulsar);
-       const result = await postgresTransaction(pgPool, async (pgClient) => {
+       const result = await postgresTransactionRun(pgPool, async (pgClient) => {
          if (inbox && !(await queueInboxInsert(pgClient, inbox))) return ok(undefined);
          let open = true;
          const isOpen = (): boolean => open;
          try {
            return await work({
              fooEvents: postgresPortsGuard(fooEvents, isOpen),
-             fooRepository: postgresPortsGuard(fooRepositoryPostgres(drizzle({ client: pgClient })), isOpen),
+             fooRepository: postgresPortsGuard(fooRepositoryPostgresCreate(drizzle({ client: pgClient })), isOpen),
            });
          } finally {
            open = false;
@@ -63,11 +63,11 @@ How it differs from the queue package:
    ```
 
    `stop()` is an intake: it stops receiving and lets running Consumers finish. `close()` is a resource: it flushes what was sent and closes the client, so list it before `database`, after every intake that may still send.
-   - `src/server.ts`: replace `consumersSubscribe(queue, [...])` with `pulsarConsumersSubscribe(pulsar, [...])`, so the subscriptions exist before the first send. Drop `queueCreate`: the server used the Queue only to publish. Replace the `queue` resource and the `queue.stop()` in `serverDevClose` with `pulsar.close()`.
-   - `src/worker.ts`: replace `consumersStart(queue, [...])` with `pulsarConsumersStart(pulsar, [...])`. Keep `queueCreate` and `schedulesRegister` for Schedules and inbox pruning, and pass both to the ports. Check both in `/livez` (`queue.isAlive() && pulsar.isAlive()`), add `pulsar.stop()` to the intakes beside `queue.stop()`, and `pulsar.close()` to the resources.
+   - `src/server.ts`: replace `queueConsumersSubscribe(queue, [...])` with `pulsarConsumersSubscribe(pulsar, [...])`, so the subscriptions exist before the first send. Drop `queueCreate`: the server used the Queue only to publish. Replace the `queue` resource and the `queue.stop()` in `serverDevClose` with `pulsar.close()`.
+   - `src/worker.ts`: replace `queueConsumersStart(queue, [...])` with `pulsarConsumersStart(pulsar, [...])`. Keep `queueCreate` and `queueSchedulesRegister` for Schedules and inbox pruning, and pass both to the ports. Check both in `/livez` (`queue.isAlive() && pulsar.isAlive()`), add `pulsar.stop()` to the intakes beside `queue.stop()`, and `pulsar.close()` to the resources.
    - `src/seed.ts`: create the client in place of the Queue, pass it to the ports, and `close()` it where the seed now calls `queue.stop()`.
 
-   Consumers are built with the queue package's `consumerCreate`, unchanged.
+   Consumers are built with the queue package's `queueConsumerCreate`, unchanged.
 
 5. **Local broker.** Add Pulsar to `compose.yaml` and set `PULSAR_URL=pulsar://localhost:6650` in `.env`:
 

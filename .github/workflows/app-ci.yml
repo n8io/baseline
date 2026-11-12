@@ -1,10 +1,10 @@
 # The CI every project made from baseline calls, as `ci / <job>` checks:
 #   jobs:
 #     ci:
-#       uses: n8io/baseline/.github/workflows/app-ci.yml@v2
-# v2 needs no token: the @n8io/baseline-* packages install from npmjs. Callers grant `contents: read`.
+#       uses: n8io/baseline/.github/workflows/app-ci.yml@v3
+# v3 needs no token: the @n8io/baseline-* packages install from npmjs. Callers grant `contents: read`.
 # Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
-# A change that adds a failing check ships as the next major (v3), never inside v2.
+# A change that adds a failing check ships as the next major (v4), never inside v3.
 name: app-ci
 
 on:

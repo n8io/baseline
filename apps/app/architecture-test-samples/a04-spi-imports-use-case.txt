@@ -4,4 +4,4 @@
 import type { BarRepository } from "../ports.ts";
 import { barGet } from "../use-cases/bar-get.ts";
 
-export const barRepositoryPostgres = (): BarRepository => ({ get: barGet });
+export const barRepositoryPostgresCreate = (): BarRepository => ({ get: barGet });

@@ -7,7 +7,7 @@ import {
 	FooNameTakenError,
 	FooNotFoundError,
 } from "../foo-errors.ts";
-import { fooPortsMemory } from "../spi/foo-ports.memory.ts";
+import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooCreate } from "./foo-create.ts";
 import { fooGet } from "./foo-get.ts";
 import { fooUpdate } from "./foo-update.ts";
@@ -16,7 +16,7 @@ const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
 
 const setup = async () => {
-	const memory = fooPortsMemory();
+	const memory = fooPortsMemoryCreate();
 	const created = await fooCreate(memory.ports)(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
 	return { ...memory, foo: created.value };

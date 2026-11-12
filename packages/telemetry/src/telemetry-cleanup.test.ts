@@ -9,12 +9,12 @@ const canary = "jane@example.com";
 const stack = [
 	`DrizzleQueryError: Failed query: insert into foo values ($1)`,
 	`params: ${canary}`,
-	"    at fooRepositoryPostgres.insert (foo-repository.postgres.ts:41:7)",
+	"    at fooRepositoryPostgresCreate.insert (foo-repository.postgres.ts:41:7)",
 	"    at fooCreate (foo-create.ts:12:3)",
 ].join("\n");
 const message = `Failed query: insert into foo values ($1)\nparams: ${canary}`;
 const frames = [
-	"at fooRepositoryPostgres.insert (foo-repository.postgres.ts:41:7)",
+	"at fooRepositoryPostgresCreate.insert (foo-repository.postgres.ts:41:7)",
 	"at fooCreate (foo-create.ts:12:3)",
 ].join("\n");
 

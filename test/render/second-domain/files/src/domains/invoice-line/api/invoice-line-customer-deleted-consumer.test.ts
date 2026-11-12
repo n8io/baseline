@@ -1,12 +1,12 @@
 import { idCreate } from "@n8io/baseline-id";
 import { ok } from "@n8io/baseline-result";
 import { describe, expect, it, vi } from "vitest";
-import type { InvoiceLineUseCases } from "../use-cases/invoice-line-use-cases-create.ts";
-import { invoiceLineCustomerDeletedConsumer } from "./invoice-line-customer-deleted-consumer.ts";
+import type { InvoiceLineUseCases } from "../use-cases/invoice-line-use-cases.ts";
+import { invoiceLineCustomerDeletedConsumerCreate } from "./invoice-line-customer-deleted-consumer.ts";
 
-describe("invoiceLineCustomerDeletedConsumer", () => {
+describe("invoiceLineCustomerDeletedConsumerCreate", () => {
 	const invoiceLineCustomerClear = vi.fn(async () => ok(undefined));
-	const consumer = invoiceLineCustomerDeletedConsumer({
+	const consumer = invoiceLineCustomerDeletedConsumerCreate({
 		invoiceLineCustomerClear,
 	} as unknown as InvoiceLineUseCases);
 

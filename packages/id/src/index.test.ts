@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { type Id, idCreate, idFromUuid, idSchema, idToUuid } from "./index.ts";
+import {
+	type Id,
+	idCreate,
+	idFromUuid,
+	idSchemaCreate,
+	idToUuid,
+} from "./index.ts";
 
 // Vectors from the TypeID spec's valid.yml, with a `foo` prefix where the spec has none.
 const vectors: [Id<string>, string][] = [
@@ -92,10 +98,10 @@ describe("idToUuid and idFromUuid", () => {
 	});
 });
 
-describe("idSchema", () => {
+describe("idSchemaCreate", () => {
 	test("accepts an id with its prefix", () => {
 		const id = idCreate("foo");
-		expect(idSchema("foo").parse(id)).toBe(id);
+		expect(idSchemaCreate("foo").parse(id)).toBe(id);
 	});
 
 	test.each([
@@ -105,10 +111,10 @@ describe("idSchema", () => {
 		["a bare UUID", "01890a5d-ac96-774b-bcce-b302099a8057"],
 		["a number", 42],
 	])("rejects %s", (_name, value) => {
-		expect(idSchema("foo").safeParse(value).success).toBe(false);
+		expect(idSchemaCreate("foo").safeParse(value).success).toBe(false);
 	});
 
 	test("rejects a bad prefix", () => {
-		expect(() => idSchema("foo-bar")).toThrow(TypeError);
+		expect(() => idSchemaCreate("foo-bar")).toThrow(TypeError);
 	});
 });

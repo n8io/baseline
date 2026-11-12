@@ -11,7 +11,7 @@ import {
 	SpanStatusCode,
 } from "@opentelemetry/api";
 import type PulsarClient from "pulsar-client";
-import { type Pulsar, type PulsarState, pulsarState } from "./pulsar-create.ts";
+import { type Pulsar, type PulsarState, pulsarState } from "./pulsar.ts";
 import {
 	pulsarEventIdProperty,
 	pulsarPropagator,

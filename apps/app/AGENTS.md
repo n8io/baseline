@@ -41,27 +41,34 @@ When a budget trips, decide again deliberately: make the code faster or set a ne
 One Domain per business entity.
 Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 
-| Kind of work                                                         | File                                     |
-| -------------------------------------------------------------------- | ---------------------------------------- |
-| Entry: re-exports what outside code may use, and the Domain's scopes | `index.ts`                               |
-| Port types                                                           | `ports.ts`                               |
-| Domain errors                                                        | `<domain>-errors.ts`                     |
-| Models (Zod schema and inferred type), input Models, Event schemas   | `models/<domain>.ts`                     |
-| Rules (pure functions over Models, one per file, with a test)        | `rules/<domain>-<rule>.ts`               |
-| One Use case per file, with a test on memory adapters                | `use-cases/<domain>-<verb>.ts`           |
-| Use cases factory and its type                                       | `use-cases/<domain>-use-cases-create.ts` |
-| HTTP routes, live streams, Consumers, Schedules, Seeds               | `api/`                                   |
-| Port implementations, tables, contract tests                         | `spi/`                                   |
-| A unit test of one file, beside it                                   | `<file>.test.ts`                         |
+| Kind of work                                                         | File                              |
+| -------------------------------------------------------------------- | --------------------------------- |
+| Entry: re-exports what outside code may use, and the Domain's scopes | `index.ts`                        |
+| Port types                                                           | `ports.ts`                        |
+| Domain errors                                                        | `<domain>-errors.ts`              |
+| Models (Zod schema and inferred type), input Models, Event schemas   | `models/<domain>.ts`              |
+| Rules (pure functions over Models, one per file, with a test)        | `rules/<domain>-<rule>.ts`        |
+| One Use case per file, with a test on memory adapters                | `use-cases/<domain>-<verb>.ts`    |
+| Use cases factory and its type                                       | `use-cases/<domain>-use-cases.ts` |
+| HTTP routes, live streams, Consumers, Schedules, Seeds               | `api/`                            |
+| Port implementations, tables, contract tests                         | `spi/`                            |
+| A unit test of one file, beside it                                   | `<file>.test.ts`                  |
 
 - Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
 - The Domain never imports `api/` or `spi/`. Composition roots wire them.
 - A Use case applies Rules. The API and the SPI hold no business rules.
-- Name things generic to specific: the scope (Domain, package or area), then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `fooRepositoryPostgres`). An exported name never starts with a verb; architecture rule A23 checks it.
-  - A function that builds and returns a thing ends in `Create`. A predicate ends in `Is`, `Has` or `Can` (`authnDataRequestIs`).
-  - `Error`, `Repository`, `Schema` and adapter names (`Memory`, `Postgres`, `Redis`) come last.
-  - A file is named as its main export, in kebab case: `foo-create.ts` exports `fooCreate`.
-  - Exempt: React hooks (`use…`) and components; React Router's own export names (`loader`, `action`, `handleError`); names imported from a library stay as the library spells them.
+- Name things generic to specific: the scope, then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `fooRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
+  - An exported name never starts with a verb.
+  - Every exported function in a package starts with the package's name, and in a Domain with the Domain's name (`queueConsumerCreate`, `fooStaleIs`).
+  - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `fooRepositoryPostgresCreate`, `idSchemaCreate`.
+  - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `fooDeleteCan`, `postgresUniqueViolationIs`.
+  - A file is named as its main export in kebab case, without a factory's `Create`: `foo-routes.ts` exports `fooRoutesCreate`, `foo-stale-is.ts` exports `fooStaleIs`.
+  - Exceptions, each for a reason:
+    - A Use case file exports the Use case under its own name: `foo-create.ts` exports `fooCreate(ports)`, which returns the Use case. The name is the business verb, not a factory.
+    - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`. It maps one value to another.
+    - `ok` and `err` in the result package are unscoped, because every module calls them.
+    - Types and glossary-term schemas (`Actor`, `Foo`) are not functions.
+    - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 

@@ -14,8 +14,8 @@ const billingOrderPlacedConsumerActor: Actor = {
 	kind: "client",
 	scopes: ["billing:invoice-create"],
 };
-export const billingOrderPlacedConsumer = (u: BillingUseCases) =>
-	consumerCreate(
+export const billingOrderPlacedConsumerCreate = (u: BillingUseCases) =>
+	queueConsumerCreate(
 		"billing.order-placed",
 		"order.placed",
 		orderPlaced,
@@ -52,7 +52,7 @@ const billingCustomerBridgeActor: Actor = {
 	kind: "client",
 	scopes: [],
 };
-export const billingCustomerReader = (
+export const billingCustomerReaderCreate = (
 	customer: CustomerUseCases,
 ): BillingCustomerReader => ({
 	get: async (id) => {

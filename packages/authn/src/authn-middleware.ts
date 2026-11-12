@@ -1,14 +1,14 @@
 import { trace } from "@opentelemetry/api";
 import type { Context, MiddlewareHandler } from "hono";
 import type { Actor } from "./actor.ts";
+import type { Authn, AuthnVerified } from "./authn.ts";
 import { authnCookieClear, authnCookieGet } from "./authn-cookie.ts";
-import type { Authn, AuthnVerified } from "./authn-create.ts";
 import { AuthnInvalidError } from "./authn-errors.ts";
 import { authnDataRequestIs, authnPagePath } from "./authn-return-to.ts";
 
 declare module "hono" {
 	interface ContextVariableMap {
-		/** The signed-in actor, or `undefined`; set only by `authnMiddleware`. */
+		/** The signed-in actor, or `undefined`; set only by `authnMiddlewareCreate`. */
 		actor: Actor | undefined;
 		/** When the access token expires, in epoch ms. */
 		authnExpiresAt: number | undefined;
@@ -98,7 +98,7 @@ const cookieMiddleware =
  * `"bearer"` throws `AuthnInvalidError` (401), `"cookie"` clears the cookies and redirects to
  * sign-in. A page GET with an expiring cookie token redirects to `/auth/refresh` first.
  */
-export const authnMiddleware = (
+export const authnMiddlewareCreate = (
 	authn: Authn,
 	options: { source: "bearer" | "cookie" },
 ): MiddlewareHandler =>

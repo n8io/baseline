@@ -1,6 +1,6 @@
 // True when `error` or any error in its `.cause` chain is a Postgres unique violation (23505) on
 // `constraint`. Drizzle wraps driver errors in DrizzleQueryError, so the pg error is a cause.
-export const postgresUniqueViolation = (
+export const postgresUniqueViolationIs = (
 	error: unknown,
 	constraint: string,
 ): boolean => {

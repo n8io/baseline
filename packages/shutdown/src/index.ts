@@ -41,7 +41,7 @@ const stepClose = async (
 
 // Owns SIGTERM, SIGINT, uncaughtException and unhandledRejection, and exits the
 // process: 0 when every step closed in time, 1 otherwise or after a crash.
-export const shutdownHandle = ({
+export const shutdownHandleCreate = ({
 	deadlineMs = 25_000,
 	drainDelayMs = 5000,
 	intakes,

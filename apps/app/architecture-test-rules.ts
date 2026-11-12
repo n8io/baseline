@@ -163,14 +163,37 @@ const sameDomainParts = (
 ): string[] | undefined =>
 	domain && domainOf(imp.target) === domain ? partsOf(imp.target) : undefined;
 
-// The leading verbs A23 bans in an exported name. React Router's own export names are exempt.
+// A23 reads every exported function. React Router's own export names, React hooks and
+// components are exempt from all of it; `ok` and `err` are the result package's two constructors.
 const leadingVerbs =
 	"add|build|calculate|can|check|clear|close|compute|connect|convert|create|delete|fetch|find|format|get|handle|has|init|is|list|load|make|open|parse|read|register|remove|render|reset|run|save|send|set|should|sign|start|stop|update|validate|wait|write";
-const frameworkNames = new Set(["handleError"]);
+const frameworkNames = new Set(["action", "handleError", "links", "loader"]);
+const unscopedNames = new Set(["err", "ok"]);
+const exemptIs = (name: string): boolean =>
+	frameworkNames.has(name) || /^[A-Z]|^use[A-Z]/.test(name);
 const exportedVerbFirst = new RegExp(
 	`^export (?:const|let|function|async function) ((${leadingVerbs})([A-Z0-9]\\w*))`,
 	"gm",
 );
+// `export const x = (…) =>`, `export const x: T = async <G>(…) =>` and `export function x(…)`.
+const exportedFunction =
+	/^export (?:const (\w+)(?:\s*:[^=]*)?\s*=\s*(?:async\s*)?(?:<[^=;]*?>\s*)?\(|(?:async )?function (\w+))/gm;
+// The same, up to an explicit `boolean` or type-predicate return.
+const exportedPredicate =
+	/^export (?:const (\w+)(?:\s*:[^=]*)?\s*=\s*(?:async\s*)?|(?:async )?function (\w+)\s*)(?:<[^=;]*?>\s*)?\((?:[^()]|\([^()]*\))*\)\s*:\s*(?:boolean\b|\w+ is\b)/gm;
+// A function named after the thing it returns builds that thing, so it ends in Create. A const
+// typed as the thing (`httpErrorHandle: ErrorHandler = (…) =>`) is the thing, not its factory.
+const exportedUntypedFunction =
+	/^export (?:const (\w+)\s*=\s*(?:async\s*)?(?:<[^=;]*?>\s*)?\(|(?:async )?function (\w+))/gm;
+const thingWords =
+	/(Body|Cache|Column|Consumer|Handle|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
+// The scope a file's exports start with: its package (packages/<name>/src) or Domain.
+const scopeOf = (p: string): string | undefined => {
+	const pkg = /^packages\/([^/]+)\/src\//.exec(p)?.[1];
+	const domain = /(?:^|\/)src\/domains\/([^/]+)\//.exec(p)?.[1];
+	const scope = pkg ?? domain;
+	return scope ? camel(scope) : undefined;
+};
 
 export const architectureRules: Record<string, ArchitectureRule> = {
 	A1: (files) =>
@@ -630,14 +653,51 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		),
 	],
 
-	A23: (files) =>
-		textCheck(
+	A23: (files) => [
+		...textCheck(
 			files,
 			() => true,
 			exportedVerbFirst,
 			([, name = "", verb = "", rest = ""]) =>
-				frameworkNames.has(name)
+				exemptIs(name)
 					? undefined
 					: `${name} starts with a verb; name it generic to specific, scope then subject then action: ${rest.charAt(0).toLowerCase()}${rest.slice(1)}${verb.charAt(0).toUpperCase()}${verb.slice(1)}`,
 		),
+		...textCheck(
+			files,
+			() => true,
+			exportedUntypedFunction,
+			([, constName, functionName]) => {
+				const name = constName ?? functionName ?? "";
+				return !exemptIs(name) && thingWords.test(name)
+					? `${name} builds and returns a thing; a factory ends in Create: ${name}Create`
+					: undefined;
+			},
+		),
+		...textCheck(
+			files,
+			() => true,
+			exportedPredicate,
+			([, constName, functionName]) => {
+				const name = constName ?? functionName ?? "";
+				return !exemptIs(name) && !/(Is|Has|Can)$/.test(name)
+					? `${name} returns a boolean; a predicate ends in Is, Has or Can (fooDeleteCan, fooStaleIs)`
+					: undefined;
+			},
+		),
+		...textCheck(
+			files,
+			(f) => !testIs(f.path) && scopeOf(f.path) !== undefined,
+			exportedFunction,
+			([, constName, functionName], f) => {
+				const name = constName ?? functionName ?? "";
+				const scope = scopeOf(f.path) ?? "";
+				return exemptIs(name) ||
+					unscopedNames.has(name) ||
+					new RegExp(`^${scope}(?:[A-Z0-9]|$)`).test(name)
+					? undefined
+					: `${name} is exported from ${scope}; start every exported function with its package or Domain name: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+			},
+		),
+	],
 };

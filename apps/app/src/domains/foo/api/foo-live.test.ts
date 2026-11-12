@@ -5,7 +5,7 @@ import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { afterEach, describe, expect, it } from "vitest";
 import { fooUseCasesCreate } from "../index.ts";
 import { fooPortsCreate } from "../spi/index.ts";
-import { fooLiveRoutes } from "./foo-live.ts";
+import { fooLiveRoutesCreate } from "./foo-live.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 
@@ -34,7 +34,7 @@ const setup = (
 		c.set("authnExpiresAt", options.expiresAt);
 		await next();
 	});
-	app.route("/live/foo", fooLiveRoutes(useCases, liveHub));
+	app.route("/live/foo", fooLiveRoutesCreate(useCases, liveHub));
 	return { app, useCases };
 };
 

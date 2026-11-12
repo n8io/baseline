@@ -3,8 +3,8 @@ import type { Server } from "node:http";
 import {
 	authnActorRequire,
 	authnCreate,
-	authnMiddleware,
-	authnRoutes,
+	authnMiddlewareCreate,
+	authnRoutesCreate,
 } from "@n8io/baseline-authn";
 import { cacheRedisClientCreate } from "@n8io/baseline-cache";
 import { healthServerCreate } from "@n8io/baseline-health";
@@ -20,8 +20,11 @@ import {
 import { liveHubMemoryCreate, liveHubRedisCreate } from "@n8io/baseline-live";
 import { logger } from "@n8io/baseline-logger";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { consumersSubscribe, queueCreate } from "@n8io/baseline-queue";
-import { type ShutdownHandle, shutdownHandle } from "@n8io/baseline-shutdown";
+import { queueConsumersSubscribe, queueCreate } from "@n8io/baseline-queue";
+import {
+	type ShutdownHandle,
+	shutdownHandleCreate,
+} from "@n8io/baseline-shutdown";
 import {
 	telemetryShutdown,
 	telemetryUseCasesTrace,
@@ -29,8 +32,11 @@ import {
 import { bodyLimit } from "hono/body-limit";
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
-import { actorFromClaims, authnProviderOptions } from "#authn";
-import { fooLiveRoutes, fooRoutes } from "#domains/foo/api/index.ts";
+import { actorFromClaims, authnProviderOptionsCreate } from "#authn";
+import {
+	fooLiveRoutesCreate,
+	fooRoutesCreate,
+} from "#domains/foo/api/index.ts";
 import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV, envLocal } from "#env";
@@ -94,13 +100,13 @@ if (ENV.APP_ENV === "development" && pgPool === "memory") {
 
 // Creates queues and subscriptions; consumers run only in the worker.
 if (queue !== "memory") {
-	await consumersSubscribe(queue, [
+	await queueConsumersSubscribe(queue, [
 		// domain-create: consumers
 	]);
 }
 
 const authn = await authnCreate({
-	...authnProviderOptions(ENV),
+	...authnProviderOptionsCreate(ENV),
 	actorFromClaims,
 	memoryAdminScopes: [
 		...fooScopes,
@@ -117,8 +123,11 @@ app.use(httpSecureHeaders);
 app.use("/api/*", bodyLimit({ maxSize: 1024 * 1024 }));
 // Cookies ride along on a cross-site request, so cookie routes refuse one; /api uses bearer tokens.
 app.use("*", except(["/api/*"], httpCsrf));
-app.use("*", except(["/api/*"], authnMiddleware(authn, { source: "cookie" })));
-app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
+app.use(
+	"*",
+	except(["/api/*"], authnMiddlewareCreate(authn, { source: "cookie" })),
+);
+app.use("/api/v1/*", authnMiddlewareCreate(authn, { source: "bearer" }));
 // No Actor, no API: an anonymous request gets 401 before any route validates its input.
 app.use(
 	"/api/v1/*",
@@ -127,10 +136,10 @@ app.use(
 		await next();
 	}),
 );
-app.route("/auth", authnRoutes(authn));
-app.route("/api/v1/foos", fooRoutes(fooUseCases));
+app.route("/auth", authnRoutesCreate(authn));
+app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));
 // domain-create: routes
-app.route("/live/foo", fooLiveRoutes(fooUseCases, liveHub));
+app.route("/live/foo", fooLiveRoutesCreate(fooUseCases, liveHub));
 // domain-create: live
 app.doc31("/api/v1/openapi.json", {
 	info: { title: "app", version: "1" },
@@ -157,7 +166,7 @@ export default await createHonoServer({
 	onServe: (server) => {
 		// Development: Vite owns the server and Ctrl-C.
 		if (!import.meta.env.PROD) return health.ready();
-		shutdown = shutdownHandle({
+		shutdown = shutdownHandleCreate({
 			drainDelayMs: envLocal ? 0 : 5_000,
 			intakes: [
 				{ close: () => httpServerClose(server as Server), name: "http" },

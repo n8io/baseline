@@ -29,7 +29,7 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-  # Third-party actions pinned by SHA, and major bumps of app-ci.yml (v2 to v3).
+  # Third-party actions pinned by SHA, and major bumps of app-ci.yml (v3 to v4).
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -17,7 +17,10 @@ pnpm add @n8io/baseline-health
 
 ```ts
 import { healthServerCreate } from "@n8io/baseline-health";
-import { type ShutdownHandle, shutdownHandle } from "@n8io/baseline-shutdown";
+import {
+	type ShutdownHandle,
+	shutdownHandleCreate,
+} from "@n8io/baseline-shutdown";
 
 let shutdown: ShutdownHandle | undefined;
 const health = healthServerCreate({
@@ -27,7 +30,7 @@ const health = healthServerCreate({
 });
 
 // Once every intake listens:
-shutdown = shutdownHandle({
+shutdown = shutdownHandleCreate({
 	intakes,
 	resources: [...resources, { close: () => health.close(), name: "health" }],
 });

@@ -7,12 +7,12 @@ import {
 	type AuthnOptions,
 	authnActorRequire,
 	authnCreate,
-	authnMiddleware,
-	authnRoutes,
+	authnMiddlewareCreate,
+	authnRoutesCreate,
 } from "./index.ts";
 
 /** Wires authn the way `src/server.ts` does, with one API route and one page route. */
-export const appCreate = async (
+export const authnTestAppCreate = async (
 	options: AuthnOptions = memoryOptions,
 ): Promise<{ app: Hono; authn: Authn }> => {
 	const authn = await authnCreate(options);
@@ -20,10 +20,10 @@ export const appCreate = async (
 	app.onError(httpErrorHandle);
 	app.use(
 		"*",
-		except(["/api/*"], authnMiddleware(authn, { source: "cookie" })),
+		except(["/api/*"], authnMiddlewareCreate(authn, { source: "cookie" })),
 	);
-	app.use("/api/v1/*", authnMiddleware(authn, { source: "bearer" }));
-	app.route("/auth", authnRoutes(authn));
+	app.use("/api/v1/*", authnMiddlewareCreate(authn, { source: "bearer" }));
+	app.route("/auth", authnRoutesCreate(authn));
 	app.get("/api/v1/me", (c) => c.json(authnActorRequire(c)));
 	app.get("/api/v1/whoami", (c) => c.json({ actor: c.var.actor ?? null }));
 	const page = (c: Context): Response =>
