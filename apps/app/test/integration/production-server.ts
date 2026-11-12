@@ -279,6 +279,20 @@ export const slowRequestStart = async (
 
 export type ProductionServer = AppProcess & { port: number; url: string };
 
+const serverEntryCheck = () => {
+	if (!existsSync(serverEntry)) {
+		throw new Error(`${serverEntry} is missing: run pnpm build first`);
+	}
+};
+
+/** Starts the production build on `PORT` without waiting for readiness, for boots that are meant to fail. */
+export const productionServerSpawn = (
+	options: AppProcessOptions,
+): Promise<AppProcess> => {
+	serverEntryCheck();
+	return appProcessSpawn(serverEntry, options, {});
+};
+
 /**
  * Boots the production build (`pnpm build` output) the way the image runs it: the three
  * preload flags, NODE_ENV=production, APP_ENV=test, real Postgres and Redis, the memory issuer.
@@ -287,9 +301,7 @@ export type ProductionServer = AppProcess & { port: number; url: string };
 export const productionServerStart = async (
 	options: AppProcessOptions,
 ): Promise<ProductionServer> => {
-	if (!existsSync(serverEntry)) {
-		throw new Error(`${serverEntry} is missing: run pnpm build first`);
-	}
+	serverEntryCheck();
 	const port = await portClaim();
 	const app = await appProcessStart(serverEntry, options, {
 		PORT: String(port),
