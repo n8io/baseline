@@ -44,7 +44,7 @@ index a4f7076..8e8a069 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index e9f5e8f..93df259 100644
+index a5b126e..aeb6d41 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
 @@ -25,6 +25,13 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
@@ -61,7 +61,7 @@ index e9f5e8f..93df259 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -75,6 +82,7 @@ export type InvoiceLinePorts = {
+@@ -72,6 +79,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
@@ -70,7 +70,7 @@ index e9f5e8f..93df259 100644
  	invoiceLineLiveUpdates: {
  		send(update: {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 5113fb1..89e9c76 100644
+index 0bab0f5..99c897d 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
 @@ -1,7 +1,7 @@
@@ -79,10 +79,10 @@ index 5113fb1..89e9c76 100644
  import type { Connections } from "../../../connections.ts";
 -import type { InvoiceLinePorts } from "../ports.ts";
 +import type { InvoiceLineCustomerReader, InvoiceLinePorts } from "../ports.ts";
- import { invoiceLineCacheMemoryCreate } from "./invoice-line-cache.memory.ts";
- import { invoiceLineCacheRedisCreate } from "./invoice-line-cache.redis.ts";
+ import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
  import { invoiceLinePortsMemoryCreate } from "./invoice-line-ports.memory.ts";
-@@ -11,9 +11,12 @@ import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction
+ import { invoiceLineRepositoryPostgresCreate } from "./invoice-line-repository.postgres.ts";
+@@ -10,9 +10,12 @@ import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction
  // Picks each port's adapter from the connections the composition root opened: a real one, or
  // "memory". Composition roots own every connection.
  export const invoiceLinePortsCreate = (
@@ -97,9 +97,9 @@ index 5113fb1..89e9c76 100644
  	// piece-start: queue
  	// The queue lives in the same Postgres as the repository: both real or both memory.
  	const { queue } = connections;
-@@ -54,6 +57,9 @@ export const invoiceLinePortsCreate = (
- 				? invoiceLineCacheMemoryCreate()
- 				: invoiceLineCacheRedisCreate(connections.redis),
+@@ -50,6 +53,9 @@ export const invoiceLinePortsCreate = (
+ 		// piece-start: cache
+ 		invoiceLineCache: invoiceLineCacheCreate(connections.cacheStore),
  		// piece-end: cache
 +		invoiceLineCustomerReader: customerReader ?? {
 +			get: async () => undefined,
@@ -108,12 +108,12 @@ index 5113fb1..89e9c76 100644
  		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index e01f76d..50e6701 100644
+index b35f8d6..8ab6a53 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -23,6 +23,8 @@ export const invoiceLinePortsMemoryCreate = (): {
+@@ -24,6 +24,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  			// piece-start: cache
- 			invoiceLineCache: invoiceLineCacheMemoryCreate(),
+ 			invoiceLineCache: invoiceLineCacheCreate(cacheStoreMemoryCreate()),
  			// piece-end: cache
 +			// No customers; tests that assign one pass their own reader.
 +			invoiceLineCustomerReader: { get: async () => undefined },
