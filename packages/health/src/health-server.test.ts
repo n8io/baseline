@@ -119,4 +119,18 @@ describe("healthServerCreate", () => {
 
 		await expect(fetch(`http://127.0.0.1:${port}/livez`)).rejects.toThrow();
 	});
+
+	it("await using stops accepting connections when its block ends", async () => {
+		const port = await portFree();
+		{
+			await using _server = healthServerCreate({
+				isAlive: () => true,
+				isShuttingDown: () => false,
+				port,
+			});
+			expect(await probeGet(port, "/livez")).toEqual(ok);
+		}
+
+		await expect(fetch(`http://127.0.0.1:${port}/livez`)).rejects.toThrow();
+	});
 });

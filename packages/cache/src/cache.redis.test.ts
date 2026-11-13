@@ -2,7 +2,15 @@
 /// <reference path="../../../test/redis/redis-global-setup.ts" />
 import { setTimeout as sleep } from "node:timers/promises";
 import { createClient } from "redis";
-import { afterAll, beforeAll, describe, expect, inject, test } from "vitest";
+import {
+	afterAll,
+	beforeAll,
+	describe,
+	expect,
+	inject,
+	onTestFinished,
+	test,
+} from "vitest";
 import { z } from "zod";
 import { cacheContract } from "./cache.contract.ts";
 import { type Cache, cacheCreate, cacheStoreRedisCreate } from "./index.ts";
@@ -48,6 +56,10 @@ describe("cacheStoreRedisCreate on Redis", () => {
 			() => undefined,
 		);
 		await pauser.connect();
+		onTestFinished(async () => {
+			await pauser.clientUnpause();
+			await pauser.close();
+		});
 		const cache = cacheCreate(cacheStoreRedisCreate({ redisClient }), {
 			prefix: "pause",
 			schema: z.string(),
@@ -63,7 +75,5 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		const elapsed = Date.now() - started;
 		expect(elapsed).toBeGreaterThanOrEqual(950);
 		expect(elapsed).toBeLessThan(1500);
-		await pauser.clientUnpause();
-		await pauser.close();
 	});
 });

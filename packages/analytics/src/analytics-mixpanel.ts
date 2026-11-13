@@ -39,10 +39,12 @@ export const analyticsMixpanelCreate = ({
 	// malformed event answers 400 instead of being dropped silently.
 	const trackUrl = `https://${host}/track?ip=0&strict=1`;
 	const sending = new Set<Promise<void>>();
+	const close = async (): Promise<void> => {
+		await Promise.all(sending);
+	};
 	return {
-		close: async () => {
-			await Promise.all(sending);
-		},
+		close,
+		[Symbol.asyncDispose]: close,
 		track: ({ actorId, name, properties }) => {
 			const sent = fetch(trackUrl, {
 				body: JSON.stringify([
