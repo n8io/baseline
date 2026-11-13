@@ -9,7 +9,7 @@ pnpm add @n8io/baseline-live
 ## Exports
 
 - `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data.
-- `liveHubRedisCreate(redisClient)`: a hub on Redis pub/sub, for more than one instance.
+- `liveHubRedisCreate({ redisClient })`: a hub on Redis pub/sub, for more than one instance.
 - `liveHubMemoryCreate()`: a hub in one process, for unit tests and `memory://`.
 - `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.
 - `@n8io/baseline-live/client`: `useLiveUpdates(channel, id, { pathPrefix })`, a React hook that revalidates the page on each update and on every reconnect. It opens `<pathPrefix>/<channel>/<id>`; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.

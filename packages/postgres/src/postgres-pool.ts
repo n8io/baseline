@@ -1,6 +1,10 @@
 import { logger } from "@n8io/baseline-logger";
 import pg from "pg";
 import { postgresUrlAssert } from "./postgres-url-assert.ts";
+import {
+	type PostgresVendorOwnedKey,
+	postgresVendorAssert,
+} from "./postgres-vendor-assert.ts";
 
 /** The process's Postgres connection pool. Close it with `end()`. */
 export type PostgresPool = pg.Pool;
@@ -10,11 +14,12 @@ export type PostgresClient = pg.PoolClient;
 
 /**
  * pg's own pool settings, passed through as they are. Outside this Package's contract: nothing
- * here is tested, and moving off pg deletes it. The keys the named options set are refused.
+ * here is tested, and moving off pg deletes it. The keys the named options and the URL set are
+ * refused.
  */
 export type PostgresPoolVendorOptions = Omit<
 	pg.PoolConfig,
-	"connectionString" | "connectionTimeoutMillis" | "max"
+	PostgresVendorOwnedKey | "max"
 >;
 
 export type PostgresPoolOptions = {
@@ -27,12 +32,6 @@ export type PostgresPoolOptions = {
 	vendor?: PostgresPoolVendorOptions;
 };
 
-const postgresPoolOwnedKeys = {
-	connectionString: "databaseUrl",
-	connectionTimeoutMillis: "connectTimeoutMs",
-	max: "max",
-} as const;
-
 // One pool per process. pg 8.23 ignores ?connect_timeout= in the URL, so settings live here.
 export const postgresPoolCreate = ({
 	connectTimeoutMs = 3_000,
@@ -41,13 +40,7 @@ export const postgresPoolCreate = ({
 	vendor = {},
 }: PostgresPoolOptions): PostgresPool => {
 	postgresUrlAssert(databaseUrl);
-	for (const [key, option] of Object.entries(postgresPoolOwnedKeys)) {
-		if (key in vendor) {
-			throw new TypeError(
-				`vendor.${key} is not allowed: set ${option} on postgresPoolCreate instead`,
-			);
-		}
-	}
+	postgresVendorAssert(vendor, databaseUrl, { max: "max" });
 	const pgPool = new pg.Pool({
 		keepAlive: true,
 		...vendor,

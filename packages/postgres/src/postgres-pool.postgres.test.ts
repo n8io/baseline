@@ -59,7 +59,9 @@ describe("postgresPoolCreate", () => {
 	it.each([
 		["connectionString", "databaseUrl"],
 		["connectionTimeoutMillis", "connectTimeoutMs"],
+		["host", "databaseUrl"],
 		["max", "max"],
+		["password", "databaseUrl"],
 	])("refuses vendor.%s, which %s sets", (key, option) => {
 		expect(() =>
 			postgresPoolCreate({
@@ -68,7 +70,20 @@ describe("postgresPoolCreate", () => {
 			}),
 		).toThrow(
 			new TypeError(
-				`vendor.${key} is not allowed: set ${option} on postgresPoolCreate instead`,
+				`vendor.${key} is not allowed: set it with ${option} instead`,
+			),
+		);
+	});
+
+	it("refuses vendor.ssl when the URL sets TLS, since pg lets the URL win", () => {
+		expect(() =>
+			postgresPoolCreate({
+				databaseUrl: "postgres://localhost/db?sslmode=require",
+				vendor: { ssl: { rejectUnauthorized: true } },
+			}),
+		).toThrow(
+			new TypeError(
+				"vendor.ssl is not allowed with sslmode in databaseUrl: pg lets the URL win; set TLS in one place",
 			),
 		);
 	});

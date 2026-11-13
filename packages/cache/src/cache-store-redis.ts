@@ -36,9 +36,11 @@ const cacheTimeLimit = async <T>(
 // A store on a shared Redis client; entries expire with Redis PX. Each call
 // fails with a TimeoutError when Redis does not answer within 1 s. Any
 // connected node-redis client works.
-export const cacheStoreRedisCreate = (
-	redisClient: CacheRedisClient,
-): CacheStore => {
+export const cacheStoreRedisCreate = ({
+	redisClient,
+}: {
+	redisClient: CacheRedisClient;
+}): CacheStore => {
 	const limit = <R>(work: Promise<R>): Promise<R> =>
 		cacheTimeLimit(
 			work,

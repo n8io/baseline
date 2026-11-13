@@ -22,11 +22,11 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		await redisClient.close();
 	});
 
-	cacheContract(() => cacheStoreRedisCreate(redisClient), sleep);
+	cacheContract(() => cacheStoreRedisCreate({ redisClient }), sleep);
 
 	test("writes <prefix>:<id> with a 60 s TTL by default", async () => {
 		const prefix = `test-${crypto.randomUUID()}`;
-		await cacheCreate(cacheStoreRedisCreate(redisClient), {
+		await cacheCreate(cacheStoreRedisCreate({ redisClient }), {
 			prefix,
 			schema: z.string(),
 		}).set("foo_1", "First");
@@ -48,7 +48,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 			() => undefined,
 		);
 		await pauser.connect();
-		const cache = cacheCreate(cacheStoreRedisCreate(redisClient), {
+		const cache = cacheCreate(cacheStoreRedisCreate({ redisClient }), {
 			prefix: "pause",
 			schema: z.string(),
 		});

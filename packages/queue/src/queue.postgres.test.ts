@@ -60,35 +60,31 @@ describe("queueCreate", () => {
 		expect(pgPool.totalCount).toBeGreaterThan(0);
 	});
 
-	it("passes vendor settings to pg-boss", async () => {
-		const pgPool = poolCreate();
-		const queue = await queueCreate({
-			pgPool,
-			role: "publisher",
-			vendor: { monitorIntervalSeconds: 5 },
-		});
-		queues.push(queue);
-
-		expect(queue.isAlive()).toBe(true);
+	it("passes vendor settings to pg-boss, which checks them", async () => {
+		await expect(
+			queueCreate({
+				pgPool: poolCreate(),
+				role: "publisher",
+				vendor: { monitorIntervalSeconds: 0 },
+			}),
+		).rejects.toThrow(/monitorIntervalSeconds must be at least/);
 	});
 
 	it.each([
-		"db",
-		"migrate",
-		"openTelemetry",
-		"schedule",
-		"schema",
-		"supervise",
-	])("refuses vendor.%s, which queueCreate sets itself", async (key) => {
+		["schema", "queueCreate sets it itself"],
+		["supervise", "queueCreate sets it itself"],
+		["connectionString", "the queue runs on pgPool; set it on the pool"],
+		["ssl", "the queue runs on pgPool; set it on the pool"],
+		["createSchema", "it only acts in queueMigrate"],
+		["useListenNotify", "the queue does not support it"],
+	])("refuses vendor.%s: %s", async (key, reason) => {
 		await expect(
 			queueCreate({
 				pgPool: poolCreate(),
 				role: "publisher",
 				vendor: { [key]: undefined },
 			}),
-		).rejects.toThrow(
-			new TypeError(`vendor.${key} is not allowed: queueCreate sets it itself`),
-		);
+		).rejects.toThrow(new TypeError(`vendor.${key} is not allowed: ${reason}`));
 	});
 
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {

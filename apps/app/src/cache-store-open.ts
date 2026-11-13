@@ -8,4 +8,6 @@ import {
 import type { RedisClient } from "./redis.ts";
 
 export const cacheStoreOpen = (redis: RedisClient | "memory"): CacheStore =>
-	redis === "memory" ? cacheStoreMemoryCreate() : cacheStoreRedisCreate(redis);
+	redis === "memory"
+		? cacheStoreMemoryCreate()
+		: cacheStoreRedisCreate({ redisClient: redis });

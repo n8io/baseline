@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { logger } from "@n8io/baseline-logger";
-import { PgBoss } from "pg-boss";
+import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueSchema } from "./queue.ts";
 import { queueInboxTableCreate } from "./queue-inbox.ts";
 
@@ -41,15 +41,27 @@ const queueMigrateIndexesWait = async (boss: PgBoss): Promise<void> => {
 	}
 };
 
+/**
+ * Settings for the connection pg-boss opens to migrate, passed through as they are. Outside this
+ * Package's contract, like `QueueVendorOptions`.
+ */
+export type QueueMigrateVendorOptions = Pick<
+	ConstructorOptions,
+	"application_name" | "options" | "ssl"
+>;
+
 // Installs or upgrades pg-boss in schema `queue`, waits for its background index builds, deletes
 // the queues of consumers removed in an earlier release, and creates queue.inbox. Runs from the
 // migrate entry, before any server or worker starts with `migrate: false`.
 export const queueMigrate = async (options: {
 	databaseUrl: string;
 	queuesRemoved?: string[];
+	/** Settings only pg-boss's own connection has, such as `ssl`. */
+	vendor?: QueueMigrateVendorOptions;
 }): Promise<void> => {
 	queueUrlAssert(options.databaseUrl);
 	const boss = new PgBoss({
+		...options.vendor,
 		bamIntervalSeconds: 10,
 		connectionString: options.databaseUrl,
 		max: 2,

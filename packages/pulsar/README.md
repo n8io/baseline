@@ -9,7 +9,7 @@ How it differs from the queue package:
 - **Retries and dead letters.** A Consumer that throws is tried five times in all, about 10 s, 20 s, 40 s and 80 s apart, then its Event moves to `<queueName>.dead`, which keeps a subscription of the same name.
 - **Duplicates.** Each Event carries an `event-id` property, kept through every retry and the dead letter. It is the inbox `eventId`, so `queueInboxInsert` skips a repeat as before.
 - **Tracing.** W3C trace context travels in the message properties. Spans follow the OpenTelemetry messaging conventions: `send <topic>` (producer) and `process <topic>` (consumer).
-- **Auth.** None (a local standalone broker) or a JWT for the broker's token authentication. Anything else the Pulsar client can do (OAuth2, mTLS, timeouts) goes under `pulsarCreate`'s `vendor` option, which passes the client's own settings through. It is outside the contract: nothing in it is tested here, and moving off Pulsar deletes it.
+- **Auth.** None (a local standalone broker) or a JWT for the broker's token authentication. Anything else the Pulsar client can do (OAuth2, mTLS, timeouts) goes under `pulsarCreate`'s `vendor` option, which passes the client's own settings through. To build an `authentication` object, add `pulsar-client` to the Project at exactly the version this Package pins, so only one copy of its native addon loads. `vendor` refuses `log`, `serviceUrl` and `serviceUrlProvider` (cluster failover is not supported), and `authentication` together with `token`. It is outside the contract: nothing in it is tested here, and moving off Pulsar deletes it.
 
 ## Swap it in
 

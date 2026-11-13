@@ -3,6 +3,7 @@
 // @file src/domains/bar/spi/index.ts
 import { analyticsMixpanelCreate } from "@n8io/baseline-analytics";
 
-export const barAnalytics = analyticsMixpanelCreate("token", {
+export const barAnalytics = analyticsMixpanelCreate({
+	token: "token",
 	vendor: { host: "api-eu.mixpanel.com" },
 });

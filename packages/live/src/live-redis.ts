@@ -45,7 +45,11 @@ const liveTimeLimit = async <T>(
 // the update. The subscriber connection, a duplicate of `redisClient`, opens
 // with the first stream; a worker that only sends never opens it. Any
 // connected node-redis client works.
-export const liveHubRedisCreate = (redisClient: LiveRedisClient): LiveHub => {
+export const liveHubRedisCreate = ({
+	redisClient,
+}: {
+	redisClient: LiveRedisClient;
+}): LiveHub => {
 	let subscriber: Promise<LiveRedisClient> | undefined;
 
 	const subscriberConnect = async (): Promise<LiveRedisClient> => {
