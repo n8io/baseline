@@ -1,8 +1,9 @@
 /**
  * Reloads the page once when one of this build's own files fails to load. During a rolling
  * deploy the page can come from a pod of one version and its `/assets/` requests reach a pod of
- * another, which answers 404; the reload asks for the page and its files again. A second failure
- * within ten seconds stays as it is, so a build that is really broken does not reload forever.
+ * another, which answers 404; the reload asks for the page and its files again. A page that began
+ * within ten seconds of such a reload never reloads again, however long its files take to fail,
+ * so a build that is really broken does not reload forever.
  *
  * root.tsx inlines this function's source in `<head>`, so it runs before any file loads and even
  * when the entry script is the file that failed. It must not use anything from outside its body.
@@ -24,7 +25,7 @@ export const assetReloadListen = (): void => {
 			if (!ours) return;
 			try {
 				const reloadedAt = Number(sessionStorage.getItem(storageKey));
-				if (Date.now() - reloadedAt < 10_000) return;
+				if (performance.timeOrigin - reloadedAt < 10_000) return;
 				sessionStorage.setItem(storageKey, String(Date.now()));
 			} catch {
 				// No session storage, no way to stop at one reload.

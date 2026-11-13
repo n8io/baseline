@@ -1,5 +1,6 @@
 import {
 	cpSync,
+	existsSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -22,6 +23,9 @@ const filesList = (directory: string): string[] =>
  * Start it with `productionServerStart({ directory })`. `using` deletes the copy.
  */
 export const rolloutBuildCreate = (): Disposable & { directory: string } => {
+	if (!existsSync("build/client/assets")) {
+		throw new Error("build/client/assets is missing: run pnpm build first");
+	}
 	const directory = mkdtempSync(join(tmpdir(), "rollout-build-"));
 	cpSync("build", join(directory, "build"), { recursive: true });
 	// What the server reads from its working directory: its libraries and the env files.
@@ -32,21 +36,21 @@ export const rolloutBuildCreate = (): Disposable & { directory: string } => {
 	// name-<8 character hash>.ext: the copy reverses each hash.
 	const renames = new Map<string, string>();
 	for (const name of readdirSync(join(directory, "build/client/assets"))) {
-		const hash = /-([\w-]{8})\.\w+$/.exec(name)?.[1];
+		const hash = /-([\w-]{8})\.[\w.]+$/.exec(name)?.[1];
 		const reversed = [...(hash ?? "")].reverse().join("");
-		if (hash === undefined || reversed === hash) {
-			throw new Error(`${name}: expected a hash that changes when reversed`);
-		}
-		renames.set(hash, reversed);
+		if (hash !== undefined && reversed !== hash) renames.set(hash, reversed);
 	}
+	if (renames.size === 0)
+		throw new Error("build/client/assets has no hashed file");
 	for (const file of filesList(join(directory, "build"))) {
-		let text = readFileSync(file, "utf8");
+		// latin1 keeps every byte of an image or font as it is.
+		let text = readFileSync(file, "latin1");
 		let name = file.slice(dirname(file).length + 1);
 		for (const [hash, reversed] of renames) {
 			text = text.replaceAll(hash, reversed);
 			name = name.replace(hash, reversed);
 		}
-		writeFileSync(file, text);
+		writeFileSync(file, text, "latin1");
 		renameSync(file, join(dirname(file), name));
 	}
 	return {

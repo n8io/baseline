@@ -11,7 +11,7 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root.ts";
 import appCss from "./app.css?url";
-import { assetReloadListen } from "./asset-reload.ts";
+import { assetReloadListen } from "./asset-reload-listen.ts";
 import { CspNonce } from "./csp-nonce.ts";
 
 export const links: Route.LinksFunction = () => [

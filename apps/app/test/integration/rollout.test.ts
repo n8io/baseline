@@ -11,25 +11,30 @@ import { rolloutBuildCreate } from "./rollout-build.ts";
 // version differ. A browser's requests can reach either one.
 let old: ProductionServer;
 let next: ProductionServer;
-let cleanup: () => Promise<void>;
+const cleanups: (() => unknown)[] = [];
 
 beforeAll(async () => {
-	const database = await integrationDatabaseCreate();
+	const { databaseUrl, drop } = await integrationDatabaseCreate();
+	cleanups.push(drop);
 	const build = rolloutBuildCreate();
-	cleanup = async () => {
-		await Promise.all([old?.stop(), next?.stop()]);
-		build[Symbol.dispose]();
-		await database.drop();
-	};
-	const { databaseUrl } = database;
-	[old, next] = await Promise.all([
-		productionServerStart({ databaseUrl }),
-		productionServerStart({ databaseUrl, directory: build.directory }),
+	cleanups.push(() => build[Symbol.dispose]());
+	// Each is kept as soon as it is up, so one failed start still stops the other.
+	await Promise.all([
+		productionServerStart({ databaseUrl }).then((server) => {
+			old = server;
+			cleanups.push(server.stop);
+		}),
+		productionServerStart({ databaseUrl, directory: build.directory }).then(
+			(server) => {
+				next = server;
+				cleanups.push(server.stop);
+			},
+		),
 	]);
 }, 60_000);
 
 afterAll(async () => {
-	await cleanup?.();
+	for (const cleanup of cleanups.reverse()) await cleanup();
 });
 
 // A page every project has, signed out: the root error boundary's 404, with the root's scripts
