@@ -60,7 +60,7 @@ const pieces = [
 	{
 		name: "cache",
 		package: "@n8io/baseline-cache",
-		paths: [/^src\/domains\/foo\/.*-cache(d|\.[a-z.]+)\.ts$/],
+		paths: [/^src\/domains\/foo\/.*-cache(d|\.test)?\.ts$/],
 	},
 	{
 		name: "queue",

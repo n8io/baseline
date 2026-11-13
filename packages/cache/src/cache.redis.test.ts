@@ -1,99 +1,35 @@
 // The shared Redis global setup starts the Redis these tests use (vitest.config.ts).
 /// <reference path="../../../test/redis/redis-global-setup.ts" />
 import { setTimeout as sleep } from "node:timers/promises";
-import {
-	afterAll,
-	beforeAll,
-	describe,
-	expect,
-	inject,
-	test,
-	vi,
-} from "vitest";
+import { createClient } from "redis";
+import { afterAll, beforeAll, describe, expect, inject, test } from "vitest";
 import { z } from "zod";
 import { cacheContract } from "./cache.contract.ts";
-import {
-	cacheReconnectDelay,
-	cacheRedisClientCreate,
-	cacheRedisCreate,
-	type RedisClient,
-} from "./cache-redis.ts";
-import type { Cache } from "./index.ts";
+import { type Cache, cacheCreate, cacheStoreRedisCreate } from "./index.ts";
 
-describe("cacheRedisClientCreate", () => {
-	// Load redis first so the timing tests measure the connect, not the import.
-	beforeAll(async () => {
-		await import("redis");
-	});
-
-	test.each(["memory://", "http://localhost:6379", "not a url"])(
-		"refuses %s, listing the valid schemes",
-		async (cacheUrl) => {
-			await expect(cacheRedisClientCreate({ cacheUrl })).rejects.toThrow(
-				new TypeError("Cache URL scheme must be one of redis://, rediss://"),
-			);
-		},
+describe("cacheStoreRedisCreate on Redis", () => {
+	// node-redis exits the process on an unlistened error event.
+	const redisClient = createClient({ url: inject("redisUrl") }).on(
+		"error",
+		() => undefined,
 	);
 
-	test("does not echo the URL, which may carry a password", async () => {
-		await expect(
-			cacheRedisClientCreate({ cacheUrl: "http://user:s3cret@localhost" }),
-		).rejects.toThrow(expect.not.stringContaining("s3cret"));
-	});
-
-	// Timer time, not wall time: a loaded CI runner fired the real 3 s timer 542 ms late.
-	test("throws within the 3 s connect timeout when Redis is unreachable", async () => {
-		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-		try {
-			const settled = vi.fn();
-			const created = cacheRedisClientCreate({
-				cacheUrl: "redis://127.0.0.1:1",
-			});
-			created.then(settled, settled);
-			await vi.dynamicImportSettled();
-			await vi.advanceTimersByTimeAsync(2999);
-			expect(settled).not.toHaveBeenCalled();
-			await vi.advanceTimersByTimeAsync(1);
-			expect(settled).toHaveBeenCalled();
-			await expect(created).rejects.toThrow(
-				"Redis not reachable within 3000 ms",
-			);
-		} finally {
-			vi.useRealTimers();
-		}
-	});
-
-	test("backs off min(retries × 100 ms, 2 s)", () => {
-		expect([0, 1, 5, 20, 21, 100].map(cacheReconnectDelay)).toEqual([
-			0, 100, 500, 2000, 2000, 2000,
-		]);
-	});
-});
-
-describe("cacheRedisCreate on Redis", () => {
-	let redisClient: RedisClient;
-
 	beforeAll(async () => {
-		redisClient = await cacheRedisClientCreate({
-			cacheUrl: inject("redisUrl"),
-		});
+		await redisClient.connect();
 	});
 
 	afterAll(async () => {
 		await redisClient.close();
 	});
 
-	cacheContract(
-		(options) => cacheRedisCreate({ redisClient, ...options }),
-		sleep,
-	);
+	cacheContract(() => cacheStoreRedisCreate(redisClient), sleep);
 
 	test("writes <prefix>:<id> with a 60 s TTL by default", async () => {
 		const prefix = `test-${crypto.randomUUID()}`;
-		await cacheRedisCreate({ prefix, redisClient, schema: z.string() }).set(
-			"foo_1",
-			"First",
-		);
+		await cacheCreate(cacheStoreRedisCreate(redisClient), {
+			prefix,
+			schema: z.string(),
+		}).set("foo_1", "First");
 		expect(await redisClient.get(`${prefix}:foo_1`)).toBe('"First"');
 		const pttl = await redisClient.pTTL(`${prefix}:foo_1`);
 		expect(pttl).toBeGreaterThan(59_000);
@@ -107,12 +43,13 @@ describe("cacheRedisCreate on Redis", () => {
 		["set", (cache: Cache<string>) => cache.set("foo_1", "First")],
 		["delete", (cache: Cache<string>) => cache.delete("foo_1")],
 	])("%s fails within 1 s when Redis does not answer", async (_, call) => {
-		const pauser = await cacheRedisClientCreate({
-			cacheUrl: inject("redisUrl"),
-		});
-		const cache = cacheRedisCreate({
+		const pauser = createClient({ url: inject("redisUrl") }).on(
+			"error",
+			() => undefined,
+		);
+		await pauser.connect();
+		const cache = cacheCreate(cacheStoreRedisCreate(redisClient), {
 			prefix: "pause",
-			redisClient,
 			schema: z.string(),
 		});
 		await pauser.clientPause(3000);

@@ -44,7 +44,7 @@ const liveTimeLimit = async <T>(
 // Publishes to Redis channel `live:<channel>`, so every instance's streams get
 // the update. The subscriber connection, a duplicate of `redisClient`, opens
 // with the first stream; a worker that only sends never opens it. Any
-// connected node-redis client works, such as cacheRedisClientCreate's.
+// connected node-redis client works.
 export const liveHubRedisCreate = (redisClient: LiveRedisClient): LiveHub => {
 	let subscriber: Promise<LiveRedisClient> | undefined;
 

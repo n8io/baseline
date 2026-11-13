@@ -2,8 +2,7 @@ import type { Queue } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { Connections } from "../../../connections.ts";
 import type { FooPorts } from "../ports.ts";
-import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
-import { fooCacheRedisCreate } from "./foo-cache.redis.ts";
+import { fooCacheCreate } from "./foo-cache.ts";
 import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
@@ -47,10 +46,7 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 		},
 		// piece-end: analytics
 		// piece-start: cache
-		fooCache:
-			connections.redis === "memory"
-				? fooCacheMemoryCreate()
-				: fooCacheRedisCreate(connections.redis),
+		fooCache: fooCacheCreate(connections.cacheStore),
 		// piece-end: cache
 		fooReadRepository: repository.fooReadRepository,
 		fooTransaction: repository.fooTransaction,

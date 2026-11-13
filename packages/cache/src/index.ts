@@ -1,4 +1,8 @@
-export type { Cache } from "./cache.ts";
-export { cacheMemoryCreate } from "./cache-memory.ts";
-export type { RedisClient } from "./cache-redis.ts";
-export { cacheRedisClientCreate, cacheRedisCreate } from "./cache-redis.ts";
+export {
+	type Cache,
+	type CacheOptions,
+	type CacheStore,
+	cacheCreate,
+} from "./cache.ts";
+export { cacheStoreMemoryCreate } from "./cache-store-memory.ts";
+export { cacheStoreRedisCreate } from "./cache-store-redis.ts";
