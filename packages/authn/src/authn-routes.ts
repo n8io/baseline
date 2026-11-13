@@ -18,7 +18,13 @@ import {
 	WWWAuthenticateChallengeError,
 } from "openid-client";
 import { z } from "zod";
-import type { Authn, AuthnOidcIssuer, AuthnTokens } from "./authn.ts";
+import {
+	type Authn,
+	type AuthnOidcIssuer,
+	type AuthnState,
+	type AuthnTokens,
+	authnState,
+} from "./authn.ts";
 import {
 	authnCookieClear,
 	authnCookieGet,
@@ -55,7 +61,7 @@ const returnToQuery = (c: Context): string =>
  */
 const tokensStore = async (
 	c: Context,
-	authn: Authn,
+	authn: AuthnState,
 	tokens: AuthnTokens,
 ): Promise<number | undefined> => {
 	if (tokens.refreshToken === undefined) authnCookieClear(c, "refresh");
@@ -69,7 +75,7 @@ const tokensStore = async (
 // Another tab may have refreshed already; its cookie is then fresh and needs no grant.
 const accessFreshFor = async (
 	c: Context,
-	authn: Authn,
+	authn: AuthnState,
 	minimumMs: number,
 ): Promise<number | undefined> => {
 	const accessToken = await authnCookieGet(c, authn.cookieKey, "access");
@@ -94,7 +100,7 @@ const refreshSkipMs = 60_000;
 
 const signInStart = async (
 	c: Context,
-	authn: Authn,
+	authn: AuthnState,
 	issuer: AuthnOidcIssuer,
 	returnTo: string,
 ): Promise<Response> => {
@@ -121,7 +127,7 @@ const signInStart = async (
 
 const callback = async (
 	c: Context,
-	authn: Authn,
+	authn: AuthnState,
 	config: Configuration,
 ): Promise<Response> => {
 	const flowCookie = await authnCookieGet(c, authn.cookieKey, "flow");
@@ -156,7 +162,7 @@ const callback = async (
 };
 
 const tokensRefresh = async (
-	authn: Authn,
+	authn: AuthnState,
 	refreshToken: string,
 ): Promise<AuthnTokens | undefined> => {
 	if (authn.issuer.kind === "memory") {
@@ -180,7 +186,7 @@ const tokensRefresh = async (
 
 const refreshRun = async (
 	c: Context,
-	authn: Authn,
+	authn: AuthnState,
 ): Promise<number | undefined> => {
 	const fresh = await accessFreshFor(c, authn, refreshSkipMs);
 	if (fresh !== undefined) return fresh;
@@ -198,7 +204,7 @@ const refreshRun = async (
  * alone: with refresh token rotation, two tabs refreshing at once see one fail, and clearing
  * would undo the other's fresh cookies. A new sign-in replaces them.
  */
-const refresh = async (c: Context, authn: Authn): Promise<Response> => {
+const refresh = async (c: Context, authn: AuthnState): Promise<Response> => {
 	const returnTo = c.req.query("returnTo");
 	const expiresAt = await refreshRun(c, authn);
 	if (returnTo === undefined) {
@@ -230,7 +236,7 @@ const refreshTokenRevoke = async (
 	}
 };
 
-const signOut = async (c: Context, authn: Authn): Promise<Response> => {
+const signOut = async (c: Context, authn: AuthnState): Promise<Response> => {
 	const refreshToken = await authnCookieGet(c, authn.cookieKey, "refresh");
 	authnCookieClear(c, "access");
 	authnCookieClear(c, "refresh");
@@ -255,8 +261,9 @@ const MemorySignIn = z.object({
 });
 
 /** `/sign-in`, `/callback`, `/refresh` and `/sign-out`; mount with `app.route("/auth", authnRoutesCreate(authn))`. */
-export const authnRoutesCreate = (authn: Authn): Hono => {
+export const authnRoutesCreate = (handle: Authn): Hono => {
 	const routes = new Hono();
+	const authn = authnState(handle);
 	const { issuer } = authn;
 	routes.use("*", async (c, next) => {
 		await next();

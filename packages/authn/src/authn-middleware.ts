@@ -1,7 +1,12 @@
 import { trace } from "@opentelemetry/api";
 import type { Context, MiddlewareHandler } from "hono";
 import type { Actor } from "./actor.ts";
-import type { Authn, AuthnVerified } from "./authn.ts";
+import {
+	type Authn,
+	type AuthnState,
+	type AuthnVerified,
+	authnState,
+} from "./authn.ts";
 import { authnCookieClear, authnCookieGet } from "./authn-cookie.ts";
 import { AuthnInvalidError } from "./authn-errors.ts";
 import { authnDataRequestIs, authnPagePath } from "./authn-return-to.ts";
@@ -42,7 +47,7 @@ const signedIn = (
 };
 
 const bearerMiddleware =
-	(authn: Authn): MiddlewareHandler =>
+	(authn: AuthnState): MiddlewareHandler =>
 	async (c, next) => {
 		c.set("actor", undefined);
 		c.set("authnExpiresAt", undefined);
@@ -58,7 +63,7 @@ const bearerMiddleware =
 	};
 
 const cookieMiddleware =
-	(authn: Authn): MiddlewareHandler =>
+	(authn: AuthnState): MiddlewareHandler =>
 	async (c, next) => {
 		c.set("actor", undefined);
 		c.set("authnExpiresAt", undefined);
@@ -103,5 +108,5 @@ export const authnMiddlewareCreate = (
 	options: { source: "bearer" | "cookie" },
 ): MiddlewareHandler =>
 	options.source === "bearer"
-		? bearerMiddleware(authn)
-		: cookieMiddleware(authn);
+		? bearerMiddleware(authnState(authn))
+		: cookieMiddleware(authnState(authn));
