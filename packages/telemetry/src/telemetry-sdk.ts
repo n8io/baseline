@@ -180,8 +180,13 @@ export const telemetryStart = (): void => {
 					pathsHealth.has((request.url ?? "").split("?")[0] ?? ""),
 			}),
 			new UndiciInstrumentation(),
-			new PgInstrumentation({ enhancedDatabaseReporting: false }),
-			new RedisInstrumentation(),
+			// requireParentSpan: a query or command outside a trace (a queue poll, boot, a
+			// reconnect) makes no span; one inside a request, a job or a use case still does.
+			new PgInstrumentation({
+				enhancedDatabaseReporting: false,
+				requireParentSpan: true,
+			}),
+			new RedisInstrumentation({ requireParentSpan: true }),
 			new PinoInstrumentation(),
 			new RuntimeNodeInstrumentation(),
 		],

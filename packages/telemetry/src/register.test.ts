@@ -130,6 +130,24 @@ describe("@n8io/baseline-telemetry/register", () => {
 		expect(JSON.stringify(started.spans)).not.toContain("canary");
 	}, 30_000);
 
+	it("makes a Redis span for a command inside a span, and none outside one", async () => {
+		const started = await receiverStart();
+		receiver = started.server;
+		const { port } = started.server.address() as AddressInfo;
+		const { code } = await fixtureRun(
+			{ OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}` },
+			"src/telemetry-test-fixtures/redis.ts",
+		);
+		expect(code).toBe(0);
+		// redis-connect is the one span the instrumentation makes with no parent.
+		const commands = started.spans.filter(
+			(span) => span.name.startsWith("redis-") && span.name !== "redis-connect",
+		);
+		expect(commands.map((span) => attribute(span, "db.query.text"))).toEqual([
+			"GET inside",
+		]);
+	}, 30_000);
+
 	it("exports records from a logger the app creates after the preload", async () => {
 		const started = await receiverStart();
 		receiver = started.server;

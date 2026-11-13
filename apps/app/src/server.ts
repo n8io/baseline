@@ -16,6 +16,7 @@ import {
 	httpRouterCreate,
 	httpSecureHeaders,
 	httpServerClose,
+	httpServerKeepAlive,
 } from "@n8io/baseline-http";
 import { logger } from "@n8io/baseline-logger";
 import {
@@ -135,8 +136,10 @@ app.doc31("/api/v1/openapi.json", {
 // Unknown /api paths answer JSON, never a page.
 app.all("/api/*", httpNotFoundHandle);
 
-// Starts graceful shutdown on SIGTERM; serverListening reports ready.
+// Outlasts the load balancer's idle timeout and starts graceful shutdown on SIGTERM;
+// serverListening reports ready.
 const serverServe = (server: Server) => {
+	httpServerKeepAlive(server);
 	shutdown = shutdownHandleCreate({
 		drainDelayMs: envLocal ? 0 : 5_000,
 		intakes: [
