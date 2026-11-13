@@ -57,6 +57,7 @@ export type FooPorts = {
 	};
 	// piece-end: analytics
 	// piece-start: cache
+	// Never throws when the store is down: a get is then a miss. No catch around it.
 	fooCache: {
 		get(id: Id<"foo">): Promise<Foo | undefined>;
 		set(foo: Foo): Promise<void>;
@@ -64,6 +65,7 @@ export type FooPorts = {
 	};
 	// piece-end: cache
 	// piece-start: live
+	// Best effort and never throws; call it after commit with no catch.
 	fooLiveUpdates: {
 		send(update: {
 			type: "foo.updated" | "foo.deleted";

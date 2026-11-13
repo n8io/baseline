@@ -7,7 +7,7 @@ type LiveRedisClient = {
 	connect(): Promise<unknown>;
 	destroy(): void;
 	duplicate(): LiveRedisClient;
-	on(event: "error", listener: (err: unknown) => void): unknown;
+	on(event: "error" | "ready", listener: (err: unknown) => void): unknown;
 	publish(channel: string, message: string): Promise<unknown>;
 	subscribe(
 		channel: string,
@@ -47,14 +47,16 @@ const liveTimeLimit = async <T>({
 
 // Publishes to Redis channel `live:<channel>`, so every instance's streams get
 // the update. The subscriber connection, a duplicate of `redisClient`, opens
-// with the first stream; a worker that only sends never opens it. Any
-// connected node-redis client works.
+// with the first stream; a worker that only sends never opens it. Redis pub/sub
+// does not replay, so each time that connection comes back every open stream
+// is told to resync. Any connected node-redis client works.
 export const liveHubRedisCreate = ({
 	redisClient,
 }: {
 	redisClient: LiveRedisClient;
 }): LiveHub => {
 	let subscriber: Promise<LiveRedisClient> | undefined;
+	let resync = (): void => {};
 
 	const subscriberConnect = async (): Promise<LiveRedisClient> => {
 		const connection: LiveRedisClient = redisClient.duplicate();
@@ -72,6 +74,10 @@ export const liveHubRedisCreate = ({
 			connection.destroy();
 			throw err;
 		}
+		// Listened for only now, so it fires on a reconnect. node-redis has resubscribed by then.
+		connection.on("ready", () => {
+			resync();
+		});
 		return connection;
 	};
 
@@ -91,6 +97,9 @@ export const liveHubRedisCreate = ({
 		close: async () => {
 			const connection = await subscriber?.catch(() => undefined);
 			await connection?.close();
+		},
+		resyncListen: (listener) => {
+			resync = listener;
 		},
 		publish: async (channel, message) => {
 			await liveTimeLimit({

@@ -1,5 +1,11 @@
 # app
 
+## 6.0.1
+
+### Patch Changes
+
+- 4e0d228: `AGENTS.md` now says a function's second positional input may be optional, as in `fooTransaction(work, inbox?)`; only three or more inputs need one input object.
+
 ## 6.0.0
 
 ### Major Changes
