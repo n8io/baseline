@@ -80,7 +80,6 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | [`live`](packages/live)                     | Live updates over SSE and Redis pub/sub                  |
 | [`logger`](packages/logger)                 | The one pino logger                                      |
 | [`postgres`](packages/postgres)             | Pool, transactions, migrations and id columns on Drizzle |
-| [`pulsar`](packages/pulsar)                 | Events and Consumers on Apache Pulsar, sent after commit |
 | [`queue`](packages/queue)                   | pg-boss Events, Consumers and Schedules with an inbox    |
 | [`result`](packages/result)                 | `Result`, `ok` and `err` for expected business errors    |
 | [`shutdown`](packages/shutdown)             | Graceful shutdown in order                               |
@@ -93,7 +92,7 @@ fnm use && pnpm install
 pnpm turbo run check test build   # the full CI-equivalent
 ```
 
-Docker must be running: the root tests and the `cache`, `live`, `postgres`, `queue` and `pulsar` tests start their own containers.
+Docker must be running: the root tests and the `cache`, `live`, `postgres` and `queue` tests start their own containers.
 
 A change that should ship needs a changeset. Run `pnpm changeset` and pick the packages it touches, plus `app` for template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the packages, tags `app@x.y.z`, and moves `v6`.
 

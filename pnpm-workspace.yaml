@@ -11,7 +11,6 @@ minimumReleaseAgeExclude:
   - "@n8io/baseline-*"
 allowBuilds:
   protobufjs: false
-  pulsar-client: true
 # piece-start: ui
 # The built server never imports these peers; optional keeps them out of production installs.
 packageExtensions:

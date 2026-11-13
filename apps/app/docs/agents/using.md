@@ -4,7 +4,7 @@ Read when you open something that must be closed: a hub, a pool, a queue, a serv
 
 Use `using` for a resource that lives for one block (a test, a script step, a short helper); the shutdown package owns everything that lives as long as the process. So `src/connections.ts`, the `src/*-open.ts` files, `src/server.ts` and `src/worker.ts` keep handing named closes to the shutdown steps.
 
-Every Baseline handle that must be closed has `[Symbol.asyncDispose]`, which calls its named close: `LiveHub`, `Queue`, `HealthServer`, `Analytics`, `ErrorTracking`, `Pulsar` and `PostgresPool`. Declare it with `await using` and it closes however the block ends, even when an `expect` throws first:
+Every Baseline handle that must be closed has `[Symbol.asyncDispose]`, which calls its named close: `LiveHub`, `Queue`, `HealthServer`, `Analytics`, `ErrorTracking` and `PostgresPool`. Declare it with `await using` and it closes however the block ends, even when an `expect` throws first:
 
 ```ts
 test("sends the update", async () => {

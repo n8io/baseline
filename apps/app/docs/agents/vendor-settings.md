@@ -1,6 +1,6 @@
 # Vendor settings
 
-Read when a Project needs a setting only the vendor behind a Package has: TLS for Postgres, a Mixpanel region, a Pulsar login the Package does not name.
+Read when a Project needs a setting only the vendor behind a Package has: TLS for Postgres, a Mixpanel region, a Sentry sample rate.
 
 A Package's named options keep working when the vendor behind it changes. Everything else reaches the vendor in one of two ways, and only from `src/connections.ts`, `src/redis.ts`, the `src/*-open.ts` files and `src/migrate.ts`.
 
@@ -25,7 +25,6 @@ postgresPoolCreate({
 | `postgresPoolCreate`              | pg's pool settings                              | `src/connections.ts`         |
 | `postgresMigrate`, `queueMigrate` | the same, for the migration's own connection    | `src/migrate.ts`             |
 | `queueCreate`                     | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
-| `pulsarCreate`                    | the Pulsar library's settings                   | `src/events-open.ts`         |
 | `analyticsMixpanelCreate`         | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
 | `errorTrackingSentryCreate`       | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
 

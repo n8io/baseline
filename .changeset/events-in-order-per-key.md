@@ -1,6 +1,5 @@
 ---
 "@n8io/baseline-queue": major
-"@n8io/baseline-pulsar": major
 "app": major
 ---
 
@@ -11,5 +10,4 @@ Events are kept in order per Event key, and Consumers fetch them in batches.
 - An Event that fails all five attempts now stays in its queue for 7 days and holds back its Event key, with a copy in `<queueName>.dead`. `queue.blockedKeys()` lists blocked keys, the worker logs each at error level, and the queue README has the runbook to run the Event again or give it up.
 - A worker that dies mid-Event or mid-Schedule is noticed within 30 to 90 s (it was 15 minutes), and a fetch still running after five minutes has its unfinished Events failed and retried.
 - Upgrading needs no step: Consumer queues move to `<queueName>.ordered`, the old queues are drained during the rollout and removed by a `queueMigrate` a week or more later. See "Upgrading to 8" in the queue README.
-- `@n8io/baseline-pulsar` takes the same `publish({ name, data, key })` and sends the key as the partition key. Order per Event key on Pulsar is not guaranteed yet.
 - `events-and-bridges.md` gains the Event key, the ordering guarantee and the rule for changing an Event's shape across a rollout. "Event key" is a glossary term.

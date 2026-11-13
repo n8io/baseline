@@ -61,8 +61,6 @@ The command also drops the `SCHEDULE_*` overrides from `.env.schema` and takes t
 
 Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts`, `spi/*-transaction.postgres.test.ts`, `spi/index-queue.test.ts` and `use-cases/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` markers in `src/worker.ts` and `src/migrate.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 
-To run Events on Apache Pulsar instead of the queue, change `src/events-open.ts` as in the [Pulsar swap guide](https://github.com/n8io/baseline/blob/main/packages/pulsar/README.md).
-
 ## Analytics
 
 `pnpm piece-remove analytics`

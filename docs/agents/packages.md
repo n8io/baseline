@@ -4,7 +4,7 @@ Read before working in `packages/`: on a factory, an option, a schema, a handle 
 
 ## Vendors
 
-A Package's exports name no vendor type, error or option shape; a caller must not change when the vendor behind a Package does. Two exceptions, both only on a factory that is one vendor's: its name says so (`cacheStoreRedisCreate`, `pulsarCreate`, `postgresPoolCreate`) or its whole Package is that vendor's (`queueCreate` is pg-boss's). Such a factory takes one options object, never positional arguments.
+A Package's exports name no vendor type, error or option shape; a caller must not change when the vendor behind a Package does. Two exceptions, both only on a factory that is one vendor's: its name says so (`cacheStoreRedisCreate`, `postgresPoolCreate`) or its whole Package is that vendor's (`queueCreate` is pg-boss's). Such a factory takes one options object, never positional arguments.
 
 - Where the vendor has a client object, the factory takes the client, typed structurally (`cacheStoreRedisCreate({ redisClient })`).
 - Where the Package must build the client, the factory takes a `vendor` option typed as the vendor's own settings, spreads it under the Package's own options, and throws on every key that those own or that would do nothing. Export the type named after the factory's subject (`PostgresPoolVendorOptions`). A function that opens its own connection to the same vendor (`postgresMigrate`) takes `vendor` too.
@@ -26,7 +26,7 @@ Nothing a Package exports imports a test runner, and no production source import
 
 ## Spans
 
-Only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself (`@n8io/baseline-pulsar`: `send` and `process`). Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
+Only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
 
 ## Handles to close
 

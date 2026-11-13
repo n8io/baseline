@@ -441,7 +441,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				!testIs(f.path) &&
 				!/^src\/(connections|redis|[a-z-]+-open)\.ts$/.test(f.path),
 			pattern:
-				/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|pulsarCreate|queueCreate)\(/g,
+				/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|queueCreate)\(/g,
 			reason: (m) =>
 				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts, src/redis.ts and the src/*-open.ts files do that`,
 		}),
@@ -684,12 +684,10 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					"src/authn.ts",
 					// Opens every connection for the roots, so it reads their settings itself.
 					"src/connections.ts",
-					// The Pulsar guide's Events transport reads PULSAR_URL here.
-					"src/events-open.ts",
 					"src/migrate.ts",
 				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the composition roots, src/authn.ts, src/connections.ts and src/events-open.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+					? "only the composition roots, src/authn.ts and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
 		}),

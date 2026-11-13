@@ -30,5 +30,5 @@ export const queueOpen = async ({
 		close: () => queue.stop(),
 		name: "queue",
 	});
-	return { events: eventsOpen({ intakes, queue, resources, role }), queue };
+	return { events: eventsOpen(queue), queue };
 };

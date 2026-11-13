@@ -6,15 +6,5 @@ import {
 	type Queue,
 	queueEventsCreate,
 } from "@n8io/baseline-queue";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
 
-// Everything a transport may need from the composition root. The queue's Events need only the
-// queue, which queue-open.ts already stops at shutdown.
-export const eventsOpen = ({
-	queue,
-}: {
-	queue: Queue;
-	role: "publisher" | "worker";
-	intakes: ShutdownStep[];
-	resources: ShutdownStep[];
-}): Events => queueEventsCreate(queue);
+export const eventsOpen = (queue: Queue): Events => queueEventsCreate(queue);
