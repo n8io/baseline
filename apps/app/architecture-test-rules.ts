@@ -430,7 +430,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			(f) =>
 				!testIs(f.path) &&
 				!/^src\/(connections|redis|[a-z-]+-open)\.ts$/.test(f.path),
-			/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|liveHubRedisCreate|postgresPoolCreate|pulsarCreate|queueCreate)\(/g,
+			/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|pulsarCreate|queueCreate)\(/g,
 			(m) =>
 				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts, src/redis.ts and the src/*-open.ts files do that`,
 		),

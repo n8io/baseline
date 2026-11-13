@@ -1,11 +1,12 @@
-// The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub and
-// analytics while the Project has those pieces. Each Domain's spi/index.ts picks its adapters
+// The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
+// analytics and error tracking while the Project has those pieces. Each Domain's spi/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { analyticsOpen } from "./analytics-open.ts";
 import { cacheStoreOpen } from "./cache-store-open.ts";
+import { errorTrackingOpen } from "./error-tracking-open.ts";
 import { eventsOpen } from "./events-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
@@ -22,6 +23,10 @@ export const connectionsOpen = async (
 		// piece-start: analytics
 		MIXPANEL_TOKEN?: string;
 		// piece-end: analytics
+		// piece-start: error-tracking
+		APP_ENV: string;
+		SENTRY_DSN?: string;
+		// piece-end: error-tracking
 	},
 	role: "publisher" | "worker",
 ) => {
@@ -49,6 +54,13 @@ export const connectionsOpen = async (
 		role === "worker" ? intakes : resources,
 	);
 	// piece-end: queue
+	// piece-start: error-tracking
+	// After Postgres, Redis and the queue, so it reports what they log while they close.
+	errorTrackingOpen(
+		{ dsn: env.SENTRY_DSN, environment: env.APP_ENV },
+		resources,
+	);
+	// piece-end: error-tracking
 	return {
 		// piece-start: analytics
 		analytics: analyticsOpen(env.MIXPANEL_TOKEN, resources),

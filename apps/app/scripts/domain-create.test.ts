@@ -45,6 +45,7 @@ const appCreate = (context: string): string => {
 	const dependencies = {
 		"@n8io/baseline-analytics": "^1.0.0",
 		"@n8io/baseline-cache": "^3.0.0",
+		"@n8io/baseline-error-tracking": "^1.0.0",
 		"@n8io/baseline-live": "^3.0.0",
 		"@n8io/baseline-queue": "^3.0.0",
 		"react-router": "^8.5.1",
@@ -254,6 +255,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			templateWithoutPieces(filesRead(appRoot.pathname), [
 				"analytics",
 				"cache",
+				"error-tracking",
 				"live",
 				"queue",
 				"ui",
@@ -276,7 +278,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		).toEqual([]);
 		expect(
 			created.filter((f) =>
-				/piece-(start|end): (analytics|cache|live|queue|ui)|SCHEDULE_|Analytics/.test(
+				/piece-(start|end): (analytics|cache|error-tracking|live|queue|ui)|SCHEDULE_|Analytics/.test(
 					f.text,
 				),
 			),

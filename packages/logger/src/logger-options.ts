@@ -1,5 +1,6 @@
 import type { LoggerOptions } from "pino";
 import { loggerErrSerialize } from "./logger-err-serialize.ts";
+import { loggerErrorEmit } from "./logger-error-listen.ts";
 
 // A second line of defence behind the allowlist: credentials at the top level,
 // one level down, and in request or response headers.
@@ -43,13 +44,20 @@ const errFind = (first: unknown): unknown => {
 	return undefined;
 };
 
+// pino's number for the error level; fatal is the one above it.
+const levelError = 50;
+
 export const loggerOptionsCreate = (level: string): LoggerOptions => ({
 	hooks: {
-		// pino copies err.message into msg when a call gives no message. Use the
-		// class name instead, so no message text reaches a log record.
-		logMethod(args, method) {
+		logMethod(args, method, level) {
 			const [first, second] = args;
 			const err = errFind(first);
+			// An err logged at error or fatal also goes to loggerErrorListen's listeners.
+			if (err !== undefined && level >= levelError) {
+				loggerErrorEmit(err);
+			}
+			// pino copies err.message into msg when a call gives no message. Use the
+			// class name instead, so no message text reaches a log record.
 			if (err !== undefined && typeof second !== "string") {
 				const type = loggerErrSerialize(err).type;
 				return method.apply(this, [first, type]);

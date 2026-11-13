@@ -20,13 +20,14 @@ postgresPoolCreate({
 });
 ```
 
-| Factory                           | `vendor` is                                  | Where to call it        |
-| --------------------------------- | -------------------------------------------- | ----------------------- |
-| `postgresPoolCreate`              | pg's pool settings                           | `src/connections.ts`    |
-| `postgresMigrate`, `queueMigrate` | the same, for the migration's own connection | `src/migrate.ts`        |
-| `queueCreate`                     | pg-boss's intervals, warnings and retention  | `src/queue-open.ts`     |
-| `pulsarCreate`                    | the Pulsar library's settings                | `src/events-open.ts`    |
-| `analyticsMixpanelCreate`         | Mixpanel's settings (`host`)                 | `src/analytics-open.ts` |
+| Factory                           | `vendor` is                                     | Where to call it             |
+| --------------------------------- | ----------------------------------------------- | ---------------------------- |
+| `postgresPoolCreate`              | pg's pool settings                              | `src/connections.ts`         |
+| `postgresMigrate`, `queueMigrate` | the same, for the migration's own connection    | `src/migrate.ts`             |
+| `queueCreate`                     | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
+| `pulsarCreate`                    | the Pulsar library's settings                   | `src/events-open.ts`         |
+| `analyticsMixpanelCreate`         | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
+| `errorTrackingSentryCreate`       | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
 
 Rules:
 

@@ -36,6 +36,7 @@
 		"@n8io/baseline-analytics": "workspace:^",
 		"@n8io/baseline-authn": "workspace:^",
 		"@n8io/baseline-cache": "workspace:^",
+		"@n8io/baseline-error-tracking": "workspace:^",
 		"@n8io/baseline-health": "workspace:^",
 		"@n8io/baseline-http": "workspace:^",
 		"@n8io/baseline-id": "workspace:^",

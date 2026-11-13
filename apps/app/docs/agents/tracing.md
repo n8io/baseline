@@ -11,6 +11,7 @@ One client request is one trace, with no app code. The telemetry preload (`src/p
 - **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
 - **Logs.** Every `logger` line inside a request, job or Consumer has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
+- **Error reports.** Every `logger.error` or `logger.fatal` with an `err` is also an Error report in Sentry when the Project has `SENTRY_DSN`, tagged with the same `trace_id`. So log only the unexpected there: an err a Use case returns is expected and is not logged at error.
 
 Never add a request id, correlation id or trace header by hand, and never pass a trace id through a Port or Event payload: the context already travels.
 

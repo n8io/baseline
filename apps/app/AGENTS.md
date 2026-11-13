@@ -124,7 +124,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Privacy
 
-- Logs, spans, metrics and analytics events carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
+- Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
 - Paths and queries never carry personal data. Path parameters are ids.
 - Card numbers never enter the app. Accepting card data is a stop-and-ask.
 - At deploy time, recommend the OpenTelemetry Collector `redaction` processor as a second line of defence.
@@ -140,4 +140,4 @@ These docs load only when the task needs them. Read the one that matches before 
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
-- Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker, analytics) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)
+- Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker, analytics, error tracking) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)

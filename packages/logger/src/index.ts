@@ -1,6 +1,11 @@
 import { pino } from "pino";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
+export {
+	type LoggerErrorListener,
+	loggerErrorListen,
+} from "./logger-error-listen.ts";
+
 // One level's call: fields then a message, a caught value alone, or a message alone. An `err`
 // field, or an Error passed first, is logged in the safe shape of loggerErrSerialize.
 export type LoggerMethod = {

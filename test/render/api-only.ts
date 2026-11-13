@@ -1,11 +1,11 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
-// - each of ui, live, cache, queue and analytics removed alone passes check, unit tests and
+// - each of ui, live, cache, queue, analytics and error-tracking removed alone passes check, unit tests and
 //   build, and git revert of its commit gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it;
-// - all six removed together, each passing check, then reverted, give back the starting tree,
+// - all seven removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all six removed, then invoice-line added with domain-create, pass check, unit tests and build
+// - all seven removed, then invoice-line added with domain-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // One render serves every case, to keep CI short.
 import { spawn, spawnSync } from "node:child_process";
@@ -41,7 +41,14 @@ const invoiceLine = {
 	kebab: "invoice-line",
 	plural: "invoice-lines",
 };
-type Piece = "analytics" | "cache" | "live" | "queue" | "redis" | "ui";
+type Piece =
+	| "analytics"
+	| "cache"
+	| "error-tracking"
+	| "live"
+	| "queue"
+	| "redis"
+	| "ui";
 
 const domainAdd = (
 	directory: string,
@@ -212,7 +219,14 @@ const main = async () => {
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
-	for (const piece of ["ui", "live", "cache", "queue", "analytics"] as const) {
+	for (const piece of [
+		"ui",
+		"live",
+		"cache",
+		"queue",
+		"analytics",
+		"error-tracking",
+	] as const) {
 		const before = head();
 		pieceRemove(directory, piece, checkTestBuild);
 		revertTo(directory, before);
@@ -231,7 +245,15 @@ const main = async () => {
 	treeCleanRequire(directory, "the refused piece-remove redis");
 
 	const before = head();
-	const all: Piece[] = ["live", "ui", "cache", "redis", "queue", "analytics"];
+	const all: Piece[] = [
+		"live",
+		"ui",
+		"cache",
+		"redis",
+		"queue",
+		"analytics",
+		"error-tracking",
+	];
 	for (const piece of all) pieceRemove(directory, piece, ["check"]);
 	const removed = head();
 	revertTo(directory, before);
