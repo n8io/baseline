@@ -27,6 +27,8 @@ export default defineConfig({
 				test: {
 					env: { APP_ENV: "test" },
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
+					// The same slow import in a beforeAll: it took over 10 s on a busy CI runner.
+					hookTimeout: 20_000,
 					include: ["*.test.ts", "scripts/*.test.ts", "src/**/*.test.ts"],
 					name: "unit",
 					// Loads .env.schema and .env.test into process.env in every worker.
