@@ -118,7 +118,8 @@ export const errorTrackingSentryCreate = ({
 		transport: (options) =>
 			createTransport(options, async ({ body }) => {
 				const response = await fetch(options.url, {
-					body,
+					// A copy, typed as the ArrayBuffer-backed bytes fetch takes.
+					body: typeof body === "string" ? body : body.slice(),
 					method: "POST",
 					signal: AbortSignal.timeout(sendTimeoutMs),
 				});
