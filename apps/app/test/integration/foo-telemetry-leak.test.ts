@@ -139,6 +139,16 @@ describe("telemetry from the production build with foo traffic", {
 		).toEqual([]);
 	});
 
+	// pg metrics start with the first query inside a trace, like its spans.
+	it("exports pg client metrics", () => {
+		expect(receiver.metrics().map((metric) => metric.name)).toEqual(
+			expect.arrayContaining([
+				"db.client.operation.duration",
+				"db.client.connection.count",
+			]),
+		);
+	});
+
 	// piece-start: cache
 	it("traces the cached read from fooGet to Redis", () => {
 		const spans = receiver.spans();

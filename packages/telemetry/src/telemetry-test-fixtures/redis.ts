@@ -1,7 +1,8 @@
 // Started by register.test.ts with telemetry-test-fixtures/preload.ts. Sends one Redis command
 // outside any span and one inside a span to a stand-in server, then flushes telemetry and exits.
-import { createServer } from "node:net";
+
 import type { AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { telemetrySpanRun } from "@n8io/baseline-telemetry/span";
 import { createClient } from "redis";
