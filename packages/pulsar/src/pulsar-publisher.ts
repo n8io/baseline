@@ -42,6 +42,7 @@ type PulsarEventBuffered = {
 	readonly context: Context;
 	readonly data: unknown;
 	readonly eventId: string;
+	readonly key: string;
 	readonly name: string;
 };
 
@@ -74,6 +75,8 @@ const pulsarEventSend = (
 				const producer = await state.producer(topic);
 				const messageId = await producer.send({
 					data: Buffer.from(JSON.stringify(event.data)),
+					// The Event's key, so the broker can keep one key's Events together and in order.
+					partitionKey: event.key,
 					properties,
 				});
 				span.setAttribute("messaging.message.id", messageId.toString());
@@ -111,11 +114,12 @@ export const pulsarPublisherCreate = <M extends Record<string, unknown>>(
 			// Issued in publish order; one producer per topic keeps that order on the broker.
 			await Promise.all(sending.map((event) => pulsarEventSend(state, event)));
 		},
-		publish: async (name, data) => {
+		publish: async ({ data, key, name }) => {
 			buffered.push({
 				context: context.active(),
 				data,
 				eventId: randomUUID(),
+				key,
 				name,
 			});
 		},

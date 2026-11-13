@@ -20,13 +20,14 @@ const deadLettersCounter = (): Counter => {
 // expected business outcome, so it only marks the span. A throw fails the job, which pg-boss
 // retries and, after the last attempt, moves to the dead-letter queue. The counter sees only those
 // throws: jobs pg-boss fails itself (expired, or still active after the 15 s stop grace) skip it,
-// and pg-boss's pgboss.queue.jobs gauge shows every `<name>.dead` queue's size.
+// and pg-boss's pgboss.queue.jobs gauge shows every `<name>.dead` queue's size. A Consumer's job
+// carries its `key`: its last failure also leaves the job where it is, holding the key back.
 export const queueJobRun = async ({
 	job,
 	queueName,
 	work,
 }: {
-	job: { retryCount: number };
+	job: { key?: string | null; retryCount: number };
 	queueName: string;
 	work: () => Promise<Result<unknown, { type: string }>>;
 }): Promise<void> => {
@@ -35,9 +36,19 @@ export const queueJobRun = async ({
 		result = await work();
 	} catch (error) {
 		const last = job.retryCount >= queueRetryLimit;
+		const blocked = last && job.key != null;
 		logger.error(
-			{ err: error, queue: queueName, attempt: job.retryCount + 1 },
-			last ? "Job failed; moved to dead letter" : "Job failed; will retry",
+			{
+				err: error,
+				queue: queueName,
+				attempt: job.retryCount + 1,
+				...(blocked && { key: job.key }),
+			},
+			blocked
+				? "Job failed; copied to dead letter, and its key is blocked until released"
+				: last
+					? "Job failed; moved to dead letter"
+					: "Job failed; will retry",
 		);
 		if (last) {
 			deadLettersCounter().add(1, { "messaging.destination.name": queueName });

@@ -2,10 +2,14 @@ import { logger } from "@n8io/baseline-logger";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
+import { queueOrderedBlockedKeysList } from "./queue-ordered.ts";
 import type { QueueSql } from "./queue-sql.ts";
 
 export type Queue = {
 	isAlive(): boolean;
+	// The keys held back by an Event that failed for good, per Consumer (its queueName), and since
+	// when. Empty when nothing is blocked. README, "A blocked key", says how to release one.
+	blockedKeys(): Promise<{ consumer: string; key: string; since: Date }[]>;
 	// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
 	// the composition root closes it after.
 	stop(): Promise<void>;
@@ -151,6 +155,7 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 	const stop = (): Promise<void> =>
 		boss.stop({ graceful: true, timeout: 15_000 });
 	const queue: Queue = {
+		blockedKeys: () => queueOrderedBlockedKeysList(boss),
 		isAlive: () => {
 			if (!worker) {
 				return true;

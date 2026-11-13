@@ -175,10 +175,10 @@ describe("queueCreate", () => {
 				},
 			}),
 		]);
-		await boss.publish("foo.created", {});
+		await boss.send("bar.foo-created.ordered", {}, { singletonKey: "foo_1" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await boss.findJobs("bar.foo-created");
+				const [job] = await boss.findJobs("bar.foo-created.ordered");
 				expect(job?.state).toBe("active");
 			},
 			{ interval: 100, timeout: 10_000 },
@@ -188,7 +188,7 @@ describe("queueCreate", () => {
 		queues.splice(0);
 
 		expect(finished).toEqual(["run"]);
-		const [job] = await boss.findJobs("bar.foo-created");
+		const [job] = await boss.findJobs("bar.foo-created.ordered");
 		expect(job?.state).toBe("completed");
 		expect(boss.getWipData({ includeInternal: true })).toEqual([]);
 		expect(boss.isTimekeeping()).toBe(false);
@@ -224,10 +224,10 @@ describe("queueCreate", () => {
 				},
 			}),
 		]);
-		await boss.publish("foo.deleted", {});
+		await boss.send("baz.foo-deleted.ordered", {}, { singletonKey: "foo_1" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await boss.findJobs("baz.foo-deleted");
+				const [job] = await boss.findJobs("baz.foo-deleted.ordered");
 				expect(job?.state).toBe("active");
 			},
 			{ interval: 100, timeout: 10_000 },
@@ -236,7 +236,7 @@ describe("queueCreate", () => {
 		await boss.stop({ graceful: true, timeout: 1_000 });
 		queues.splice(0);
 
-		const [job] = await boss.findJobs("baz.foo-deleted");
+		const [job] = await boss.findJobs("baz.foo-deleted.ordered");
 		expect(job?.state).toBe("retry");
 	});
 });
