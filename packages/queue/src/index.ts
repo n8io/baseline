@@ -7,12 +7,10 @@ export {
 	queueEventsMemoryCreate,
 } from "./queue-events.ts";
 export { type Inbox, queueInboxInsert } from "./queue-inbox.ts";
-export { queueJobRun } from "./queue-job-run.ts";
 export {
 	type QueueMigrateVendorOptions,
 	queueMigrate,
 } from "./queue-migrate.ts";
-export { queueRetryLimit } from "./queue-retry.ts";
 export {
 	queueScheduleCreate,
 	queueSchedulesStart,

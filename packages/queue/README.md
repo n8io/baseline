@@ -17,9 +17,7 @@ pnpm add @n8io/baseline-queue
 - `queueConsumerCreate({ queueName, eventName, schema, run })`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
 - `queueScheduleCreate({ name, cron, run })`, `Schedule`: a UTC cron job. `queueSchedulesSync({ databaseUrl, schedules, env, vendor? })` writes the Schedules to the database from the migrate entry, and `queueSchedulesStart({ queue, schedules, env })` runs them in the worker (see [Schedules](#schedules)). `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
-- `queueJobRun({ queueName, job, work })`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`). With `job.key`, the last failure is logged as a blocked key.
 - `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the package needs no `pg` types.
-- `queueRetryLimit`: retries before a job is copied to `<queueName>.dead` (4, so five attempts, waiting 10 s, 20 s, 40 s and 80 s, each up to twice as long).
 
 ## Example
 

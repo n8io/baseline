@@ -96,22 +96,12 @@ An Event that fails five times stays failed and blocks its Event key; other keys
 
 Sentinel or Cluster addressed directly needs `createSentinel` or `createCluster` in that one file. The cache and live updates take either client, but nothing tests that path.
 
-## Pulsar
-
-For a Project that moved Events to `@n8io/baseline-pulsar`. It differs from the queue on purpose:
-
-- A poison Event goes to `<queueName>.dead` after five attempts (about 150 s, during which later Events of its Event key wait) and its key then moves on. No key stays blocked and there is no `blockedKeys()`.
-- Order is the order the broker received the sends, and a send happens after the commit. Two transactions on one entity that commit within milliseconds on different pods can arrive reversed.
-- Events published during a broker outage are lost and counted. The outage does not fail Worker liveness.
-- Upgrading to version 5 is not a rolling update. Scale the old Workers to zero, then deploy Servers and Workers. A new pod that boots while an old Worker is connected fails with "ConsumerBusy" until the old ones are gone.
-
 ## Alerts
 
 - `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Log: "Event key is blocked until released".
 - `baseline.cache.store_errors` and `baseline.live.sends_failed` rising: Redis is down. One warning per 30 s per cache or hub on each pod, not one per call.
 - "Queue error", once per 30 s per queue per pod: Postgres is down.
 - `baseline.queue.dead_letters`, or an error log that names "dead letter": an Event or a Schedule run used up its attempts. "Job failed; will retry" is only one failed attempt.
-- Pulsar: `baseline.pulsar.events_lost`.
 
 ## Known gaps
 
@@ -122,7 +112,6 @@ For a Project that moved Events to `@n8io/baseline-pulsar`. It differs from the 
 - A Worker that started before migrate added a Schedule runs it only after a restart.
 - One Consumer whose poll loop hangs is hidden from liveness while the Worker's other loops turn.
 - Inbox pruning does not count toward a Worker's limit of runs at once.
-- Pulsar: a Consumer run that never returns is not timed out and liveness does not see it. One Event key with a backlog of failing Events can hold all four of a Consumer's places on a Worker. During a broker outage a request that publishes waits for the send timeout (30 s) before the Event counts as lost.
 
 ## Deferred
 
