@@ -11,7 +11,8 @@ import type { QueueSql } from "./queue-sql.ts";
 export type Queue = {
 	// false only when this process's own poll loops are stuck, which a restart fixes. A poll that
 	// fails (Postgres is down or failing over) still counts as proof the loop runs, so an outage
-	// never reports a worker dead.
+	// never reports a worker dead. A poll must fail and not hang for that: give `pgPool` a query
+	// timeout well under a minute.
 	isAlive(): boolean;
 	// The keys held back by an Event that failed for good, per Consumer (its queueName), and since
 	// when. Empty when nothing is blocked. README, "A blocked key", says how to release one.
@@ -30,13 +31,13 @@ export const queueSchema = "queue";
 // dead to /livez.
 const queueHeartbeatLimitMs = 60_000;
 
-// Events one process runs at once unless queueCreate is told otherwise.
+// Events and Schedule runs one process has under way at once unless queueCreate is told otherwise.
 const queueConcurrencyDefault = 4;
 
 const queueBosses = new WeakMap<Queue, PgBoss>();
 const queueConcurrencies = new WeakMap<Queue, number>();
 
-// How many Events the Queue's process may run at once, for the other modules of this package only.
+// How many jobs the Queue's process may run at once, for the other modules of this package only.
 export const queueConcurrencyGet = (queue: Queue): number =>
 	queueConcurrencies.get(queue) ?? queueConcurrencyDefault;
 
@@ -123,8 +124,9 @@ export type QueueVendorOptions = Omit<ConstructorOptions, QueueOwnedKey>;
 // maintenance and no cron pass. A worker runs maintenance, cron and the package's inbox pruning.
 export const queueCreate = async (options: {
 	/**
-	 * How many Events a worker runs at once, across all its Consumers. Default 4. Each one holds a
-	 * connection of `pgPool` while its transaction is open, so keep it below the pool's size.
+	 * How many Events and Schedule runs a worker has under way at once, across all its Consumers
+	 * and Schedules. Default 4. Each holds a connection of `pgPool` while it runs, so keep it below
+	 * the pool's size.
 	 */
 	concurrency?: number;
 	pgPool: QueueSql;
@@ -162,7 +164,7 @@ export const queueCreate = async (options: {
 	});
 	// pg-boss reports background failures (a poll, maintenance) as events; unhandled, they would
 	// crash the process.
-	boss.on("error", (error) => queueErrorHandle(boss, error));
+	boss.on("error", queueErrorHandleCreate(boss));
 	boss.on("warning", (warning) => {
 		logger.warn({ queueWarning: warning.data }, warning.message);
 	});
@@ -182,32 +184,62 @@ export const queueCreate = async (options: {
 const queueGoneCode = "PGBOSS_QUEUE_NOT_FOUND";
 
 // pg-boss hands most background failures over as plain objects, which a logger and error tracking
-// print without a message or a stack: each becomes an Error, with what pg-boss sent as its cause.
-// A worker whose queue is gone (queueMigrate removed it under a process that still works it)
-// stops polling it and says so once, instead of failing the same poll until the process restarts.
-const queueErrorHandle = (boss: PgBoss, error: unknown): void => {
-	const { code, message, queue, stack } = (error ?? {}) as Record<
-		string,
-		unknown
-	>;
-	if (code === queueGoneCode && typeof queue === "string") {
-		logger.warn({ queue }, "Queue was removed; this worker stops polling it");
-		boss.offWork(queue, { wait: false }).catch(() => undefined);
-		return;
+// print without a message or a stack: each becomes an Error with the same message, stack and
+// code, and what pg-boss sent as its cause.
+export const queueErrorWrap = (error: unknown): Error => {
+	if (error instanceof Error) {
+		return error;
 	}
-	let err = error;
-	if (!(error instanceof Error)) {
-		err = new Error(typeof message === "string" ? message : "Queue error", {
-			cause: error,
-		});
-		if (typeof stack === "string") {
-			(err as Error).stack = stack;
-		}
-	}
-	logger.error(
-		{ err, ...(typeof queue === "string" && { queue }) },
-		"Queue error",
+	const { code, message, stack } = (error ?? {}) as Record<string, unknown>;
+	const wrapped: Error & { code?: unknown } = new Error(
+		typeof message === "string" ? message : "Queue error",
+		{ cause: error },
 	);
+	if (typeof stack === "string") {
+		wrapped.stack = stack;
+	}
+	if (code !== undefined) {
+		wrapped.code = code;
+	}
+	return wrapped;
+};
+
+// How often one queue's failures are logged. During a Postgres outage every poll of every worker
+// fails, every 2 s; the first failure says so and the rest add nothing.
+const queueErrorLogEveryMs = 30_000;
+
+// Logs what pg-boss reports in the background. A worker whose queue is gone (queueMigrate removed
+// it under a process that still works it) stops polling it and says so once, instead of failing
+// the same poll until the process restarts.
+const queueErrorHandleCreate = (boss: PgBoss) => {
+	const loggedAt = new Map<string, number>();
+	return (error: unknown): void => {
+		const { code, queue } = (error ?? {}) as Record<string, unknown>;
+		const name = typeof queue === "string" ? queue : undefined;
+		if (code === queueGoneCode && name !== undefined) {
+			logger.warn(
+				{ queue: name },
+				"Queue was removed; this worker stops polling it",
+			);
+			boss.offWork(name, { wait: false }).catch(() => undefined);
+			return;
+		}
+		const now = Date.now();
+		if (
+			now - (loggedAt.get(name ?? "") ?? -queueErrorLogEveryMs) <
+			queueErrorLogEveryMs
+		) {
+			return;
+		}
+		loggedAt.set(name ?? "", now);
+		logger.error(
+			{
+				err: queueErrorWrap(error),
+				...(name !== undefined && { queue: name }),
+			},
+			"Queue error",
+		);
+	};
 };
 
 const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {

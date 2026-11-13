@@ -160,12 +160,13 @@ describe("queueCreate", () => {
 			Math.max(...boss.getWipData().map((wip) => wip[key] ?? 0));
 		vi.spyOn(logger, "error").mockReturnValue(undefined);
 		await setTimeout(500);
-		const fetched = stamp("lastFetchedOn");
 
-		// Postgres goes away: every query fails from here on.
+		// Postgres goes away: every query fails from here on. A poll already on its way may still land.
 		vi.spyOn(pgPool, "query").mockImplementation(() =>
 			Promise.reject(new Error("Connection terminated unexpectedly")),
 		);
+		await setTimeout(500);
+		const fetched = stamp("lastFetchedOn");
 		await vi.waitFor(
 			() => expect(stamp("lastErrorOn")).toBeGreaterThan(fetched + 1_000),
 			{ interval: 100, timeout: 15_000 },
@@ -194,10 +195,22 @@ describe("queueCreate", () => {
 					hung.push(reject);
 				}),
 		);
-		const hungAt = Date.now();
+		const boss = queueBossGet(queue);
+		const stamp = (): number =>
+			Math.max(
+				...boss
+					.getWipData()
+					.flatMap((wip) => [wip.lastFetchedOn ?? 0, wip.lastErrorOn ?? 0]),
+			);
+		// A poll already on its way may still land; after that nothing stamps the heartbeat.
+		await setTimeout(500);
+		const last = stamp();
 		await setTimeout(3_000);
-		vi.spyOn(Date, "now").mockReturnValue(hungAt + 60_000);
 		try {
+			expect(stamp()).toBe(last);
+			vi.spyOn(Date, "now").mockReturnValue(last + 59_999);
+			expect(queue.isAlive()).toBe(true);
+			vi.spyOn(Date, "now").mockReturnValue(last + 60_000);
 			expect(queue.isAlive()).toBe(false);
 		} finally {
 			vi.restoreAllMocks();
@@ -210,6 +223,7 @@ describe("queueCreate", () => {
 		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
 		const boss = queueBossGet(await start(poolCreate(), "worker"));
 		const reported = {
+			code: "ECONNREFUSED",
 			message: "connect ECONNREFUSED (Queue: foo.stale-archive, Worker: 1)",
 			queue: "foo.stale-archive",
 			stack: "Error: connect ECONNREFUSED\n    at somewhere",
@@ -233,7 +247,30 @@ describe("queueCreate", () => {
 		expect(logged[0]?.message).toBe(reported.message);
 		expect(logged[0]?.stack).toBe(reported.stack);
 		expect(logged[0]?.cause).toBe(reported);
+		expect(logged[0]).toMatchObject({ code: "ECONNREFUSED" });
 		expect(logged[1]).toBe(already);
+	});
+
+	it("logs one queue's failures once per 30 s, as an outage fails every poll", async () => {
+		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const boss = queueBossGet(await start(poolCreate(), "worker"));
+		const failed = (queue: string): Error =>
+			Object.assign(new Error("connect ECONNREFUSED"), { queue });
+		const now = Date.now();
+
+		boss.emit("error", failed("foo.stale-archive"));
+		boss.emit("error", failed("foo.stale-archive"));
+		boss.emit("error", failed("foo.report-send"));
+		vi.spyOn(Date, "now").mockReturnValue(now + 29_000);
+		boss.emit("error", failed("foo.stale-archive"));
+		expect(error.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+			expect.objectContaining({ queue: "foo.stale-archive" }),
+			expect.objectContaining({ queue: "foo.report-send" }),
+		]);
+
+		vi.spyOn(Date, "now").mockReturnValue(now + 31_000);
+		boss.emit("error", failed("foo.stale-archive"));
+		expect(error).toHaveBeenCalledTimes(3);
 	});
 
 	it("a worker whose queue was removed stops polling it and says so once", async () => {

@@ -566,6 +566,8 @@ describe("queueOrderedBlockedKeysWatch", () => {
 			getMeter.mockRestore();
 			error.mockRestore();
 		}
+		// A check that was under way when the watch stopped may still report.
+		await sleep(300);
 		const calls = record.mock.calls.length;
 		await sleep(300);
 		expect(record.mock.calls.length).toBe(calls);

@@ -13,6 +13,7 @@ import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
+import { type QueueSlots, queueSlotsGet } from "./queue-slots.ts";
 
 export type Consumer = {
 	readonly queueName: string;
@@ -71,36 +72,8 @@ export const queueConsumerCreate = <S extends StandardSchemaV1>({
 // so a hung Consumer holds its key, and the jobs fetched with it, for five minutes at most.
 const queueConsumerExpireSeconds = 300;
 
-// Jobs taken per fetch (each of another key).
+// The most jobs taken per fetch (each of another key).
 const queueConsumerBatchSize = 10;
-
-// Lets `size` jobs run at once and makes the rest wait their turn, first come first served.
-// One per worker process, shared by its Consumers, so their jobs together never hold more pool
-// connections than the process has.
-type Slots = { take(): Promise<void>; give(): void };
-const slotsCreate = (size: number): Slots => {
-	let free = size;
-	const waiting: (() => void)[] = [];
-	return {
-		give: () => {
-			const next = waiting.shift();
-			if (next) {
-				next();
-			} else {
-				free++;
-			}
-		},
-		take: async () => {
-			if (free > 0) {
-				free--;
-				return;
-			}
-			await new Promise<void>((resolve) => {
-				waiting.push(resolve);
-			});
-		},
-	};
-};
 
 // A publish copies an Event only into queues already subscribed to it, so every instance that may
 // publish subscribes at boot. Safe to repeat on any number of instances.
@@ -186,7 +159,7 @@ const consumerWork = async ({
 	lanes: number;
 	name: string;
 	options: { batchSize: number; pollingIntervalSeconds: number };
-	slots: Slots;
+	slots: QueueSlots;
 }): Promise<void> => {
 	const workerId = await boss.work(
 		name,
@@ -199,13 +172,6 @@ const consumerWork = async ({
 			const lane = async (): Promise<void> => {
 				for (let job = waiting.shift(); job; job = waiting.shift()) {
 					const { id } = job;
-					await slots.take();
-					// pg-boss gave the job up (the fetch ran out of time, or the worker is stopping) and
-					// has failed it for a retry: do not start it here as well.
-					if (job.signal.aborted) {
-						slots.give();
-						continue;
-					}
 					const run = (): Promise<void> =>
 						queueJobRun({
 							job: { key: job.singletonKey, retryCount: job.retryCount },
@@ -217,16 +183,18 @@ const consumerWork = async ({
 								}),
 						});
 					const traceContext = traceContexts.get(id);
-					try {
-						await (traceContext ? context.with(traceContext, run) : run());
-						results.push({ id, status: "completed" });
-						await boss.complete(name, id).catch(() => undefined);
-					} catch (error) {
-						results.push({ id, output: error, status: "failed" });
-						await boss.fail(name, id, error as Error).catch(() => undefined);
-					} finally {
-						slots.give();
-					}
+					// A job pg-boss gave up while it waited for a slot (the fetch ran out of time, or the
+					// worker is stopping) has been failed for a retry already: it is not started here.
+					await slots.run(job.signal, async () => {
+						try {
+							await (traceContext ? context.with(traceContext, run) : run());
+							results.push({ id, status: "completed" });
+							await boss.complete(name, id).catch(() => undefined);
+						} catch (error) {
+							results.push({ id, output: error, status: "failed" });
+							await boss.fail(name, id, error as Error).catch(() => undefined);
+						}
+					});
 				}
 			};
 			await Promise.all(Array.from({ length: lanes }, () => lane()));
@@ -234,8 +202,6 @@ const consumerWork = async ({
 		},
 	);
 };
-
-const queueSlots = new WeakMap<Queue, Slots>();
 
 // Subscribes, then starts a worker per consumer (worker process only).
 export const queueConsumersStart = async (
@@ -245,15 +211,19 @@ export const queueConsumersStart = async (
 	await queueConsumersSubscribe(queue, consumers);
 	const boss = queueBossGet(queue);
 	const lanes = queueConcurrencyGet(queue);
-	const slots = queueSlots.get(queue) ?? slotsCreate(lanes);
-	queueSlots.set(queue, slots);
+	const slots = queueSlotsGet(queue);
 	for (const consumer of consumers) {
 		await consumerWork({
 			boss,
 			consumer,
 			lanes,
 			name: queueOrderedName(consumer.queueName),
-			options: { batchSize: queueConsumerBatchSize, pollingIntervalSeconds: 2 },
+			// No more than can run at once: a job fetched beyond that only waits while its fetch's
+			// time runs.
+			options: {
+				batchSize: Math.min(queueConsumerBatchSize, lanes),
+				pollingIntervalSeconds: 2,
+			},
 			slots,
 		});
 		// A Project that ran a release before 8 still has the unordered queue `<queueName>`. Processes

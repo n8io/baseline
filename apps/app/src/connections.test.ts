@@ -38,6 +38,29 @@ describe("connectionsOpen", () => {
 	});
 });
 
+describe("connectionsOpen with a real database", () => {
+	it("asks Postgres first and fails while it is unreachable, so the process never reports ready", async () => {
+		const { ENV } =
+			await vi.importActual<typeof import("varlock/env")>("varlock/env");
+		vi.resetModules();
+		vi.doMock("varlock/env", () => ({
+			ENV: { ...ENV, DATABASE_URL: "postgres://localhost/app" },
+		}));
+		const { default: pg } = await import("pg");
+		const unreachable = new Error("connect ECONNREFUSED");
+		const query = vi
+			.spyOn(pg.Pool.prototype, "query")
+			.mockImplementation(() => Promise.reject(unreachable));
+		const { connectionsOpen: open } = await import("./connections.ts");
+
+		await expect(open({ role: "publisher" })).rejects.toBe(unreachable);
+
+		// The check itself, before the queue or anything else is opened on the pool.
+		expect(query.mock.calls).toEqual([["SELECT 1"]]);
+		query.mockRestore();
+	});
+});
+
 describe("databaseOpen", () => {
 	it("sizes the pool at 10 for the Server and 5 for the Worker", async () => {
 		const poolMax = await databaseOpenWith({});
