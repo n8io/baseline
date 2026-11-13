@@ -150,11 +150,11 @@ describe("queueMigrate", () => {
 			.toContain("foo_5");
 		await worker.stop();
 
-		// The next deploy, the same day: the unordered queue is kept, in case that release still runs.
+		// The next rollout, the same day: the unordered queue is kept, in case that release still runs.
 		await queueMigrate({ databaseUrl });
 		expect(await old.getQueue("bar.foo-created")).not.toBeNull();
 
-		// A deploy after a quiet day removes it and its subscription; the ordered queue carries on.
+		// A rollout after a quiet day removes it and its subscription; the ordered queue carries on.
 		await pgPool.query(
 			"UPDATE queue.job SET created_on = created_on - interval '2 days' WHERE name = 'bar.foo-created'",
 		);

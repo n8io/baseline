@@ -53,6 +53,10 @@ _Avoid_: frontend, web, client
 A fact a domain records in past tense (OrderPlaced) and delivers to other domains once the change that caused it commits. Events go through the queue (pg-boss) by default; `@n8io/baseline-pulsar` is the one sanctioned swap for a project that outgrows Postgres. Nothing else carries Events.
 _Avoid_: message, signal, notification
 
+**Event key**:
+The id of the entity an event is about, named at every publish. Events with the same Event key reach each consumer one at a time, in the order their changes committed; events with different Event keys run beside each other.
+_Avoid_: partition key, ordering key, group id
+
 **Consumer**:
 An inbound adapter in a domain's API that receives one kind of event and calls a use case.
 _Avoid_: subscriber, listener, handler

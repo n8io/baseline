@@ -13,16 +13,26 @@ describe("fooRepositoryMemoryCreate", () => {
 		const fooId = idCreate("foo");
 		await expect(
 			ports.fooTransaction(async ({ fooEvents }) => {
-				await fooEvents.publish("foo.deleted", { fooId });
+				await fooEvents.publish({
+					data: { fooId },
+					key: fooId,
+					name: "foo.deleted",
+				});
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");
 		expect(state.published).toEqual([]);
 		await ports.fooTransaction(async ({ fooEvents }) => {
-			await fooEvents.publish("foo.created", { fooId });
+			await fooEvents.publish({
+				data: { fooId },
+				key: fooId,
+				name: "foo.created",
+			});
 			return ok(undefined);
 		});
-		expect(state.published).toEqual([{ data: { fooId }, name: "foo.created" }]);
+		expect(state.published).toEqual([
+			{ data: { fooId }, key: fooId, name: "foo.created" },
+		]);
 	});
 	// piece-end: queue
 });

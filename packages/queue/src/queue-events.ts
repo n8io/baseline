@@ -9,7 +9,7 @@ import type { QueueSql } from "./queue-sql.ts";
 
 // What a Use case publishes Events through inside its transaction. One per transaction.
 export type EventsPublisher<M> = {
-	// `key` is the id of the entity the Event is about. Events with the same key reach each Consumer
+	// `key` is the Event key: the id of the entity the Event is about. Events with the same key reach each Consumer
 	// one at a time, in the order their transactions committed; other keys run beside them.
 	publish<K extends keyof M & string>(event: {
 		name: K;

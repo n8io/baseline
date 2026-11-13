@@ -23,8 +23,10 @@ export const fooCreate =
 			});
 			// piece-start: queue
 			if (inserted.ok) {
-				await transaction.fooEvents.publish("foo.created", {
-					fooId: inserted.value.id,
+				await transaction.fooEvents.publish({
+					data: { fooId: inserted.value.id },
+					key: inserted.value.id,
+					name: "foo.created",
 				});
 			}
 			// piece-end: queue
