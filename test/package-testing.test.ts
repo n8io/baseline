@@ -19,15 +19,19 @@ const testOnlyIs = (p: string): boolean =>
 		p,
 	);
 
+// Statements that start a line, so an import shown in a comment is not one; plus `import()`.
 const importsOf = ({ path: from, source }: Source) =>
-	[...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g)].map(
-		([, specifier = ""]) => ({
-			specifier,
-			target: specifier.startsWith(".")
-				? path.posix.join(path.posix.dirname(from), specifier)
-				: specifier,
-		}),
-	);
+	[
+		...source.matchAll(
+			/^\s*(?:import\s*|(?:import|export)\b[^;'"]*?\bfrom\s*)["']([^"']+)["']/gm,
+		),
+		...source.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g),
+	].map(([, specifier = ""]) => ({
+		specifier,
+		target: specifier.startsWith(".")
+			? path.posix.join(path.posix.dirname(from), specifier)
+			: specifier,
+	}));
 
 const packageTestingCheck = (files: Source[]): string[] => {
 	const byPath = new Map(files.map((f) => [f.path, f]));
@@ -86,7 +90,10 @@ describe("package testing", () => {
 		expect(
 			packageTestingCheck([
 				source("index.ts", 'export * from "./bar-test-read.ts";\n'),
-				source("bar.ts", 'import { vi } from "vitest";\n'),
+				source(
+					"bar.ts",
+					'/**\n * import { barTestRead } from "@n8io/baseline-bar/testing";\n */\nimport {\n\tvi,\n} from "vitest";\n',
+				),
 				source("bar-hub.ts", 'import "./bar-hub.contract.ts";\n'),
 				source("bar-open.ts", 'await import("./testing.ts");\n'),
 				source("testing.ts", 'export * from "./bar-test-read.ts";\n'),
