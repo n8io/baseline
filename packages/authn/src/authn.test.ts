@@ -1,18 +1,30 @@
 import { describe, expect, it } from "vitest";
+import { authnState } from "./authn.ts";
 import { memoryOptions } from "./authn-test-helpers.ts";
-import { type Actor, authnCreate } from "./index.ts";
+import {
+	type Actor,
+	type Authn,
+	authnCreate,
+	authnRoutesCreate,
+} from "./index.ts";
 
 const verify = async (
 	options: Partial<typeof memoryOptions>,
 	actor: Actor = { id: "dev-user", kind: "user", scopes: [] },
 ) => {
-	const authn = await authnCreate({ ...memoryOptions, ...options });
+	const authn = authnState(await authnCreate({ ...memoryOptions, ...options }));
 	if (authn.issuer.kind !== "memory") throw new Error("memory issuer expected");
 	const { accessToken } = await authn.issuer.tokensCreate(actor);
 	return authn.verify(accessToken);
 };
 
 describe("authnCreate", () => {
+	it("makes the only Authn the other functions accept", () => {
+		expect(() => authnRoutesCreate({} as Authn)).toThrow(
+			"Expected an Authn from authnCreate",
+		);
+	});
+
 	it("refuses a secret that decodes to fewer than 32 bytes", async () => {
 		await expect(
 			authnCreate({
@@ -29,7 +41,7 @@ describe("authnCreate", () => {
 	});
 
 	it("accepts a 32-byte base64url secret", async () => {
-		const authn = await authnCreate(memoryOptions);
+		const authn = authnState(await authnCreate(memoryOptions));
 
 		expect(authn.issuer.kind).toBe("memory");
 	});
@@ -69,8 +81,10 @@ describe("the verifier", () => {
 	});
 
 	it("checks the audience", async () => {
-		const authn = await authnCreate(memoryOptions);
-		const other = await authnCreate({ ...memoryOptions, audience: "other" });
+		const authn = authnState(await authnCreate(memoryOptions));
+		const other = authnState(
+			await authnCreate({ ...memoryOptions, audience: "other" }),
+		);
 		if (other.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
 		const { accessToken } = await other.issuer.tokensCreate({
@@ -116,7 +130,7 @@ describe("the verifier", () => {
 	});
 
 	it("never accepts a memory refresh token as an access token", async () => {
-		const authn = await authnCreate(memoryOptions);
+		const authn = authnState(await authnCreate(memoryOptions));
 		if (authn.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
 		const { refreshToken } = await authn.issuer.tokensCreate({

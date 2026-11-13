@@ -13,6 +13,9 @@ import { type Configuration, discovery } from "openid-client";
 import { Actor } from "./actor.ts";
 import { authnCookieKey } from "./authn-cookie.ts";
 
+/** The claims of a verified access token, as the provider sent them. */
+export type AuthnClaims = Record<string, unknown>;
+
 export type AuthnOptions = {
 	issuerUrl: string;
 	clientId: string;
@@ -24,7 +27,8 @@ export type AuthnOptions = {
 	authorizeParams?: Record<string, string>;
 	/** `"client_id"` for Cognito without a resource binding: the token's `client_id` must then equal `audience`. */
 	audienceClaim?: "aud" | "client_id";
-	actorFromClaims: (claims: JWTPayload) => Actor;
+	/** Maps the verified access token's claims to the Actor; a throw means "not an actor". */
+	actorFromClaims: (claims: AuthnClaims) => Actor;
 	/** Scopes of the memory issuer's "Dev admin". */
 	memoryAdminScopes?: string[];
 	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
@@ -54,12 +58,33 @@ export type AuthnOidcIssuer = {
 	config: Configuration;
 };
 
-/** What `authnCreate` returns. Pass it to the other authn functions; its fields are internal. */
-export type Authn = {
+declare const authnBrand: unique symbol;
+
+/** What `authnCreate` returns. Pass it to the other authn functions; it has no fields of its own. */
+export type Authn = { readonly [authnBrand]: true };
+
+// What the other modules of this package reach through an Authn.
+export type AuthnState = {
 	readonly clientId: string;
 	readonly cookieKey: Uint8Array;
 	readonly issuer: AuthnMemoryIssuer | AuthnOidcIssuer;
 	readonly verify: (accessToken: string) => Promise<AuthnVerified>;
+};
+
+const authnStates = new WeakMap<Authn, AuthnState>();
+
+export const authnState = (authn: Authn): AuthnState => {
+	const state = authnStates.get(authn);
+	if (state === undefined) {
+		throw new TypeError("Expected an Authn from authnCreate");
+	}
+	return state;
+};
+
+const authnFromState = (state: AuthnState): Authn => {
+	const authn = Object.freeze({}) as Authn;
+	authnStates.set(authn, state);
+	return authn;
 };
 
 const memoryIssuerUrl = "memory://";
@@ -114,7 +139,7 @@ const verifyCreate =
 		options: AuthnOptions,
 		jwks: JWTVerifyGetKey,
 		issuer: string,
-	): Authn["verify"] =>
+	): AuthnState["verify"] =>
 	async (accessToken) => {
 		let payload: JWTPayload;
 		try {
@@ -257,20 +282,20 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 	const cookieKey = authnCookieKey(options.secret);
 	if (options.issuerUrl === memoryIssuerUrl) {
 		const { issuer, jwks } = await memoryIssuerCreate(options);
-		return {
+		return authnFromState({
 			clientId: options.clientId,
 			cookieKey,
 			issuer,
 			verify: verifyCreate(options, jwks, memoryIssuerUrl),
-		};
+		});
 	}
 	const { issuer, issuerId, jwks } = await oidcIssuerCreate(options);
-	return {
+	return authnFromState({
 		clientId: options.clientId,
 		cookieKey,
 		issuer,
 		verify: verifyCreate(options, jwks, issuerId),
-	};
+	});
 };
 
 /** Signs an access token for `actor` with the memory issuer, for integration tests' bearer calls. */
@@ -278,10 +303,11 @@ export const authnMemoryTokenCreate = async (
 	authn: Authn,
 	actor: Actor,
 ): Promise<string> => {
-	if (authn.issuer.kind !== "memory") {
+	const { issuer } = authnState(authn);
+	if (issuer.kind !== "memory") {
 		throw new TypeError(
 			"authnMemoryTokenCreate works only with issuerUrl memory://",
 		);
 	}
-	return (await authn.issuer.tokensCreate(actor)).accessToken;
+	return (await issuer.tokensCreate(actor)).accessToken;
 };

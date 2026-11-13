@@ -1,6 +1,7 @@
 export { Actor } from "./actor.ts";
 export {
 	type Authn,
+	type AuthnClaims,
 	type AuthnOptions,
 	authnCreate,
 	authnMemoryTokenCreate,

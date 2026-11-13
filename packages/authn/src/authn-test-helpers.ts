@@ -1,11 +1,10 @@
-import type { JWTPayload } from "jose";
-import type { Actor, AuthnOptions } from "./index.ts";
+import type { Actor, AuthnClaims, AuthnOptions } from "./index.ts";
 
 export const appOrigin: string = "https://app.test";
 export const secret: string = Buffer.alloc(32, 7).toString("base64url");
 
 // The template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
-export const authnTestActorFromClaims = (claims: JWTPayload): Actor => ({
+export const authnTestActorFromClaims = (claims: AuthnClaims): Actor => ({
 	id: String(claims.sub),
 	kind: claims.gty === "client-credentials" ? "client" : "user",
 	scopes:

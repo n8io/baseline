@@ -1,5 +1,5 @@
 // The one provider-specific file: switching providers edits this file and the AUTHN_* env vars.
-import type { Actor, AuthnOptions } from "@n8io/baseline-authn";
+import type { Actor, AuthnClaims, AuthnOptions } from "@n8io/baseline-authn";
 
 type AuthnEnv = {
 	AUTHN_AUDIENCE: string;
@@ -42,7 +42,7 @@ const scopesFromClaim = (value: unknown): string[] => {
  * - Cognito: `scope` as here; client tokens have `sub` equal to `client_id` and no `username`.
  * - Zitadel: `scope` as here; client tokens have `sub` equal to `client_id`.
  */
-export const actorFromClaims = (claims: Record<string, unknown>): Actor => {
+export const actorFromClaims = (claims: AuthnClaims): Actor => {
 	const { sub } = claims;
 	if (typeof sub !== "string" || sub === "") {
 		throw new TypeError("The token has no sub claim");

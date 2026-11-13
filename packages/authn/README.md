@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-authn
 
 ## Exports
 
-- `authnCreate(options)`: discovers the OIDC provider, or starts the memory issuer when `issuerUrl` is `memory://`. The memory issuer signs anyone in without a password, so `memory://` also needs `memoryIssuerAllowed: true`; pass it only in development and test. Returns the `Authn` the other functions take.
+- `authnCreate(options)`: discovers the OIDC provider, or starts the memory issuer when `issuerUrl` is `memory://`. The memory issuer signs anyone in without a password, so `memory://` also needs `memoryIssuerAllowed: true`; pass it only in development and test. Returns the `Authn` the other functions take; it is opaque, with no fields to read. `actorFromClaims` gets the verified token's claims as `AuthnClaims`, a plain `Record<string, unknown>`.
 - `authnMiddlewareCreate(authn, { source })`: sets `c.var.actor` from a `"bearer"` token (API) or the `"cookie"` session (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in.
 - `authnRoutesCreate(authn)`: `/sign-in`, `/callback`, `/refresh` and `/sign-out`, mounted at `/auth`.
 - `authnActorRequire(c)`: the signed-in Actor of an API request, else 401.
