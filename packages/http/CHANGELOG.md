@@ -1,5 +1,12 @@
 # @n8io/baseline-http
 
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies [d63058e]
+  - @n8io/baseline-logger@3.0.0
+
 ## 2.0.0
 
 ### Major Changes

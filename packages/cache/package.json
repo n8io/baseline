@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-cache",
-	"version": "4.0.0",
+	"version": "5.0.0",
 	"description": "A typed cache on any store (Redis or memory) every baseline app's SPI builds on.",
 	"type": "module",
 	"license": "MIT",
