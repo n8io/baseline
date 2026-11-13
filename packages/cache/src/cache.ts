@@ -7,7 +7,8 @@ export type Cache<T> = {
 	set(id: string, value: T): Promise<void>;
 };
 
-// What each adapter stores: raw JSON strings by key, with a TTL.
+// Where entries live: raw JSON strings by key, each with a TTL. A composition root picks one
+// (cacheStoreRedisCreate, cacheStoreMemoryCreate) and every cache is built on it.
 export type CacheStore = {
 	delete(key: string): Promise<void>;
 	get(key: string): Promise<string | undefined>;
@@ -30,7 +31,7 @@ const cacheJsonParse = (json: string): unknown => {
 	}
 };
 
-// The one implementation both adapters share: key `<prefix>:<id>`, JSON,
+// A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
 // Zod parse on read. An entry that fails the parse (an older deploy may have
 // written it) counts as a miss.
 export const cacheCreate = <T>(

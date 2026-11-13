@@ -37,9 +37,9 @@ Add live updates back: `git revert` the "Remove live" commit. For each Domain cr
 
 `pnpm piece-remove cache`
 
-Each Domain's cache port and its adapters (`spi/<domain>-cache.*.ts`, `spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`spi/<domain>-cache.ts`, `spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cache.*.ts` and `spi/*-cached.ts` files and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
+Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cache.ts`, `spi/*-cache.test.ts` and `spi/*-cached.ts` files and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
 
 ## Redis
 

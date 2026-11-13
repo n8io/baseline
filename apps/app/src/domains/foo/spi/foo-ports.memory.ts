@@ -1,5 +1,6 @@
+import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
 import type { FooPorts } from "../ports.ts";
-import { fooCacheMemoryCreate } from "./foo-cache.memory.ts";
+import { fooCacheCreate } from "./foo-cache.ts";
 import {
 	type FooMemoryState,
 	fooMemoryStateCreate,
@@ -21,7 +22,7 @@ export const fooPortsMemoryCreate = (): {
 			fooAnalytics: { track: () => undefined },
 			// piece-end: analytics
 			// piece-start: cache
-			fooCache: fooCacheMemoryCreate(),
+			fooCache: fooCacheCreate(cacheStoreMemoryCreate()),
 			// piece-end: cache
 			// piece-start: live
 			fooLiveUpdates: { send: async () => undefined },
