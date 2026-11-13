@@ -5,9 +5,12 @@ Events and Consumers on [Apache Pulsar](https://pulsar.apache.org) 5, for a proj
 How it differs from the queue package:
 
 - **Sent after commit.** `publish` only buffers; the transaction SPI calls `committed()` after the commit, which sends the buffer, and drops the publisher on a rollback. A crash between the commit and the send loses that Event. A send that fails is logged and counted on `baseline.pulsar.events_lost`, by `messaging.destination.name`, so you can alert on it.
-- **Topics and subscriptions.** Each Event goes to `persistent://<namespace>/<event name>` (namespace `public/default` unless you pass one). Each Consumer is a Shared subscription named after its `queueName`, so every Worker instance takes a share.
-- **Retries and dead letters.** A Consumer that throws is tried five times in all, about 10 s, 20 s, 40 s and 80 s apart, then its Event moves to `<queueName>.dead`, which keeps a subscription of the same name.
-- **Duplicates.** Each Event carries an `event-id` property, kept through every retry and the dead letter. It is the inbox `eventId`, so `queueInboxInsert` skips a repeat as before.
+- **Topics and subscriptions.** Each Event goes to `persistent://<namespace>/<event name>` (namespace `public/default` unless you pass one), with its Event key as the message's key. Each Consumer is one subscription named after its `queueName`, shared by every Worker instance.
+- **Order.** Each Consumer gets the Events of one Event key one at a time, in the order the broker received them, however many Workers run; other keys run beside them. A Worker holds up to four Events per Consumer at once. `publish` refuses an empty key, as the queue does. One limit the queue does not have: the send happens after the commit, so two transactions on one entity that commit within milliseconds of each other on different instances can reach the broker in either order.
+- **Retries.** A Consumer that throws is tried five times in all, about 10 s, 20 s, 40 s and 80 s apart. The Worker keeps the Event while it waits, so later Events of the same key wait behind it and cannot pass it. A Worker that stops while an Event waits hands it back to the broker, and the next Worker starts again at the first attempt, at once.
+- **Dead letters.** After the fifth failed attempt the Worker copies the Event to `<queueName>.dead`, under a subscription of the same name, and **its key moves on**. This differs from the queue, where such an Event blocks its key until someone releases it: Pulsar has no way to park one key that is visible and releasable, so there is no `blockedKeys()` here. Alert on the error log "Job failed; moved to dead letter" or the `baseline.queue.dead_letters` counter, and expect the later Events of that key to have run without the failed one. Read dead letters with a Shared subscription; an Exclusive reader on that name makes the next dead letter wait until it disconnects.
+- **Liveness.** `isAlive()` is false only when a Consumer's receive loop has not come round for 60 s, which a restart can fix. A broker that cannot be reached does not fail it: the Worker stays up, reconnects by itself and carries on. Events published during the outage are lost and counted, as above.
+- **Duplicates.** Each Event carries an `event-id` property, kept through every retry and the dead letter. It is the inbox `eventId`, so `queueInboxInsert` skips a repeat as before. The broker sends an Event again after a Worker stops or loses its connection while holding it, so a Consumer that must not repeat its work uses the inbox.
 - **Tracing.** W3C trace context travels in the message properties. Spans follow the OpenTelemetry messaging conventions: `send <topic>` (producer) and `process <topic>` (consumer).
 - **Closing.** `stop()` stops receiving; `close()` stops if needed, flushes producers and closes the client. `await using` calls `close()` when its block ends.
 - **Auth.** None (a local standalone broker) or a JWT for the broker's token authentication. Anything else the Pulsar client can do (OAuth2, mTLS, timeouts) goes under `pulsarCreate`'s `vendor` option, which passes the client's own settings through. To build an `authentication` object, add `pulsar-client` to the Project at exactly the version this Package pins, so only one copy of its native addon loads. `vendor` refuses `log`, `serviceUrl` and `serviceUrlProvider` (cluster failover is not supported), and `authentication` together with `token`. It is outside the contract: nothing in it is tested here, and moving off Pulsar deletes it.
@@ -83,3 +86,12 @@ How it differs from the queue package:
    ```
 
    In CI, start the same image as a service before the integration tests.
+
+## Upgrading to 5
+
+Version 5 changes each Consumer's subscription from Shared to Key_Shared, and the broker refuses the new type while a consumer of the old type is connected ("ConsumerBusy"). So this upgrade is not a rolling update:
+
+1. Scale the Workers of the old release to zero. Servers keep publishing; the subscriptions keep those Events.
+2. Deploy the new release, Servers and Workers.
+
+The new Workers pick up what waited. A new Server or Worker that boots while an old Worker is still connected fails at boot and is restarted until the old ones are gone. Events sent by Servers of the old release during the rollout are batched across keys, so they may run out of order until every Server is on the new release.
