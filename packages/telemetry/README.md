@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-telemetry import-in-the-middle
 
 ## Exports
 
-- `@n8io/baseline-telemetry/register`: the preload. It instruments HTTP, undici, pg, Redis, pino and the Node runtime, never traces `/livez` or `/readyz`, and redacts URL query values and drops exception messages before export.
+- `@n8io/baseline-telemetry/register`: the preload. It instruments HTTP, undici, pg, Redis, pino and the Node runtime, never traces `/livez` or `/readyz`, makes a pg or Redis span only inside a trace (a query in a request, a job or a use case; never a queue poll or boot), and redacts URL query values and drops exception messages before export.
 - `telemetryUseCasesTrace(useCases)`: wraps each use case in a span named after it and records `baseline.use_case.duration`. An `err` result sets `error.type` but leaves the status unset; a throw sets status Error.
 - `@n8io/baseline-telemetry/span`: `telemetrySpanAttributesSet(attributes)` sets facts about the work (an id, a count) on the active span, so callers need no OpenTelemetry import, and the entry loads only the OpenTelemetry API, not the SDK. `telemetrySpanRun(name, work)` runs `work` in a child span and returns its result; a throw sets status Error and `error.type`, and is rethrown.
 - `telemetryRouterInstrumentation`, `TelemetryRouterInstrumentation`: the React Router server `instrumentations` entry. It names the HTTP span after the route pattern and adds a span per loader and action.

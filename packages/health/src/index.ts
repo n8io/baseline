@@ -43,6 +43,9 @@ export const healthServerCreate = (options: {
 			.end(healthy ? "ok" : "unavailable");
 	});
 
+	// Longer than the 60 s a load balancer keeps an idle probe connection, like the app's server.
+	server.keepAliveTimeout = 65_000;
+	server.headersTimeout = 66_000;
 	server.listen(options.port);
 
 	const close = (): Promise<void> =>

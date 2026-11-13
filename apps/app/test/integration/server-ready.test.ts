@@ -24,6 +24,18 @@ describe("server readiness", { timeout: 60_000 }, () => {
 		expect(server.stderr()).not.toContain("DeprecationWarning");
 	});
 
+	it("keeps idle connections for 65 s, longer than a load balancer does", async () => {
+		await using server = await productionServerStart({
+			databaseUrl: "memory://",
+		});
+
+		const response = await fetch(`${server.url}/auth/sign-in`);
+		await response.body?.cancel();
+
+		// Node announces server.keepAliveTimeout in whole seconds.
+		expect(response.headers.get("keep-alive")).toBe("timeout=65");
+	});
+
 	it("never answers /readyz 200 and exits 1 when PORT is taken", async () => {
 		const taken = netServerCreate().listen(0);
 		await once(taken, "listening");

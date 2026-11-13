@@ -111,5 +111,13 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 					spanAncestors(span, spans).includes(useCase as OtlpSpan),
 			),
 		).toBe(true);
+		// Queue polls, boot and maintenance run outside any trace and make no span: the Schedule
+		// run is the only trace, beside the one span Redis makes per connection it opens.
+		expect(
+			spans
+				.filter((span) => !span.parentSpanId)
+				.map((span) => span.name)
+				.filter((name) => name !== "redis-connect"),
+		).toEqual(["process foo.stale-archive"]);
 	});
 });

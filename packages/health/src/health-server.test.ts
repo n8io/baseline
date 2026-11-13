@@ -107,6 +107,16 @@ describe("healthServerCreate", () => {
 		expect((await probeGet(port, "/healthz")).status).toBe(404);
 	});
 
+	it("keeps an idle probe connection open for 65 s", async () => {
+		const { port } = await serverStart({ alive: true, shuttingDown: false });
+		await probeGet(port, "/livez");
+
+		const response = await fetch(`http://127.0.0.1:${port}/livez`);
+		await response.text();
+
+		expect(response.headers.get("keep-alive")).toBe("timeout=65");
+	});
+
 	it("stops accepting connections after close()", async () => {
 		const { port, server } = await serverStart({
 			alive: true,

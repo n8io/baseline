@@ -18,6 +18,7 @@ pnpm add @n8io/baseline-http
 - `httpCsrf`: Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.
 - `httpSecureHeaders`: Hono's secure headers plus an enforced CSP whose `script-src` takes a fresh nonce per request (`c.get("secureHeadersNonce")`).
 - `httpServerClose(server)`: stops accepting connections and resolves once open requests finish.
+- `httpServerKeepAlive(server)`: keeps idle connections open for 65 s, so a load balancer with the usual 60 s idle timeout never reuses a connection the server has closed (a 502). Keep the balancer's idle timeout under 65 s.
 
 ## Example
 
