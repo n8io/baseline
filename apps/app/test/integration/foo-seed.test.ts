@@ -1,13 +1,8 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import pg from "pg";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
-
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
 
 // `pnpm seed`: native TS with varlock through the preload alone.
 const seedRun = async (databaseUrl: string): Promise<number | null> => {
@@ -43,11 +38,14 @@ const fooNames = async (databaseUrl: string): Promise<string[]> => {
 
 describe("src/seed.ts on Postgres", { timeout: 30_000 }, () => {
 	it("seeds an empty database once and exits 0", async () => {
-		const { databaseUrl, drop } = await integrationDatabaseCreate();
-		cleanups.push(drop);
+		await using database = await integrationDatabaseCreate();
 
-		expect(await seedRun(databaseUrl)).toBe(0);
-		expect(await seedRun(databaseUrl)).toBe(0);
-		expect(await fooNames(databaseUrl)).toEqual(["Alpha", "Beta", "Gamma"]);
+		expect(await seedRun(database.databaseUrl)).toBe(0);
+		expect(await seedRun(database.databaseUrl)).toBe(0);
+		expect(await fooNames(database.databaseUrl)).toEqual([
+			"Alpha",
+			"Beta",
+			"Gamma",
+		]);
 	});
 });

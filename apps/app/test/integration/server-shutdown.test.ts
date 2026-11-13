@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	productionServerConnectResult,
@@ -8,22 +8,16 @@ import {
 	slowRequestStart,
 } from "./production-server.ts";
 
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
-
 describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 	it("finishes an in-flight sign-in, answers /readyz 503, refuses new connections and exits 0", async () => {
-		const { databaseUrl, drop } = await integrationDatabaseCreate();
-		cleanups.push(drop);
-		const server = await productionServerStart({
-			databaseUrl,
+		await using database = await integrationDatabaseCreate();
+		await using server = await productionServerStart({
+			databaseUrl: database.databaseUrl,
 		});
-		cleanups.push(server.stop);
 
-		// The memory issuer's sign-in form needs no domain.
-		const slow = await slowRequestStart(server.port, {
+		// The memory issuer's sign-in form needs no domain. Declared after the server, so it is
+		// dropped before server.stop, which would otherwise wait for it until its deadline.
+		using slow = await slowRequestStart(server.port, {
 			body: new URLSearchParams({ who: "admin" }).toString(),
 			headers: {
 				"content-type": "application/x-www-form-urlencoded",
@@ -31,8 +25,6 @@ describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
 			},
 			path: "/auth/sign-in",
 		});
-		// Runs before server.stop, which would otherwise wait for this request until its deadline.
-		cleanups.push(async () => slow.abort());
 
 		server.child.kill("SIGTERM");
 		await shutdownStarted(server);
