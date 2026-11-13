@@ -20,15 +20,17 @@ pnpm add @n8io/baseline-live
 // Server: a route that streams one foo's updates.
 import { liveStreamCreate } from "@n8io/baseline-live";
 
-app.get("/live/foo/:fooId", (c) =>
-	liveStreamCreate({
+app.get("/live/foo/:fooId", (c) => {
+	const live = liveStreamCreate({
 		channel: "foo",
 		expiresAt: c.var.authnExpiresAt ?? Number.POSITIVE_INFINITY,
 		id: c.req.param("fooId"),
 		liveHub,
 		signal: c.req.raw.signal,
-	}),
-);
+	});
+	// Hono: answer through the context to keep headers that middleware set.
+	return c.newResponse(live.body, live);
+});
 
 // After a change commits:
 await liveHub.send("foo", { id: foo.id, type: "foo.updated" });

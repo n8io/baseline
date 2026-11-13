@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { liveHubMemoryCreate } from "./index.ts";
 import { liveHubStreams } from "./live-hub.ts";
@@ -31,6 +32,21 @@ describe("liveStreamCreate", () => {
 		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
 		expect(response.headers.get("Cache-Control")).toBe("no-cache");
 		expect(await sse.until("\n\n")).toBe("event: ready\ndata: \n\n");
+		await liveHub.close();
+	});
+
+	test("answered through a Hono context, it keeps the headers middleware set", async () => {
+		const liveHub = liveHubMemoryCreate();
+		const app = new Hono()
+			.use(async (c, next) => {
+				c.header("X-Request-Id", "req_1");
+				await next();
+			})
+			.route("/", liveAppCreate(liveHub));
+		const { response } = await open(app);
+
+		expect(response.headers.get("X-Request-Id")).toBe("req_1");
+		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
 		await liveHub.close();
 	});
 
@@ -177,6 +193,24 @@ describe("liveStreamCreate", () => {
 
 		expect(await sse.end()).toBe("event: ready\ndata: \n\n");
 		await expect(liveHub.close()).resolves.toBeUndefined();
+	});
+
+	test("a request aborted before the stream starts never subscribes", async () => {
+		const liveHub = liveHubMemoryCreate();
+		const listen = vi.spyOn(liveHubStreams(liveHub), "listen");
+		const sse = liveTestSseRead(
+			liveStreamCreate({
+				channel: "foo",
+				expiresAt: Number.POSITIVE_INFINITY,
+				id: "foo_1",
+				liveHub,
+				signal: AbortSignal.abort(),
+			}),
+		);
+
+		expect(await sse.end()).toBe("");
+		expect(listen).not.toHaveBeenCalled();
+		await liveHub.close();
 	});
 
 	test("drops a page that stops reading once 64 KiB wait for it", async () => {

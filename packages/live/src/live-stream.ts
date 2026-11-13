@@ -9,7 +9,7 @@ export const liveStreamMaxMs: number = 5 * 60_000;
 const liveRetryMs = (): number => 1000 + Math.floor(Math.random() * 4001);
 
 // A page that stops reading is dropped once this much is waiting for it; it reconnects and
-// revalidates.
+// revalidates. So is a page sent more than this in one tick, which costs it only a reconnect.
 const liveStreamBufferBytes = 64 * 1024;
 
 /**
@@ -17,7 +17,9 @@ const liveStreamBufferBytes = 64 * 1024;
  * for each live update on (channel, id). It sends a comment every 20 s and closes after 5 minutes, or
  * at `expiresAt` (epoch ms) if sooner, and when `liveHub.close()` runs; each
  * close sends a `retry:` of 1–5 s first. The page revalidates on reconnect.
- * Pass the request's `signal` so the stream also ends when the request is aborted.
+ * Pass the request's `signal` so the stream also ends when the request is aborted. The response
+ * carries only its own headers: answer through your framework (`c.newResponse(live.body, live)`
+ * in Hono) to keep the ones earlier middleware set.
  */
 export const liveStreamCreate = ({
 	channel,
@@ -59,7 +61,7 @@ export const liveStreamCreate = ({
 		}, liveHeartbeatMs);
 		let unlisten = (): void => {};
 		try {
-			if (streams.isClosed()) return;
+			if (streams.isClosed() || aborted) return;
 			const listening = streams.listen(channel, id, (update) => {
 				write(`data: ${JSON.stringify(update)}\n\n`);
 			});
@@ -114,7 +116,6 @@ export const liveStreamCreate = ({
 	return new Response(body, {
 		headers: {
 			"Cache-Control": "no-cache",
-			Connection: "keep-alive",
 			"Content-Type": "text/event-stream",
 		},
 	});

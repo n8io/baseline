@@ -1,3 +1,4 @@
+import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 
 /** Facts about the work on a span: an id, a count, which branch ran. */
@@ -14,7 +15,7 @@ export const telemetrySpanAttributesSet = (
 
 /**
  * Runs `work` in a child span named `name` and returns what it returns. Attributes set inside
- * `work` land on this span. A throw sets status Error and is rethrown.
+ * `work` land on this span. A throw sets status Error and `error.type`, and is rethrown.
  */
 export const telemetrySpanRun = <T>(
 	name: string,
@@ -24,7 +25,9 @@ export const telemetrySpanRun = <T>(
 		try {
 			return await work();
 		} catch (error) {
-			span.setStatus({ code: SpanStatusCode.ERROR });
+			const type = loggerErrSerialize(error).type;
+			span.setAttribute("error.type", type);
+			span.setStatus({ code: SpanStatusCode.ERROR, message: type });
 			throw error;
 		} finally {
 			span.end();

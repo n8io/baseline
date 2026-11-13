@@ -42,4 +42,4 @@ const rows = await telemetrySpanRun("fooImport parse", () => {
 });
 ```
 
-A Domain never imports `@opentelemetry/api`: `telemetrySpanAttributesSet` and `telemetrySpanRun` are the whole surface, and a throw inside `telemetrySpanRun` sets status Error and is rethrown.
+A Domain never imports `@opentelemetry/api`: `telemetrySpanAttributesSet` and `telemetrySpanRun` are the whole surface, and a throw inside `telemetrySpanRun` sets status Error and `error.type`, and is rethrown.
