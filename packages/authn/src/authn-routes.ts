@@ -261,10 +261,10 @@ const MemorySignIn = z.object({
 });
 
 /** `/sign-in`, `/callback`, `/refresh` and `/sign-out`; mount with `app.route("/auth", authnRoutesCreate(authn))`. */
-export const authnRoutesCreate = (handle: Authn): Hono => {
+export const authnRoutesCreate = (authn: Authn): Hono => {
 	const routes = new Hono();
-	const authn = authnState(handle);
-	const { issuer } = authn;
+	const state = authnState(authn);
+	const { issuer } = state;
 	routes.use("*", async (c, next) => {
 		await next();
 		c.header("Cache-Control", "no-store");
@@ -272,16 +272,16 @@ export const authnRoutesCreate = (handle: Authn): Hono => {
 	routes.get("/sign-in", (c) =>
 		issuer.kind === "memory"
 			? c.html(authnMemorySignInPage(returnToQuery(c)))
-			: signInStart(c, authn, issuer, returnToQuery(c)),
+			: signInStart(c, state, issuer, returnToQuery(c)),
 	);
-	routes.get("/refresh", (c) => refresh(c, authn));
-	routes.post("/sign-out", (c) => signOut(c, authn));
+	routes.get("/refresh", (c) => refresh(c, state));
+	routes.post("/sign-out", (c) => signOut(c, state));
 	if (issuer.kind === "memory") {
 		routes.post("/sign-in", async (c) => {
 			const form = MemorySignIn.safeParse(await c.req.parseBody());
 			if (!form.success) return c.body(null, 400);
 			const tokens = await issuer.tokensCreate(issuer.devActors[form.data.who]);
-			if ((await tokensStore(c, authn, tokens)) === undefined) {
+			if ((await tokensStore(c, state, tokens)) === undefined) {
 				throw new TypeError(
 					"authn: actorFromClaims rejected a memory issuer token",
 				);
@@ -290,7 +290,7 @@ export const authnRoutesCreate = (handle: Authn): Hono => {
 		});
 	} else {
 		const { config } = issuer;
-		routes.get("/callback", (c) => callback(c, authn, config));
+		routes.get("/callback", (c) => callback(c, state, config));
 	}
 	return routes;
 };

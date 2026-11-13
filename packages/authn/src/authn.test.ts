@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { authnState } from "./authn.ts";
 import { memoryOptions } from "./authn-test-helpers.ts";
-import { type Actor, authnCreate } from "./index.ts";
+import {
+	type Actor,
+	type Authn,
+	authnCreate,
+	authnRoutesCreate,
+} from "./index.ts";
 
 const verify = async (
 	options: Partial<typeof memoryOptions>,
@@ -14,6 +19,12 @@ const verify = async (
 };
 
 describe("authnCreate", () => {
+	it("makes the only Authn the other functions accept", () => {
+		expect(() => authnRoutesCreate({} as Authn)).toThrow(
+			"Expected an Authn from authnCreate",
+		);
+	});
+
 	it("refuses a secret that decodes to fewer than 32 bytes", async () => {
 		await expect(
 			authnCreate({

@@ -1,10 +1,10 @@
 import { pino } from "pino";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
-// One level's call: fields then a message, or a message alone. An `err` field, or an Error passed
-// first, is logged in the safe shape of loggerErrSerialize.
+// One level's call: fields then a message, a caught value alone, or a message alone. An `err`
+// field, or an Error passed first, is logged in the safe shape of loggerErrSerialize.
 export type LoggerMethod = {
-	(fields: object, message?: string): void;
+	(fields: unknown, message?: string): void;
 	(message: string): void;
 };
 

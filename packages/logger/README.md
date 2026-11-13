@@ -9,6 +9,7 @@ pnpm add @n8io/baseline-logger
 ## Exports
 
 - `logger`: the one logger, typed as the package's own `Logger` (`fatal`, `error`, `warn`, `info`, `debug`, `trace` and `level`), so the library behind it can change without touching a caller. Fields named like credentials (`authorization`, `cookie`, `password`, `token` and others) are logged as `[Redacted]`, also one level down and in headers.
+- `Logger` and `LoggerMethod`: the types of `logger` and of one level's call, `(fields, message?)` or `(message)`. There is no `child`, no printf-style arguments and no way to set `level`; the level comes from `LOG_LEVEL`.
 - `@n8io/baseline-logger/err-serialize`: `loggerErrSerialize(value)` and `LoggerErr`. An error leaves the process only as its class name, `code`, `constraint` and stack, down the `cause` chain; never its message, which can hold input text. `logger` uses it for every `err`.
 
 ## Example

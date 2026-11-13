@@ -1,4 +1,4 @@
-import type { Actor, AuthnOptions } from "./index.ts";
+import type { Actor, AuthnClaims, AuthnOptions } from "./index.ts";
 
 export const appOrigin: string = "https://app.test";
 export const secret: string = Buffer.alloc(32, 7).toString("base64url");
