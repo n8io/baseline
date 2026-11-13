@@ -57,4 +57,26 @@ describe("server readiness", { timeout: 60_000 }, () => {
 			taken.close();
 		}
 	});
+
+	it("never answers /readyz 200 and exits 1 while Postgres is unreachable", async () => {
+		await using server = await productionServerSpawn({
+			// Nothing listens on port 1.
+			databaseUrl: "postgres://baseline:baseline@127.0.0.1:1/baseline",
+			env: { LOG_LEVEL: "info" },
+		});
+		const statuses = new Set<number | undefined>();
+		await productionServerWaitFor({
+			what: "the exit",
+			check: async () => {
+				statuses.add(await httpStatus(server.healthPort, "/readyz"));
+				return server.child.exitCode !== null;
+			},
+			timeoutMs: 30_000,
+		});
+
+		expect(await server.exited).toBe(1);
+		expect(statuses).not.toContain(200);
+		expect(server.stderr()).toContain("ECONNREFUSED");
+		expect(server.stdout()).not.toContain(readyLog);
+	});
 });

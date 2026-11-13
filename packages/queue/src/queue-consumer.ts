@@ -8,7 +8,7 @@ import {
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { JobResult, PgBoss } from "pg-boss";
-import { type Queue, queueBossGet } from "./queue.ts";
+import { type Queue, queueBossGet, queueConcurrencyGet } from "./queue.ts";
 import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
@@ -71,9 +71,36 @@ export const queueConsumerCreate = <S extends StandardSchemaV1>({
 // so a hung Consumer holds its key, and the jobs fetched with it, for five minutes at most.
 const queueConsumerExpireSeconds = 300;
 
-// Jobs taken per fetch (each of another key), and how many of them run at once.
+// Jobs taken per fetch (each of another key).
 const queueConsumerBatchSize = 10;
-const queueConsumerConcurrency = 4;
+
+// Lets `size` jobs run at once and makes the rest wait their turn, first come first served.
+// One per worker process, shared by its Consumers, so their jobs together never hold more pool
+// connections than the process has.
+type Slots = { take(): Promise<void>; give(): void };
+const slotsCreate = (size: number): Slots => {
+	let free = size;
+	const waiting: (() => void)[] = [];
+	return {
+		give: () => {
+			const next = waiting.shift();
+			if (next) {
+				next();
+			} else {
+				free++;
+			}
+		},
+		take: async () => {
+			if (free > 0) {
+				free--;
+				return;
+			}
+			await new Promise<void>((resolve) => {
+				waiting.push(resolve);
+			});
+		},
+	};
+};
 
 // A publish copies an Event only into queues already subscribed to it, so every instance that may
 // publish subscribes at boot. Safe to repeat on any number of instances.
@@ -140,7 +167,8 @@ const consumerTraceContexts = async (
 	);
 };
 
-// Works one queue for a Consumer. A fetch that brought jobs is followed by the next at once, so a
+// Works one queue for a Consumer. Up to `lanes` jobs of a fetch run at once, each holding one of
+// the process's `slots` while it runs. A fetch that brought jobs is followed by the next at once, so a
 // backlog (one busy key included, which gives one job per fetch) drains without waiting for a
 // poll; an empty fetch goes back to polling. Each job is settled the moment it ends, so its key
 // moves on while slower jobs of the same fetch still run, and one failed job fails alone. The
@@ -148,13 +176,17 @@ const consumerTraceContexts = async (
 const consumerWork = async ({
 	boss,
 	consumer,
+	lanes,
 	name,
 	options,
+	slots,
 }: {
 	boss: PgBoss;
 	consumer: Consumer;
+	lanes: number;
 	name: string;
 	options: { batchSize: number; pollingIntervalSeconds: number };
+	slots: Slots;
 }): Promise<void> => {
 	const workerId = await boss.work(
 		name,
@@ -167,9 +199,11 @@ const consumerWork = async ({
 			const lane = async (): Promise<void> => {
 				for (let job = waiting.shift(); job; job = waiting.shift()) {
 					const { id } = job;
+					await slots.take();
 					// pg-boss gave the job up (the fetch ran out of time, or the worker is stopping) and
 					// has failed it for a retry: do not start it here as well.
 					if (job.signal.aborted) {
+						slots.give();
 						continue;
 					}
 					const run = (): Promise<void> =>
@@ -190,16 +224,18 @@ const consumerWork = async ({
 					} catch (error) {
 						results.push({ id, output: error, status: "failed" });
 						await boss.fail(name, id, error as Error).catch(() => undefined);
+					} finally {
+						slots.give();
 					}
 				}
 			};
-			await Promise.all(
-				Array.from({ length: queueConsumerConcurrency }, () => lane()),
-			);
+			await Promise.all(Array.from({ length: lanes }, () => lane()));
 			return results;
 		},
 	);
 };
+
+const queueSlots = new WeakMap<Queue, Slots>();
 
 // Subscribes, then starts a worker per consumer (worker process only).
 export const queueConsumersStart = async (
@@ -208,12 +244,17 @@ export const queueConsumersStart = async (
 ): Promise<void> => {
 	await queueConsumersSubscribe(queue, consumers);
 	const boss = queueBossGet(queue);
+	const lanes = queueConcurrencyGet(queue);
+	const slots = queueSlots.get(queue) ?? slotsCreate(lanes);
+	queueSlots.set(queue, slots);
 	for (const consumer of consumers) {
 		await consumerWork({
 			boss,
 			consumer,
+			lanes,
 			name: queueOrderedName(consumer.queueName),
 			options: { batchSize: queueConsumerBatchSize, pollingIntervalSeconds: 2 },
+			slots,
 		});
 		// A Project that ran a release before 8 still has the unordered queue `<queueName>`. Processes
 		// of that release publish to it until the rollout ends, so it is drained here, one job at a
@@ -222,8 +263,10 @@ export const queueConsumersStart = async (
 			await consumerWork({
 				boss,
 				consumer,
+				lanes,
 				name: consumer.queueName,
 				options: { batchSize: 1, pollingIntervalSeconds: 30 },
+				slots,
 			});
 		}
 	}

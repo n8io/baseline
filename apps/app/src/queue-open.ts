@@ -19,7 +19,13 @@ export const queueOpen = async ({
 	role: "publisher" | "worker";
 }): Promise<{ events: Events | "memory"; queue: Queue | "memory" }> => {
 	if (database === "memory") return { events: "memory", queue: "memory" };
-	const queue = await queueCreate({ pgPool: database, role });
+	const queue = await queueCreate({
+		// A Worker runs this many Events at once, across all its Consumers. Each holds a pool
+		// connection while it runs, so one is left for the queue's own polls.
+		concurrency: Math.max(1, (database.options.max ?? 10) - 1),
+		pgPool: database,
+		role,
+	});
 	(role === "worker" ? intakes : resources).unshift({
 		close: () => queue.stop(),
 		name: "queue",

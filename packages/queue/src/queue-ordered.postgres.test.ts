@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
 	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { ok, type Result } from "@n8io/baseline-result";
+import { metrics } from "@opentelemetry/api";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
@@ -47,9 +49,13 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-const worker = async (max = 4): Promise<Queue> => {
+const worker = async (max = 4, concurrency = 4): Promise<Queue> => {
 	const workerPool = postgresPoolCreate({ databaseUrl, max });
-	const queue = await queueCreate({ pgPool: workerPool, role: "worker" });
+	const queue = await queueCreate({
+		concurrency,
+		pgPool: workerPool,
+		role: "worker",
+	});
 	closing.push(workerPool, queue);
 	return queue;
 };
@@ -456,5 +462,112 @@ describe("a blocked key", () => {
 		expect(readme).toContain(
 			"SELECT name, singleton_key AS key, completed_on AS since\nFROM queue.job WHERE policy = 'key_strict_fifo' AND state = 'failed';",
 		);
+	});
+});
+
+describe("concurrency", () => {
+	it("a worker runs no more Events at once than its concurrency, across all its Consumers", async () => {
+		let running = 0;
+		let most = 0;
+		const consumerSlow = (queueName: string) =>
+			queueConsumerCreate({
+				eventName: "foo.counted",
+				queueName,
+				run: async () => {
+					running++;
+					most = Math.max(most, running);
+					await sleep(300);
+					running--;
+					return ok(undefined);
+				},
+				schema: z.object({ key: z.string(), seq: z.number() }),
+			});
+		// A pool of 3 with 2 Events at once leaves a connection for the polls, as the Template does.
+		const queue = await worker(3, 2);
+		await queueEventsCreate(queue).consumersStart([
+			consumerSlow("audit.foo-counted"),
+			consumerSlow("search.foo-counted"),
+		]);
+
+		await publish(
+			"foo.counted",
+			Array.from({ length: 6 }, (_, seq) => ({ key: `foo_${seq}`, seq })),
+		);
+
+		const done = async (): Promise<number> => {
+			const { rows } = await pgPool.query<{ count: number }>(
+				"SELECT count(*)::int AS count FROM queue.job WHERE name LIKE '%.foo-counted.ordered' AND state = 'completed'",
+			);
+			return rows[0]?.count ?? 0;
+		};
+		await vi.waitFor(async () => expect(await done()).toBe(12), {
+			interval: 100,
+			timeout: 30_000,
+		});
+		expect(most).toBe(2);
+	});
+});
+
+describe("queueOrderedBlockedKeysWatch", () => {
+	it("logs each blocked key once and reports the count per Consumer until it is back at 0", async () => {
+		const record = vi.fn();
+		const getMeter = vi.spyOn(metrics, "getMeter").mockReturnValue({
+			createGauge: () => ({ record }),
+		} as unknown as ReturnType<typeof metrics.getMeter>);
+		// A fresh copy of the module, so its gauge is taken from the meter above; its logger is a
+		// fresh copy too.
+		vi.resetModules();
+		const { queueOrderedBlockedKeysWatch } = await import("./queue-ordered.ts");
+		const { logger } = await import("@n8io/baseline-logger");
+		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const boss = queueBossGet(publisher);
+		const name = "audit.foo-expired.ordered";
+		// An Event the queue failed by itself: no Consumer ran, so nothing has logged it.
+		await boss.createQueue(name, { policy: "key_strict_fifo" });
+		await boss.send(name, {}, { singletonKey: "foo_expired" });
+		await pgPool.query(
+			"UPDATE queue.job SET state = 'failed', completed_on = now() WHERE name = $1",
+			[name],
+		);
+		const attributes = { "messaging.destination.name": "audit.foo-expired" };
+		const blockedLogs = () =>
+			error.mock.calls.filter(
+				(call: unknown[]) => call[1] === "Event key is blocked until released",
+			);
+
+		const stop = queueOrderedBlockedKeysWatch(boss, 100);
+		try {
+			await vi.waitFor(
+				() => expect(record.mock.calls.length).toBeGreaterThan(3),
+				{
+					interval: 50,
+					timeout: 10_000,
+				},
+			);
+			expect(record).toHaveBeenLastCalledWith(1, attributes);
+			expect(blockedLogs()).toEqual([
+				[
+					{
+						key: "foo_expired",
+						queue: "audit.foo-expired",
+						since: expect.any(Date),
+					},
+					"Event key is blocked until released",
+				],
+			]);
+
+			await pgPool.query("DELETE FROM queue.job WHERE name = $1", [name]);
+			await vi.waitFor(
+				() => expect(record).toHaveBeenLastCalledWith(0, attributes),
+				{ interval: 50, timeout: 10_000 },
+			);
+		} finally {
+			stop();
+			getMeter.mockRestore();
+			error.mockRestore();
+		}
+		const calls = record.mock.calls.length;
+		await sleep(300);
+		expect(record.mock.calls.length).toBe(calls);
 	});
 });

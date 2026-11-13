@@ -23,7 +23,7 @@ export const queueInboxInsert = async (
 	return result.rowCount === 1;
 };
 
-// The package's own schedule; queueSchedulesRegister never removes names in the `queue.` namespace.
+// The package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
 export const queueInboxPruneName = "queue.inbox-prune";
 
 // Daily, in the worker: deletes inbox rows older than 30 days.

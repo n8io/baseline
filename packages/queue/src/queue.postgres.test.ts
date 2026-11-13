@@ -1,4 +1,5 @@
 import { setTimeout } from "node:timers/promises";
+import { logger } from "@n8io/baseline-logger";
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
 import {
@@ -149,6 +150,135 @@ describe("queueCreate", () => {
 		expect(queue.isAlive()).toBe(true);
 		vi.spyOn(Date, "now").mockReturnValue(second + 60_000);
 		expect(queue.isAlive()).toBe(false);
+	});
+
+	it("a poll that fails still stamps the heartbeat: an outage is not a stuck loop", async () => {
+		const pgPool = poolCreate();
+		const queue = await start(pgPool, "worker");
+		const boss = queueBossGet(queue);
+		const stamp = (key: "lastErrorOn" | "lastFetchedOn"): number =>
+			Math.max(...boss.getWipData().map((wip) => wip[key] ?? 0));
+		vi.spyOn(logger, "error").mockReturnValue(undefined);
+		await setTimeout(500);
+		const fetched = stamp("lastFetchedOn");
+
+		// Postgres goes away: every query fails from here on.
+		vi.spyOn(pgPool, "query").mockImplementation(() =>
+			Promise.reject(new Error("Connection terminated unexpectedly")),
+		);
+		await vi.waitFor(
+			() => expect(stamp("lastErrorOn")).toBeGreaterThan(fetched + 1_000),
+			{ interval: 100, timeout: 15_000 },
+		);
+		const failed = stamp("lastErrorOn");
+
+		// A minute after the last poll that completed, the failing polls keep it alive.
+		expect(stamp("lastFetchedOn")).toBe(fetched);
+		vi.spyOn(Date, "now").mockReturnValue(fetched + 60_000);
+		expect(queue.isAlive()).toBe(true);
+		vi.spyOn(Date, "now").mockReturnValue(failed + 60_000);
+		expect(queue.isAlive()).toBe(false);
+	});
+
+	it("a poll loop that hangs, with no attempt ending, is reported dead", async () => {
+		const pgPool = poolCreate();
+		const queue = await start(pgPool, "worker");
+		await setTimeout(500);
+		expect(queue.isAlive()).toBe(true);
+
+		// Every query hangs, as on a pool with no query timeout whose server went silent.
+		const hung: ((error: Error) => void)[] = [];
+		vi.spyOn(pgPool, "query").mockImplementation(
+			() =>
+				new Promise((_resolve, reject) => {
+					hung.push(reject);
+				}),
+		);
+		const hungAt = Date.now();
+		await setTimeout(3_000);
+		vi.spyOn(Date, "now").mockReturnValue(hungAt + 60_000);
+		try {
+			expect(queue.isAlive()).toBe(false);
+		} finally {
+			vi.restoreAllMocks();
+			vi.spyOn(logger, "error").mockReturnValue(undefined);
+			for (const reject of hung) reject(new Error("released"));
+		}
+	});
+
+	it("logs a failure pg-boss reports as a plain object as an Error, with the object as its cause", async () => {
+		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const boss = queueBossGet(await start(poolCreate(), "worker"));
+		const reported = {
+			message: "connect ECONNREFUSED (Queue: foo.stale-archive, Worker: 1)",
+			queue: "foo.stale-archive",
+			stack: "Error: connect ECONNREFUSED\n    at somewhere",
+			worker: "1",
+		};
+		const already = new TypeError("already an Error");
+
+		// pg-boss types the event as an Error, and then sends this.
+		boss.emit("error", reported as unknown as Error);
+		boss.emit("error", already);
+
+		expect(error).toHaveBeenCalledTimes(2);
+		expect(error).toHaveBeenNthCalledWith(
+			1,
+			{ err: expect.any(Error), queue: "foo.stale-archive" },
+			"Queue error",
+		);
+		const logged = error.mock.calls.map(
+			(call: unknown[]) => (call[0] as { err: Error }).err,
+		);
+		expect(logged[0]?.message).toBe(reported.message);
+		expect(logged[0]?.stack).toBe(reported.stack);
+		expect(logged[0]?.cause).toBe(reported);
+		expect(logged[1]).toBe(already);
+	});
+
+	it("a worker whose queue was removed stops polling it and says so once", async () => {
+		const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined);
+		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const queue = await queueCreate({
+			pgPool: poolCreate(),
+			role: "worker",
+			// pg-boss notices a removed queue when it next refreshes its list: every second here.
+			vendor: { queueCacheIntervalSeconds: 1 },
+		});
+		queues.push(queue);
+		const boss = queueBossGet(queue);
+		await boss.createQueue("search.foo-created");
+		await boss.work(
+			"search.foo-created",
+			{ pollingIntervalSeconds: 0.5 },
+			async () => undefined,
+		);
+		const working = (): string[] => boss.getWipData().map((wip) => wip.name);
+		expect(working()).toContain("search.foo-created");
+
+		// What queueMigrate does to a drained queue of an earlier release, from another process.
+		const other = await start(poolCreate(), "publisher");
+		await queueBossGet(other).deleteQueue("search.foo-created");
+
+		await vi.waitFor(
+			() => expect(working()).not.toContain("search.foo-created"),
+			{
+				interval: 100,
+				timeout: 20_000,
+			},
+		);
+		await setTimeout(2_000);
+		expect(warn).toHaveBeenCalledExactlyOnceWith(
+			{ queue: "search.foo-created" },
+			"Queue was removed; this worker stops polling it",
+		);
+		expect(error).not.toHaveBeenCalled();
+	});
+
+	it("refuses a concurrency that is not a positive integer", async () => {
+		await expect(
+			queueCreate({ concurrency: 0, pgPool: poolCreate(), role: "worker" }),
+		).rejects.toThrow(new TypeError("concurrency must be a positive integer"));
 	});
 
 	it("a publisher is always alive: it has no workers to poll", async () => {
