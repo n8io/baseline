@@ -69,6 +69,9 @@ const projectFiles: Record<string, string> = {
 	"src/domains/invoice/spi/invoice-cache.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-cache.test.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-cached.ts": "cache\n",
+	"src/domains/invoice/use-cases/invoice-use-cases-cache.test.ts": "cache\n",
+	"src/cache-store-open.ts": "cache\n",
+	"src/ui/query-cache.ts": "ui\n",
 	"src/domains/invoice/spi/invoice-transaction.postgres.test.ts": "events\n",
 	"src/domains/invoice/spi/invoice-transaction.postgres.ts": "transaction\n",
 	"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts": "test\n",
@@ -205,6 +208,17 @@ describe("pieceFilesRemove", () => {
 		expect(existsSync(join(spi, "invoice-cache.ts"))).toBe(false);
 		expect(existsSync(join(spi, "invoice-cache.test.ts"))).toBe(false);
 		expect(existsSync(join(spi, "invoice-cached.ts"))).toBe(false);
+		expect(
+			existsSync(
+				join(
+					directory,
+					"src/domains/invoice/use-cases/invoice-use-cases-cache.test.ts",
+				),
+			),
+		).toBe(false);
+		expect(existsSync(join(directory, "src/cache-store-open.ts"))).toBe(false);
+		// Only a Domain's cache files go, not every file named like one.
+		expect(existsSync(join(directory, "src/ui/query-cache.ts"))).toBe(true);
 		expect(existsSync(join(spi, "invoice-transaction.postgres.ts"))).toBe(true);
 		expect(read(directory, "src/server.ts")).not.toContain("redisClient");
 	});

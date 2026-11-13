@@ -145,8 +145,9 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	},
 	cache: {
 		packages: ["@n8io/baseline-cache"],
-		paths: ["src/cache-store-open.ts"],
-		srcFiles: /-cache(d|\.test)?\.ts$/,
+		paths: ["src/cache-store-open.ts", "src/cache-store-open.test.ts"],
+		srcFiles:
+			/(\/spi\/[^/]*-cache(d|(\.[a-z]+)*)\.ts|-use-cases-cache\.test\.ts)$/,
 	},
 	live: {
 		packages: ["@n8io/baseline-live"],

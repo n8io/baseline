@@ -8,7 +8,11 @@ import { cacheContract } from "./cache.contract.ts";
 import { type Cache, cacheCreate, cacheStoreRedisCreate } from "./index.ts";
 
 describe("cacheStoreRedisCreate on Redis", () => {
-	const redisClient = createClient({ url: inject("redisUrl") });
+	// node-redis exits the process on an unlistened error event.
+	const redisClient = createClient({ url: inject("redisUrl") }).on(
+		"error",
+		() => undefined,
+	);
 
 	beforeAll(async () => {
 		await redisClient.connect();
@@ -39,7 +43,10 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		["set", (cache: Cache<string>) => cache.set("foo_1", "First")],
 		["delete", (cache: Cache<string>) => cache.delete("foo_1")],
 	])("%s fails within 1 s when Redis does not answer", async (_, call) => {
-		const pauser = createClient({ url: inject("redisUrl") });
+		const pauser = createClient({ url: inject("redisUrl") }).on(
+			"error",
+			() => undefined,
+		);
 		await pauser.connect();
 		const cache = cacheCreate(cacheStoreRedisCreate(redisClient), {
 			prefix: "pause",

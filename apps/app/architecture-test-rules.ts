@@ -414,6 +414,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			(m) =>
 				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <domain>PortsCreate`,
 		),
+		...textCheck(
+			files,
+			(f) => domainOf(f.path) !== undefined && !testIs(f.path),
+			/\bcacheStoreRedisCreate\(/g,
+			() =>
+				"cacheStoreRedisCreate( picks the cache's backend; src/cache-store-open.ts does that, and a Domain builds its cache on connections.cacheStore",
+		),
 	],
 
 	A13: (files) => [

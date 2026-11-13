@@ -43,7 +43,7 @@ useLiveUpdates("foo", foo.id);
 ## Needs
 
 - Peers: `hono`; `redis` unless you only use `liveHubMemoryCreate`; `react` and `react-router` only for `@n8io/baseline-live/client`. A service that only sends or streams updates installs neither.
-- `liveHubRedisCreate` takes any connected node-redis client, such as the one `cacheRedisClientCreate` in `@n8io/baseline-cache` returns. live does not depend on cache.
+- `liveHubRedisCreate` takes any connected node-redis client, such as the one the Template's `src/redis.ts` opens.
 
 ## Tests
 

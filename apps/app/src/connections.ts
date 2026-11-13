@@ -60,9 +60,6 @@ export const connectionsOpen = async (
 			role === "worker" ? intakes : resources,
 		),
 		// piece-end: queue
-		// piece-start: redis
-		redis,
-		// piece-end: redis
 		resources,
 	};
 };

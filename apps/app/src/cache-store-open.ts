@@ -1,5 +1,5 @@
 // The cache store for a composition root: on Redis, or in memory for memory://. The only file that
-// names the cache's backend. `pnpm piece-remove cache` deletes this file.
+// picks the cache's backend; a Domain takes the store it is given. `pnpm piece-remove cache` deletes this file.
 import {
 	type CacheStore,
 	cacheStoreMemoryCreate,

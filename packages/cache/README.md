@@ -12,7 +12,7 @@ pnpm add @n8io/baseline-cache
 - `cacheCreate(store, { prefix, schema, ttlMs? })`: a cache on a store. Keys are `<prefix>:<id>` and entries expire after `ttlMs` (default 60 s).
 - `CacheStore`: where entries live, as JSON strings by key with a TTL. Open one per process and build every cache on it; a new backend is one more `CacheStore`.
 - `cacheStoreRedisCreate(redisClient)`: a store on a connected node-redis client. Each call fails after 1 s without an answer.
-- `cacheStoreMemoryCreate()`: a store in process, for unit tests and `memory://`.
+- `cacheStoreMemoryCreate()`: a store in process, for unit tests and `memory://`. Caches on one store share its keys, as on Redis, so give each its own `prefix`.
 
 ## Example
 
@@ -52,4 +52,4 @@ const foo = await fooCache.get("foo_01"); // { name: "First" } or undefined
 
 ## Tests
 
-`pnpm test` needs Docker: it starts a Redis container.
+`pnpm test` needs Docker: it starts a Redis container. `pnpm test:unit` runs the memory store's tests without it.
