@@ -1,5 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import {
+	agentDocsViolations,
+	agentDocsViolationsRead,
+} from "./agent-docs-test-rules.ts";
 
 const appRoot = new URL("./", import.meta.url);
 
@@ -117,38 +121,9 @@ const filesList = (dir: URL, prefix: string) =>
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
 
-// AGENTS.md loads on every task, so it stays short and links the rest. Each file it or a doc in
-// docs/agents/ links to must exist, and each docs/agents/ file must be linked from AGENTS.md.
-const agentsMaxLines = 200;
-
-const agentDocsViolations = (
-	docs: { path: string; text: string }[],
-	exists: (path: string) => boolean,
-): string[] => {
-	const problems: string[] = [];
-	const agents = docs.find((d) => d.path === "AGENTS.md");
-	if (agents && agents.text.split("\n").length > agentsMaxLines)
-		problems.push(
-			`AGENTS.md: keep it under ${agentsMaxLines} lines; move task-specific rules to docs/agents/`,
-		);
-	for (const { path, text } of docs) {
-		const dir = path.includes("/")
-			? path.slice(0, path.lastIndexOf("/") + 1)
-			: "";
-		for (const [, target = ""] of text.matchAll(
-			/\]\(([^)#\s]+\.md)(#[^)]*)?\)/g,
-		)) {
-			if (/^[a-z]+:/.test(target)) continue;
-			const resolved = new URL(target, `file:///${dir}`).pathname.slice(1);
-			if (!exists(resolved))
-				problems.push(`${path}: links ${target}, which does not exist`);
-		}
-	}
-	for (const { path } of docs.filter((d) => d.path.startsWith("docs/agents/")))
-		if (!agents?.text.includes(`](${path})`))
-			problems.push(`AGENTS.md: link ${path} under ## Read when`);
-	return problems;
-};
+// AGENTS.md loads on every task, so it has a size budget. Today's file leaves a Project about
+// 3 KB for rules of its own.
+const agentsMaxBytes = 14_000;
 
 const context = "**Bar**:\nA thing.\n";
 const barBase = [
@@ -265,26 +240,32 @@ describe("test placement", () => {
 });
 
 describe("agent docs", () => {
-	const read = (path: string) => ({
-		path,
-		text: readFileSync(new URL(path, appRoot), "utf8"),
-	});
-	const exists = (path: string) => existsSync(new URL(path, appRoot));
-
 	it("holds for the real files", () => {
-		const docs = existsSync(new URL("docs/agents/", appRoot))
-			? filesList(new URL("docs/agents/", appRoot), "docs/agents")
-			: [];
+		expect(agentDocsViolationsRead(appRoot, agentsMaxBytes)).toEqual([]);
+	});
+
+	it("allows an AGENTS.md of exactly the budget", () => {
+		const text = "x".repeat(agentsMaxBytes);
 		expect(
-			agentDocsViolations([read("AGENTS.md"), ...docs.map(read)], exists),
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text }],
+				() => true,
+				agentsMaxBytes,
+			),
 		).toEqual([]);
 	});
 
 	it.each([
 		[
-			"an AGENTS.md over the line budget",
-			[{ path: "AGENTS.md", text: "line\n".repeat(agentsMaxLines) }],
-			"AGENTS.md: keep it under 200 lines; move task-specific rules to docs/agents/",
+			"an AGENTS.md over its budget",
+			// Two bytes each: the budget counts bytes, not characters.
+			[{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }],
+			"AGENTS.md: keep it to 14000 bytes; move task-specific rules to docs/agents/",
+		],
+		[
+			"an import inside a sentence",
+			[{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." }],
+			"AGENTS.md: put @CONTEXT.md alone on its line, or it is not imported",
 		],
 		[
 			"a link to a missing file",
@@ -300,7 +281,49 @@ describe("agent docs", () => {
 			"AGENTS.md: link docs/agents/data.md under ## Read when",
 		],
 	])("fails on %s", (_name, docs, problem) => {
-		expect(agentDocsViolations(docs, () => false)).toEqual([problem]);
+		expect(
+			agentDocsViolations(
+				docs,
+				(path) => path === "CONTEXT.md",
+				agentsMaxBytes,
+			),
+		).toEqual([problem]);
+	});
+
+	it("fails on an import of a missing file", () => {
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text: "@GONE.md" }],
+				() => false,
+				agentsMaxBytes,
+			),
+		).toEqual(["AGENTS.md: imports GONE.md, which does not exist"]);
+	});
+
+	it("takes an import alone on its line, also as ./<path>", () => {
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text: "# App\n\n@CONTEXT.md\n@./CONTEXT.md\n" }],
+				(path) => path === "CONTEXT.md",
+				agentsMaxBytes,
+			),
+		).toEqual([]);
+	});
+
+	it("takes a package name, an email and code as no import", () => {
+		const text = [
+			"@n8io/baseline-cache a@b.md `use @GONE.md here`",
+			"```",
+			"@GONE.md",
+			"```",
+		].join("\n");
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text }],
+				() => false,
+				agentsMaxBytes,
+			),
+		).toEqual([]);
 	});
 
 	it("resolves a link relative to the doc that holds it", () => {
@@ -312,6 +335,7 @@ describe("agent docs", () => {
 				],
 				(path) =>
 					["docs/agents/data.md", "docs/agents/tracing.md"].includes(path),
+				agentsMaxBytes,
 			),
 		).toEqual([]);
 	});

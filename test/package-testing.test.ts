@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Root AGENTS.md "Tests": what a Package ships never loads a test runner, and its main
+// docs/agents/packages.md "Test exports": what a Package ships never loads a test runner, and its main
 // entry never loads a test helper. Test helpers reach callers only through src/testing.ts.
 type Source = { path: string; source: string };
 

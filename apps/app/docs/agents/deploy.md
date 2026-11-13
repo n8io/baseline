@@ -12,4 +12,3 @@ Read when deploying a Project or changing how it runs.
 - Probe `/livez` and `/readyz` on `HEALTH_PORT` (9000).
 - A TLS-terminating proxy must set `x-forwarded-proto: https`, or browsers without `Sec-Fetch-Site` get 403 on form posts.
 - The load balancer or edge rate-limits requests; the app does not.
-- After `pnpm template-upgrade`, resolve every conflict marker before committing.
