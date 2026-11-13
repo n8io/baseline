@@ -10,10 +10,9 @@ import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test
 import {
 	type Queue,
 	queueConsumerCreate,
-	queueConsumersSubscribe,
 	queueCreate,
+	queueEventsCreate,
 	queueEventsMemoryCreate,
-	queueEventsPgBossCreate,
 	queueMigrate,
 } from "./index.ts";
 
@@ -49,7 +48,7 @@ beforeAll(async () => {
 			z.object({ fooId: z.string() }),
 			async () => ok(undefined),
 		);
-	await queueConsumersSubscribe(queue, [
+	await queueEventsCreate(queue).consumersSubscribe([
 		consumer("bar.foo-created"),
 		consumer("baz.foo-created"),
 		consumer("qux.foo-created"),
@@ -69,15 +68,14 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("queueEventsPgBossCreate", () => {
+describe("queueEventsCreate", () => {
 	it("publishes on postgresTransactionRun's guarded client, visible only after commit", async () => {
 		let seenInside: unknown[] = [];
 		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
-				"foo.created",
-				{ fooId: "foo_1" },
-			);
+			await queueEventsCreate(queue)
+				.publisherCreate<FooEvents>(pgClient)
+				.publish("foo.created", { fooId: "foo_1" });
 			seenInside = await jobs();
 			return ok(undefined);
 		});
@@ -97,10 +95,9 @@ describe("queueEventsPgBossCreate", () => {
 	it("rolls the jobs back with the rows on err", async () => {
 		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
-				"foo.created",
-				{ fooId: "foo_1" },
-			);
+			await queueEventsCreate(queue)
+				.publisherCreate<FooEvents>(pgClient)
+				.publish("foo.created", { fooId: "foo_1" });
 			return err({ type: "FooForbidden" });
 		});
 
@@ -114,10 +111,9 @@ describe("queueEventsPgBossCreate", () => {
 		const oneQueue = await queueCreate({ pgPool: onePool, role: "publisher" });
 		try {
 			const result = await postgresTransactionRun(onePool, async (pgClient) => {
-				await queueEventsPgBossCreate<FooEvents>(oneQueue, pgClient).publish(
-					"foo.created",
-					{ fooId: "foo_1" },
-				);
+				await queueEventsCreate(oneQueue)
+					.publisherCreate<FooEvents>(pgClient)
+					.publish("foo.created", { fooId: "foo_1" });
 				return ok(undefined);
 			});
 
@@ -132,10 +128,9 @@ describe("queueEventsPgBossCreate", () => {
 	it("rolls the jobs back on a throw", async () => {
 		await expect(
 			postgresTransactionRun(pgPool, async (pgClient) => {
-				await queueEventsPgBossCreate<FooEvents>(queue, pgClient).publish(
-					"foo.created",
-					{ fooId: "foo_1" },
-				);
+				await queueEventsCreate(queue)
+					.publisherCreate<FooEvents>(pgClient)
+					.publish("foo.created", { fooId: "foo_1" });
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");

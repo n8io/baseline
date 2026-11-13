@@ -16,7 +16,7 @@ import {
 	pulsarEventIdProperty,
 	pulsarPropagator,
 	pulsarTracer,
-} from "./pulsar-events.ts";
+} from "./pulsar-publisher.ts";
 
 // The subscription is the Consumer's queueName: Shared, so every worker instance takes a share of
 // its Events. An Event that fails its fifth attempt goes to `<queueName>.dead`, which keeps a

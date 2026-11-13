@@ -1,8 +1,8 @@
 import { logger } from "@n8io/baseline-logger";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import type pg from "pg";
 import { PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
+import type { QueueSql } from "./queue-sql.ts";
 
 export type Queue = {
 	isAlive(): boolean;
@@ -31,7 +31,7 @@ export const queueBossGet = (queue: Queue): PgBoss => {
 // Starts pg-boss on the shared pool. A publisher (the server) only sends: it runs no workers, no
 // maintenance and no cron pass. A worker runs maintenance, cron and the package's inbox pruning.
 export const queueCreate = async (options: {
-	pgPool: pg.Pool;
+	pgPool: QueueSql;
 	role: "publisher" | "worker";
 }): Promise<Queue> => {
 	const { pgPool, role } = options;

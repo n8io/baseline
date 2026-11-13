@@ -1,8 +1,8 @@
 import { ok } from "@n8io/baseline-result";
-import type pg from "pg";
 import type { PgBoss } from "pg-boss";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueWithDeadLetterCreate } from "./queue-retry.ts";
+import type { QueueSql } from "./queue-sql.ts";
 
 // Which consumer handled which event. The use case's transaction port inserts it beside its rows.
 export type Inbox = { consumer: string; eventId: string };
@@ -13,10 +13,10 @@ export const queueInboxTableCreate =
 // Records the event as handled in the caller's transaction. false = already handled: skip the work,
 // commit nothing else and return ok.
 export const queueInboxInsert = async (
-	pgClient: pg.PoolClient,
+	transaction: QueueSql,
 	inbox: Inbox,
 ): Promise<boolean> => {
-	const result = await pgClient.query(
+	const result = await transaction.query(
 		"INSERT INTO queue.inbox (consumer, event_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
 		[inbox.consumer, inbox.eventId],
 	);

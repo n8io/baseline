@@ -22,13 +22,7 @@ import PulsarClient from "pulsar-client";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import {
-	type Pulsar,
-	pulsarConsumersStart,
-	pulsarConsumersSubscribe,
-	pulsarCreate,
-	pulsarEventsCreate,
-} from "./index.ts";
+import { type Pulsar, pulsarCreate, pulsarEventsCreate } from "./index.ts";
 
 const spans = new InMemorySpanExporter();
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
@@ -74,18 +68,21 @@ type FooCreated = z.infer<typeof fooCreated>;
 // A topic per test, so no test sees another's Events.
 const eventNameCreate = (): string => `foo.created-${randomUUID()}`;
 
-// What a project's transaction SPI does: publish buffers in the transaction, send runs on commit.
+// What a project's transaction SPI does: publish buffers in the transaction, committed sends.
 const commit = async (
 	eventName: string,
 	event: FooCreated,
 	outcome: "commit" | "rollback" = "commit",
 ): Promise<void> => {
-	const events = pulsarEventsCreate<Record<string, FooCreated>>(publisher);
+	const events =
+		pulsarEventsCreate(publisher).publisherCreate<Record<string, FooCreated>>(
+			pgPool,
+		);
 	const result = await postgresTransactionRun(pgPool, async () => {
 		await events.publish(eventName, event);
 		return outcome === "commit" ? ok(undefined) : err({ type: "rollback" });
 	});
-	if (result.ok) await events.send();
+	if (result.ok) await events.committed();
 };
 
 const received = (
@@ -97,12 +94,12 @@ const received = (
 	) => Promise<Result<unknown, { type: string }>>,
 ) => queueConsumerCreate(queueName, eventName, fooCreated, run);
 
-describe("pulsarEventsCreate and pulsarConsumersStart", () => {
+describe("pulsarEventsCreate", () => {
 	it("sends a committed Event to each subscribed Consumer and nothing on rollback", async () => {
 		const eventName = eventNameCreate();
 		const billing: string[] = [];
 		const shipping: string[] = [];
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received("billing.foo-created", eventName, async ({ fooId }) => {
 				billing.push(fooId);
 				return ok(undefined);
@@ -128,7 +125,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 		const eventName = eventNameCreate();
 		const queueName = `billing.foo-created-${randomUUID()}`;
 		const eventIds: string[] = [];
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received(queueName, eventName, async (_event, inbox) => {
 				eventIds.push(inbox.eventId);
 				throw new Error("Invoice service down");
@@ -163,7 +160,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("skips a redelivered Event the inbox has seen", async () => {
 		const eventName = eventNameCreate();
 		const calls: Inbox[] = [];
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received(
 				"billing.foo-created-inbox",
 				eventName,
@@ -195,7 +192,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("carries the publisher's trace context to the Consumer's span", async () => {
 		const eventName = eventNameCreate();
 		let consumerSpan: string | undefined;
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received("billing.foo-created-trace", eventName, async () => {
 				consumerSpan = trace.getActiveSpan()?.spanContext().traceId;
 				return ok(undefined);
@@ -231,12 +228,12 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 			async () => ok(undefined),
 		);
 		await expect(
-			pulsarConsumersSubscribe(worker, [consumer]),
+			pulsarEventsCreate(worker).consumersSubscribe([consumer]),
 		).resolves.toBeUndefined();
 		const anonymous = pulsarCreate({ serviceUrl: inject("pulsarUrl") });
 		try {
 			await expect(
-				pulsarConsumersSubscribe(anonymous, [consumer]),
+				pulsarEventsCreate(anonymous).consumersSubscribe([consumer]),
 			).rejects.toThrow();
 		} finally {
 			await anonymous.close();
@@ -260,7 +257,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 		const released = new Promise<void>((resolve) => {
 			release = resolve;
 		});
-		await pulsarConsumersStart(stopping, [
+		await pulsarEventsCreate(stopping).consumersStart([
 			received(queueName, eventName, async ({ fooId }) => {
 				runs.push(fooId);
 				await released;
@@ -278,7 +275,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 		// An Event acknowledged before the close is not redelivered to the next worker.
 		const next = pulsarCreate(options);
 		try {
-			await pulsarConsumersStart(next, [
+			await pulsarEventsCreate(next).consumersStart([
 				received(queueName, eventName, async ({ fooId }) => {
 					runs.push(fooId);
 					return ok(undefined);
@@ -294,7 +291,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("sends after stop until close, then counts each Event it loses", async () => {
 		const eventName = eventNameCreate();
 		const runs: string[] = [];
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received(
 				`billing.foo-created-${randomUUID()}`,
 				eventName,
@@ -310,18 +307,24 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 		});
 		eventsLost.mockClear();
 		await sender.stop();
-		const sent = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+		const sent =
+			pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
+				pgPool,
+			);
 		await sent.publish(eventName, { fooId: "foo_after_stop" });
-		await sent.send();
+		await sent.committed();
 		await vi.waitFor(() => expect(runs).toEqual(["foo_after_stop"]), {
 			timeout: 20_000,
 		});
 		expect(eventsLost).not.toHaveBeenCalled();
 		await sender.close();
 		// The change is already committed, so send resolves; the Event is only logged and counted.
-		const lost = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+		const lost =
+			pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
+				pgPool,
+			);
 		await lost.publish(eventName, { fooId: "foo_after_close" });
-		await expect(lost.send()).resolves.toBeUndefined();
+		await expect(lost.committed()).resolves.toBeUndefined();
 		expect(eventsLost).toHaveBeenCalledExactlyOnceWith(1, {
 			"messaging.destination.name": `persistent://public/default/${eventName}`,
 		});
@@ -330,7 +333,7 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 	it("tries a failed producer create again on the next send", async () => {
 		const eventName = eventNameCreate();
 		const runs: string[] = [];
-		await pulsarConsumersStart(worker, [
+		await pulsarEventsCreate(worker).consumersStart([
 			received(
 				`billing.foo-created-${randomUUID()}`,
 				eventName,
@@ -349,13 +352,19 @@ describe("pulsarEventsCreate and pulsarConsumersStart", () => {
 		});
 		eventsLost.mockClear();
 		try {
-			const first = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+			const first =
+				pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
+					pgPool,
+				);
 			await first.publish(eventName, { fooId: "foo_lost" });
-			await first.send();
+			await first.committed();
 			expect(eventsLost).toHaveBeenCalledOnce();
-			const second = pulsarEventsCreate<Record<string, FooCreated>>(sender);
+			const second =
+				pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
+					pgPool,
+				);
 			await second.publish(eventName, { fooId: "foo_retried" });
-			await second.send();
+			await second.committed();
 			await vi.waitFor(() => expect(runs).toEqual(["foo_retried"]), {
 				timeout: 20_000,
 			});

@@ -165,6 +165,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 		},
 		packages: ["@n8io/baseline-queue"],
 		paths: [
+			"src/events-open.ts",
 			"src/queue-open.ts",
 			"src/worker.ts",
 			"test/integration/worker-shutdown.test.ts",

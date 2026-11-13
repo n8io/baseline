@@ -1,9 +1,6 @@
 // Composition root for consumers and schedules; it never serves pages or the API.
 import { healthServerCreate } from "@n8io/baseline-health";
-import {
-	queueConsumersStart,
-	queueSchedulesRegister,
-} from "@n8io/baseline-queue";
+import { queueSchedulesRegister } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
@@ -20,11 +17,13 @@ import { connectionsOpen } from "./connections.ts";
 
 let shutdown: ShutdownHandle | undefined;
 const connections = await connectionsOpen(ENV, "worker");
-const { queue } = connections;
-// connectionsOpen refuses a memory database here, so the queue is real.
-if (queue === "memory") throw new Error("The worker needs a real queue");
+const { events, queue } = connections;
+// connectionsOpen refuses a memory database here, so the queue and Events are real.
+if (queue === "memory" || events === "memory") {
+	throw new Error("The worker needs a real queue");
+}
 const health = healthServerCreate({
-	isAlive: () => queue.isAlive(),
+	isAlive: () => queue.isAlive() && events.isAlive(),
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
@@ -35,7 +34,7 @@ const fooUseCases = telemetryUseCasesTrace(
 // domain-create: use-cases
 // domain-create: bridges
 
-await queueConsumersStart(queue, [
+await events.consumersStart([
 	// domain-create: consumers
 ]);
 await queueSchedulesRegister(

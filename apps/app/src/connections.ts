@@ -1,4 +1,4 @@
-// The connections every composition root opens: Postgres, and Redis, the cache store, the queue, the live hub and
+// The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub and
 // analytics while the Project has those pieces. Each Domain's spi/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
@@ -6,6 +6,7 @@ import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { analyticsOpen } from "./analytics-open.ts";
 import { cacheStoreOpen } from "./cache-store-open.ts";
+import { eventsOpen } from "./events-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis.ts";
@@ -41,6 +42,13 @@ export const connectionsOpen = async (
 	// piece-start: redis
 	const redis = await redisOpen(env.CACHE_URL, resources);
 	// piece-end: redis
+	// piece-start: queue
+	const queue = await queueOpen(
+		database,
+		role,
+		role === "worker" ? intakes : resources,
+	);
+	// piece-end: queue
 	return {
 		// piece-start: analytics
 		analytics: analyticsOpen(env.MIXPANEL_TOKEN, resources),
@@ -54,11 +62,8 @@ export const connectionsOpen = async (
 		liveHub: liveHubOpen(redis, role === "worker" ? resources : intakes),
 		// piece-end: live
 		// piece-start: queue
-		queue: await queueOpen(
-			database,
-			role,
-			role === "worker" ? intakes : resources,
-		),
+		events: eventsOpen(queue),
+		queue,
 		// piece-end: queue
 		// piece-start: redis
 		// For a Project's own adapters. A Domain's cache goes through cacheStore instead.

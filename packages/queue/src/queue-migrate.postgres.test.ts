@@ -6,8 +6,8 @@ import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test
 import {
 	type Queue,
 	queueConsumerCreate,
-	queueConsumersSubscribe,
 	queueCreate,
+	queueEventsCreate,
 	queueMigrate,
 } from "./index.ts";
 
@@ -73,7 +73,7 @@ describe("queueMigrate", () => {
 	it("deletes the queues of removed consumers, with their dead letters and subscriptions", async () => {
 		await queueMigrate({ databaseUrl });
 		const queue = await start();
-		await queueConsumersSubscribe(queue, [
+		await queueEventsCreate(queue).consumersSubscribe([
 			queueConsumerCreate(
 				"bar.foo-created",
 				"foo.created",
