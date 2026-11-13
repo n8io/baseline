@@ -299,7 +299,7 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 	});
 };
 
-/** Signs an access token for `actor` with the memory issuer, for integration tests' bearer calls. */
+/** Signs an access token for `actor` with the memory issuer, for the bearer calls of tests that hold the `Authn`. */
 export const authnMemoryTokenCreate = async ({
 	actor,
 	authn,
