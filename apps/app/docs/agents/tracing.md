@@ -17,7 +17,7 @@ Never add a request id, correlation id or trace header by hand, and never pass a
 
 ## Spans
 
-Most spans already exist. Instrumentations time inbound and outbound HTTP, Postgres, Redis and jobs. `telemetryUseCasesTrace` gives every Use case a span, and the router instrumentation gives every loader and action one. So the usual answer to "should this be a span?" is an attribute on the active span.
+Most spans already exist. Instrumentations time inbound and outbound HTTP, Postgres, Redis and jobs. A Postgres or Redis call gets a span only inside a trace, so a queue poll or a boot query makes none. `telemetryUseCasesTrace` gives every Use case a span, and the router instrumentation gives every loader and action one. So the usual answer to "should this be a span?" is an attribute on the active span.
 
 Decide in this order:
 

@@ -11,7 +11,7 @@ import {
 const readyLog = "Server listening and ready";
 
 describe("server readiness", { timeout: 60_000 }, () => {
-	it("reports ready once PORT is bound, with no deprecation warning", async () => {
+	it("reports ready once PORT is bound, with no deprecation warning and a 65 s keep-alive", async () => {
 		await using server = await productionServerStart({
 			databaseUrl: "memory://",
 			env: { LOG_LEVEL: "info" },
@@ -22,17 +22,9 @@ describe("server readiness", { timeout: 60_000 }, () => {
 		});
 		expect(server.stdout()).toContain(readyLog);
 		expect(server.stderr()).not.toContain("DeprecationWarning");
-	});
-
-	it("keeps idle connections for 65 s, longer than a load balancer does", async () => {
-		await using server = await productionServerStart({
-			databaseUrl: "memory://",
-		});
-
+		// Idle connections outlast a load balancer's 60 s: Node announces server.keepAliveTimeout.
 		const response = await fetch(`${server.url}/auth/sign-in`);
 		await response.body?.cancel();
-
-		// Node announces server.keepAliveTimeout in whole seconds.
 		expect(response.headers.get("keep-alive")).toBe("timeout=65");
 	});
 

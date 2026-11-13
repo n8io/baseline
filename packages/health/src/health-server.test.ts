@@ -1,4 +1,5 @@
-import { createServer } from "node:net";
+import { once } from "node:events";
+import { connect, createServer } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { type HealthServer, healthServerCreate } from "./index.ts";
 
@@ -115,6 +116,26 @@ describe("healthServerCreate", () => {
 		await response.text();
 
 		expect(response.headers.get("keep-alive")).toBe("timeout=65");
+	});
+
+	it("close() does not wait for a connection that is open but not idle", async () => {
+		const { port, server } = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
+		await probeGet(port, "/livez");
+		// Half a request: the connection is busy until the headers time out.
+		const socket = connect(port, "127.0.0.1");
+		await once(socket, "connect");
+		socket.write("GET /livez HTTP/1.1\r\n");
+		await probeGet(port, "/livez");
+
+		const started = performance.now();
+		await server.close();
+		servers.splice(servers.indexOf(server), 1);
+		socket.destroy();
+
+		expect(performance.now() - started).toBeLessThan(1_000);
 	});
 
 	it("stops accepting connections after close()", async () => {

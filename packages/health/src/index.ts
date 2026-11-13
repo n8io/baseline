@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 export type HealthServer = {
 	/** Marks the process ready; call it after every intake listens. */
 	ready(): void;
-	/** Stops listening; `server.close()` also drops idle keep-alive connections. */
+	/** Stops listening and drops every open connection. */
 	close(): Promise<void>;
 	/** Calls close(), so `await using` closes the server when its block ends. */
 	[Symbol.asyncDispose](): Promise<void>;
@@ -51,6 +51,8 @@ export const healthServerCreate = (options: {
 	const close = (): Promise<void> =>
 		new Promise((resolve, reject) => {
 			server.close((error) => (error ? reject(error) : resolve()));
+			// A connection that is not idle right now would otherwise hold close() for 65 s.
+			server.closeAllConnections();
 		});
 
 	return {
