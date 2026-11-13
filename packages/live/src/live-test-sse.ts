@@ -1,14 +1,13 @@
 export type LiveTestSseReader = {
-	// Resolves with everything read so far once it contains `text`; throws when
-	// the stream ends first.
+	/** Resolves with everything read so far once it contains `text`; throws when the stream ends first. */
 	until(text: string): Promise<string>;
-	// Resolves with everything read once the server ends the response.
+	/** Resolves with everything read once the server ends the response. */
 	end(): Promise<string>;
-	// Goes away like a page that closes: the server stops streaming.
+	/** Goes away like a page that closes: the server stops streaming. */
 	cancel(): Promise<void>;
 };
 
-// Reads a live stream's response in a test, from liveStreamCreate or from fetch.
+/** Reads a live stream's response in a test, from liveStreamCreate or from fetch. */
 export const liveTestSseRead = ({
 	response,
 }: {
