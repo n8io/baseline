@@ -8,10 +8,11 @@ import {
 	request,
 } from "node:http";
 import { connect, createServer as netServerCreate } from "node:net";
+import { join, resolve } from "node:path";
 import { inject } from "vitest";
 
-// The preload every entry runs; the image sets it in NODE_OPTIONS.
-const preloadFlags = ["--import", "./src/preload.ts"];
+// The preload every entry runs; the image sets it in NODE_OPTIONS. Absolute, for a `directory`.
+const preloadFlags = ["--import", resolve("src/preload.ts")];
 
 const serverEntry = "build/server/index.js";
 
@@ -79,6 +80,8 @@ export type AppProcess = AsyncDisposable & {
 
 type AppProcessOptions = {
 	databaseUrl: string;
+	/** Runs the entry from here instead of the app's own directory, e.g. another build. */
+	directory?: string;
 	/** Overrides, e.g. LOG_LEVEL or OTEL_* for the telemetry test. */
 	env?: Record<string, string>;
 };
@@ -90,7 +93,7 @@ const hasExited = (child: ChildProcess): boolean =>
 const appProcessSpawn = async ({
 	entry,
 	extraEnv,
-	options: { databaseUrl, env = {} },
+	options: { databaseUrl, directory, env = {} },
 }: {
 	entry: string;
 	extraEnv: Record<string, string>;
@@ -98,6 +101,7 @@ const appProcessSpawn = async ({
 }): Promise<AppProcess> => {
 	const healthPort = await portClaim();
 	const child = spawn(process.execPath, [...preloadFlags, entry], {
+		...(directory === undefined ? {} : { cwd: directory }),
 		env: {
 			...process.env,
 			// The Vitest worker's serialized varlock env would win over every override below.
@@ -313,8 +317,8 @@ export const slowRequestStart = async (
 
 export type ProductionServer = AppProcess & { port: number; url: string };
 
-const serverEntryCheck = () => {
-	if (!existsSync(serverEntry)) {
+const serverEntryCheck = (directory = ".") => {
+	if (!existsSync(join(directory, serverEntry))) {
 		throw new Error(`${serverEntry} is missing: run pnpm build first`);
 	}
 };
@@ -323,7 +327,7 @@ const serverEntryCheck = () => {
 export const productionServerSpawn = (
 	options: AppProcessOptions,
 ): Promise<AppProcess> => {
-	serverEntryCheck();
+	serverEntryCheck(options.directory);
 	return appProcessSpawn({ entry: serverEntry, options, extraEnv: {} });
 };
 
@@ -335,7 +339,7 @@ export const productionServerSpawn = (
 export const productionServerStart = async (
 	options: AppProcessOptions,
 ): Promise<ProductionServer> => {
-	serverEntryCheck();
+	serverEntryCheck(options.directory);
 	const port = await portClaim();
 	const app = await appProcessStart({
 		entry: serverEntry,

@@ -1,6 +1,6 @@
 import { authnRefreshClientMiddleware } from "@n8io/baseline-authn/client";
 import { authnExpiryContext } from "@n8io/baseline-authn/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, use } from "react";
 import {
 	isRouteErrorResponse,
 	Links,
@@ -11,6 +11,8 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root.ts";
 import appCss from "./app.css?url";
+import { assetReloadListen } from "./asset-reload-listen.ts";
+import { CspNonce } from "./csp-nonce.ts";
 
 export const links: Route.LinksFunction = () => [
 	{ href: appCss, rel: "stylesheet" },
@@ -30,6 +32,13 @@ export const Layout = ({ children }: { children: ReactNode }) => (
 		<head>
 			<meta charSet="utf-8" />
 			<meta content="width=device-width, initial-scale=1" name="viewport" />
+			{/* Before <Links>, so it is listening when the first stylesheet fails to load. */}
+			<script
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: our own function's source, no input
+				dangerouslySetInnerHTML={{ __html: `(${assetReloadListen})()` }}
+				nonce={use(CspNonce)}
+				suppressHydrationWarning
+			/>
 			<Meta />
 			<Links />
 		</head>

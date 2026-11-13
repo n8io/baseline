@@ -13,6 +13,7 @@ import {
 	ServerRouter,
 } from "react-router";
 import { cspNonceContext } from "./context.ts";
+import { CspNonce } from "./csp-nonce.ts";
 
 export const streamTimeout = 5_000;
 
@@ -42,7 +43,8 @@ export default function handleRequest(
 		});
 	}
 
-	// ServerRouter hands the nonce to <Scripts>, <ScrollRestoration> and the streamed data scripts.
+	// ServerRouter hands the nonce to <Scripts>, <ScrollRestoration> and the streamed data scripts;
+	// CspNonce hands it to an inline script of our own.
 	const nonce = loadContext.get(cspNonceContext);
 	const nonceProps = nonce === undefined ? {} : { nonce };
 	return new Promise((resolve, reject) => {
@@ -56,11 +58,13 @@ export default function handleRequest(
 		const readyOption = routerContext.isSpaMode ? "onAllReady" : "onShellReady";
 
 		const { abort, pipe } = renderToPipeableStream(
-			<ServerRouter
-				context={routerContext}
-				url={request.url}
-				{...nonceProps}
-			/>,
+			<CspNonce value={nonce}>
+				<ServerRouter
+					context={routerContext}
+					url={request.url}
+					{...nonceProps}
+				/>
+			</CspNonce>,
 			{
 				...nonceProps,
 				onError(error: unknown) {
