@@ -331,7 +331,7 @@ index c74e0cf..b0bc308 100644
  	]);
  }
 diff --git a/src/worker.ts b/src/worker.ts
-index b7558a7..b8e0d91 100644
+index ab97bbb..a5ee2a2 100644
 --- a/src/worker.ts
 +++ b/src/worker.ts
 @@ -9,10 +9,14 @@ import {
@@ -349,8 +349,8 @@ index b7558a7..b8e0d91 100644
 +} from "#domains/invoice-line/api/index.ts";
  import { invoiceLineUseCasesCreate } from "#domains/invoice-line/index.ts";
  import { invoiceLinePortsCreate } from "#domains/invoice-line/spi/index.ts";
- import { ENV, envLocal } from "#env";
-@@ -35,12 +39,18 @@ const customerUseCases = telemetryUseCasesTrace(
+ import { ENV } from "#env";
+@@ -38,12 +42,18 @@ const customerUseCases = telemetryUseCasesTrace(
  	customerUseCasesCreate(customerPortsCreate(connections)),
  );
  const invoiceLineUseCases = telemetryUseCasesTrace(
@@ -369,4 +369,4 @@ index b7558a7..b8e0d91 100644
 +	invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
  	// domain-create: consumers
  ]);
- await queueSchedulesRegister({
+ // Starts the Schedules migrate has synced; it changes none of them.
