@@ -12,7 +12,7 @@ describe("analyticsLoggerCreate", () => {
 		const analytics = analyticsLoggerCreate();
 
 		analytics.track({
-			distinctId: "user-1",
+			actorId: "user-1",
 			name: "foo.created",
 			properties: { fooId: "foo_1" },
 		});

@@ -1,9 +1,8 @@
 // What an Actor did, for funnels and retention. Properties carry ids and counts only, never a
-// Model, an input or personal data.
+// Model, an input or personal data. Vendor-neutral: each adapter maps it to its own API.
 export type AnalyticsEvent = {
 	name: string;
-	// The Actor's id: Mixpanel's distinct_id.
-	distinctId: string;
+	actorId: string;
 	properties?: Record<string, boolean | number | string>;
 };
 

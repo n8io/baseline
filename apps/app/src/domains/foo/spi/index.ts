@@ -40,7 +40,7 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 		fooAnalytics: {
 			track: ({ actorId, fooId, name }) =>
 				connections.analytics.track({
-					distinctId: actorId,
+					actorId,
 					name,
 					properties: { fooId },
 				}),

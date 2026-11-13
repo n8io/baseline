@@ -35,7 +35,7 @@ describe("analyticsMixpanelCreate", () => {
 		const analytics = analyticsMixpanelCreate("token");
 
 		analytics.track({
-			distinctId: "user-1",
+			actorId: "user-1",
 			name: "foo.created",
 			properties: { fooId: "foo_1" },
 		});
@@ -56,7 +56,7 @@ describe("analyticsMixpanelCreate", () => {
 	it("returns before the send ends, and close waits for it", async () => {
 		const requests = requestsCatch();
 		const analytics = analyticsMixpanelCreate("token");
-		analytics.track({ distinctId: "user-1", name: "foo.created" });
+		analytics.track({ actorId: "user-1", name: "foo.created" });
 		let closed = false;
 
 		const closing = analytics.close().then(() => {
@@ -78,7 +78,7 @@ describe("analyticsMixpanelCreate", () => {
 		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const analytics = analyticsMixpanelCreate("token");
 
-		analytics.track({ distinctId: "user-1", name: "foo.created" });
+		analytics.track({ actorId: "user-1", name: "foo.created" });
 		requests[0]?.answer(answer);
 		await analytics.close();
 

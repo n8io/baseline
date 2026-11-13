@@ -17,12 +17,12 @@ export const analyticsMixpanelCreate = (token: string): Analytics => {
 		close: async () => {
 			await Promise.all(sending);
 		},
-		track: ({ distinctId, name, properties }) => {
+		track: ({ actorId, name, properties }) => {
 			const sent = fetch(trackUrl, {
 				body: JSON.stringify([
 					{
 						event: name,
-						properties: { ...properties, distinct_id: distinctId, token },
+						properties: { ...properties, distinct_id: actorId, token },
 					},
 				]),
 				headers: { "content-type": "application/json" },
