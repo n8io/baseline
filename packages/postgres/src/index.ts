@@ -4,6 +4,7 @@ export {
 	type PostgresClient,
 	type PostgresPool,
 	type PostgresPoolOptions,
+	type PostgresPoolVendorOptions,
 	postgresPoolCreate,
 } from "./postgres-pool.ts";
 export { postgresTransactionRun } from "./postgres-transaction-run.ts";

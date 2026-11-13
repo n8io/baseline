@@ -425,6 +425,15 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			() =>
 				"cacheStoreRedisCreate( picks the cache's backend; src/cache-store-open.ts does that, and a Domain builds its cache on connections.cacheStore",
 		),
+		...textCheck(
+			files,
+			(f) =>
+				(domainOf(f.path) !== undefined || f.path.startsWith("src/ui/")) &&
+				!testIs(f.path),
+			/\b(analyticsMixpanelCreate|liveHubRedisCreate|pulsarCreate)\(/g,
+			(m) =>
+				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts and the src/*-open.ts files do that`,
+		),
 	],
 
 	A13: (files) => [

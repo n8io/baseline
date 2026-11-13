@@ -1,6 +1,6 @@
 import { logger } from "@n8io/baseline-logger";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
-import { PgBoss } from "pg-boss";
+import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
 import type { QueueSql } from "./queue-sql.ts";
 
@@ -28,15 +28,43 @@ export const queueBossGet = (queue: Queue): PgBoss => {
 	return boss;
 };
 
+const queueOwnedKeys = [
+	"db",
+	"migrate",
+	"openTelemetry",
+	"schedule",
+	"schema",
+	"supervise",
+] as const;
+
+/**
+ * pg-boss's own settings, passed through as they are. Outside this Package's contract: nothing
+ * here is tested, and moving off pg-boss deletes it. The keys queueCreate sets are refused.
+ */
+export type QueueVendorOptions = Omit<
+	ConstructorOptions,
+	(typeof queueOwnedKeys)[number]
+>;
+
 // Starts pg-boss on the shared pool. A publisher (the server) only sends: it runs no workers, no
 // maintenance and no cron pass. A worker runs maintenance, cron and the package's inbox pruning.
 export const queueCreate = async (options: {
 	pgPool: QueueSql;
 	role: "publisher" | "worker";
+	/** Settings only pg-boss has, such as `monitorIntervalSeconds`. */
+	vendor?: QueueVendorOptions;
 }): Promise<Queue> => {
-	const { pgPool, role } = options;
+	const { pgPool, role, vendor = {} } = options;
+	for (const key of queueOwnedKeys) {
+		if (key in vendor) {
+			throw new TypeError(
+				`vendor.${key} is not allowed: queueCreate sets it itself`,
+			);
+		}
+	}
 	const worker = role === "worker";
 	const boss = new PgBoss({
+		...vendor,
 		db: { executeSql: (text, values) => pgPool.query(text, values) },
 		migrate: false,
 		openTelemetry: {

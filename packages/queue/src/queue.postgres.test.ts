@@ -60,6 +60,37 @@ describe("queueCreate", () => {
 		expect(pgPool.totalCount).toBeGreaterThan(0);
 	});
 
+	it("passes vendor settings to pg-boss", async () => {
+		const pgPool = poolCreate();
+		const queue = await queueCreate({
+			pgPool,
+			role: "publisher",
+			vendor: { monitorIntervalSeconds: 5 },
+		});
+		queues.push(queue);
+
+		expect(queue.isAlive()).toBe(true);
+	});
+
+	it.each([
+		"db",
+		"migrate",
+		"openTelemetry",
+		"schedule",
+		"schema",
+		"supervise",
+	])("refuses vendor.%s, which queueCreate sets itself", async (key) => {
+		await expect(
+			queueCreate({
+				pgPool: poolCreate(),
+				role: "publisher",
+				vendor: { [key]: undefined },
+			}),
+		).rejects.toThrow(
+			new TypeError(`vendor.${key} is not allowed: queueCreate sets it itself`),
+		);
+	});
+
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "publisher");

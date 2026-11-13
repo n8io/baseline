@@ -1,4 +1,4 @@
-export { type Queue, queueCreate } from "./queue.ts";
+export { type Queue, type QueueVendorOptions, queueCreate } from "./queue.ts";
 export { type Consumer, queueConsumerCreate } from "./queue-consumer.ts";
 export {
 	type Events,

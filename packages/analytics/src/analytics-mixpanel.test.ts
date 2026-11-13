@@ -53,6 +53,19 @@ describe("analyticsMixpanelCreate", () => {
 		expect(requests[0]?.init.signal).toBeInstanceOf(AbortSignal);
 	});
 
+	it("posts to vendor.host when one is given", () => {
+		const requests = requestsCatch();
+		const analytics = analyticsMixpanelCreate("token", {
+			vendor: { host: "api-eu.mixpanel.com" },
+		});
+
+		analytics.track({ actorId: "user-1", name: "foo.created" });
+
+		expect(requests.map((r) => r.url)).toEqual([
+			"https://api-eu.mixpanel.com/track?ip=0&strict=1",
+		]);
+	});
+
 	it("returns before the send ends, and close waits for it", async () => {
 		const requests = requestsCatch();
 		const analytics = analyticsMixpanelCreate("token");

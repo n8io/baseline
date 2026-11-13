@@ -139,4 +139,5 @@ These docs load only when the task needs them. Read the one that matches before 
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
+- Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker, analytics) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)

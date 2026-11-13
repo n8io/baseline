@@ -8,25 +8,51 @@ export type PostgresPool = pg.Pool;
 /** One connection checked out of the pool: what `postgresTransactionRun` hands to its work. */
 export type PostgresClient = pg.PoolClient;
 
+/**
+ * pg's own pool settings, passed through as they are. Outside this Package's contract: nothing
+ * here is tested, and moving off pg deletes it. The keys the named options set are refused.
+ */
+export type PostgresPoolVendorOptions = Omit<
+	pg.PoolConfig,
+	"connectionString" | "connectionTimeoutMillis" | "max"
+>;
+
 export type PostgresPoolOptions = {
 	databaseUrl: string;
 	/** How long a connect may take. Default 3 s. */
 	connectTimeoutMs?: number;
 	/** The most connections the pool opens. Default 10. */
 	max?: number;
+	/** Settings only pg has, such as `ssl` or `idleTimeoutMillis`. */
+	vendor?: PostgresPoolVendorOptions;
 };
+
+const postgresPoolOwnedKeys = {
+	connectionString: "databaseUrl",
+	connectionTimeoutMillis: "connectTimeoutMs",
+	max: "max",
+} as const;
 
 // One pool per process. pg 8.23 ignores ?connect_timeout= in the URL, so settings live here.
 export const postgresPoolCreate = ({
 	connectTimeoutMs = 3_000,
 	databaseUrl,
 	max = 10,
+	vendor = {},
 }: PostgresPoolOptions): PostgresPool => {
 	postgresUrlAssert(databaseUrl);
+	for (const [key, option] of Object.entries(postgresPoolOwnedKeys)) {
+		if (key in vendor) {
+			throw new TypeError(
+				`vendor.${key} is not allowed: set ${option} on postgresPoolCreate instead`,
+			);
+		}
+	}
 	const pgPool = new pg.Pool({
+		keepAlive: true,
+		...vendor,
 		connectionString: databaseUrl,
 		connectionTimeoutMillis: connectTimeoutMs,
-		keepAlive: true,
 		max,
 	});
 	// pg re-emits idle-client errors on the pool; without a listener Node exits.
