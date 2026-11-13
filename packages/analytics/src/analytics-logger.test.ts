@@ -9,14 +9,13 @@ afterEach(() => {
 describe("analyticsLoggerCreate", () => {
 	it("logs each event at debug and sends nothing", async () => {
 		const debug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
-		const analytics = analyticsLoggerCreate();
+		await using analytics = analyticsLoggerCreate();
 
 		analytics.track({
 			actorId: "user-1",
 			name: "foo.created",
 			properties: { fooId: "foo_1" },
 		});
-		await analytics.close();
 
 		expect(debug).toHaveBeenCalledWith(
 			{ event: "foo.created", properties: { fooId: "foo_1" } },

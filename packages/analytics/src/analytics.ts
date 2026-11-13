@@ -11,4 +11,6 @@ export type Analytics = {
 	track(event: AnalyticsEvent): void;
 	// Waits for the sends in flight.
 	close(): Promise<void>;
+	// Calls close(), so `await using` closes it when its block ends.
+	[Symbol.asyncDispose](): Promise<void>;
 };

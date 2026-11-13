@@ -1,7 +1,15 @@
 import { setTimeout } from "node:timers/promises";
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	type MockInstance,
+	vi,
+} from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
@@ -186,6 +194,20 @@ describe("queueCreate", () => {
 		expect(boss.isTimekeeping()).toBe(false);
 		// The pool stays open for the composition root to close.
 		await expect(pgPool.query("SELECT 1")).resolves.toBeDefined();
+	});
+
+	it("await using stops the queue when its block ends", async () => {
+		const pgPool = poolCreate();
+		let stop: MockInstance;
+		{
+			await using queue = await queueCreate({ pgPool, role: "worker" });
+			stop = vi.spyOn(queueBossGet(queue), "stop");
+		}
+
+		expect(stop).toHaveBeenCalledExactlyOnceWith({
+			graceful: true,
+			timeout: 15_000,
+		});
 	});
 
 	it("a job still running at the timeout is failed, to be retried", async () => {

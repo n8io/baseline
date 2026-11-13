@@ -37,7 +37,7 @@ describe("postgresUniqueViolationIs", () => {
 	});
 
 	it("finds the pg error inside Drizzle's DrizzleQueryError", async () => {
-		const pgPool = postgresPoolCreate({
+		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
 		});
 		const db = drizzle({ client: pgPool });
@@ -54,6 +54,5 @@ describe("postgresUniqueViolationIs", () => {
 		expect((error as Error).constructor.name).toBe("DrizzleQueryError");
 		expect(postgresUniqueViolationIs(error, "foo_name_key")).toBe(true);
 		expect(postgresUniqueViolationIs(error, "foo_pkey")).toBe(false);
-		await pgPool.end();
 	});
 });

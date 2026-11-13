@@ -19,7 +19,7 @@ export const liveHubContract = (
 		};
 
 		test("sends { type, id } for its own (channel, id) only", async () => {
-			const liveHub = await liveHubCreate();
+			await using liveHub = await liveHubCreate();
 			const sse = await open(liveHub, `/live/${channel}/foo_1`);
 
 			await liveHub.send(channel, { id: "foo_2", type: "foo.updated" });
@@ -29,18 +29,16 @@ export const liveHubContract = (
 			expect(await sse.until("foo.updated")).toBe(
 				'event: ready\ndata: \n\ndata: {"id":"foo_1","type":"foo.updated"}\n\n',
 			);
-			await liveHub.close();
 		});
 
 		test("sends only type and id, whatever else the sender passes", async () => {
-			const liveHub = await liveHubCreate();
+			await using liveHub = await liveHubCreate();
 			const sse = await open(liveHub, `/live/${channel}/foo_1`);
 
 			const update = { id: "foo_1", name: "secret", type: "foo.updated" };
 			await liveHub.send(channel, update);
 
 			expect(await sse.until("foo.updated")).not.toContain("secret");
-			await liveHub.close();
 		});
 
 		test("close() sends every stream a retry, closes it, then resolves", async () => {

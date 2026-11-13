@@ -67,9 +67,11 @@ export const queueEventsCreate = (queue: Queue): Events => {
 };
 
 // Records publishes in `published` and delivers nothing; unit tests assert on the array.
-export const queueEventsMemoryCreate = <M extends Record<string, unknown>>(
-	published: { name: keyof M; data: unknown }[] = [],
-): EventsPublisher<M> => ({
+export const queueEventsMemoryCreate = <M extends Record<string, unknown>>({
+	published = [],
+}: {
+	published?: { name: keyof M; data: unknown }[];
+} = {}): EventsPublisher<M> => ({
 	committed: async () => undefined,
 	publish: async (name, data) => {
 		published.push({ data, name });

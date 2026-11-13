@@ -107,22 +107,20 @@ describe("queueEventsCreate", () => {
 	});
 
 	it("needs no second pool connection while the transaction holds one", async () => {
-		const onePool = postgresPoolCreate({ databaseUrl, max: 1 });
-		const oneQueue = await queueCreate({ pgPool: onePool, role: "publisher" });
-		try {
-			const result = await postgresTransactionRun(onePool, async (pgClient) => {
-				await queueEventsCreate(oneQueue)
-					.publisherCreate<FooEvents>(pgClient)
-					.publish("foo.created", { fooId: "foo_1" });
-				return ok(undefined);
-			});
+		await using onePool = postgresPoolCreate({ databaseUrl, max: 1 });
+		await using oneQueue = await queueCreate({
+			pgPool: onePool,
+			role: "publisher",
+		});
+		const result = await postgresTransactionRun(onePool, async (pgClient) => {
+			await queueEventsCreate(oneQueue)
+				.publisherCreate<FooEvents>(pgClient)
+				.publish("foo.created", { fooId: "foo_1" });
+			return ok(undefined);
+		});
 
-			expect(result).toEqual(ok(undefined));
-			expect(await jobs()).toHaveLength(3);
-		} finally {
-			await oneQueue.stop();
-			await onePool.end();
-		}
+		expect(result).toEqual(ok(undefined));
+		expect(await jobs()).toHaveLength(3);
 	});
 
 	it("rolls the jobs back on a throw", async () => {
@@ -141,7 +139,7 @@ describe("queueEventsCreate", () => {
 describe("queueEventsMemoryCreate", () => {
 	it("records publishes and delivers nothing", async () => {
 		const published: { name: keyof FooEvents; data: unknown }[] = [];
-		const events = queueEventsMemoryCreate<FooEvents>(published);
+		const events = queueEventsMemoryCreate<FooEvents>({ published });
 
 		await events.publish("foo.created", { fooId: "foo_1" });
 
@@ -150,7 +148,7 @@ describe("queueEventsMemoryCreate", () => {
 		]);
 	});
 
-	it("works without an array", async () => {
+	it("works without options", async () => {
 		await expect(
 			queueEventsMemoryCreate<FooEvents>().publish("foo.created", {
 				fooId: "foo_1",

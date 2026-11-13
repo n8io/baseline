@@ -10,6 +10,8 @@ export type Pulsar = {
 	// A resource, after every intake that may send: stops if needed, flushes producers and
 	// closes the client.
 	close(): Promise<void>;
+	// Calls close(), so `await using` closes it when its block ends.
+	[Symbol.asyncDispose](): Promise<void>;
 };
 
 // What the other modules of this package reach through a Pulsar.
@@ -162,6 +164,7 @@ export const pulsarCreate = (options: {
 			stopped ??= pulsarStop(state);
 			return stopped;
 		},
+		[Symbol.asyncDispose]: () => pulsar.close(),
 	};
 	pulsarStates.set(pulsar, state);
 	return pulsar;

@@ -1,5 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	type DisposableTempDir,
+	mkdtempDisposableSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,10 +16,7 @@ import {
 	workspaceExcludesDedupe,
 } from "./template-upgrade.ts";
 
-const directories: string[] = [];
 afterEach(() => {
-	for (const d of directories.splice(0))
-		rmSync(d, { force: true, recursive: true });
 	vi.restoreAllMocks();
 });
 
@@ -48,9 +50,9 @@ const tools: UpgradeTools = {
 };
 
 // A project rendered from 1.0.0 and committed, with `a.ts` as the project left it.
-const projectCreate = (a: string): string => {
-	const app = mkdtempSync(join(tmpdir(), "template-upgrade-"));
-	directories.push(app);
+const projectCreate = (a: string): DisposableTempDir => {
+	const folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+	const app = folder.path;
 	git(app, "init", "--quiet", "--initial-branch=main");
 	git(app, "config", "user.email", "test@example.com");
 	git(app, "config", "user.name", "Test");
@@ -68,12 +70,13 @@ const projectCreate = (a: string): string => {
 	}
 	git(app, "add", ".");
 	git(app, "commit", "--quiet", "-m", "project");
-	return app;
+	return folder;
 };
 
 describe("templateUpgradeRun", () => {
 	it("merges the template's change into the project's own edits, without committing", async () => {
-		const app = projectCreate("ONE\ntwo\nthree\nfour\nfive\n");
+		using folder = projectCreate("ONE\ntwo\nthree\nfour\nfive\n");
+		const app = folder.path;
 		const pnpm = vi.fn();
 		const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -98,7 +101,8 @@ describe("templateUpgradeRun", () => {
 	});
 
 	it("leaves conflict markers and exits 1 when both sides changed the same line", async () => {
-		const app = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
+		using folder = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
+		const app = folder.path;
 		const pnpm = vi.fn();
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -114,7 +118,8 @@ describe("templateUpgradeRun", () => {
 	});
 
 	it("renders a release with that release's own render code", async () => {
-		const app = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		const app = folder.path;
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const own = {
 			path: "scripts/template-render.ts",
@@ -133,7 +138,8 @@ describe("templateUpgradeRun", () => {
 	});
 
 	it("refuses a dirty working tree", async () => {
-		const app = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		const app = folder.path;
 		writeFileSync(join(app, "src/a.ts"), "dirty\n");
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 

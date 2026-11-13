@@ -16,19 +16,16 @@ const adminQuery = async (text: string): Promise<void> => {
 };
 
 // A migrated, empty database copied from baseline_template (about 8 ms). `drop` removes it,
-// closing any connection still open.
-export const integrationDatabaseCreate = async (): Promise<{
-	databaseUrl: string;
-	drop: () => Promise<void>;
-}> => {
+// closing any connection still open; `await using` drops it at the end of the block.
+export const integrationDatabaseCreate = async (): Promise<
+	AsyncDisposable & { databaseUrl: string; drop: () => Promise<void> }
+> => {
 	const name = `test_${randomUUID().replaceAll("-", "")}`;
 	await adminQuery(
 		`CREATE DATABASE ${name} TEMPLATE ${integrationTemplateName}`,
 	);
 	const url = new URL(inject("integrationDatabaseUrl"));
 	url.pathname = `/${name}`;
-	return {
-		databaseUrl: url.toString(),
-		drop: () => adminQuery(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`),
-	};
+	const drop = () => adminQuery(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+	return { databaseUrl: url.toString(), drop, [Symbol.asyncDispose]: drop };
 };

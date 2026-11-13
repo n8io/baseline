@@ -61,14 +61,15 @@ export const productionServerWaitFor = async (
 	throw new Error(`timed out waiting for ${what}`);
 };
 
-export type AppProcess = {
+/** `await using` stops the process at the end of the block, like `stop`. */
+export type AppProcess = AsyncDisposable & {
 	child: ChildProcess;
 	/** Resolves with the exit code once the process has exited. */
 	exited: Promise<number | null>;
 	healthPort: number;
 	stderr: () => string;
 	stdout: () => string;
-	/** Sends SIGTERM unless it has already exited, and resolves with the exit code. */
+	/** Sends SIGTERM unless it has already exited, and resolves with the exit code. Safe to call again. */
 	stop: () => Promise<number | null>;
 };
 
@@ -121,23 +122,27 @@ const appProcessSpawn = async (
 	});
 	// "close" waits for stdout and stderr to drain as well; "exit" can fire before their last chunks.
 	const exited = once(child, "close").then(([code]) => code as number | null);
+	const stop = async () => {
+		if (!hasExited(child)) {
+			child.kill("SIGTERM");
+		}
+		// A child that hangs past the 25 s shutdown deadline is killed.
+		const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
+		try {
+			return await exited;
+		} finally {
+			clearTimeout(timer);
+		}
+	};
 	return {
 		child,
 		exited,
 		healthPort,
 		stderr: () => stderr,
 		stdout: () => stdout,
-		stop: async () => {
-			if (!hasExited(child)) {
-				child.kill("SIGTERM");
-			}
-			// A child that hangs past the 25 s shutdown deadline is killed.
-			const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
-			try {
-				return await exited;
-			} finally {
-				clearTimeout(timer);
-			}
+		stop,
+		[Symbol.asyncDispose]: async () => {
+			await stop();
 		},
 	};
 };
@@ -227,7 +232,8 @@ export const productionServerConnectResult = (port: number): Promise<string> =>
 		);
 	});
 
-type SlowRequest = {
+/** `using` drops the request at the end of the block; declare it after the server it targets. */
+type SlowRequest = Disposable & {
 	/** Drops the request; call it before stopping the server, which would wait for it. */
 	abort: () => void;
 	/** Sends the rest of the body and resolves with the response. */
@@ -265,8 +271,12 @@ export const slowRequestStart = async (
 	responded.catch(() => undefined);
 	await once(slow, "continue");
 	slow.write(body.slice(0, 5));
+	const abort = () => {
+		slow.destroy();
+	};
 	return {
-		abort: () => slow.destroy(),
+		[Symbol.dispose]: abort,
+		abort,
 		finish: async () => {
 			slow.end(body.slice(5));
 			const [res] = await responded;
