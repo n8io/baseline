@@ -14,7 +14,7 @@ vi.mock("@n8io/baseline-error-tracking", () => ({
 describe("errorTrackingOpen", () => {
 	it("reports nothing, with nothing to close, when there is no DSN", () => {
 		const steps: ShutdownStep[] = [];
-		errorTrackingOpen({ dsn: undefined, environment: "test" }, steps);
+		errorTrackingOpen({ dsn: undefined, environment: "test", steps });
 		expect(steps).toEqual([]);
 	});
 
@@ -27,10 +27,11 @@ describe("errorTrackingOpen", () => {
 		onTestFinished(() => {
 			writable.level = level;
 		});
-		errorTrackingOpen(
-			{ dsn: "https://public@o1.ingest.sentry.io/1", environment: "test" },
+		errorTrackingOpen({
+			dsn: "https://public@o1.ingest.sentry.io/1",
+			environment: "test",
 			steps,
-		);
+		});
 		const error = new Error("boom");
 
 		logger.error({ err: error }, "Queue error");

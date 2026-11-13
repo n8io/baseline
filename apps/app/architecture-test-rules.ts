@@ -664,11 +664,19 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			(f) => !testIs(f.path),
 			(imp, f) => {
 				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
-					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root";
+					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root or src/connections.ts";
 				}
-				const rootsWithEnv = [...roots, "src/migrate.ts", "src/authn.ts"];
+				const rootsWithEnv = [
+					...roots,
+					"src/authn.ts",
+					// Opens every connection for the roots, so it reads their settings itself.
+					"src/connections.ts",
+					// The Pulsar guide's Events transport reads PULSAR_URL here.
+					"src/events-open.ts",
+					"src/migrate.ts",
+				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the composition roots and src/authn.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+					? "only the composition roots, src/authn.ts, src/connections.ts and src/events-open.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
 		),

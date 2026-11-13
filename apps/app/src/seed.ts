@@ -47,7 +47,7 @@ if (import.meta.main) {
 		logger.info("memory database: the server seeds itself at start");
 		process.exit(0);
 	}
-	const connections = await connectionsOpen(ENV, "publisher");
+	const connections = await connectionsOpen({ role: "publisher" });
 	// domain-create: domains-start
 	const fooUseCases = telemetryUseCasesTrace(
 		fooUseCasesCreate(fooPortsCreate(connections)),

@@ -5,13 +5,13 @@ import { analyticsOpen } from "./analytics-open.ts";
 describe("analyticsOpen", () => {
 	it("logs instead of sending, with nothing to close, when there is no token", () => {
 		const steps: ShutdownStep[] = [];
-		analyticsOpen(undefined, steps);
+		analyticsOpen({ steps, token: undefined });
 		expect(steps).toEqual([]);
 	});
 
 	it("sends to Mixpanel with a token and waits for its sends at shutdown", async () => {
 		const steps: ShutdownStep[] = [];
-		analyticsOpen("token", steps);
+		analyticsOpen({ steps, token: "token" });
 		expect(steps.map((s) => s.name)).toEqual(["analytics"]);
 		await expect(steps[0]?.close()).resolves.toBeUndefined();
 	});

@@ -1,13 +1,12 @@
 import { idCreate } from "@n8io/baseline-id";
 import { ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
-import { ENV } from "#env";
 import { connectionsOpen } from "../../../connections.ts";
 import { fooPortsCreate } from "./index.ts";
 
 describe("fooPortsCreate", () => {
 	it("builds memory ports for a memory database", async () => {
-		const ports = fooPortsCreate(await connectionsOpen(ENV, "publisher"));
+		const ports = fooPortsCreate(await connectionsOpen({ role: "publisher" }));
 		const now = new Date();
 		const foo = {
 			archivedAt: null,

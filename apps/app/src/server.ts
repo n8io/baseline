@@ -54,7 +54,7 @@ const health = healthServerCreate({
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
-const connections = await connectionsOpen(ENV, "publisher");
+const connections = await connectionsOpen({ role: "publisher" });
 // piece-start: ui
 if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.

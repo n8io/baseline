@@ -1,186 +1,81 @@
-import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
+import { describe, expect, it, onTestFinished } from "vitest";
 
-type EnvItem = {
-	decorators: string;
-	// "" for a line that is not KEY=value; `line` then holds its text before "=" (never a value).
-	key: string;
-	line: string;
-	value: string;
-};
-type EnvFiles = {
-	development: string;
-	production: string;
-	schema: string;
-	test: string;
-};
+const appRoot = fileURLToPath(new URL("./", import.meta.url));
+const fileRead = (name: string) => readFileSync(`${appRoot}${name}`, "utf8");
+const keys = (name: string) => Object.keys(parseEnv(fileRead(name)));
 
-// Quotes are stripped; an unquoted value ends at " #" (a trailing comment).
-const envValue = (raw: string): string => {
-	const value = raw.trim();
-	const quoted = /^(["'])(.*)\1$/.exec(value);
-	return quoted ? (quoted[2] ?? "") : (value.split(/\s+#/)[0] ?? "").trim();
-};
-
-const envFileParse = (text: string): EnvItem[] => {
-	const items: EnvItem[] = [];
-	let comments: string[] = [];
-	for (const raw of text.split("\n")) {
-		const line = raw.trim();
-		if (line === "# ---") comments = [];
-		else if (line.startsWith("#")) comments.push(line);
-		else if (line === "") comments = [];
-		else {
-			const match = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(line);
-			items.push({
-				decorators: comments.join("\n"),
-				key: match?.[1] ?? "",
-				line: line.split("=")[0] ?? "",
-				value: envValue(match?.[2] ?? ""),
-			});
-			comments = [];
-		}
-	}
-	return items;
-};
-
-const envRequired = (
-	decorators: string,
-	env: string,
-	defaultRequired: boolean,
-): boolean => {
-	if (/@optional\b|@required=false/.test(decorators)) return false;
-	if (/@required(=true)?(\s|$)/.test(decorators)) return true;
-	const list = /@required=forEnv\(([^)]*)\)/.exec(decorators);
-	return list
-		? (list[1] ?? "")
-				.split(",")
-				.map((name) => name.trim())
-				.includes(env)
-		: defaultRequired;
-};
-
-const envViolations = (files: EnvFiles): string[] => {
-	const problems: string[] = [];
-	for (const [name, text] of Object.entries(files)) {
-		for (const item of envFileParse(text).filter((i) => i.key === "")) {
-			problems.push(
-				`.env.${name} has a line that is not KEY=value: ${item.line}`,
-			);
-		}
-	}
-	const schema = envFileParse(files.schema).filter((item) => item.key);
-	const declared = new Set(schema.map((item) => item.key));
-	const defaultRequired = !/@defaultRequired=false/.test(
-		files.schema.split("# ---")[0] ?? "",
+// varlock itself, as `pnpm dev` and the tests load it: every required item has a value and every
+// value has its type. Only the committed files count: no `.local` file, and none of this
+// process's own values of the items.
+const varlockLoad = (appEnv: "development" | "test", dir = appRoot) =>
+	spawnSync(
+		`${appRoot}node_modules/.bin/varlock`,
+		["load", "-p", join(dir, ".env.schema"), "-p", join(dir, `.env.${appEnv}`)],
+		{
+			cwd: dir,
+			encoding: "utf8",
+			env: {
+				...process.env,
+				...Object.fromEntries(
+					keys(".env.schema").map((key) => [key, undefined]),
+				),
+				// The Vitest worker's serialized varlock env would win over the files.
+				__VARLOCK_ENV: undefined,
+				APP_ENV: appEnv,
+				DO_NOT_TRACK: "1",
+			},
+			timeout: 15_000,
+		},
 	);
-	for (const env of ["development", "test"] as const) {
-		const values = new Map(
-			envFileParse(files[env]).map((item) => [item.key, item.value]),
-		);
-		for (const item of schema) {
-			if (
-				item.value === "" &&
-				envRequired(item.decorators, env, defaultRequired) &&
-				!values.get(item.key)
-			) {
-				problems.push(
-					`.env.${env} needs a value for ${item.key} (.env.schema gives it no default)`,
-				);
-			}
-		}
-	}
-	for (const item of envFileParse(files.production).filter((i) => i.key)) {
-		if (!/^op\(op:\/\/[^)\s]+\)$/.test(item.value)) {
-			problems.push(
-				`.env.production sets ${item.key} to a value; use an op(op://<vault>/<item>/<field>) reference`,
-			);
-		}
-	}
-	for (const env of ["development", "test", "production"] as const) {
-		for (const item of envFileParse(files[env])) {
-			if (item.key && !declared.has(item.key))
-				problems.push(
-					`.env.${env} sets ${item.key}, which .env.schema does not declare`,
-				);
-		}
-	}
-	return problems;
-};
-
-const fileRead = (name: string) =>
-	readFileSync(new URL(`./${name}`, import.meta.url), "utf8");
-
-const schema = [
-	"# @defaultRequired=true",
-	"# ---",
-	"A_KEY=",
-	"# @required=false",
-	"B_KEY=",
-	"# @required=forEnv(production)",
-	"C_KEY=",
-	"# @optional",
-	"E_KEY=",
-	"D_KEY=fixed",
-].join("\n");
-const good: EnvFiles = {
-	development: "A_KEY=x",
-	production: "A_KEY=op(op://vault/item/field)",
-	schema,
-	test: "A_KEY=y",
-};
 
 describe("env files", () => {
-	it("pass against the real schema", () => {
-		const files = {
-			development: fileRead(".env.development"),
-			production: fileRead(".env.production"),
-			schema: fileRead(".env.schema"),
-			test: fileRead(".env.test"),
-		};
-		expect(envViolations(files)).toEqual([]);
+	it.each(["development", "test"] as const)(
+		".env.%s loads against .env.schema",
+		(appEnv) => {
+			const { status, stderr, stdout } = varlockLoad(appEnv);
+			expect({ status, stderr, stdout }).toMatchObject({ status: 0 });
+		},
+	);
+
+	it("fail to load when a required item has no value", () => {
+		const dir = mkdtempSync(join(tmpdir(), "env-files-"));
+		onTestFinished(() => rmSync(dir, { force: true, recursive: true }));
+		writeFileSync(
+			join(dir, ".env.schema"),
+			"# @currentEnv=$APP_ENV\n# @defaultRequired=true\n# ---\nAPP_ENV=test\nA_KEY=\n",
+		);
+		writeFileSync(join(dir, ".env.test"), "A_KEY=\n");
+		const { status, stderr } = varlockLoad("test", dir);
+		expect({ status, stderr }).toMatchObject({
+			status: 1,
+			stderr: expect.stringContaining("A_KEY"),
+		});
 	});
 
-	it("accept optional and production-only items missing from development and test", () => {
-		expect(envViolations(good)).toEqual([]);
+	it("set only items .env.schema declares", () => {
+		const declared = new Set(keys(".env.schema"));
+		const undeclared = ["development", "production", "test"].flatMap((env) =>
+			keys(`.env.${env}`)
+				.filter((key) => !declared.has(key))
+				.map((key) => `.env.${env}: ${key}`),
+		);
+		expect(undeclared).toEqual([]);
 	});
 
-	it.each([
-		[
-			"a required item missing from .env.test",
-			{ test: "" },
-			[".env.test needs a value for A_KEY (.env.schema gives it no default)"],
-		],
-		[
-			"an empty value in .env.development",
-			{ development: "A_KEY=" },
-			[
-				".env.development needs a value for A_KEY (.env.schema gives it no default)",
-			],
-		],
-		[
-			"a plain value in .env.production",
-			{ production: "A_KEY=plain" },
-			[
-				".env.production sets A_KEY to a value; use an op(op://<vault>/<item>/<field>) reference",
-			],
-		],
-		[
-			"an empty quoted value",
-			{ test: 'A_KEY=""' },
-			[".env.test needs a value for A_KEY (.env.schema gives it no default)"],
-		],
-		[
-			"a line that is not KEY=value",
-			{ production: "export A_KEY=plain" },
-			[".env.production has a line that is not KEY=value: export A_KEY"],
-		],
-		[
-			"an undeclared key",
-			{ test: "A_KEY=y\nZ_KEY=1" },
-			[".env.test sets Z_KEY, which .env.schema does not declare"],
-		],
-	])("fail on %s", (_name, change, expected) => {
-		expect(envViolations({ ...good, ...change })).toEqual(expected);
+	// Shows only the text before "=", never a value.
+	it("give production only op() references", () => {
+		const notReferences = fileRead(".env.production")
+			.split("\n")
+			.map((line) => line.trim())
+			.filter((line) => line !== "" && !line.startsWith("#"))
+			.filter((line) => !/^[A-Z][A-Z0-9_]*=op\(op:\/\/[^)\s]+\)$/.test(line))
+			.map((line) => line.split("=")[0]);
+		expect(notReferences).toEqual([]);
 	});
 });

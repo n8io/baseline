@@ -7,7 +7,11 @@ import {
 } from "@n8io/baseline-cache";
 import type { RedisClient } from "./redis.ts";
 
-export const cacheStoreOpen = (redis: RedisClient | "memory"): CacheStore =>
+export const cacheStoreOpen = ({
+	redis,
+}: {
+	redis: RedisClient | "memory";
+}): CacheStore =>
 	redis === "memory"
 		? cacheStoreMemoryCreate()
 		: cacheStoreRedisCreate({ redisClient: redis });
