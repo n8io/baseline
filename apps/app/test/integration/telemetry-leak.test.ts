@@ -116,12 +116,9 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 		);
 	});
 
-	it("exports pino records as OTLP logs and pg client metrics", () => {
+	it("exports pino records as OTLP logs", () => {
 		const signals = telemetrySignals(server, receiver);
 		expect(signals.logs).toContain("Server listening");
-		expect(receiver.metrics().map((metric) => metric.name)).toContainEqual(
-			expect.stringMatching(/^db\.client\.[a-z._]+$/),
-		);
 	});
 
 	it.each(

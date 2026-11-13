@@ -167,6 +167,31 @@ describe("postgresTransactionRun", () => {
 		expect(pgPool.idleCount).toBe(pgPool.totalCount);
 	});
 
+	it("rejects a query past the pool's queryTimeoutMs, rolls back and leaves the pool usable", async () => {
+		await using pgPool = postgresPoolCreate({
+			databaseUrl: await postgresTestDatabaseCreate(),
+			max: 1,
+			queryTimeoutMs: 200,
+		});
+		await pgPool.query("CREATE TABLE foo (name text NOT NULL)");
+
+		await expect(
+			postgresTransactionRun({
+				pgPool,
+				work: async (pgClient) => {
+					await pgClient.query("INSERT INTO foo (name) VALUES ('slow')");
+					await pgClient.query("SELECT pg_sleep(1)");
+					return ok(null);
+				},
+			}),
+		).rejects.toThrow("Query read timeout");
+		const { rows } = await pgPool.query<{ count: number }>(
+			"SELECT count(*)::int AS count FROM foo",
+		);
+
+		expect(rows).toEqual([{ count: 0 }]);
+	});
+
 	it("refuses a timeoutMs that is not a positive integer", async () => {
 		await expect(
 			postgresTransactionRun({

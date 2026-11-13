@@ -76,6 +76,13 @@ beforeAll(async () => {
 		}),
 	).toBe(200);
 	expect(responseBodies.at(-1)).toContain(fooName);
+	// A read by id goes through the cache.
+	const { id } = JSON.parse(responseBodies[0] ?? "{}") as { id: string };
+	expect(
+		await request(`/api/v1/foos/${id}`, {
+			headers: { authorization: session.authorization },
+		}),
+	).toBe(200);
 	// SIGTERM ends with telemetryShutdown, which flushes every signal.
 	exitCode = await server.stop();
 }, 60_000);
@@ -117,6 +124,46 @@ describe("telemetry from the production build with foo traffic", {
 		expect(queries.length).toBeGreaterThan(0);
 	});
 
+	// Boot and queue setup run outside any trace and make no span. The Redis instrumentation
+	// still makes one redis-connect span per connection it opens.
+	it("makes no Postgres or Redis span outside a trace", () => {
+		const clientSpans = receiver
+			.spans()
+			.filter((span) => spanAttribute(span, "db.system.name") !== undefined);
+		expect(clientSpans.length).toBeGreaterThan(0);
+		expect(
+			clientSpans
+				.filter((span) => !span.parentSpanId)
+				.map((span) => span.name)
+				.filter((name) => name !== "redis-connect"),
+		).toEqual([]);
+	});
+
+	// pg metrics start with the first query inside a trace, like its spans.
+	it("exports pg client metrics", () => {
+		expect(receiver.metrics().map((metric) => metric.name)).toEqual(
+			expect.arrayContaining([
+				"db.client.operation.duration",
+				"db.client.connection.count",
+			]),
+		);
+	});
+
+	// piece-start: cache
+	it("traces the cached read from fooGet to Redis", () => {
+		const spans = receiver.spans();
+		const commands = spans.filter(
+			(span) =>
+				spanAttribute(span, "db.system.name") === "redis" &&
+				spanAncestors(span, spans).some((parent) => parent.name === "fooGet"),
+		);
+		expect(commands.map((span) => span.name)).toEqual([
+			"redis-GET",
+			"redis-SET",
+		]);
+	});
+	// piece-end: cache
+
 	it("replaces the list page's cursor value", () => {
 		const list = receiver
 			.spans()
@@ -147,7 +194,7 @@ describe("telemetry from the production build with foo traffic", {
 	});
 
 	it("never sends the client secret in a response body", () => {
-		expect(responseBodies).toHaveLength(4);
+		expect(responseBodies).toHaveLength(5);
 		for (const body of responseBodies) {
 			expect(body).not.toContain(clientSecret);
 		}
