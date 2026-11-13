@@ -23,8 +23,8 @@ describe("foo Events", () => {
 		await useCases.fooDelete(owner, { fooId });
 
 		expect(state.published).toEqual([
-			{ data: { fooId }, name: "foo.created" },
-			{ data: { fooId }, name: "foo.deleted" },
+			{ data: { fooId }, key: fooId, name: "foo.created" },
+			{ data: { fooId }, key: fooId, name: "foo.deleted" },
 		]);
 	});
 

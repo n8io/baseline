@@ -24,7 +24,11 @@ export const fooDelete =
 			}
 			await transaction.fooRepository.delete(foo.id);
 			// piece-start: queue
-			await transaction.fooEvents.publish("foo.deleted", { fooId: foo.id });
+			await transaction.fooEvents.publish({
+				data: { fooId: foo.id },
+				key: foo.id,
+				name: "foo.deleted",
+			});
 			// piece-end: queue
 			return ok(undefined);
 		});

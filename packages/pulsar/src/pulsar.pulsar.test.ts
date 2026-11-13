@@ -85,7 +85,7 @@ const commit = async ({
 	const result = await postgresTransactionRun({
 		pgPool,
 		work: async () => {
-			await events.publish(eventName, event);
+			await events.publish({ data: event, key: event.fooId, name: eventName });
 			return outcome === "commit" ? ok(undefined) : err({ type: "rollback" });
 		},
 	});
@@ -407,7 +407,11 @@ describe("pulsarEventsCreate", () => {
 			pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
 				pgPool,
 			);
-		await sent.publish(eventName, { fooId: "foo_after_stop" });
+		await sent.publish({
+			data: { fooId: "foo_after_stop" },
+			key: "foo_after_stop",
+			name: eventName,
+		});
 		await sent.committed();
 		await vi.waitFor(() => expect(runs).toEqual(["foo_after_stop"]), {
 			timeout: 20_000,
@@ -419,7 +423,11 @@ describe("pulsarEventsCreate", () => {
 			pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
 				pgPool,
 			);
-		await lost.publish(eventName, { fooId: "foo_after_close" });
+		await lost.publish({
+			data: { fooId: "foo_after_close" },
+			key: "foo_after_close",
+			name: eventName,
+		});
 		await expect(lost.committed()).resolves.toBeUndefined();
 		expect(eventsLost).toHaveBeenCalledExactlyOnceWith(1, {
 			"messaging.destination.name": `persistent://public/default/${eventName}`,
@@ -452,14 +460,22 @@ describe("pulsarEventsCreate", () => {
 				pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
 					pgPool,
 				);
-			await first.publish(eventName, { fooId: "foo_lost" });
+			await first.publish({
+				data: { fooId: "foo_lost" },
+				key: "foo_lost",
+				name: eventName,
+			});
 			await first.committed();
 			expect(eventsLost).toHaveBeenCalledOnce();
 			const second =
 				pulsarEventsCreate(sender).publisherCreate<Record<string, FooCreated>>(
 					pgPool,
 				);
-			await second.publish(eventName, { fooId: "foo_retried" });
+			await second.publish({
+				data: { fooId: "foo_retried" },
+				key: "foo_retried",
+				name: eventName,
+			});
 			await second.committed();
 			await vi.waitFor(() => expect(runs).toEqual(["foo_retried"]), {
 				timeout: 20_000,

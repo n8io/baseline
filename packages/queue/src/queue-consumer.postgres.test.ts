@@ -1,3 +1,4 @@
+import { logger } from "@n8io/baseline-logger";
 import {
 	type PostgresPool,
 	postgresPoolCreate,
@@ -60,7 +61,7 @@ const publish = async (data: unknown): Promise<void> => {
 		work: async (pgClient) => {
 			await queueEventsCreate(queue)
 				.publisherCreate<{ "foo.created": unknown }>(pgClient)
-				.publish("foo.created", data);
+				.publish({ data, key: "foo_1", name: "foo.created" });
 			return ok(undefined);
 		},
 	});
@@ -104,13 +105,17 @@ describe("consumersStart", () => {
 		await publish({ fooId: "foo_1" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBossGet(queue).findJobs("billing.foo-created");
+				const [job] = await queueBossGet(queue).findJobs(
+					"billing.foo-created.ordered",
+				);
 				expect(job?.state).toBe("completed");
 			},
 			{ interval: 250, timeout: 45_000 },
 		);
 
-		const [job] = await queueBossGet(queue).findJobs("billing.foo-created");
+		const [job] = await queueBossGet(queue).findJobs(
+			"billing.foo-created.ordered",
+		);
 		expect(calls).toEqual([
 			{ consumer: "billing.foo-created", eventId: job?.id },
 			{ consumer: "billing.foo-created", eventId: job?.id },
@@ -155,8 +160,9 @@ describe("consumersStart", () => {
 		]);
 		const boss = queueBossGet(queue);
 		// No retries, so each failure goes straight to the dead-letter queue.
-		await boss.updateQueue("billing.foo-archived", { retryLimit: 0 });
-		const deadLettered = async (): Promise<void> => {
+		await boss.updateQueue("billing.foo-archived.ordered", { retryLimit: 0 });
+		// The failed job is discarded, so its key moves on, and its dead-letter copy is redriven.
+		const discardedAndRedriven = async (): Promise<void> => {
 			await vi.waitFor(
 				async () => {
 					const dead = await boss.findJobs("billing.foo-archived.dead");
@@ -164,6 +170,10 @@ describe("consumersStart", () => {
 				},
 				{ interval: 250, timeout: 30_000 },
 			);
+			await pgPool.query(
+				"DELETE FROM queue.job WHERE name = 'billing.foo-archived.ordered' AND state = 'failed'",
+			);
+			expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
 		};
 
 		await postgresTransactionRun({
@@ -171,17 +181,19 @@ describe("consumersStart", () => {
 			work: async (pgClient) => {
 				await queueEventsCreate(queue)
 					.publisherCreate<{ "foo.archived": unknown }>(pgClient)
-					.publish("foo.archived", { fooId: "foo_2" });
+					.publish({
+						data: { fooId: "foo_2" },
+						key: "foo_2",
+						name: "foo.archived",
+					});
 				return ok(undefined);
 			},
 		});
-		await deadLettered();
-		expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
-		await deadLettered();
-		expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
+		await discardedAndRedriven();
+		await discardedAndRedriven();
 		await vi.waitFor(
 			async () => {
-				const jobs = await boss.findJobs("billing.foo-archived");
+				const jobs = await boss.findJobs("billing.foo-archived.ordered");
 				expect(jobs.map((job) => job.state)).toContain("completed");
 			},
 			{ interval: 250, timeout: 30_000 },
@@ -214,13 +226,17 @@ describe("consumersStart", () => {
 		await publish({ fooId: 42, secret: "hunter2" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBossGet(queue).findJobs("audit.foo-created");
+				const [job] = await queueBossGet(queue).findJobs(
+					"audit.foo-created.ordered",
+				);
 				expect(job?.state).toBe("retry");
 			},
 			{ interval: 250, timeout: 15_000 },
 		);
 
-		const [job] = await queueBossGet(queue).findJobs("audit.foo-created");
+		const [job] = await queueBossGet(queue).findJobs(
+			"audit.foo-created.ordered",
+		);
 		expect(run).not.toHaveBeenCalled();
 		expect(JSON.stringify(job?.output)).toContain(
 			"Event failed validation for audit.foo-created",
@@ -252,7 +268,11 @@ describe("consumersStart trace context", () => {
 					work: async (pgClient) => {
 						await queueEventsCreate(queue)
 							.publisherCreate<{ "foo.traced": unknown }>(pgClient)
-							.publish("foo.traced", { fooId: "foo_3" });
+							.publish({
+								data: { fooId: "foo_3" },
+								key: "foo_3",
+								name: "foo.traced",
+							});
 						return ok(undefined);
 					},
 				});
@@ -264,6 +284,50 @@ describe("consumersStart trace context", () => {
 			interval: 250,
 			timeout: 15_000,
 		});
+	});
+});
+
+describe("consumersStart trace context in a batch", () => {
+	it("runs each Consumer of one fetch in the trace of its own Event", async () => {
+		const events = queueEventsCreate(queue);
+		const seen = new Map<string, string | undefined>();
+		const consumer = queueConsumerCreate({
+			queueName: "billing.foo-batched",
+			eventName: "foo.batched",
+			schema: fooCreated,
+			run: async (event) => {
+				seen.set(event.fooId, trace.getActiveSpan()?.spanContext().traceId);
+				return ok(undefined);
+			},
+		});
+		await events.consumersSubscribe([consumer]);
+		const published = new Map<string, string>();
+		for (const fooId of ["foo_4", "foo_5", "foo_6"]) {
+			await trace
+				.getTracer("test")
+				.startActiveSpan("fooCreate", async (span) => {
+					await postgresTransactionRun({
+						pgPool,
+						work: async (pgClient) => {
+							await events
+								.publisherCreate<{ "foo.batched": unknown }>(pgClient)
+								.publish({ data: { fooId }, key: fooId, name: "foo.batched" });
+							return ok(undefined);
+						},
+					});
+					span.end();
+					published.set(fooId, span.spanContext().traceId);
+				});
+		}
+
+		// All three wait before the worker starts, so its first fetch takes them together.
+		await events.consumersStart([consumer]);
+
+		await vi.waitFor(() => expect(seen).toEqual(published), {
+			interval: 250,
+			timeout: 15_000,
+		});
+		expect(new Set(published.values()).size).toBe(3);
 	});
 });
 
@@ -343,5 +407,34 @@ describe("queueJobRun", () => {
 		expect(add).toHaveBeenCalledWith(1, {
 			"messaging.destination.name": "billing.foo-created",
 		});
+	});
+	it("logs that the key is blocked when a Consumer's job fails for good", async () => {
+		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const boom = async (): Promise<never> => {
+			throw new Error("boom");
+		};
+
+		await expect(
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { key: "foo_1", retryCount: 4 },
+				work: boom,
+			}),
+		).rejects.toThrow("boom");
+		expect(error).toHaveBeenLastCalledWith(
+			expect.objectContaining({ attempt: 5, key: "foo_1" }),
+			"Job failed; copied to dead letter, and its key is blocked until released",
+		);
+		await expect(
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { key: "foo_1", retryCount: 0 },
+				work: boom,
+			}),
+		).rejects.toThrow("boom");
+		expect(error).toHaveBeenLastCalledWith(
+			expect.not.objectContaining({ key: "foo_1" }),
+			"Job failed; will retry",
+		);
 	});
 });

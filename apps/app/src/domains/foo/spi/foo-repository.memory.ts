@@ -12,7 +12,7 @@ export type FooMemoryState = {
 	// piece-start: queue
 	inbox: Set<string>;
 	// Events reach it only on commit.
-	published: { name: keyof FooEventMap; data: unknown }[];
+	published: { name: keyof FooEventMap; data: unknown; key: string }[];
 	// piece-end: queue
 };
 

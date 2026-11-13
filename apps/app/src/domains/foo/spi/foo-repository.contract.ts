@@ -81,7 +81,11 @@ export const fooRepositoryContract = (
 			).rejects.toThrow("after");
 			// piece-start: queue
 			await expect(async () =>
-				leaked?.fooEvents.publish("foo.created", { fooId: idCreate("foo") }),
+				leaked?.fooEvents.publish({
+					data: { fooId: idCreate("foo") },
+					key: idCreate("foo"),
+					name: "foo.created",
+				}),
 			).rejects.toThrow("after");
 			// piece-end: queue
 		});

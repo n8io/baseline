@@ -23,10 +23,12 @@ export type FooTransactionPorts = {
 	fooRepository: FooRepository;
 	// piece-start: queue
 	fooEvents: {
-		publish<K extends keyof FooEventMap>(
-			name: K,
-			data: FooEventMap[K],
-		): Promise<void>;
+		// `key` is the Event key: the id of the foo the Event is about.
+		publish<K extends keyof FooEventMap>(event: {
+			name: K;
+			data: FooEventMap[K];
+			key: Id<"foo">;
+		}): Promise<void>;
 	};
 	// piece-end: queue
 };

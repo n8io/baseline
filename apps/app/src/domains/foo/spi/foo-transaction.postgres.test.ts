@@ -27,7 +27,7 @@ const jobsData = async (queueName: string): Promise<unknown[]> =>
 	(
 		await pgPool.query<{ data: unknown }>(
 			"SELECT data FROM queue.job WHERE name = $1 ORDER BY created_on",
-			[queueName],
+			[`${queueName}.ordered`],
 		)
 	).rows.map((row) => row.data);
 
@@ -90,13 +90,21 @@ describe("foo events on Postgres", () => {
 		const fooId = idCreate("foo");
 
 		const rolledBack = await fooTransaction(async ({ fooEvents }) => {
-			await fooEvents.publish("foo.created", { fooId });
+			await fooEvents.publish({
+				data: { fooId },
+				key: fooId,
+				name: "foo.created",
+			});
 			return err({ type: "Refused" });
 		});
 		expect(rolledBack.ok).toBe(false);
 		await expect(
 			fooTransaction(async ({ fooEvents }) => {
-				await fooEvents.publish("foo.created", { fooId });
+				await fooEvents.publish({
+					data: { fooId },
+					key: fooId,
+					name: "foo.created",
+				});
 				throw new Error("boom");
 			}),
 		).rejects.toThrow("boom");

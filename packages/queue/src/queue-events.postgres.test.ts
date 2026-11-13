@@ -77,7 +77,11 @@ describe("queueEventsCreate", () => {
 				await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
 				await queueEventsCreate(queue)
 					.publisherCreate<FooEvents>(pgClient)
-					.publish("foo.created", { fooId: "foo_1" });
+					.publish({
+						data: { fooId: "foo_1" },
+						key: "foo_1",
+						name: "foo.created",
+					});
 				seenInside = await jobs();
 				return ok(undefined);
 			},
@@ -86,9 +90,9 @@ describe("queueEventsCreate", () => {
 		expect(result).toEqual(ok(undefined));
 		expect(seenInside).toEqual([]);
 		expect(await jobs()).toEqual([
-			{ data: { fooId: "foo_1" }, name: "bar.foo-created" },
-			{ data: { fooId: "foo_1" }, name: "baz.foo-created" },
-			{ data: { fooId: "foo_1" }, name: "qux.foo-created" },
+			{ data: { fooId: "foo_1" }, name: "bar.foo-created.ordered" },
+			{ data: { fooId: "foo_1" }, name: "baz.foo-created.ordered" },
+			{ data: { fooId: "foo_1" }, name: "qux.foo-created.ordered" },
 		]);
 		// The sends ran one after the other: pg never saw a second query on a busy client.
 		await new Promise((resolve) => setImmediate(resolve));
@@ -102,7 +106,11 @@ describe("queueEventsCreate", () => {
 				await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
 				await queueEventsCreate(queue)
 					.publisherCreate<FooEvents>(pgClient)
-					.publish("foo.created", { fooId: "foo_1" });
+					.publish({
+						data: { fooId: "foo_1" },
+						key: "foo_1",
+						name: "foo.created",
+					});
 				return err({ type: "FooForbidden" });
 			},
 		});
@@ -123,7 +131,11 @@ describe("queueEventsCreate", () => {
 			work: async (pgClient) => {
 				await queueEventsCreate(oneQueue)
 					.publisherCreate<FooEvents>(pgClient)
-					.publish("foo.created", { fooId: "foo_1" });
+					.publish({
+						data: { fooId: "foo_1" },
+						key: "foo_1",
+						name: "foo.created",
+					});
 				return ok(undefined);
 			},
 		});
@@ -139,7 +151,11 @@ describe("queueEventsCreate", () => {
 				work: async (pgClient) => {
 					await queueEventsCreate(queue)
 						.publisherCreate<FooEvents>(pgClient)
-						.publish("foo.created", { fooId: "foo_1" });
+						.publish({
+							data: { fooId: "foo_1" },
+							key: "foo_1",
+							name: "foo.created",
+						});
 					throw new Error("boom");
 				},
 			}),
@@ -150,21 +166,41 @@ describe("queueEventsCreate", () => {
 
 describe("queueEventsMemoryCreate", () => {
 	it("records publishes and delivers nothing", async () => {
-		const published: { name: keyof FooEvents; data: unknown }[] = [];
+		const published: {
+			name: keyof FooEvents;
+			data: unknown;
+			key: string;
+		}[] = [];
 		const events = queueEventsMemoryCreate<FooEvents>({ published });
 
-		await events.publish("foo.created", { fooId: "foo_1" });
+		await events.publish({
+			data: { fooId: "foo_1" },
+			key: "foo_1",
+			name: "foo.created",
+		});
 
 		expect(published).toEqual([
-			{ data: { fooId: "foo_1" }, name: "foo.created" },
+			{ data: { fooId: "foo_1" }, key: "foo_1", name: "foo.created" },
 		]);
 	});
 
 	it("works without options", async () => {
 		await expect(
-			queueEventsMemoryCreate<FooEvents>().publish("foo.created", {
-				fooId: "foo_1",
+			queueEventsMemoryCreate<FooEvents>().publish({
+				data: { fooId: "foo_1" },
+				key: "foo_1",
+				name: "foo.created",
 			}),
 		).resolves.toBeUndefined();
+	});
+
+	it("refuses an empty key, as the queue does", async () => {
+		await expect(
+			queueEventsMemoryCreate<FooEvents>().publish({
+				data: { fooId: "foo_1" },
+				key: "",
+				name: "foo.created",
+			}),
+		).rejects.toThrow("Event foo.created needs a key");
 	});
 });
