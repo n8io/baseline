@@ -48,6 +48,11 @@ const firstDomainPaths = new Set([
 const pieces = [
 	{ name: "ui", package: "react-router", paths: [/^src\/ui\//] },
 	{
+		name: "analytics",
+		package: "@n8io/baseline-analytics",
+		paths: [/^src\/domains\/foo\/.*-analytics\.test\.ts$/],
+	},
+	{
 		name: "live",
 		package: "@n8io/baseline-live",
 		paths: [/^src\/domains\/foo\/.*-live(\.test)?\.ts$/],

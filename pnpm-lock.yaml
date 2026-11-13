@@ -201,6 +201,9 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.16)(zod@4.6.7)
+      '@n8io/baseline-analytics':
+        specifier: workspace:^
+        version: link:../../packages/analytics
       '@n8io/baseline-authn':
         specifier: workspace:^
         version: link:../../packages/authn
@@ -334,6 +337,12 @@ importers:
       vitest:
         specifier: ^5.1.0
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/analytics:
+    dependencies:
+      '@n8io/baseline-logger':
+        specifier: workspace:^
+        version: link:../logger
 
   packages/authn:
     dependencies:

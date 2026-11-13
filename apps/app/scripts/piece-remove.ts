@@ -1,8 +1,8 @@
-// pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache, redis
-// or queue). It deletes the piece's files and its `piece-start:` to `piece-end:` blocks, removes its
-// packages and the imports nothing uses any more, and never commits. docs/agents/pieces.md says
-// what each piece is and how to take one back. Running it again after a template-upgrade takes out
-// the lines the upgrade brought back.
+// pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
+// redis, queue or analytics). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// blocks, removes its packages and the imports nothing uses any more, and never commits.
+// docs/agents/pieces.md says what each piece is and how to take one back. Running it again after
+// a template-upgrade takes out the lines the upgrade brought back.
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pieceBlocksRemove, piecesRemovedFind } from "./domain-create.ts";
@@ -122,6 +122,8 @@ const uiEdit = (directory: string) => {
 
 // Env files carry no markers: CACHE_URL and the comment lines above it.
 const cacheUrlLines = /^(#.*\n)*CACHE_URL=.*\n/m;
+// MIXPANEL_TOKEN, its comment and its decorators.
+const mixpanelTokenLines = /^(# Mixpanel.*\n)?(# @.*\n)*MIXPANEL_TOKEN=.*\n/m;
 // The SCHEDULE_* overrides and the marker domain-create adds them at.
 const scheduleLines =
 	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m;
@@ -129,6 +131,18 @@ const workerDev =
 	/\(HEALTH_PORT=9001 node --watch --import \.\/src\/preload\.ts src\/worker\.ts & ([^)]*)\)/;
 
 export const pieceRemovals: Record<string, PieceRemoval> = {
+	analytics: {
+		edit: (directory) => {
+			for (const env of ["schema", "production"]) {
+				textEdit(directory, `.env.${env}`, (text) =>
+					text.replace(mixpanelTokenLines, ""),
+				);
+			}
+		},
+		packages: ["@n8io/baseline-analytics"],
+		paths: ["src/analytics-open.ts", "src/analytics-open.test.ts"],
+		srcFiles: /-use-cases-analytics\.test\.ts$/,
+	},
 	cache: {
 		packages: ["@n8io/baseline-cache"],
 		paths: [],

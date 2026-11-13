@@ -1,3 +1,4 @@
+import { analyticsLoggerCreate } from "@n8io/baseline-analytics";
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
@@ -31,6 +32,7 @@ afterAll(async () => {
 describe("the customer.deleted consumer on Postgres", () => {
 	const portsCreate = () =>
 		invoiceLinePortsCreate({
+			analytics: analyticsLoggerCreate(),
 			customerReader: { get: async () => ({ name: "Acme" }) },
 			database: pgPool,
 			intakes: [],

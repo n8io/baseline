@@ -33,6 +33,7 @@
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",
+		"@n8io/baseline-analytics": "workspace:^",
 		"@n8io/baseline-authn": "workspace:^",
 		"@n8io/baseline-cache": "workspace:^",
 		"@n8io/baseline-health": "workspace:^",

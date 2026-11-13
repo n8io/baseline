@@ -44,7 +44,7 @@ index a4f7076..8e8a069 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index 282306f..fbe0663 100644
+index e9f5e8f..93df259 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
 @@ -25,6 +25,13 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
@@ -61,7 +61,7 @@ index 282306f..fbe0663 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -62,6 +69,7 @@ export type InvoiceLinePorts = {
+@@ -75,6 +82,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
@@ -70,7 +70,7 @@ index 282306f..fbe0663 100644
  	invoiceLineLiveUpdates: {
  		send(update: {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 21cc634..201a6de 100644
+index 5113fb1..89e9c76 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
 @@ -1,7 +1,7 @@
@@ -97,7 +97,7 @@ index 21cc634..201a6de 100644
  	// piece-start: queue
  	// The queue lives in the same Postgres as the repository: both real or both memory.
  	const { queue } = connections;
-@@ -44,6 +47,9 @@ export const invoiceLinePortsCreate = (
+@@ -54,6 +57,9 @@ export const invoiceLinePortsCreate = (
  				? invoiceLineCacheMemoryCreate()
  				: invoiceLineCacheRedisCreate(connections.redis),
  		// piece-end: cache
@@ -108,10 +108,10 @@ index 21cc634..201a6de 100644
  		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index 18947b7..5698d04 100644
+index e01f76d..50e6701 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -19,6 +19,8 @@ export const invoiceLinePortsMemoryCreate = (): {
+@@ -23,6 +23,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  			// piece-start: cache
  			invoiceLineCache: invoiceLineCacheMemoryCreate(),
  			// piece-end: cache
@@ -207,10 +207,10 @@ index 05a645f..9117d03 100644
  	invoiceLineGet: invoiceLineGet(ports),
  	invoiceLineList: invoiceLineList(ports),
 diff --git a/src/env.d.ts b/src/env.d.ts
-index a37e604..e0d4382 100644
+index b6ca19d..b58eef6 100644
 --- a/src/env.d.ts
 +++ b/src/env.d.ts
-@@ -93,13 +93,26 @@ export type CoercedEnvSchema = {
+@@ -100,13 +100,26 @@ export type CoercedEnvSchema = {
     */
    OP_SERVICE_ACCOUNT_TOKEN?: string;
    
@@ -229,36 +229,36 @@ index a37e604..e0d4382 100644
 +  
  };
  
--type _CoercedEnvSchema_5e25fc44 = CoercedEnvSchema;
-+type _CoercedEnvSchema_59ee63a6 = CoercedEnvSchema;
+-type _CoercedEnvSchema_52234afb = CoercedEnvSchema;
++type _CoercedEnvSchema_21266a68 = CoercedEnvSchema;
  
  declare module 'varlock/env' {
--  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_5e25fc44> {}
--  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_5e25fc44, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
-+  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_59ee63a6> {}
-+  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_59ee63a6, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
+-  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_52234afb> {}
+-  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_52234afb, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
++  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_21266a68> {}
++  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_21266a68, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
  }
  
  
-@@ -109,17 +122,17 @@ export type EnvSchemaAsStrings = {
+@@ -116,17 +129,17 @@ export type EnvSchemaAsStrings = {
        : (NonNullable<CoercedEnvSchema[Property]> extends boolean ? ('true' | 'false') : string)
  };
  
--type _EnvSchemaAsStrings_5e25fc44 = EnvSchemaAsStrings;
-+type _EnvSchemaAsStrings_59ee63a6 = EnvSchemaAsStrings;
+-type _EnvSchemaAsStrings_52234afb = EnvSchemaAsStrings;
++type _EnvSchemaAsStrings_21266a68 = EnvSchemaAsStrings;
  declare global {
  
    // add types for global import.meta.env
--  interface ImportMetaEnv extends _EnvSchemaAsStrings_5e25fc44 {}
-+  interface ImportMetaEnv extends _EnvSchemaAsStrings_59ee63a6 {}
+-  interface ImportMetaEnv extends _EnvSchemaAsStrings_52234afb {}
++  interface ImportMetaEnv extends _EnvSchemaAsStrings_21266a68 {}
    interface ImportMeta {
      readonly env: ImportMetaEnv;
    }
  
    // add types for global process.env
    namespace NodeJS {
--    interface ProcessEnv extends _EnvSchemaAsStrings_5e25fc44 {}
-+    interface ProcessEnv extends _EnvSchemaAsStrings_59ee63a6 {}
+-    interface ProcessEnv extends _EnvSchemaAsStrings_52234afb {}
++    interface ProcessEnv extends _EnvSchemaAsStrings_21266a68 {}
    }
  }
 \ No newline at end of file

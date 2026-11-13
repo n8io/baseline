@@ -43,6 +43,7 @@ const appCreate = (context: string): string => {
 	writeFileSync(join(directory, "CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
 	const dependencies = {
+		"@n8io/baseline-analytics": "^1.0.0",
 		"@n8io/baseline-cache": "^3.0.0",
 		"@n8io/baseline-live": "^3.0.0",
 		"@n8io/baseline-queue": "^3.0.0",
@@ -251,6 +252,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		filesWrite(
 			app,
 			templateWithoutPieces(filesRead(appRoot.pathname), [
+				"analytics",
 				"cache",
 				"live",
 				"queue",
@@ -267,14 +269,16 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		expect(paths).toContain("src/domains/invoice-line/ports.ts");
 		expect(
 			paths.filter((p) =>
-				/^src\/(ui\/|worker\.ts)|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test/.test(
+				/^src\/(ui\/|worker\.ts)|-analytics\.|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test/.test(
 					p,
 				),
 			),
 		).toEqual([]);
 		expect(
 			created.filter((f) =>
-				/piece-(start|end): (cache|live|queue|ui)|SCHEDULE_/.test(f.text),
+				/piece-(start|end): (analytics|cache|live|queue|ui)|SCHEDULE_|Analytics/.test(
+					f.text,
+				),
 			),
 		).toEqual([]);
 		const server = created.find((f) => f.path === "src/server.ts")?.text;
