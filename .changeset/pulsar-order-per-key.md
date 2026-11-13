@@ -1,5 +1,6 @@
 ---
 "@n8io/baseline-pulsar": major
+"app": patch
 ---
 
 Events on Pulsar are kept in order per Event key, and a broker outage no longer restarts every Worker.
@@ -10,3 +11,4 @@ Events on Pulsar are kept in order per Event key, and a broker outage no longer 
 - **Breaking:** `isAlive()` is false only when a Consumer's receive loop has not come round for 60 s. A broker that cannot be reached no longer fails it, so Workers stay up through an outage and reconnect by themselves.
 - `publish` throws a `TypeError` for an empty key, as the queue does.
 - **Upgrade step:** the subscription type changes, and the broker refuses it while Workers of the old release are connected. Scale the old Workers to zero, then deploy. See "Upgrading to 5" in the README.
+- app: the unit test project gives hooks 20 s, like its tests. Importing `server.ts` in a `beforeAll` took over the default 10 s on a busy CI runner.
