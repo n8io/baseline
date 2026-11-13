@@ -35,8 +35,7 @@ describe("src/seed.ts", () => {
 			AUTHN_SECRET: "jUu2hFjuWWolGyWs2mQxArUaISmTrSlPtXwF7PtYmzc",
 			CACHE_URL: "redis://cache.example.com",
 			DATABASE_URL: "postgres://db.example.com/app",
-			// Every op() item is set here, so varlock never asks 1Password.
-			OP_SERVICE_ACCOUNT_TOKEN: "ops_not-a-real-token",
+			// Every op() item is set here, so varlock never asks 1Password and needs no token for it.
 		});
 		expect(code).toBe(1);
 		expect(output).toContain(
