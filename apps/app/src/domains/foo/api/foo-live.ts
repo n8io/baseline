@@ -24,11 +24,12 @@ export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
 				httpProblemHeaders,
 			);
 		}
-		return liveStreamCreate(c, {
+		return liveStreamCreate({
 			channel: "foo",
 			// No known expiry: the stream's own 5-minute limit applies.
 			expiresAt: c.var.authnExpiresAt ?? Number.POSITIVE_INFINITY,
 			id: result.value.id,
 			liveHub,
+			signal: c.req.raw.signal,
 		});
 	});

@@ -308,16 +308,24 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		),
 	],
 
-	A8: (files) =>
-		importsCheck(
+	A8: (files) => [
+		...importsCheck(
 			files,
-			(f) => layerOf(f.path) !== "use-cases",
+			(f) => f.path.startsWith("src/"),
 			(imp) =>
 				imp.specifier === "@opentelemetry/api" ||
 				imp.specifier.startsWith("@opentelemetry/api/")
-					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in the composition roots"
+					? "src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
 					: undefined,
 		),
+		...textCheck(
+			files,
+			(f) => f.path.startsWith("src/") && layerOf(f.path) !== "use-cases",
+			/\btelemetrySpan(AttributesSet|Run)\(/g,
+			() =>
+				"only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in the composition roots",
+		),
+	],
 
 	A9: (files) =>
 		importsCheck(
@@ -625,6 +633,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (pkg === "@n8io/baseline-result" || pkg === "@n8io/baseline-id") {
 					return undefined;
 				}
+				if (
+					imp.specifier === "@n8io/baseline-telemetry/span" &&
+					layerOf(f.path) === "use-cases"
+				) {
+					return undefined;
+				}
 				const typeAllowed =
 					imp.typeOnly &&
 					(pkg === "@n8io/baseline-queue" || pkg === "@n8io/baseline-authn") &&
@@ -633,7 +647,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						layerOf(f.path) === "use-cases");
 				return typeAllowed
 					? undefined
-					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
+					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in use-cases/ and `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
 			},
 		),
 

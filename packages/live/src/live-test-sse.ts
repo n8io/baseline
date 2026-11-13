@@ -8,11 +8,12 @@ export const liveAppCreate = (
 	expiresAt: () => number = () => Date.now() + 15 * 60_000,
 ): Hono =>
 	new Hono().get("/live/:channel/:id", (c) =>
-		liveStreamCreate(c, {
+		liveStreamCreate({
 			channel: c.req.param("channel"),
 			expiresAt: expiresAt(),
 			id: c.req.param("id"),
 			liveHub,
+			signal: c.req.raw.signal,
 		}),
 	);
 

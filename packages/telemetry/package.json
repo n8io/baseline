@@ -18,7 +18,8 @@
 	],
 	"exports": {
 		".": "./src/index.ts",
-		"./register": "./src/register.ts"
+		"./register": "./src/register.ts",
+		"./span": "./src/telemetry-span.ts"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -30,6 +31,10 @@
 			"./register": {
 				"types": "./dist/register.d.ts",
 				"default": "./dist/register.js"
+			},
+			"./span": {
+				"types": "./dist/telemetry-span.d.ts",
+				"default": "./dist/telemetry-span.js"
 			}
 		},
 		"registry": "https://registry.npmjs.org"

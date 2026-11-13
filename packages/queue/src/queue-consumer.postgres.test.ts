@@ -1,4 +1,5 @@
 import {
+	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
@@ -10,7 +11,6 @@ import {
 	SimpleSpanProcessor,
 	TracerProvider,
 } from "@opentelemetry/sdk-trace";
-import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
@@ -26,7 +26,7 @@ import {
 import { queueBossGet } from "./queue.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 let queue: Queue;
 
 // What the telemetry preload registers in every process.

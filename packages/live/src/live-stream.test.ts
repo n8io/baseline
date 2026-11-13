@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { liveHubMemoryCreate } from "./index.ts";
 import { liveHubStreams } from "./live-hub.ts";
-import { liveHeartbeatMs, liveStreamMaxMs } from "./live-stream.ts";
+import {
+	liveHeartbeatMs,
+	liveStreamCreate,
+	liveStreamMaxMs,
+} from "./live-stream.ts";
 import { liveAppCreate, liveTestSseRead } from "./live-test-sse.ts";
 
 const open = async (
@@ -153,6 +157,46 @@ describe("liveStreamCreate", () => {
 			expect(unlistened).toBe(1);
 		});
 		await expect(liveHub.close()).resolves.toBeUndefined();
+	});
+
+	test("an aborted request ends the stream and no longer holds close()", async () => {
+		const liveHub = liveHubMemoryCreate();
+		const request = new AbortController();
+		const sse = liveTestSseRead(
+			liveStreamCreate({
+				channel: "foo",
+				expiresAt: Number.POSITIVE_INFINITY,
+				id: "foo_1",
+				liveHub,
+				signal: request.signal,
+			}),
+		);
+		await sse.until("event: ready");
+
+		request.abort();
+
+		expect(await sse.end()).toBe("event: ready\ndata: \n\n");
+		await expect(liveHub.close()).resolves.toBeUndefined();
+	});
+
+	test("drops a page that stops reading once 64 KiB wait for it", async () => {
+		const liveHub = liveHubMemoryCreate();
+		const sse = liveTestSseRead(
+			liveStreamCreate({
+				channel: "foo",
+				expiresAt: Number.POSITIVE_INFINITY,
+				id: "foo_1",
+				liveHub,
+			}),
+		);
+		await sse.until("event: ready");
+
+		for (let sent = 0; sent < 2000; sent += 1) {
+			await liveHub.send("foo", { id: "foo_1", type: "foo.updated" });
+		}
+
+		expect(await sse.end()).toMatch(/retry: \d+\n\n$/);
+		await liveHub.close();
 	});
 
 	test("close() does not wait on a subscribe that never finishes", async () => {

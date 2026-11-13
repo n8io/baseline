@@ -1,12 +1,12 @@
 // The queue for a composition root, in the same Postgres as the Domains: "memory" with a memory
 // database. `pnpm piece-remove queue` deletes this file.
+import type { PostgresPool } from "@n8io/baseline-postgres";
 import { type Queue, queueCreate } from "@n8io/baseline-queue";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
-import type pg from "pg";
 
 // `steps` stops the queue at shutdown, before what is already in it.
 export const queueOpen = async (
-	database: pg.Pool | "memory",
+	database: PostgresPool | "memory",
 	role: "publisher" | "worker",
 	steps: ShutdownStep[],
 ): Promise<Queue | "memory"> => {
