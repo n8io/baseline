@@ -728,4 +728,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			},
 		),
 	],
+
+	A24: (files) =>
+		importsCheck(
+			files,
+			(f) => !testIs(f.path) && !/(^|\/)test\//.test(f.path),
+			(imp) =>
+				/^@n8io\/baseline-[^/]+\/testing$/.test(imp.specifier)
+					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports the Package's main entry, where its memory adapter is"
+					: undefined,
+		),
 };
