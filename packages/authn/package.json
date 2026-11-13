@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-authn",
-	"version": "5.0.0",
+	"version": "5.0.1",
 	"description": "OIDC code flow, JWT verification and the Actor every baseline app's pages and API use.",
 	"type": "module",
 	"license": "MIT",
