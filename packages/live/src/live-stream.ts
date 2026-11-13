@@ -77,9 +77,12 @@ export const liveStreamCreate = ({
 					write(`data: ${JSON.stringify(update)}\n\n`);
 				},
 				// Spread like a reconnect, so a Redis failover does not rerun every loader at once.
+				// A loss while one is pending is covered by it, so a flapping Redis cannot put it off.
 				resync: () => {
-					clearTimeout(resyncTimer);
-					resyncTimer = setTimeout(ready, liveRetryMs());
+					resyncTimer ??= setTimeout(() => {
+						resyncTimer = undefined;
+						ready();
+					}, liveRetryMs());
 				},
 			});
 			// Never let a slow subscribe hold up close() or the lifetime.

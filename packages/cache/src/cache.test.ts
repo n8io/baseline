@@ -95,6 +95,23 @@ describe("cacheCreate on a failing store", () => {
 		expect(await cache.get("foo_1")).toBe("Newer");
 	});
 
+	test("after a failed set this process reads a miss, not the entry it meant to replace", async () => {
+		vi.spyOn(logger, "warn").mockReturnValue();
+		const flaky = storeFlaky(["set"]);
+		const cache = cacheCreate(flaky.store, {
+			prefix: "foo",
+			schema: z.string(),
+		});
+		flaky.failing = false;
+		await cache.set("foo_1", "Old");
+		flaky.failing = true;
+
+		await cache.set("foo_1", "New");
+
+		expect(await flaky.store.get("foo:foo_1")).toBe('"Old"');
+		expect(await cache.get("foo_1")).toBeUndefined();
+	});
+
 	test('with onStoreError "throw" every call rejects with the store\'s error', async () => {
 		const warn = vi.spyOn(logger, "warn").mockReturnValue();
 		const { store } = storeFlaky(["delete", "get", "set"]);

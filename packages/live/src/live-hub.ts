@@ -18,8 +18,8 @@ export type LiveListener = (update: LiveUpdate) => void;
 // What liveStreamCreate needs from a hub beyond its public send and close.
 export type LiveHubStreams = {
 	isClosed(): boolean;
-	// Resolves once updates for (channel, id) reach `listener`; returns the unlisten. Until
-	// then `resync` runs each time updates may have been lost.
+	// Resolves once updates for (channel, id) reach `listener`; returns the unlisten. From
+	// then until the unlisten, `resync` runs each time updates may have been lost.
 	listen(input: {
 		channel: string;
 		id: string;

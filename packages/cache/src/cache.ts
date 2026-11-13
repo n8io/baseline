@@ -66,8 +66,8 @@ export const cacheCreate = <T>(
 	}: CacheOptions<T>,
 ): Cache<T> => {
 	const key = (id: string): string => `${prefix}:${id}`;
-	// Ids whose delete failed, with when the entry the store may still hold has expired. Until
-	// then this process reads them as misses, so it never serves a value it tried to remove.
+	// Ids whose set or delete failed, with when the entry the store may still hold has expired.
+	// Until then this process reads them as misses, so it never serves a value it tried to replace.
 	const staleUntil = new Map<string, number>();
 	let warnedAt = Number.NEGATIVE_INFINITY;
 	let unlogged = 0;
@@ -129,6 +129,7 @@ export const cacheCreate = <T>(
 				await store.set({ json, key: key(id), ttlMs });
 			} catch (err) {
 				storeFailed("set", err);
+				staleMark(id);
 			}
 		},
 	};

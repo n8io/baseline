@@ -67,7 +67,7 @@ A cache is an optimization, so by default a store that fails or times out never 
 - `set` and `delete` resolve.
 - Every failure is counted on `baseline.cache.store_errors` (by `baseline.cache.operation` and `baseline.cache.prefix`), and logged as one warning per 30 s per cache, so you can alert on an outage without a log line per call.
 
-A `delete` that fails leaves the old entry in the store. The process that called it remembers the id for `ttlMs` and reads it as a miss, so it never serves the value it tried to remove. Other processes may.
+A `set` or `delete` that fails leaves the old entry in the store. The process that called it remembers the id for `ttlMs` and reads it as a miss, so it never serves the value it tried to replace. Other processes may.
 
 Pass `onStoreError: "throw"` to get the store's error from every call instead, for a value you would rather fail on than read without the cache.
 
