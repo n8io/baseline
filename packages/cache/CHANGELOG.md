@@ -1,5 +1,11 @@
 # @n8io/baseline-cache
 
+## 4.0.0
+
+### Major Changes
+
+- dc8c9de: live no longer depends on `@n8io/baseline-cache`, so a project can install live without cache. `liveHubRedisCreate` takes any connected node-redis client, including the one `cacheRedisClientCreate` returns, and owns its own timeout. cache no longer exports `cacheTimeLimit`; copy the few lines into your code if you used it.
+
 ## 3.0.0
 
 ### Major Changes

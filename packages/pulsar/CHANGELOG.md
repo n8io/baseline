@@ -1,5 +1,17 @@
 # @n8io/baseline-pulsar
 
+## 2.1.0
+
+### Minor Changes
+
+- a89218f: Count Events whose send fails after the commit on the `baseline.pulsar.events_lost` counter, with `messaging.destination.name` as its only attribute, so a lost Event can be alerted on.
+
+### Patch Changes
+
+- Updated dependencies [5985c99]
+- Updated dependencies [1cc11af]
+  - @n8io/baseline-queue@4.0.0
+
 ## 2.0.0
 
 ### Major Changes
