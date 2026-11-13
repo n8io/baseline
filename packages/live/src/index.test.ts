@@ -35,4 +35,12 @@ describe("the main entry", () => {
 		expect(imports.size).toBeGreaterThan(3);
 		expect(reactImports).toStrictEqual([]);
 	});
+
+	it("reaches no test helper", () => {
+		const files = [...reachableImports("./index.ts").keys()];
+
+		expect(files.filter((file) => /testing|-test-/.test(file))).toStrictEqual(
+			[],
+		);
+	});
 });

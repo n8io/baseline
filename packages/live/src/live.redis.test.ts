@@ -3,7 +3,9 @@
 import { createClient } from "redis";
 import { afterEach, describe, expect, inject, test, vi } from "vitest";
 import { liveHubRedisCreate } from "./index.ts";
-import { liveAppCreate, liveTestSseRead } from "./live-test-sse.ts";
+import { liveHubContract } from "./live-hub.contract.ts";
+import { liveAppCreate } from "./live-test-app.ts";
+import { liveTestSseRead } from "./live-test-sse.ts";
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -37,6 +39,10 @@ afterEach(async () => {
 });
 
 describe("liveHubRedisCreate", () => {
+	liveHubContract(async () =>
+		liveHubRedisCreate({ redisClient: await redisClientCreate() }),
+	);
+
 	test("a note published on one hub instance reaches a stream on another", async () => {
 		const serverHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
@@ -44,9 +50,9 @@ describe("liveHubRedisCreate", () => {
 		const workerHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
-		const sse = liveTestSseRead(
-			await liveAppCreate(serverHub).request("/live/foo/foo_1"),
-		);
+		const sse = liveTestSseRead({
+			response: await liveAppCreate(serverHub).request("/live/foo/foo_1"),
+		});
 		await sse.until("event: ready");
 
 		await workerHub.send("foo", { id: "foo_1", type: "foo.updated" });
@@ -85,11 +91,15 @@ describe("liveHubRedisCreate", () => {
 		expect(await subscriberCount(channel)).toBe(0);
 
 		const app = liveAppCreate(liveHub);
-		const first = liveTestSseRead(await app.request(`/live/${name}/foo_1`));
-		const second = liveTestSseRead(await app.request(`/live/${name}/foo_2`));
-		const other = liveTestSseRead(
-			await app.request(`/live/${name}-other/foo_1`),
-		);
+		const first = liveTestSseRead({
+			response: await app.request(`/live/${name}/foo_1`),
+		});
+		const second = liveTestSseRead({
+			response: await app.request(`/live/${name}/foo_2`),
+		});
+		const other = liveTestSseRead({
+			response: await app.request(`/live/${name}-other/foo_1`),
+		});
 		await first.until("event: ready");
 		await second.until("event: ready");
 		await other.until("event: ready");
@@ -105,9 +115,9 @@ describe("liveHubRedisCreate", () => {
 		const liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
-		const sse = liveTestSseRead(
-			await liveAppCreate(liveHub).request("/live/foo/foo_1"),
-		);
+		const sse = liveTestSseRead({
+			response: await liveAppCreate(liveHub).request("/live/foo/foo_1"),
+		});
 		await sse.until("event: ready");
 
 		await publisher.publish("live:foo", "not json");
@@ -160,12 +170,14 @@ describe("liveHubRedisCreate", () => {
 				throw new Error("Redis refused");
 			});
 
-		const failed = await liveTestSseRead(
-			await app.request("/live/foo/foo_1"),
-		).end();
+		const failed = await liveTestSseRead({
+			response: await app.request("/live/foo/foo_1"),
+		}).end();
 		expect(failed).toMatch(/^retry: \d+\n\n$/);
 
-		const sse = liveTestSseRead(await app.request("/live/foo/foo_1"));
+		const sse = liveTestSseRead({
+			response: await app.request("/live/foo/foo_1"),
+		});
 		expect(await sse.until("event: ready")).toBe("event: ready\ndata: \n\n");
 		expect(duplicate).toHaveBeenCalledTimes(2);
 		await liveHub.close();

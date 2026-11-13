@@ -1,33 +1,19 @@
-import { Hono } from "hono";
-import type { LiveHub } from "./index.ts";
-import { liveStreamCreate } from "./index.ts";
-
-// An app serving GET /live/:channel/:id like a project's live routes.
-export const liveAppCreate = (
-	liveHub: LiveHub,
-	expiresAt: () => number = () => Date.now() + 15 * 60_000,
-): Hono =>
-	new Hono().get("/live/:channel/:id", (c) => {
-		const live = liveStreamCreate({
-			channel: c.req.param("channel"),
-			expiresAt: expiresAt(),
-			id: c.req.param("id"),
-			liveHub,
-			signal: c.req.raw.signal,
-		});
-		// Through the context, so headers that middleware set with c.header() stay.
-		return c.newResponse(live.body, live);
-	});
-
-export type SseReader = {
-	// Resolves with everything read so far once it contains `text`.
+export type LiveTestSseReader = {
+	// Resolves with everything read so far once it contains `text`; throws when
+	// the stream ends first.
 	until(text: string): Promise<string>;
 	// Resolves with everything read once the server ends the response.
 	end(): Promise<string>;
+	// Goes away like a page that closes: the server stops streaming.
 	cancel(): Promise<void>;
 };
 
-export const liveTestSseRead = (response: Response): SseReader => {
+// Reads a live stream's response in a test, from liveStreamCreate or from fetch.
+export const liveTestSseRead = ({
+	response,
+}: {
+	response: Response;
+}): LiveTestSseReader => {
 	if (response.body === null) throw new TypeError("No body");
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
 	let text = "";

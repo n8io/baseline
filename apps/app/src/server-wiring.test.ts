@@ -1,4 +1,5 @@
 import { type Authn, authnMemoryTokenCreate } from "@n8io/baseline-authn";
+import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 // Imports the real server.ts app without serving it or opening a health port.
@@ -337,30 +338,20 @@ describe("server wiring", () => {
 				headers: { Cookie: await cookieSignIn() },
 			});
 			expect(live.status).toBe(200);
-			const reader = (live.body as ReadableStream<Uint8Array>).getReader();
-			const decoder = new TextDecoder();
-			let body = "";
-			const until = async (text: string) => {
-				while (!body.includes(text)) {
-					const chunk = await reader.read();
-					if (chunk.done) throw new Error(`stream ended before ${text}`);
-					body += decoder.decode(chunk.value, { stream: true });
-				}
-			};
+			const sse = liveTestSseRead({ response: live });
 			try {
-				await until("event: ready");
+				await sse.until("event: ready");
 				const updated = await app.request(`/api/v1/foos/${foo.id}`, {
 					body: JSON.stringify({ name: "live-renamed" }),
 					headers,
 					method: "PATCH",
 				});
 				expect(updated.status).toBe(200);
-				await until("foo.updated");
-				expect(body).toContain(
+				expect(await sse.until("foo.updated")).toContain(
 					`data: ${JSON.stringify({ id: foo.id, type: "foo.updated" })}`,
 				);
 			} finally {
-				await reader.cancel();
+				await sse.cancel();
 			}
 		});
 
