@@ -1,5 +1,67 @@
 # app
 
+## 4.0.0
+
+### Major Changes
+
+- 22c4a54: The cache's backend is picked once per process, not once per Domain. `@n8io/baseline-cache` now exports `CacheStore`, `cacheCreate(store, { prefix, schema, ttlMs? })`, `cacheStoreRedisCreate({ redisClient })` and `cacheStoreMemoryCreate()`. `cacheRedisCreate`, `cacheMemoryCreate`, `cacheRedisClientCreate` and the `RedisClient` type are gone, and the package no longer has a `redis` peer: the Redis store takes any connected node-redis client.
+
+  In the Template, the new `src/cache-store-open.ts` is the only file that picks the backend, and `connectionsOpen` returns its store as `connections.cacheStore`. With `memory://` every cache shares one store, as on Redis, so two caches need different prefixes. Architecture rule A12 refuses `cacheStoreRedisCreate(` in a Domain. Each Domain has one `spi/<domain>-cache.ts` (`<domain>CacheCreate(cacheStore)`) with one `spi/<domain>-cache.test.ts`.
+
+  When you upgrade, in each Domain: replace `spi/<domain>-cache.redis.ts` and `spi/<domain>-cache.memory.ts` with a `spi/<domain>-cache.ts` copied from Foo, replace their two tests and `spi/<domain>-cache.contract.ts` with Foo's `spi/foo-cache.test.ts`, pass `connections.cacheStore` in `spi/index.ts`, and pass `cacheStoreMemoryCreate()` in `spi/<domain>-ports.memory.ts`. If you used `cacheRedisClientCreate`, use `redisClientCreate` from the Template's `src/redis.ts`; outside the Template, call node-redis's `createClient` yourself with an `error` listener, a connect timeout and a reconnect strategy.
+- ef20aa0: Events go through one `Events` handle, whatever carries them, so moving Events from the queue to Pulsar changes one file in a Project instead of every Domain.
+
+  `@n8io/baseline-queue` exports `Events` (`consumersSubscribe`, `consumersStart`, `publisherCreate(transaction)`, `isAlive`), `EventsPublisher` (`publish`, then `committed()` once the transaction has committed) and `queueEventsCreate(queue)`. `queueEventsPgBossCreate`, `QueueEvents`, `queueConsumersSubscribe` and `queueConsumersStart` are gone. `queueCreate`, `publisherCreate` and `queueInboxInsert` take a `QueueSql` (anything with `query(text, values?)`), so the package no longer has `pg` or `@types/pg` peers.
+
+  `@n8io/baseline-pulsar` exports `pulsarCreate` (its `token` may now be `undefined`) and `pulsarEventsCreate(pulsar)`, which now returns that same `Events`. `PulsarEvents`, `pulsarConsumersSubscribe` and `pulsarConsumersStart` are gone; `send()` is `committed()`.
+
+  In the Template, the new `src/events-open.ts` is the only file that names the transport, and `connectionsOpen` returns it as `connections.events`.
+
+  When you upgrade:
+  - In each Domain's `spi/<domain>-transaction.postgres.ts`, take `events: Events` in place of `queue: Queue`, create the publisher with `events.publisherCreate<<Domain>EventMap>(pgClient)`, and call `committed()` on it after `postgresTransactionRun` returns ok. Copy the shape from Foo.
+  - In each Domain's `spi/index.ts`, read `connections.events` in place of `connections.queue`.
+  - In `src/server.ts`, call `connections.events.consumersSubscribe([...])`. In `src/worker.ts`, call `events.consumersStart([...])` and report `queue.isAlive() && events.isAlive()`.
+  - In tests that build a Postgres transaction, pass `queueEventsCreate(queue)`.
+  - A Project already on Pulsar moves its client into `src/events-open.ts` as the pulsar README shows, and drops its other Pulsar wiring.
+- 1137ee3: Three more Package surfaces stop naming a vendor.
+
+  `@n8io/baseline-live`: `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })` no longer takes a Hono context. It answers a web `Response` for any server, and the `hono` peer is gone. Pass the request's `signal` (`c.req.raw.signal` in Hono) so the stream ends when the request is aborted. A page that stops reading is dropped once 64 KiB wait for it. The response no longer sends `Connection: keep-alive`, which HTTP/2 forbids.
+
+  `@n8io/baseline-postgres`: `postgresPoolCreate` takes `{ databaseUrl, max?, connectTimeoutMs? }`, not pg's `PoolConfig`. The Package exports `PostgresPool` and `PostgresClient`; name those in your own signatures. They are still pg's pool and client, because Drizzle needs the real ones. Other `PoolConfig` overrides (`ssl`, `idleTimeoutMillis` and the rest) are no longer accepted; put them in the database URL where pg reads them, or ask for an option.
+
+  `@n8io/baseline-telemetry`: the new `@n8io/baseline-telemetry/span` entry exports `telemetrySpanAttributesSet(attributes)` and `telemetrySpanRun(name, work)`.
+
+  In the Template, no file in `src/` imports `@opentelemetry/api` or `pg`: Use cases set span attributes with `telemetrySpanAttributesSet`, and architecture rules A8 and A21 enforce it. Architecture rule A16 now reads `telemetrySpanAttributesSet` and also allows a `baseline.<domain>.<thing>_count` key. When you upgrade: remove the first argument of each `liveStreamCreate` call, pass `signal` and answer with `c.newResponse(live.body, live)` as Foo's `api/foo-live.ts` does (a bare `Response` loses headers that middleware set with `c.header()`), replace `trace.getActiveSpan()?.setAttributes(...)` with `telemetrySpanAttributesSet(...)` and a hand-written child span with `telemetrySpanRun`, replace `pg.Pool` with `PostgresPool`, and rename a `connectionTimeoutMillis` override to `connectTimeoutMs`.
+- 867f91e: Vendor-only settings have one way in. `postgresPoolCreate`, `postgresMigrate`, `queueCreate`, `queueMigrate`, `pulsarCreate` and `analyticsMixpanelCreate` take a `vendor` option, typed as the vendor's own settings and passed through: `ssl` for Postgres, pg-boss's tuning, OAuth2 or mTLS for Pulsar, Mixpanel's `host` for data residency. A Package's named options win, and `vendor` throws on the keys they set and on the ones that would do nothing. `vendor` is outside each Package's contract: it is not tested, and a vendor swap deletes it.
+
+  In the Template, `docs/agents/vendor-settings.md` says when to use it, and architecture rule A12 allows the vendor factories only in `src/connections.ts`, `src/redis.ts` and the `src/*-open.ts` files.
+
+  A factory that is one vendor's takes one options object: `analyticsMixpanelCreate({ token, vendor? })`, `cacheStoreRedisCreate({ redisClient })` and `liveHubRedisCreate({ redisClient })` replace their positional forms. When you upgrade, wrap the argument of those three calls.
+
+### Minor Changes
+
+- fedd96f: Add `@n8io/baseline-analytics`: analytics events sent to Mixpanel after commit, without blocking the request. The Template tracks `foo.created`, reads an optional `MIXPANEL_TOKEN` (without it, events go to the debug log and are not sent), and removes it all with `pnpm piece-remove analytics`.
+
+### Patch Changes
+
+- bbf55c4: The Template's `ci.yml` calls `app-ci.yml@v4` and `dependabot-automerge.yml@v4`, the tag this Release creates. `v3` stays frozen at `app@3.0.0`.
+- Updated dependencies [fedd96f]
+- Updated dependencies [22c4a54]
+- Updated dependencies [ef20aa0]
+- Updated dependencies [d63058e]
+- Updated dependencies [1137ee3]
+- Updated dependencies [867f91e]
+  - @n8io/baseline-analytics@1.0.0
+  - @n8io/baseline-cache@5.0.0
+  - @n8io/baseline-queue@5.0.0
+  - @n8io/baseline-authn@4.0.0
+  - @n8io/baseline-logger@3.0.0
+  - @n8io/baseline-live@5.0.0
+  - @n8io/baseline-postgres@3.0.0
+  - @n8io/baseline-telemetry@1.3.0
+  - @n8io/baseline-http@2.0.1
+  - @n8io/baseline-shutdown@3.0.1
+
 ## 3.0.0
 
 ### Major Changes

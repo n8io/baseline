@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-http",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Hono error handling and helpers every baseline app's HTTP intake uses.",
 	"type": "module",
 	"license": "MIT",
