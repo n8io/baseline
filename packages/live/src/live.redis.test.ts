@@ -75,7 +75,7 @@ describe("liveHubRedisCreate", () => {
 	test("opens one subscriber per instance, only once a stream opens", async () => {
 		const channel = `live:${crypto.randomUUID()}`;
 		const name = channel.slice("live:".length);
-		await using liveHub = liveHubRedisCreate({
+		const liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
 		await liveHub.send(name, { id: "foo_1", type: "foo.updated" });
@@ -132,18 +132,21 @@ describe("liveHubRedisCreate", () => {
 			redisClient: await redisClientCreate(),
 		});
 		await pauser.clientPause(3000);
-		const started = Date.now();
-
-		await expect(
-			liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
-		).rejects.toThrow(
-			expect.objectContaining({
-				message: "Redis did not answer within 1000 ms",
-				name: "TimeoutError",
-			}),
-		);
-		expect(Date.now() - started).toBeLessThan(1500);
-		await pauser.clientUnpause();
+		// In the body: afterEach destroys the client before onTestFinished would run.
+		try {
+			const started = Date.now();
+			await expect(
+				liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
+			).rejects.toThrow(
+				expect.objectContaining({
+					message: "Redis did not answer within 1000 ms",
+					name: "TimeoutError",
+				}),
+			);
+			expect(Date.now() - started).toBeLessThan(1500);
+		} finally {
+			await pauser.clientUnpause();
+		}
 	});
 
 	test("a stream whose subscribe fails ends with a retry, and the next one retries", async () => {

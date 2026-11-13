@@ -13,7 +13,7 @@ test("sends the update", async () => {
 });
 ```
 
-Keep the explicit call where closing is what the test checks. A fixture opened in `beforeAll` and closed in `afterAll` stays as it is: a `using` variable cannot span hooks. A vendor's own client has no dispose method: close it in Vitest's `onTestFinished`, never in a wrapper.
+Where closing is what the test checks, keep the explicit call and declare the handle with `const`, not `await using`: a pool or a server throws when it is closed twice. A fixture opened in `beforeAll` and closed in `afterAll` stays as it is: a `using` variable cannot span hooks. A vendor's own client has no dispose method: close it in Vitest's `onTestFinished`, never in a wrapper.
 
 ## Traps
 

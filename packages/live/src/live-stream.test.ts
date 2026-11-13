@@ -126,7 +126,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("liveHub.close() sends every stream a retry, closes it, then resolves", async () => {
-		await using liveHub = liveHubMemoryCreate();
+		const liveHub = liveHubMemoryCreate();
 		const app = liveAppCreate(liveHub);
 		const first = await open(app, "/live/foo/foo_1");
 		const second = await open(app, "/live/foo/foo_2");
@@ -159,7 +159,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("a client that goes away stops listening and no longer holds close()", async () => {
-		await using liveHub = liveHubMemoryCreate();
+		const liveHub = liveHubMemoryCreate();
 		const streams = liveHubStreams(liveHub);
 		const listen = streams.listen;
 		let unlistened = 0;
@@ -181,7 +181,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("an aborted request ends the stream and no longer holds close()", async () => {
-		await using liveHub = liveHubMemoryCreate();
+		const liveHub = liveHubMemoryCreate();
 		const request = new AbortController();
 		const sse = liveTestSseRead(
 			liveStreamCreate({
@@ -237,7 +237,7 @@ describe("liveStreamCreate", () => {
 	});
 
 	test("close() does not wait on a subscribe that never finishes", async () => {
-		await using liveHub = liveHubMemoryCreate();
+		const liveHub = liveHubMemoryCreate();
 		const late = vi.fn();
 		const listening = Promise.withResolvers<() => void>();
 		vi.spyOn(liveHubStreams(liveHub), "listen").mockReturnValue(
