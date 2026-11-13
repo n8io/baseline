@@ -41,6 +41,13 @@ export const connectionsOpen = async (
 			: postgresPoolCreate({ databaseUrl: env.DATABASE_URL });
 	const intakes: ShutdownStep[] = [];
 	const resources: ShutdownStep[] = [];
+	// piece-start: error-tracking
+	// First, so it reports what the other connections log while they open. It closes first too.
+	errorTrackingOpen(
+		{ dsn: env.SENTRY_DSN, environment: env.APP_ENV },
+		resources,
+	);
+	// piece-end: error-tracking
 	if (database !== "memory") {
 		resources.push({ close: () => database.end(), name: "database" });
 	}
@@ -54,13 +61,6 @@ export const connectionsOpen = async (
 		role === "worker" ? intakes : resources,
 	);
 	// piece-end: queue
-	// piece-start: error-tracking
-	// After Postgres, Redis and the queue, so it reports what they log while they close.
-	errorTrackingOpen(
-		{ dsn: env.SENTRY_DSN, environment: env.APP_ENV },
-		resources,
-	);
-	// piece-end: error-tracking
 	return {
 		// piece-start: analytics
 		analytics: analyticsOpen(env.MIXPANEL_TOKEN, resources),

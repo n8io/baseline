@@ -54,4 +54,19 @@ describe("loggerErrorListen", () => {
 		expect(heard).toEqual([error]);
 		expect(lines).toHaveLength(1);
 	});
+
+	it("does not hear an error a listener logs while it runs", () => {
+		const logger = loggerSilentCreate();
+		const heard: unknown[] = [];
+		const first = new Error("first");
+		const stop = loggerErrorListen((error) => {
+			heard.push(error);
+			logger.error({ err: new Error("logged by the listener") });
+		});
+
+		logger.error({ err: first });
+		stop();
+
+		expect(heard).toEqual([first]);
+	});
 });

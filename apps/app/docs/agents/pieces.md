@@ -77,6 +77,8 @@ Add analytics back: `git revert` the "Remove analytics" commit. For each Domain 
 
 Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` and `.env.production`. Code reports an error by logging it, so no Domain holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
 
+It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the composition root has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
+
 `SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=op(op://<project>-production/sentry/dsn)` to `.env.production`.
 
 Add error tracking back: `git revert` the "Remove error-tracking" commit.

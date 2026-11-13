@@ -1,95 +1,148 @@
 import { logger } from "@n8io/baseline-logger";
+import {
+	type LoggerErr,
+	loggerErrSerialize,
+} from "@n8io/baseline-logger/err-serialize";
 import { trace } from "@opentelemetry/api";
 import {
-	defaultStackParser,
-	linkedErrorsIntegration,
-	makeNodeTransport,
-	NodeClient,
-	type NodeOptions,
-	nodeContextIntegration,
+	createStackParser,
+	createTransport,
+	type ErrorEvent,
+	type Exception,
 	Scope,
-} from "@sentry/node";
+} from "@sentry/core";
+import {
+	nodeStackLineParser,
+	ServerRuntimeClient,
+	type ServerRuntimeClientOptions,
+} from "@sentry/core/server";
 import type { ErrorTracking } from "./error-tracking.ts";
 
-// Bounds close(), so shutdown never waits on Sentry longer than this.
+// Bounds close(), so shutdown never waits on Sentry much longer than this.
 const closeTimeoutMs = 2000;
-
-// The Sentry settings `vendor` may not carry, and why: a named option sets it, or it would send
-// what an Error report never carries, or it would compete with @n8io/baseline-telemetry.
-const sentryVendorRefusals = {
-	beforeSend: "this Package removes message text in its own beforeSend",
-	dataCollection: "an Error report carries no request or personal data",
-	defaultIntegrations: "this Package picks the integrations",
-	dsn: "set it with dsn instead",
-	enableOpenTelemetrySetup: "traces go out through @n8io/baseline-telemetry",
-	enableRuntimeChannelInjection:
-		"@n8io/baseline-telemetry owns module instrumentation",
-	environment: "set it with environment instead",
-	includeLocalVariables: "local variables can hold input text",
-	integrations: "this Package picks the integrations",
-	stackParser: "this Package parses stacks",
-	tracesSampleRate: "traces go out through @n8io/baseline-telemetry",
-	tracesSampler: "traces go out through @n8io/baseline-telemetry",
-} as const;
+// Bounds each send, so a stuck request never holds a slot in the send queue.
+const sendTimeoutMs = 5000;
 
 /**
- * Sentry's own settings, named as `@sentry/node`'s init options name them (`release`,
- * `serverName`, `sampleRate`, `transport`). Outside this Package's contract: moving off Sentry
- * deletes it. The keys in the refusal list are refused.
+ * Sentry's own settings, named as Sentry's SDK options name them. Outside this Package's contract:
+ * moving off Sentry deletes it. Any other key throws, since it would do nothing here or send more
+ * than an Error report carries.
  */
-export type ErrorTrackingSentryVendorOptions = Omit<
-	NodeOptions,
-	keyof typeof sentryVendorRefusals
+export type ErrorTrackingSentryVendorOptions = Pick<
+	ServerRuntimeClientOptions,
+	"dist" | "release" | "sampleRate"
 >;
+
+const vendorKeys = new Set(["dist", "release", "sampleRate"]);
 
 export type ErrorTrackingSentryOptions = {
 	/** The Sentry project's DSN. */
 	dsn: string;
 	/** Which deployment reported it: `production`, `development`. */
 	environment: string;
-	/** Settings only Sentry has, such as `release` or `transport`. */
+	/** Settings only Sentry has: `release`, `dist`, `sampleRate`. */
 	vendor?: ErrorTrackingSentryVendorOptions;
 };
 
-const vendorAssert = (vendor: object): void => {
-	for (const [key, reason] of Object.entries(sentryVendorRefusals)) {
-		if (key in vendor) {
-			throw new TypeError(`vendor.${key} is not allowed: ${reason}`);
-		}
+const stackParser = createStackParser(nodeStackLineParser());
+
+// The report is built from loggerErrSerialize's safe shape, the one definition of what may leave
+// the process: class names, codes, constraints and stack frames, innermost cause first, as Sentry
+// orders them. The error itself never reaches Sentry, so no message can.
+const exceptionsCreate = (err: LoggerErr): Exception[] => {
+	const exceptions: Exception[] = [];
+	for (let at: LoggerErr | undefined = err; at; at = at.cause) {
+		exceptions.unshift({
+			stacktrace: { frames: stackParser(at.stack ?? "") },
+			type: at.type,
+		});
 	}
+	const top = exceptions.at(-1);
+	if (top) top.mechanism = { handled: true, type: "generic" };
+	return exceptions;
 };
 
-// Sends each Error report to Sentry through its own NodeClient, not Sentry.init, so it installs no
-// process handler, module hook or tracer provider: the shutdown handle owns crashes and telemetry
-// owns traces. The Project hands it every error the logger logs (loggerErrorListen).
+// What an Error report carries; beforeSend drops every other field the SDK adds.
+const eventKeys = new Set([
+	"dist",
+	"environment",
+	"event_id",
+	"exception",
+	"level",
+	"platform",
+	"release",
+	"sdk",
+	// Never sent as is: the envelope's trace header is built from it.
+	"sdkProcessingMetadata",
+	"tags",
+	"timestamp",
+	"type",
+]);
+const contextKeys = new Set(["runtime", "trace"]);
+
+const keysKeep = <T extends object>(value: T, keys: Set<string>): T =>
+	Object.fromEntries(
+		Object.entries(value).filter(([key]) => keys.has(key)),
+	) as T;
+
+const eventAllowlist = (event: ErrorEvent): ErrorEvent => ({
+	...keysKeep(event, eventKeys),
+	contexts: keysKeep(event.contexts ?? {}, contextKeys),
+});
+
+// Sends each Error report to Sentry with @sentry/core's ServerRuntimeClient and plain fetch, not
+// @sentry/node: that one installs a Sentry CLI under the FSL licence and module hooks this needs
+// none of. Nothing global is installed: the shutdown handle owns crashes and telemetry owns traces.
+// The Project hands it every error the logger logs (loggerErrorListen).
 export const errorTrackingSentryCreate = ({
 	dsn,
 	environment,
 	vendor = {},
 }: ErrorTrackingSentryOptions): ErrorTracking => {
-	vendorAssert(vendor);
-	const client = new NodeClient({
-		transport: makeNodeTransport,
+	for (const key of Object.keys(vendor)) {
+		if (!vendorKeys.has(key)) {
+			throw new TypeError(
+				`vendor.${key} is not allowed: only ${[...vendorKeys].join(", ")} reach Sentry`,
+			);
+		}
+	}
+	const client = new ServerRuntimeClient({
 		...vendor,
-		// What an Error report keeps, and nothing more.
-		beforeSend: (event) => {
-			for (const exception of event.exception?.values ?? []) {
-				delete exception.value;
-			}
-			delete event.breadcrumbs;
-			delete event.extra;
-			delete event.message;
-			delete event.request;
-			delete event.user;
-			return event;
-		},
+		beforeSend: eventAllowlist,
 		dsn,
-		// Its module hooks would rewrite modules telemetry already instruments.
-		enableRuntimeChannelInjection: false,
 		environment,
-		integrations: [linkedErrorsIntegration(), nodeContextIntegration()],
-		stackParser: defaultStackParser,
+		integrations: [],
+		platform: "node",
+		runtime: { name: "node", version: process.version },
+		stackParser,
+		transport: (options) =>
+			createTransport(options, async ({ body }) => {
+				const response = await fetch(options.url, {
+					body,
+					method: "POST",
+					signal: AbortSignal.timeout(sendTimeoutMs),
+				});
+				await response.body?.cancel();
+				if (!response.ok) {
+					logger.warn(
+						{ status: response.status },
+						"Sentry refused an error report",
+					);
+				}
+				return {
+					headers: {
+						"retry-after": response.headers.get("retry-after"),
+						"x-sentry-rate-limits": response.headers.get(
+							"x-sentry-rate-limits",
+						),
+					},
+					statusCode: response.status,
+				};
+			}),
 	});
+	if (client.getDsn() === undefined) {
+		throw new TypeError("dsn is not a Sentry DSN");
+	}
 	const scope = new Scope();
 	scope.setClient(client);
 	client.init();
@@ -102,17 +155,28 @@ export const errorTrackingSentryCreate = ({
 		},
 		report: (error) => {
 			try {
+				const err = loggerErrSerialize(error);
 				const reportScope = scope.clone();
 				// Links the report to the trace it happened in.
 				const spanContext = trace.getActiveSpan()?.spanContext();
 				if (spanContext !== undefined) {
-					reportScope.setContext("trace", {
-						span_id: spanContext.spanId,
-						trace_id: spanContext.traceId,
+					reportScope.setPropagationContext({
+						propagationSpanId: spanContext.spanId,
+						sampleRand: Math.random(),
+						traceId: spanContext.traceId,
 					});
 					reportScope.setTag("trace_id", spanContext.traceId);
 				}
-				reportScope.captureException(error);
+				reportScope.captureEvent({
+					exception: { values: exceptionsCreate(err) },
+					level: "error",
+					tags: {
+						...(err.code === undefined ? {} : { "error.code": err.code }),
+						...(err.constraint === undefined
+							? {}
+							: { "error.constraint": err.constraint }),
+					},
+				});
 			} catch (reportError) {
 				logger.warn({ err: reportError }, "Dropped an error report");
 			}

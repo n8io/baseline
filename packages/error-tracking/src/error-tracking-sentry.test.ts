@@ -13,80 +13,128 @@ type SentEvent = {
 	contexts?: { trace?: { span_id?: string; trace_id?: string } };
 	environment?: string;
 	exception?: {
-		values?: { type?: string; value?: string; stacktrace?: object }[];
+		values?: {
+			type?: string;
+			value?: string;
+			stacktrace?: { frames?: { function?: string }[] };
+		}[];
 	};
-	message?: string;
+	release?: string;
 	tags?: Record<string, string>;
 };
 
-// Stands in for Sentry's ingestion: keeps each event the client sends.
-const transportCatch = () => {
-	const events: SentEvent[] = [];
-	const transport = () => ({
-		flush: async () => true,
-		send: async (envelope: unknown) => {
-			const [, items] = envelope as [unknown, [{ type: string }, unknown][]];
-			for (const [header, payload] of items) {
-				if (header.type === "event") events.push(payload as SentEvent);
-			}
-			return {};
-		},
+// Stands in for Sentry's ingestion: keeps each envelope, and answers with `status`.
+const requestsCatch = (status = 200) => {
+	const requests: {
+		url: string;
+		header: { trace?: { trace_id?: string } };
+		event: SentEvent;
+	}[] = [];
+	vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+		const [header, , event] = String(init.body).split("\n");
+		requests.push({
+			event: JSON.parse(event ?? "{}") as SentEvent,
+			header: JSON.parse(header ?? "{}"),
+			url,
+		});
+		return new Response("{}", { status });
 	});
-	return { events, transport };
+	return requests;
 };
 
 afterEach(() => {
+	vi.useRealTimers();
+	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 });
 
 describe("errorTrackingSentryCreate", () => {
-	it("reports the class name, stack and cause chain, never a message", async () => {
-		const { events, transport } = transportCatch();
+	it("posts the report to the DSN's project with the class names, stacks and causes", async () => {
+		const requests = requestsCatch();
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
-			vendor: { transport },
+		});
+
+		const error = new Error("boom", { cause: new TypeError("inner") });
+		errorTracking.report(error);
+		await errorTracking.close();
+
+		expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
+			"/api/1/envelope/",
+		]);
+		const event: SentEvent = requests[0]?.event ?? {};
+		expect(event.environment).toBe("test");
+		expect(event.exception?.values?.map((v) => v.type)).toEqual([
+			"TypeError",
+			"Error",
+		]);
+		expect(
+			event.exception?.values?.[1]?.stacktrace?.frames?.length,
+		).toBeGreaterThan(0);
+		expect(Object.keys(error)).toEqual([]);
+	});
+
+	it("never sends message text, even in a name or a frame-shaped message line", async () => {
+		const requests = requestsCatch();
+		const errorTracking = errorTrackingSentryCreate({
+			dsn,
+			environment: "test",
+		});
+		const named = new Error(`failed for ${canary}`);
+		named.name = `Name ${canary}`;
+
+		errorTracking.report(named);
+		errorTracking.report(new Error(`one\n    at fake (${canary}.js:1:1)`));
+		errorTracking.report(
+			new Error("outer", { cause: new TypeError(`bad input ${canary}`) }),
+		);
+		errorTracking.report(`thrown ${canary}`);
+		errorTracking.report({ email: canary });
+		errorTracking.report(new AggregateError([new Error(canary)], canary));
+		await errorTracking.close();
+
+		expect(requests).toHaveLength(6);
+		expect(JSON.stringify(requests)).not.toContain(canary);
+		expect(
+			requests.map((r) => r.event.exception?.values?.at(-1)?.type),
+		).toEqual([
+			"Error",
+			"Error",
+			"Error",
+			"string",
+			"object",
+			"AggregateError",
+		]);
+		expect(JSON.stringify(requests)).not.toMatch(/server_name|"os"|"device"/);
+	});
+
+	it("tags the error's code and constraint", async () => {
+		const requests = requestsCatch();
+		const errorTracking = errorTrackingSentryCreate({
+			dsn,
+			environment: "test",
 		});
 
 		errorTracking.report(
-			new Error(`failed for ${canary}`, {
-				cause: new TypeError(`bad input ${canary}`),
+			Object.assign(new Error("duplicate key"), {
+				code: "23505",
+				constraint: "foo_name_key",
 			}),
 		);
 		await errorTracking.close();
 
-		expect(events).toHaveLength(1);
-		expect(events[0]?.environment).toBe("test");
-		expect(events[0]?.exception?.values?.map((v) => v.type)).toEqual([
-			"TypeError",
-			"Error",
-		]);
-		expect(events[0]?.exception?.values?.[1]?.stacktrace).toBeDefined();
-		expect(JSON.stringify(events)).not.toContain(canary);
-	});
-
-	it("reports a thrown value that is not an Error without its text", async () => {
-		const { events, transport } = transportCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-			vendor: { transport },
+		expect(requests[0]?.event.tags).toMatchObject({
+			"error.code": "23505",
+			"error.constraint": "foo_name_key",
 		});
-
-		errorTracking.report(`thrown ${canary}`);
-		errorTracking.report({ email: canary });
-		await errorTracking.close();
-
-		expect(events).toHaveLength(2);
-		expect(JSON.stringify(events)).not.toContain(canary);
 	});
 
 	it("links the report to the active trace", async () => {
-		const { events, transport } = transportCatch();
+		const requests = requestsCatch();
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
-			vendor: { transport },
 		});
 		const spanContext = {
 			spanId: "b7ad6b7169203331",
@@ -100,71 +148,95 @@ describe("errorTrackingSentryCreate", () => {
 		);
 		await errorTracking.close();
 
-		expect(events[0]?.contexts?.trace).toMatchObject({
+		expect(requests[0]?.event.contexts?.trace).toMatchObject({
 			span_id: spanContext.spanId,
 			trace_id: spanContext.traceId,
 		});
-		expect(events[0]?.tags?.trace_id).toBe(spanContext.traceId);
+		expect(requests[0]?.header.trace?.trace_id).toBe(spanContext.traceId);
+		expect(requests[0]?.event.tags?.trace_id).toBe(spanContext.traceId);
 	});
 
-	it("sends nothing after close", async () => {
-		const { events, transport } = transportCatch();
+	it("passes vendor.release through", async () => {
+		const requests = requestsCatch();
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
-			vendor: { transport },
+			vendor: { release: "app@1.2.3" },
+		});
+
+		errorTracking.report(new Error("boom"));
+		await errorTracking.close();
+
+		expect(requests[0]?.event.release).toBe("app@1.2.3");
+	});
+
+	it("warns when Sentry refuses a report", async () => {
+		requestsCatch(429);
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		const errorTracking = errorTrackingSentryCreate({
+			dsn,
+			environment: "test",
+		});
+
+		errorTracking.report(new Error("boom"));
+		await errorTracking.close();
+
+		expect(warn).toHaveBeenCalledWith(
+			{ status: 429 },
+			"Sentry refused an error report",
+		);
+	});
+
+	it("sends nothing after close", async () => {
+		const requests = requestsCatch();
+		const errorTracking = errorTrackingSentryCreate({
+			dsn,
+			environment: "test",
 		});
 
 		await errorTracking.close();
 		errorTracking.report(new Error("late"));
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
-		expect(events).toEqual([]);
+		expect(requests).toEqual([]);
 	});
 
-	it("warns when the reports in flight do not finish before close gives up", async () => {
+	it("gives up at close when a send never finishes, and warns", async () => {
 		vi.useFakeTimers();
+		vi.stubGlobal("fetch", () => new Promise(() => undefined));
 		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
-			vendor: {
-				// Never answers; flush gives up at its timeout, as Sentry's own transport does.
-				transport: () => ({
-					flush: (timeout?: number) =>
-						new Promise<boolean>((resolve) => {
-							setTimeout(() => resolve(false), timeout);
-						}),
-					send: () => new Promise(() => undefined),
-				}),
-			},
 		});
 
 		errorTracking.report(new Error("stuck"));
 		const closing = errorTracking.close();
 		await vi.advanceTimersByTimeAsync(5000);
 		await closing;
-		vi.useRealTimers();
 
 		expect(warn).toHaveBeenCalledWith("Error reports still unsent at close");
 	});
 
-	it.each([
-		"beforeSend",
-		"dataCollection",
-		"dsn",
-		"enableOpenTelemetrySetup",
-		"enableRuntimeChannelInjection",
-		"includeLocalVariables",
-		"integrations",
-		"stackParser",
-	])("refuses vendor.%s", (key) => {
-		expect(() =>
-			errorTrackingSentryCreate({
-				dsn,
-				environment: "test",
-				vendor: { [key]: true } as never,
-			}),
-		).toThrow(new RegExp(`vendor\\.${key} is not allowed`));
-	});
+	it.each(["https://example.com", "garbage"])(
+		"refuses dsn %j, which is not a Sentry DSN",
+		(bad) => {
+			expect(() =>
+				errorTrackingSentryCreate({ dsn: bad, environment: "test" }),
+			).toThrow(/dsn is not a Sentry DSN/);
+		},
+	);
+
+	it.each(["beforeSend", "dsn", "integrations", "transport", "debug"])(
+		"refuses vendor.%s",
+		(key) => {
+			expect(() =>
+				errorTrackingSentryCreate({
+					dsn,
+					environment: "test",
+					vendor: { [key]: true } as never,
+				}),
+			).toThrow(new RegExp(`vendor\\.${key} is not allowed`));
+		},
+	);
 });
