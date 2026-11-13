@@ -40,6 +40,54 @@ describe("postgresPoolCreate", () => {
 		await Promise.all([pgPool.end(), pgPoolSmall.end()]);
 	});
 
+	it("passes vendor settings to pg, and its own options win", async () => {
+		const pgPool = postgresPoolCreate({
+			databaseUrl: "postgres://localhost/db",
+			max: 3,
+			vendor: { idleTimeoutMillis: 1_000, keepAlive: false },
+		});
+
+		expect(pgPool.options).toMatchObject({
+			connectionString: "postgres://localhost/db",
+			idleTimeoutMillis: 1_000,
+			keepAlive: false,
+			max: 3,
+		});
+		await pgPool.end();
+	});
+
+	it.each([
+		["connectionString", "databaseUrl"],
+		["connectionTimeoutMillis", "connectTimeoutMs"],
+		["host", "databaseUrl"],
+		["max", "max"],
+		["password", "databaseUrl"],
+	])("refuses vendor.%s, which %s sets", (key, option) => {
+		expect(() =>
+			postgresPoolCreate({
+				databaseUrl: "postgres://localhost/db",
+				vendor: { [key]: 1 },
+			}),
+		).toThrow(
+			new TypeError(
+				`vendor.${key} is not allowed: set it with ${option} instead`,
+			),
+		);
+	});
+
+	it("refuses vendor.ssl when the URL sets TLS, since pg lets the URL win", () => {
+		expect(() =>
+			postgresPoolCreate({
+				databaseUrl: "postgres://localhost/db?sslmode=require",
+				vendor: { ssl: { rejectUnauthorized: true } },
+			}),
+		).toThrow(
+			new TypeError(
+				"vendor.ssl is not allowed with sslmode in databaseUrl: pg lets the URL win; set TLS in one place",
+			),
+		);
+	});
+
 	it("logs idle client errors instead of crashing the process", async () => {
 		const loggerError = vi.spyOn(logger, "error").mockReturnValue(undefined);
 		const pgPool = postgresPoolCreate({

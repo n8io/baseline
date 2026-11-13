@@ -3,7 +3,7 @@
 "app": major
 ---
 
-The cache's backend is picked once per process, not once per Domain. `@n8io/baseline-cache` now exports `CacheStore`, `cacheCreate(store, { prefix, schema, ttlMs? })`, `cacheStoreRedisCreate(redisClient)` and `cacheStoreMemoryCreate()`. `cacheRedisCreate`, `cacheMemoryCreate`, `cacheRedisClientCreate` and the `RedisClient` type are gone, and the package no longer has a `redis` peer: the Redis store takes any connected node-redis client.
+The cache's backend is picked once per process, not once per Domain. `@n8io/baseline-cache` now exports `CacheStore`, `cacheCreate(store, { prefix, schema, ttlMs? })`, `cacheStoreRedisCreate({ redisClient })` and `cacheStoreMemoryCreate()`. `cacheRedisCreate`, `cacheMemoryCreate`, `cacheRedisClientCreate` and the `RedisClient` type are gone, and the package no longer has a `redis` peer: the Redis store takes any connected node-redis client.
 
 In the Template, the new `src/cache-store-open.ts` is the only file that picks the backend, and `connectionsOpen` returns its store as `connections.cacheStore`. With `memory://` every cache shares one store, as on Redis, so two caches need different prefixes. Architecture rule A12 refuses `cacheStoreRedisCreate(` in a Domain. Each Domain has one `spi/<domain>-cache.ts` (`<domain>CacheCreate(cacheStore)`) with one `spi/<domain>-cache.test.ts`.
 

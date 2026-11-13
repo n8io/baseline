@@ -13,7 +13,7 @@ export const analyticsOpen = (
 	steps: ShutdownStep[],
 ): Analytics => {
 	if (!token) return analyticsLoggerCreate();
-	const analytics = analyticsMixpanelCreate(token);
+	const analytics = analyticsMixpanelCreate({ token });
 	steps.push({ close: () => analytics.close(), name: "analytics" });
 	return analytics;
 };

@@ -14,7 +14,9 @@ export const liveHubOpen = (
 	steps: ShutdownStep[],
 ): LiveHub => {
 	const liveHub =
-		redis === "memory" ? liveHubMemoryCreate() : liveHubRedisCreate(redis);
+		redis === "memory"
+			? liveHubMemoryCreate()
+			: liveHubRedisCreate({ redisClient: redis });
 	steps.unshift({ close: () => liveHub.close(), name: "live" });
 	return liveHub;
 };

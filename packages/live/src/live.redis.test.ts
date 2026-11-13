@@ -38,8 +38,12 @@ afterEach(async () => {
 
 describe("liveHubRedisCreate", () => {
 	test("a note published on one hub instance reaches a stream on another", async () => {
-		const serverHub = liveHubRedisCreate(await redisClientCreate());
-		const workerHub = liveHubRedisCreate(await redisClientCreate());
+		const serverHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
+		const workerHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
 		const sse = liveTestSseRead(
 			await liveAppCreate(serverHub).request("/live/foo/foo_1"),
 		);
@@ -58,7 +62,9 @@ describe("liveHubRedisCreate", () => {
 		const listener = await redisClientCreate();
 		const received = Promise.withResolvers<string>();
 		await listener.subscribe("live:foo", received.resolve);
-		const liveHub = liveHubRedisCreate(await redisClientCreate());
+		const liveHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
 
 		await liveHub.send("foo", { id: "foo_1", type: "foo.updated" });
 
@@ -72,7 +78,9 @@ describe("liveHubRedisCreate", () => {
 	test("opens one subscriber per instance, only once a stream opens", async () => {
 		const channel = `live:${crypto.randomUUID()}`;
 		const name = channel.slice("live:".length);
-		const liveHub = liveHubRedisCreate(await redisClientCreate());
+		const liveHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
 		await liveHub.send(name, { id: "foo_1", type: "foo.updated" });
 		expect(await subscriberCount(channel)).toBe(0);
 
@@ -94,7 +102,9 @@ describe("liveHubRedisCreate", () => {
 
 	test("drops a malformed message and keeps streaming", async () => {
 		const publisher = await redisClientCreate();
-		const liveHub = liveHubRedisCreate(await redisClientCreate());
+		const liveHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
 		const sse = liveTestSseRead(
 			await liveAppCreate(liveHub).request("/live/foo/foo_1"),
 		);
@@ -112,7 +122,7 @@ describe("liveHubRedisCreate", () => {
 
 	test("a failed send throws", async () => {
 		const redisClient = await redisClientCreate();
-		const liveHub = liveHubRedisCreate(redisClient);
+		const liveHub = liveHubRedisCreate({ redisClient });
 		redisClient.destroy();
 
 		await expect(
@@ -122,7 +132,9 @@ describe("liveHubRedisCreate", () => {
 
 	test("a send Redis does not answer fails within 1 s", async () => {
 		const pauser = await redisClientCreate();
-		const liveHub = liveHubRedisCreate(await redisClientCreate());
+		const liveHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
 		await pauser.clientPause(3000);
 		const started = Date.now();
 
@@ -140,7 +152,7 @@ describe("liveHubRedisCreate", () => {
 
 	test("a stream whose subscribe fails ends with a retry, and the next one retries", async () => {
 		const redisClient = await redisClientCreate();
-		const liveHub = liveHubRedisCreate(redisClient);
+		const liveHub = liveHubRedisCreate({ redisClient });
 		const app = liveAppCreate(liveHub);
 		const duplicate = vi
 			.spyOn(redisClient, "duplicate")

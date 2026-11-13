@@ -32,7 +32,7 @@ afterEach(() => {
 describe("analyticsMixpanelCreate", () => {
 	it("posts the event to /track with the token and the Actor's id as distinct_id", () => {
 		const requests = requestsCatch();
-		const analytics = analyticsMixpanelCreate("token");
+		const analytics = analyticsMixpanelCreate({ token: "token" });
 
 		analytics.track({
 			actorId: "user-1",
@@ -53,9 +53,34 @@ describe("analyticsMixpanelCreate", () => {
 		expect(requests[0]?.init.signal).toBeInstanceOf(AbortSignal);
 	});
 
+	it("posts to vendor.host when one is given", () => {
+		const requests = requestsCatch();
+		const analytics = analyticsMixpanelCreate({
+			token: "token",
+			vendor: { host: "api-eu.mixpanel.com" },
+		});
+
+		analytics.track({ actorId: "user-1", name: "foo.created" });
+
+		expect(requests.map((r) => r.url)).toEqual([
+			"https://api-eu.mixpanel.com/track?ip=0&strict=1",
+		]);
+	});
+
+	it.each([
+		"",
+		"https://api-eu.mixpanel.com",
+		"api-eu.mixpanel.com/",
+		"evil.example/x?",
+	])("refuses vendor.host %j, which is not a bare host name", (host) => {
+		expect(() =>
+			analyticsMixpanelCreate({ token: "token", vendor: { host } }),
+		).toThrow(/vendor\.host must be a bare host name/);
+	});
+
 	it("returns before the send ends, and close waits for it", async () => {
 		const requests = requestsCatch();
-		const analytics = analyticsMixpanelCreate("token");
+		const analytics = analyticsMixpanelCreate({ token: "token" });
 		analytics.track({ actorId: "user-1", name: "foo.created" });
 		let closed = false;
 
@@ -76,7 +101,7 @@ describe("analyticsMixpanelCreate", () => {
 	])("logs and drops the event on %s", async (_, answer) => {
 		const requests = requestsCatch();
 		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
-		const analytics = analyticsMixpanelCreate("token");
+		const analytics = analyticsMixpanelCreate({ token: "token" });
 
 		analytics.track({ actorId: "user-1", name: "foo.created" });
 		requests[0]?.answer(answer);

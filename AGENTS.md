@@ -21,6 +21,15 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 
 Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app/src`.
 
+## Vendors
+
+A Package's exports name no vendor type, error or option shape; a caller must not change when the vendor behind a Package does. Two exceptions, both only on a factory that is one vendor's: its name says so (`cacheStoreRedisCreate`, `pulsarCreate`, `postgresPoolCreate`) or its whole Package is that vendor's (`queueCreate` is pg-boss's). Such a factory takes one options object, never positional arguments.
+
+- Where the vendor has a client object, the factory takes the client, typed structurally (`cacheStoreRedisCreate({ redisClient })`).
+- Where the Package must build the client, the factory takes a `vendor` option typed as the vendor's own settings, spreads it under the Package's own options, and throws on every key that those own or that would do nothing. Export the type named after the factory's subject (`PostgresPoolVendorOptions`). A function that opens its own connection to the same vendor (`postgresMigrate`) takes `vendor` too.
+
+Never return the vendor's client from a neutral handle. The Project's side of this is [apps/app/docs/agents/vendor-settings.md](apps/app/docs/agents/vendor-settings.md).
+
 ## Tests
 
 - A test for one source file sits beside it as `<name>.test.ts`. Test helpers sit beside the tests that use them and are never exported from `index.ts`.

@@ -62,6 +62,13 @@ const pulsarStop = async (state: PulsarState): Promise<void> => {
 	await Promise.allSettled(state.consumers.map((consumer) => consumer.close()));
 };
 
+/**
+ * The Pulsar client's own settings, passed through as they are. Outside this Package's contract:
+ * nothing here is tested, and moving off Pulsar deletes it. `log` is refused, and
+ * `authentication` is refused together with `token`.
+ */
+export type PulsarVendorOptions = Omit<PulsarClient.ClientConfigBase, "log">;
+
 // Opens a client to `serviceUrl` (pulsar:// or pulsar+ssl://). `token` is a JWT for the broker's
 // token authentication; without one the client connects unauthenticated. Each Event's topic is
 // `persistent://<namespace>/<event name>`. retryDelayMs is the wait before a failed Event's second
@@ -71,9 +78,25 @@ export const pulsarCreate = (options: {
 	token?: string | undefined;
 	namespace?: string;
 	retryDelayMs?: number;
+	/** Settings only the Pulsar client has, such as TLS files or OAuth2 `authentication`. */
+	vendor?: PulsarVendorOptions;
 }): Pulsar => {
 	const namespace = options.namespace ?? "public/default";
+	const vendor = options.vendor ?? {};
+	for (const key of ["log", "serviceUrl", "serviceUrlProvider"]) {
+		if (key in vendor) {
+			throw new TypeError(
+				`vendor.${key} is not allowed: pulsarCreate sets it itself`,
+			);
+		}
+	}
+	if (options.token !== undefined && vendor.authentication !== undefined) {
+		throw new TypeError(
+			"Pass token or vendor.authentication to pulsarCreate, not both",
+		);
+	}
 	const client = new PulsarClient.Client({
+		...vendor,
 		...(options.token === undefined
 			? {}
 			: {

@@ -60,6 +60,33 @@ describe("queueCreate", () => {
 		expect(pgPool.totalCount).toBeGreaterThan(0);
 	});
 
+	it("passes vendor settings to pg-boss, which checks them", async () => {
+		await expect(
+			queueCreate({
+				pgPool: poolCreate(),
+				role: "publisher",
+				vendor: { monitorIntervalSeconds: 0 },
+			}),
+		).rejects.toThrow(/monitorIntervalSeconds must be at least/);
+	});
+
+	it.each([
+		["schema", "queueCreate sets it itself"],
+		["supervise", "queueCreate sets it itself"],
+		["connectionString", "the queue runs on pgPool; set it on the pool"],
+		["ssl", "the queue runs on pgPool; set it on the pool"],
+		["createSchema", "it only acts in queueMigrate"],
+		["useListenNotify", "the queue does not support it"],
+	])("refuses vendor.%s: %s", async (key, reason) => {
+		await expect(
+			queueCreate({
+				pgPool: poolCreate(),
+				role: "publisher",
+				vendor: { [key]: undefined },
+			}),
+		).rejects.toThrow(new TypeError(`vendor.${key} is not allowed: ${reason}`));
+	});
+
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "publisher");

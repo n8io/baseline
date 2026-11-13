@@ -221,6 +221,56 @@ describe("pulsarEventsCreate", () => {
 		);
 	});
 
+	it("takes the broker's authentication from vendor in place of token", async () => {
+		const viaVendor = pulsarCreate({
+			serviceUrl: inject("pulsarUrl"),
+			vendor: {
+				authentication: new PulsarClient.AuthenticationToken({
+					token: inject("pulsarToken"),
+				}),
+				operationTimeoutSeconds: 10,
+			},
+		});
+		const consumer = received(
+			"billing.foo-created-vendor-auth",
+			"foo.vendor-auth",
+			async () => ok(undefined),
+		);
+		try {
+			await expect(
+				pulsarEventsCreate(viaVendor).consumersSubscribe([consumer]),
+			).resolves.toBeUndefined();
+		} finally {
+			await viaVendor.close();
+		}
+	});
+
+	it("refuses a vendor key pulsarCreate sets itself, and token with vendor.authentication", () => {
+		expect(() =>
+			pulsarCreate({
+				serviceUrl: inject("pulsarUrl"),
+				vendor: { log: () => undefined } as never,
+			}),
+		).toThrow(
+			new TypeError("vendor.log is not allowed: pulsarCreate sets it itself"),
+		);
+		expect(() =>
+			pulsarCreate({
+				serviceUrl: inject("pulsarUrl"),
+				token: inject("pulsarToken"),
+				vendor: {
+					authentication: new PulsarClient.AuthenticationToken({
+						token: inject("pulsarToken"),
+					}),
+				},
+			}),
+		).toThrow(
+			new TypeError(
+				"Pass token or vendor.authentication to pulsarCreate, not both",
+			),
+		);
+	});
+
 	it("passes the token to the broker, which refuses a client without one", async () => {
 		const consumer = received(
 			"billing.foo-created-auth",
