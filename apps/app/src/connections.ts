@@ -62,7 +62,7 @@ export const connectionsOpen = async (
 		liveHub: liveHubOpen(redis, role === "worker" ? resources : intakes),
 		// piece-end: live
 		// piece-start: queue
-		events: eventsOpen(queue),
+		events: eventsOpen({ intakes, queue, resources, role }),
 		queue,
 		// piece-end: queue
 		// piece-start: redis

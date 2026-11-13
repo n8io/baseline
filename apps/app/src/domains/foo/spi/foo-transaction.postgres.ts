@@ -36,13 +36,15 @@ export const fooTransactionPostgresCreate = (
 				return ok(undefined) as Result<T, E>;
 			}
 			fooEvents = events.publisherCreate<FooEventMap>(pgClient);
+			// The Use case gets publish only: committed() is this file's to call.
+			const { publish } = fooEvents;
 			// piece-end: queue
 			let open = true;
 			const isOpen = (): boolean => open;
 			try {
 				return await work({
 					// piece-start: queue
-					fooEvents: transactionPortsGuard(fooEvents, isOpen),
+					fooEvents: transactionPortsGuard({ publish }, isOpen),
 					// piece-end: queue
 					fooRepository: transactionPortsGuard(
 						fooRepositoryPostgresCreate(drizzle({ client: pgClient })),

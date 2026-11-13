@@ -18,7 +18,8 @@ How it differs from the queue package:
 2. **Environment.** Declare the broker in `.env.schema` (varlock regenerates `src/env.d.ts` on the next run):
 
    ```sh
-   # pulsar:// or pulsar+ssl://
+   # pulsar:// or pulsar+ssl://; not read while DATABASE_URL is memory://
+   # @optional
    # @type=url(allowedProtocols=[pulsar, pulsar+ssl])
    PULSAR_URL=
    # A JWT; leave it unset for a local standalone broker
@@ -26,38 +27,44 @@ How it differs from the queue package:
    PULSAR_TOKEN=
    ```
 
-3. **Open Events on Pulsar.** `src/events-open.ts` is the only file that names the Events transport. Replace it, and pass it what it now needs from `src/connections.ts`:
+3. **Open Events on Pulsar.** `src/events-open.ts` is the only file that names the Events transport. Replace its body; its caller in `src/connections.ts` already passes everything it needs:
 
    ```ts
    // src/events-open.ts
-   import type { Events } from "@n8io/baseline-queue";
-   import type { ShutdownStep } from "@n8io/baseline-shutdown";
    import { pulsarCreate, pulsarEventsCreate } from "@n8io/baseline-pulsar";
+   import type { Events, Queue } from "@n8io/baseline-queue";
+   import type { ShutdownStep } from "@n8io/baseline-shutdown";
+   import { ENV } from "#env";
 
-   export const eventsOpen = (
-     env: { PULSAR_URL: string; PULSAR_TOKEN?: string },
-     database: unknown,
-     role: "publisher" | "worker",
-     intakes: ShutdownStep[],
-     resources: ShutdownStep[],
-   ): Events | "memory" => {
-     // Events are real exactly when the database is.
-     if (database === "memory") return "memory";
-     const pulsar = pulsarCreate({ serviceUrl: env.PULSAR_URL, token: env.PULSAR_TOKEN });
-     // stop() is an intake: it stops receiving and lets running Consumers finish.
-     if (role === "worker") intakes.push({ close: () => pulsar.stop(), name: "pulsar consumers" });
-     // close() is a resource: it flushes what was sent, so it goes before the database.
-     resources.unshift({ close: () => pulsar.close(), name: "pulsar" });
-     return pulsarEventsCreate(pulsar);
+   export const eventsOpen = ({
+   	intakes,
+   	queue,
+   	resources,
+   	role,
+   }: {
+   	queue: Queue | "memory";
+   	role: "publisher" | "worker";
+   	intakes: ShutdownStep[];
+   	resources: ShutdownStep[];
+   }): Events | "memory" => {
+   	// Events are real exactly when the database is; the queue is "memory" with a memory database.
+   	if (queue === "memory") return "memory";
+   	if (!ENV.PULSAR_URL) throw new Error("PULSAR_URL is not set");
+   	const pulsar = pulsarCreate({
+   		serviceUrl: ENV.PULSAR_URL,
+   		token: ENV.PULSAR_TOKEN,
+   	});
+   	// stop() is an intake: it stops receiving and lets running Consumers finish.
+   	if (role === "worker") {
+   		intakes.push({ close: () => pulsar.stop(), name: "pulsar consumers" });
+   	}
+   	// close() is a resource: it flushes what was sent, so it goes before the database.
+   	resources.unshift({ close: () => pulsar.close(), name: "pulsar" });
+   	return pulsarEventsCreate(pulsar);
    };
    ```
 
-   ```ts
-   // src/connections.ts
-   events: eventsOpen(env, database, role, intakes, resources),
-   ```
-
-   Nothing else changes. Each Domain's transaction, `src/server.ts` and `src/worker.ts` already go through `connections.events`: they publish, call `committed()`, subscribe, start Consumers and report `/livez` the same way on either transport. The queue stays open for Schedules and inbox pruning. Consumers are built with the queue package's `queueConsumerCreate`, unchanged.
+   Nothing else changes. Each Domain's transaction, `src/server.ts`, `src/worker.ts` and `src/seed.ts` already go through `connections.events` and the shutdown lists: they publish, call `committed()`, subscribe, start Consumers, report `/livez` and close the same way on either transport. The queue stays open for Schedules and inbox pruning. Consumers are built with the queue package's `queueConsumerCreate`, unchanged.
 
 4. **Tests.** Tests that build a Domain's Postgres transaction pass `queueEventsCreate(queue)`; they keep working, on the queue. To test on Pulsar, pass `pulsarEventsCreate(pulsar)` there.
 
