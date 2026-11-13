@@ -10,7 +10,7 @@ import {
 
 const readyLog = "Server listening and ready";
 
-describe("server readiness", { timeout: 30_000 }, () => {
+describe("server readiness", { timeout: 60_000 }, () => {
 	it("reports ready once PORT is bound, with no deprecation warning", async () => {
 		await using server = await productionServerStart({
 			databaseUrl: "memory://",

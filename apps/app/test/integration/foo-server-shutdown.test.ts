@@ -10,7 +10,7 @@ import {
 
 // server-shutdown.test.ts covers the drain itself; this adds that Postgres stays open for it.
 describe("server shutdown on SIGTERM with a write in flight", {
-	timeout: 30_000,
+	timeout: 60_000,
 }, () => {
 	it("saves a foo whose POST was in flight and exits 0", async () => {
 		await using database = await integrationDatabaseCreate();

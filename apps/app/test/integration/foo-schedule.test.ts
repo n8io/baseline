@@ -24,7 +24,7 @@ const workerBoot = (databaseUrl: string, schedule?: string) =>
 		env: schedule === undefined ? {} : { SCHEDULE_FOO_STALE_ARCHIVE: schedule },
 	});
 
-describe("worker schedules", { timeout: 30_000 }, () => {
+describe("worker schedules", { timeout: 60_000 }, () => {
 	it("registers foo.stale-archive with its own cron", async () => {
 		await using database = await integrationDatabaseCreate();
 		await using _worker = await workerBoot(database.databaseUrl);

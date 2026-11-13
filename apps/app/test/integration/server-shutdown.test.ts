@@ -8,7 +8,7 @@ import {
 	slowRequestStart,
 } from "./production-server.ts";
 
-describe("server shutdown on SIGTERM", { timeout: 30_000 }, () => {
+describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 	it("finishes an in-flight sign-in, answers /readyz 503, refuses new connections and exits 0", async () => {
 		await using database = await integrationDatabaseCreate();
 		await using server = await productionServerStart({

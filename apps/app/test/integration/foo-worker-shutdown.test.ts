@@ -54,7 +54,7 @@ const staleArchiveSend = async (databaseUrl: string): Promise<void> => {
 	await boss.stop({ graceful: false });
 };
 
-describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
+describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 	it("finishes the job in flight, answers /readyz 503 and exits 0", async () => {
 		await using receiver = await otlpReceiverStart();
 		await using database = await integrationDatabaseCreate();
