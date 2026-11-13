@@ -36,7 +36,7 @@ export const fooTransactionMemoryCreate = (
 			const result = await work({
 				// piece-start: queue
 				fooEvents: transactionPortsGuard(
-					queueEventsMemoryCreate<FooEventMap>(pending),
+					queueEventsMemoryCreate<FooEventMap>({ published: pending }),
 					() => open,
 				),
 				// piece-end: queue
