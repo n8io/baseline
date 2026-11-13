@@ -8,10 +8,9 @@ if (ENV.DATABASE_URL === "memory://") {
 	logger.info("memory database: nothing to migrate");
 	process.exit(0);
 }
-await postgresMigrate({
-	databaseUrl: ENV.DATABASE_URL,
-	migrationsFolder: "./migrations",
-});
+// Migrations need Postgres itself: postgresMigrate refuses a connection pooler.
+const databaseUrl = ENV.DATABASE_MIGRATE_URL ?? ENV.DATABASE_URL;
+await postgresMigrate({ databaseUrl, migrationsFolder: "./migrations" });
 // piece-start: queue
-await queueMigrate({ databaseUrl: ENV.DATABASE_URL });
+await queueMigrate({ databaseUrl });
 // piece-end: queue

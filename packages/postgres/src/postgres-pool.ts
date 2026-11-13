@@ -22,7 +22,7 @@ export type PostgresClient = pg.PoolClient;
  */
 export type PostgresPoolVendorOptions = Omit<
 	pg.PoolConfig,
-	PostgresVendorOwnedKey | "max"
+	PostgresVendorOwnedKey | "max" | "query_timeout"
 >;
 
 export type PostgresPoolOptions = {
@@ -31,6 +31,11 @@ export type PostgresPoolOptions = {
 	connectTimeoutMs?: number;
 	/** The most connections the pool opens. Default 10. */
 	max?: number;
+	/**
+	 * How long one query may take before it rejects and its connection is closed. Default 15 s;
+	 * `null` turns it off.
+	 */
+	queryTimeoutMs?: number | null;
 	/** Settings only pg has, such as `ssl` or `idleTimeoutMillis`. */
 	vendor?: PostgresPoolVendorOptions;
 };
@@ -40,16 +45,31 @@ export const postgresPoolCreate = ({
 	connectTimeoutMs = 3_000,
 	databaseUrl,
 	max = 10,
+	queryTimeoutMs = 15_000,
 	vendor = {},
 }: PostgresPoolOptions): PostgresPool => {
 	postgresUrlAssert(databaseUrl);
-	postgresVendorAssert({ vendor, databaseUrl, owned: { max: "max" } });
+	postgresVendorAssert({
+		vendor,
+		databaseUrl,
+		owned: { max: "max", query_timeout: "queryTimeoutMs" },
+	});
+	if (
+		queryTimeoutMs !== null &&
+		(!Number.isSafeInteger(queryTimeoutMs) || queryTimeoutMs <= 0)
+	) {
+		throw new TypeError("queryTimeoutMs must be a positive integer or null");
+	}
 	const pgPool = new pg.Pool({
+		// Probe an idle connection after 10 s, not the OS default of about 2 hours, so a dead peer shows.
 		keepAlive: true,
+		keepAliveInitialDelayMillis: 10_000,
 		...vendor,
 		connectionString: databaseUrl,
 		connectionTimeoutMillis: connectTimeoutMs,
 		max,
+		// The driver's own timer: it also ends a query whose server went away without closing the socket.
+		...(queryTimeoutMs === null ? {} : { query_timeout: queryTimeoutMs }),
 	});
 	// pg re-emits idle-client errors on the pool; without a listener Node exits.
 	pgPool.on("error", (error) => {
