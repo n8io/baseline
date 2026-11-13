@@ -15,7 +15,8 @@ export {
 export { queueRetryLimit } from "./queue-retry.ts";
 export {
 	queueScheduleCreate,
-	queueSchedulesRegister,
+	queueSchedulesStart,
+	queueSchedulesSync,
 	type Schedule,
 } from "./queue-schedule.ts";
 export type { QueueSql } from "./queue-sql.ts";

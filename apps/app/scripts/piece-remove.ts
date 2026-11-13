@@ -202,6 +202,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"src/events-open.ts",
 			"src/queue-open.ts",
 			"src/worker.ts",
+			"test/integration/worker-ready.test.ts",
 			"test/integration/worker-shutdown.test.ts",
 		],
 		refusal: (directory) =>

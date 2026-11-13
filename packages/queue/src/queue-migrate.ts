@@ -6,7 +6,7 @@ import { queueInboxTableCreate } from "./queue-inbox.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
 
 // Only Postgres URLs; the composition root handles memory:// first. Never echoes the URL.
-const queueUrlAssert = (databaseUrl: string): void => {
+export const queueUrlAssert = (databaseUrl: string): void => {
 	if (/^postgres(ql)?:\/\//.test(databaseUrl)) {
 		return;
 	}
@@ -71,7 +71,7 @@ export type QueueMigrateVendorOptions = Pick<
 // Installs or upgrades pg-boss in schema `queue`, waits for its background index builds, deletes
 // the queues of consumers removed in an earlier release and the unordered queues an upgrade to
 // release 8 left behind, and creates queue.inbox. Runs from the migrate entry, before any server
-// or worker starts with `migrate: false`.
+// or worker starts with `migrate: false`; queueSchedulesSync runs after it.
 export const queueMigrate = async (options: {
 	databaseUrl: string;
 	queuesRemoved?: string[];

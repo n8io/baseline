@@ -35,6 +35,12 @@ export const connectionsOpen = async ({
 		);
 	}
 	const database = databaseOpen(role);
+	if (database !== "memory") {
+		// The startup check: while Postgres is unreachable this throws, boot fails and the process
+		// never reports ready, so a new pod does not start during an outage. A pod already running
+		// is not checked again: its probes do not ask Postgres, so an outage never restarts it.
+		await database.query("SELECT 1");
+	}
 	const intakes: ShutdownStep[] = [];
 	const resources: ShutdownStep[] = [];
 	// piece-start: error-tracking

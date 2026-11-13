@@ -1,17 +1,20 @@
+import { logger } from "@n8io/baseline-logger";
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type Queue,
 	queueCreate,
 	queueMigrate,
 	queueScheduleCreate,
-	queueSchedulesRegister,
+	queueSchedulesStart,
+	queueSchedulesSync,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 import { queueScheduleEnvName } from "./queue-schedule.ts";
 
+let databaseUrl: string;
 let pgPool: pg.Pool;
 const queues: Queue[] = [];
 
@@ -24,20 +27,26 @@ const worker = async (): Promise<Queue> => {
 	return queue;
 };
 
-const held = async (queue: Queue): Promise<Record<string, string>> =>
-	Object.fromEntries(
-		(await queueBossGet(queue).getSchedules()).map((row) => [
-			row.name,
-			row.cron,
-		]),
+// The Schedules the database holds, by name, as the cron of each.
+const held = async (): Promise<Record<string, string>> => {
+	const { rows } = await pgPool.query<{ name: string; cron: string }>(
+		"SELECT name, cron FROM queue.schedule",
 	);
+	return Object.fromEntries(rows.map((row) => [row.name, row.cron]));
+};
+
+const working = (queue: Queue): string[] =>
+	queueBossGet(queue)
+		.getWipData()
+		.map((wip) => wip.name);
 
 beforeEach(async () => {
 	for (const queue of queues.splice(0)) {
 		await queue.stop();
 	}
 	await pgPool?.end();
-	const databaseUrl = await postgresTestDatabaseCreate();
+	vi.restoreAllMocks();
+	databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = new pg.Pool({ connectionString: databaseUrl });
 });
@@ -49,19 +58,16 @@ afterAll(async () => {
 	await pgPool.end();
 });
 
-describe("queueSchedulesRegister", () => {
-	it("registers each schedule on an exclusive queue with a dead letter, and starts its worker", async () => {
-		const queue = await worker();
-		await queueSchedulesRegister({
-			queue,
-			schedules: [schedule("foo.stale-archive")],
+describe("queueSchedulesSync", () => {
+	it("adds each schedule on an exclusive queue with a dead letter", async () => {
+		await queueSchedulesSync({
+			databaseUrl,
 			env: {},
+			schedules: [schedule("foo.stale-archive")],
 		});
 
-		expect(await held(queue)).toEqual({
-			"foo.stale-archive": "0 3 * * *",
-			"queue.inbox-prune": "0 4 * * *",
-		});
+		expect(await held()).toEqual({ "foo.stale-archive": "0 3 * * *" });
+		const queue = await worker();
 		const [row] = await queueBossGet(queue).getSchedules("foo.stale-archive");
 		expect(row?.options).toMatchObject({ missed: "once", tz: "UTC" });
 		expect(
@@ -73,89 +79,58 @@ describe("queueSchedulesRegister", () => {
 			retryDelay: 10,
 			retryLimit: 4,
 		});
-		expect(
-			queueBossGet(queue)
-				.getWipData()
-				.map((wip) => wip.name),
-		).toContain("foo.stale-archive");
 	});
 
-	it("unschedules what is no longer in code, and keeps the package's own", async () => {
-		const queue = await worker();
-		await queueSchedulesRegister({
-			queue,
+	it("needs only a name and a cron", async () => {
+		await queueSchedulesSync({
+			databaseUrl,
+			env: {},
+			schedules: [{ cron: "0 3 * * *", name: "foo.stale-archive" }],
+		});
+
+		expect(await held()).toEqual({ "foo.stale-archive": "0 3 * * *" });
+	});
+
+	it("removes what is no longer in code, updates a changed cron, and keeps the package's own", async () => {
+		await worker();
+		await queueSchedulesSync({
+			databaseUrl,
+			env: {},
 			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
-			env: {},
 		});
 
-		await queueSchedulesRegister({
-			queue,
-			schedules: [schedule("foo.stale-archive")],
+		await queueSchedulesSync({
+			databaseUrl,
 			env: {},
+			schedules: [schedule("foo.stale-archive", "0 5 * * *")],
 		});
 
-		expect(await held(queue)).toEqual({
-			"foo.stale-archive": "0 3 * * *",
+		expect(await held()).toEqual({
+			"foo.stale-archive": "0 5 * * *",
 			"queue.inbox-prune": "0 4 * * *",
 		});
 	});
 
-	it("during a rollout, the version that registered last decides", async () => {
-		const old = await worker();
-		const next = await worker();
-
-		await queueSchedulesRegister({
-			queue: old,
-			schedules: [schedule("foo.report-send")],
+	it("applies a cron override, and off removes", async () => {
+		await queueSchedulesSync({
+			databaseUrl,
 			env: {},
-		});
-		await queueSchedulesRegister({
-			queue: next,
-			schedules: [schedule("foo.stale-archive")],
-			env: {},
-		});
-		expect(Object.keys(await held(next)).sort()).toEqual([
-			"foo.stale-archive",
-			"queue.inbox-prune",
-		]);
-
-		// An old instance that restarts mid-rollout puts its own list back until a new one boots.
-		await queueSchedulesRegister({
-			queue: old,
-			schedules: [schedule("foo.report-send")],
-			env: {},
-		});
-		expect(Object.keys(await held(next)).sort()).toEqual([
-			"foo.report-send",
-			"queue.inbox-prune",
-		]);
-	});
-
-	it("applies a cron override, and off unschedules", async () => {
-		const queue = await worker();
-		await queueSchedulesRegister({
-			queue,
 			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
-			env: {},
 		});
 
-		await queueSchedulesRegister({
-			queue,
-			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+		await queueSchedulesSync({
+			databaseUrl,
 			env: {
 				SCHEDULE_FOO_REPORT_SEND: "off",
 				SCHEDULE_FOO_STALE_ARCHIVE: "*/5 * * * *",
 			},
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
 		});
 
-		expect(await held(queue)).toEqual({
-			"foo.stale-archive": "*/5 * * * *",
-			"queue.inbox-prune": "0 4 * * *",
-		});
+		expect(await held()).toEqual({ "foo.stale-archive": "*/5 * * * *" });
 	});
 
 	it("reads overrides from a typed ENV proxy, and ignores items that are not strings", async () => {
-		const queue = await worker();
 		// Like varlock's ENV: no own keys, values only through the get trap, typed items.
 		const env = new Proxy(
 			{},
@@ -167,44 +142,119 @@ describe("queueSchedulesRegister", () => {
 					})[String(name)],
 			},
 		);
-		await queueSchedulesRegister({
-			queue,
-			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+		await queueSchedulesSync({
+			databaseUrl,
 			env,
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
 		});
 
-		expect(await held(queue)).toEqual({
+		expect(await held()).toEqual({
 			"foo.report-send": "0 3 * * *",
 			"foo.stale-archive": "*/5 * * * *",
-			"queue.inbox-prune": "0 4 * * *",
 		});
 	});
 
-	it("throws on a bad override, naming the variable, before registering anything", async () => {
-		const queue = await worker();
-
+	it("throws on a bad override, naming the variable, before changing anything", async () => {
 		await expect(
-			queueSchedulesRegister({
-				queue,
-				schedules: [schedule("foo.report-send"), schedule("foo.stale-archive")],
+			queueSchedulesSync({
+				databaseUrl,
 				env: { SCHEDULE_FOO_STALE_ARCHIVE: "every day" },
+				schedules: [schedule("foo.report-send"), schedule("foo.stale-archive")],
 			}),
 		).rejects.toThrow(
 			"Invalid cron for SCHEDULE_FOO_STALE_ARCHIVE: use a cron string or off",
 		);
-		expect(await held(queue)).toEqual({ "queue.inbox-prune": "0 4 * * *" });
+		expect(await held()).toEqual({});
 	});
 
 	it("throws on a bad cron in code, naming the schedule", async () => {
-		const queue = await worker();
-
 		await expect(
-			queueSchedulesRegister({
-				queue,
-				schedules: [schedule("foo.stale-archive", "61 * * * *")],
+			queueSchedulesSync({
+				databaseUrl,
 				env: {},
+				schedules: [schedule("foo.stale-archive", "61 * * * *")],
 			}),
 		).rejects.toThrow("Invalid cron for schedule foo.stale-archive");
+	});
+
+	it("refuses a URL that is not Postgres", async () => {
+		await expect(
+			queueSchedulesSync({ databaseUrl: "memory://", env: {}, schedules: [] }),
+		).rejects.toThrow("Invalid database URL");
+	});
+});
+
+describe("queueSchedulesStart", () => {
+	it("starts a worker for each schedule the database holds", async () => {
+		await queueSchedulesSync({
+			databaseUrl,
+			env: {},
+			schedules: [schedule("foo.stale-archive")],
+		});
+		const queue = await worker();
+
+		await queueSchedulesStart({
+			env: {},
+			queue,
+			schedules: [schedule("foo.stale-archive")],
+		});
+
+		expect(working(queue)).toContain("foo.stale-archive");
+	});
+
+	it("during a rollout, a worker that does not declare a schedule leaves it in place", async () => {
+		await queueSchedulesSync({
+			databaseUrl,
+			env: {},
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+		});
+		const old = await worker();
+
+		// The previous version boots late: it knows one Schedule less, another cron, and has one off.
+		await queueSchedulesStart({
+			env: { SCHEDULE_FOO_STALE_ARCHIVE: "off" },
+			queue: old,
+			schedules: [schedule("foo.stale-archive", "0 9 * * *")],
+		});
+
+		expect(await held()).toEqual({
+			"foo.report-send": "0 3 * * *",
+			"foo.stale-archive": "0 3 * * *",
+			"queue.inbox-prune": "0 4 * * *",
+		});
+		expect(working(old)).not.toContain("foo.stale-archive");
+	});
+
+	it("warns about a schedule the database does not hold, and does not start it", async () => {
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		const queue = await worker();
+
+		await queueSchedulesStart({
+			env: {},
+			queue,
+			schedules: [schedule("foo.stale-archive")],
+		});
+
+		expect(warn).toHaveBeenCalledExactlyOnceWith(
+			{ schedule: "foo.stale-archive" },
+			"Schedule is not in the database, so it will not run: run migrate",
+		);
+		expect(working(queue)).not.toContain("foo.stale-archive");
+		expect(await held()).toEqual({ "queue.inbox-prune": "0 4 * * *" });
+	});
+
+	it("skips a schedule that is turned off, without a warning", async () => {
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		const queue = await worker();
+
+		await queueSchedulesStart({
+			env: { SCHEDULE_FOO_STALE_ARCHIVE: "off" },
+			queue,
+			schedules: [schedule("foo.stale-archive")],
+		});
+
+		expect(warn).not.toHaveBeenCalled();
+		expect(working(queue)).not.toContain("foo.stale-archive");
 	});
 });
 

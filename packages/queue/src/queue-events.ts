@@ -24,7 +24,8 @@ export type EventsPublisher<M> = {
 // How Events travel between Domains. A composition root opens one (queueEventsCreate, or another
 // package's adapter) and nothing else names the transport.
 export type Events = {
-	// false once the transport has been unable to deliver for too long; report it on /livez.
+	// false only when this process's own receiving loop is stuck, which a restart fixes; report it
+	// on /livez. An outage of the transport itself never makes it false.
 	isAlive(): boolean;
 	// Every instance that may publish calls this at boot, so no Event is sent before its Consumers
 	// are known. Safe to repeat on any number of instances.

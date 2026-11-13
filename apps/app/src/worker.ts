@@ -1,6 +1,6 @@
 // Composition root for consumers and schedules; it never serves pages or the API.
 import { healthServerCreate } from "@n8io/baseline-health";
-import { queueSchedulesRegister } from "@n8io/baseline-queue";
+import { queueSchedulesStart } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
@@ -12,7 +12,7 @@ import {
 import { fooScheduleCreate } from "#domains/foo/api/index.ts";
 import { fooUseCasesCreate } from "#domains/foo/index.ts";
 import { fooPortsCreate } from "#domains/foo/spi/index.ts";
-import { ENV, envLocal } from "#env";
+import { ENV } from "#env";
 import { connectionsOpen } from "./connections.ts";
 
 let shutdown: ShutdownHandle | undefined;
@@ -22,6 +22,9 @@ const { events, queue } = connections;
 if (queue === "memory" || events === "memory") {
 	throw new Error("The worker needs a real queue");
 }
+// Liveness is this process only: false when its own poll loops are stuck, which a restart fixes.
+// A Postgres outage never fails it, so the Workers running ride a failover out. connectionsOpen
+// above is the startup check: it throws while Postgres is unreachable, so a new pod never gets ready.
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive() && events.isAlive(),
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
@@ -37,7 +40,8 @@ const fooUseCases = telemetryUseCasesTrace(
 await events.consumersStart([
 	// domain-create: consumers
 ]);
-await queueSchedulesRegister({
+// Starts the Schedules migrate has synced; it changes none of them.
+await queueSchedulesStart({
 	env: ENV,
 	queue,
 	schedules: [
@@ -47,7 +51,8 @@ await queueSchedulesRegister({
 });
 
 shutdown = shutdownHandleCreate({
-	drainDelayMs: envLocal ? 0 : 5_000,
+	// No load balancer sends the Worker traffic, so there is nothing to drain first.
+	drainDelayMs: 0,
 	intakes: connections.intakes,
 	resources: [
 		...connections.resources,

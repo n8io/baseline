@@ -6,7 +6,7 @@ import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 
 // pg-boss's TestClock needs a db adapter that runs session statements on every connection, which
 // the pgPool adapter does not; these proofs drive pg-boss directly with the settings
-// queueSchedulesRegister uses (exclusive policy, missed: "once", UTC).
+// queueSchedulesSync uses (exclusive policy, missed: "once", UTC).
 //
 // pg-boss runs a cron pass as it starts, and that pass sends any occurrence from the last 60 s
 // (its due window). scheduleRegister writes the schedule row before a start, so that pass always
