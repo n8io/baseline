@@ -14,7 +14,8 @@ const liveStreamBufferBytes = 64 * 1024;
 
 /**
  * An SSE response that sends a `ready` event once subscribed, then `{ type, id }`
- * for each live update on (channel, id). It sends a comment every 20 s and closes after 5 minutes, or
+ * for each live update on (channel, id). It sends `ready` again, 1–5 s after the hub
+ * says updates may have been lost, so the page revalidates. It sends a comment every 20 s and closes after 5 minutes, or
  * at `expiresAt` (epoch ms) if sooner, and when `liveHub.close()` runs; each
  * close sends a `retry:` of 1–5 s first. The page revalidates on reconnect.
  * Pass the request's `signal` so the stream also ends when the request is aborted. The response
@@ -60,6 +61,13 @@ export const liveStreamCreate = ({
 			write(": heartbeat\n\n");
 		}, liveHeartbeatMs);
 		let unlisten = (): void => {};
+		let resyncTimer: NodeJS.Timeout | undefined;
+		// EventSource's open fires on the headers, before this subscribe is
+		// done; the page revalidates on this event instead, so no update
+		// falls between its loader run and the subscribe.
+		const ready = (): void => {
+			write("event: ready\ndata: \n\n");
+		};
 		try {
 			if (streams.isClosed() || aborted) return;
 			const listening = streams.listen({
@@ -68,23 +76,26 @@ export const liveStreamCreate = ({
 				listener: (update) => {
 					write(`data: ${JSON.stringify(update)}\n\n`);
 				},
+				// Spread like a reconnect, so a Redis failover does not rerun every loader at once.
+				resync: () => {
+					clearTimeout(resyncTimer);
+					resyncTimer = setTimeout(ready, liveRetryMs());
+				},
 			});
 			// Never let a slow subscribe hold up close() or the lifetime.
-			const ready = await Promise.race([listening, stop.promise]);
-			if (ready === undefined) {
+			const listened = await Promise.race([listening, stop.promise]);
+			if (listened === undefined) {
 				listening.then((late) => late()).catch(() => undefined);
 				return;
 			}
-			unlisten = ready;
-			// EventSource's open fires on the headers, before this subscribe is
-			// done; the page revalidates on this event instead, so no update
-			// falls between its loader run and the subscribe.
-			write("event: ready\ndata: \n\n");
+			unlisten = listened;
+			ready();
 			await stop.promise;
 		} catch (err) {
 			logger.error({ err }, "Live stream failed to subscribe");
 		} finally {
 			unlisten();
+			clearTimeout(resyncTimer);
 			clearTimeout(lifetime);
 			clearInterval(heartbeat);
 			signal?.removeEventListener("abort", abort);

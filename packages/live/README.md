@@ -8,12 +8,12 @@ pnpm add @n8io/baseline-live
 
 ## Exports
 
-- `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data. `await using` calls `close()` when its block ends.
+- `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data. `send` is best effort and never rejects: see [When Redis is down](#when-redis-is-down). `await using` calls `close()` when its block ends.
 - `liveHubRedisCreate({ redisClient })`: a hub on Redis pub/sub, for more than one instance.
 - `liveHubMemoryCreate()`: a hub in one process, for unit tests and `memory://`.
-- `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.
+- `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It sends `ready` once subscribed, and again when the hub may have lost updates. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.
 - `@n8io/baseline-live/testing`: `liveTestSseRead({ response })`, which reads a live stream in a test. See [Testing](#testing).
-- `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix })`, a React hook that revalidates the page on each update and on every reconnect. It opens `<pathPrefix>/<channel>/<id>`; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.
+- `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix })`, a React hook that revalidates the page on each update, on every reconnect and on every `ready`. It opens `<pathPrefix>/<channel>/<id>`; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.
 
 ## Example
 
@@ -33,7 +33,7 @@ app.get("/live/foo/:fooId", (c) => {
 	return c.newResponse(live.body, live);
 });
 
-// After a change commits:
+// After a change commits. No catch: a send never rejects.
 await liveHub.send("foo", { id: foo.id, type: "foo.updated" });
 ```
 
@@ -43,6 +43,13 @@ import { useLiveUpdates } from "@n8io/baseline-live/client";
 
 useLiveUpdates({ channel: "foo", id: foo.id });
 ```
+
+## When Redis is down
+
+A live update is a hint to reread, not data, so losing one never fails the change that caused it:
+
+- `send` resolves when Redis fails or does not answer within 1 s. Each lost update is counted on `baseline.live.sends_failed` (by `baseline.live.channel`), and logged as one warning per 30 s per hub.
+- Redis pub/sub does not replay what a subscriber missed. When a hub's subscriber connection comes back, every stream it holds sends `ready` again, spread over 1 to 5 s, and each page reruns its loaders. So a page is stale for the length of the outage and then catches up, without a reload.
 
 ## Testing
 
@@ -78,7 +85,7 @@ await liveHub.close();
 
 ## Needs
 
-- Peers: `redis` unless you only use `liveHubMemoryCreate`; `react` and `react-router` only for `@n8io/baseline-live/client`. A service that only sends or streams updates installs neither.
+- Peers: `@opentelemetry/api`, for the counter (it does nothing until your app registers a meter provider); `redis` unless you only use `liveHubMemoryCreate`; `react` and `react-router` only for `@n8io/baseline-live/client`. A service that only sends or streams updates installs neither.
 - `liveHubRedisCreate` takes any connected node-redis client, such as the one the Template's `src/redis.ts` opens.
 
 ## Tests
