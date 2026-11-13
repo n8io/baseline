@@ -38,7 +38,7 @@ Tests assert with `expect()` only: `expect.requireAssertions` does not count cha
 
 This doc loads only when the task needs it. Read it before you start.
 
-- Adding or changing what a Package exports (a factory, an option, a schema, a handle to close, a test helper, a span): [docs/agents/packages.md](docs/agents/packages.md)
+- Working in `packages/` (a factory, an option, a schema, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
 
 ## Walkthroughs
 

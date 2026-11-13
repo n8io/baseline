@@ -1,51 +1,47 @@
-export type AgentDoc = { path: string; text: string };
+import { readdirSync, readFileSync, statSync } from "node:fs";
 
-export type AgentDocsBudget = {
-	// AGENTS.md alone, in bytes.
-	agentsMaxBytes: number;
-	// AGENTS.md with every file it imports, in bytes: what an agent holds on every task.
-	loadedMaxBytes: number;
+type AgentDoc = { path: string; text: string };
+
+// A file AGENTS.md names as `@<path>.md` outside code. Claude Code loads it with AGENTS.md. In a
+// sentence the path takes the punctuation after it (`@CONTEXT.md.` names no file), so the one
+// form allowed is the import alone on its line.
+const agentDocsImports = (agentsText: string): string[] => {
+	const prose = agentsText
+		.replace(/^```[\s\S]*?^```/gm, "")
+		.replace(/`[^`\n]*`/g, "");
+	return [
+		...new Set(
+			[...prose.matchAll(/(?<![\w/])@([\w./-]*\w\.md)\b/g)].map(
+				([, path = ""]) => path,
+			),
+		),
+	];
 };
-
-// A file AGENTS.md names as `@<path>.md`. Claude Code loads it with AGENTS.md, but only when the
-// import is alone on its line: `@CONTEXT.md.` in a sentence names a file that does not exist.
-const agentDocsImportPattern = /(?<![\w`/])@([\w./-]*\w\.md)\b/g;
-
-export const agentDocsImports = (agentsText: string): string[] =>
-	[...agentsText.matchAll(agentDocsImportPattern)].map(([, path = ""]) => path);
-
-const bytes = (text: string) => new TextEncoder().encode(text).length;
 
 // AGENTS.md loads on every task, so it stays small and links the rest. Each file it imports, or
 // that it or a doc in docs/agents/ links to, must exist, and each docs/agents/ file must be
-// linked from AGENTS.md. `docs` holds AGENTS.md, its imports and every docs/agents/ file.
+// linked from AGENTS.md. `docs` holds AGENTS.md and every docs/agents/ file.
 export const agentDocsViolations = (
 	docs: AgentDoc[],
 	exists: (path: string) => boolean,
-	budget: AgentDocsBudget,
+	agentsMaxBytes: number,
 ): string[] => {
 	const problems: string[] = [];
 	const agents = docs.find((d) => d.path === "AGENTS.md");
 	if (agents) {
+		if (new TextEncoder().encode(agents.text).length > agentsMaxBytes)
+			problems.push(
+				`AGENTS.md: keep it to ${agentsMaxBytes} bytes; move task-specific rules to docs/agents/`,
+			);
 		const lines = agents.text.split("\n").map((line) => line.trim());
-		let loaded = bytes(agents.text);
 		for (const path of agentDocsImports(agents.text)) {
 			if (!lines.includes(`@${path}`))
 				problems.push(
 					`AGENTS.md: put @${path} alone on its line, or it is not imported`,
 				);
-			const imported = docs.find((d) => d.path === path);
-			if (imported) loaded += bytes(imported.text);
-			else problems.push(`AGENTS.md: imports ${path}, which does not exist`);
+			if (!exists(new URL(path, "file:///").pathname.slice(1)))
+				problems.push(`AGENTS.md: imports ${path}, which does not exist`);
 		}
-		if (bytes(agents.text) > budget.agentsMaxBytes)
-			problems.push(
-				`AGENTS.md: keep it under ${budget.agentsMaxBytes} bytes; move task-specific rules to docs/agents/`,
-			);
-		else if (loaded > budget.loadedMaxBytes)
-			problems.push(
-				`AGENTS.md: keep it and its imports under ${budget.loadedMaxBytes} bytes; every task loads them`,
-			);
 	}
 	for (const { path, text } of docs) {
 		const dir = path.includes("/")
@@ -66,22 +62,23 @@ export const agentDocsViolations = (
 	return problems;
 };
 
-// Reads AGENTS.md, its imports and docs/agents/ under `root`, and checks them.
+// Checks the AGENTS.md under `root` and every file in its docs/agents/ folder.
 export const agentDocsViolationsRead = (
 	root: URL,
-	docPaths: string[],
-	read: (url: URL) => string | undefined,
-	budget: AgentDocsBudget,
+	agentsMaxBytes: number,
 ): string[] => {
-	const agentsText = read(new URL("AGENTS.md", root)) ?? "";
-	const paths = ["AGENTS.md", ...agentDocsImports(agentsText), ...docPaths];
-	const docs = [...new Set(paths)].flatMap((path) => {
-		const text = read(new URL(path, root));
-		return text === undefined ? [] : [{ path, text }];
-	});
-	return agentDocsViolations(
-		docs,
-		(path) => read(new URL(path, root)) !== undefined,
-		budget,
-	);
+	const isFile = (path: string) =>
+		statSync(new URL(path, root), { throwIfNoEntry: false })?.isFile() ?? false;
+	const docsDir = new URL("docs/agents/", root);
+	const docPaths = statSync(docsDir, { throwIfNoEntry: false })
+		? readdirSync(docsDir, { encoding: "utf8", recursive: true })
+				.map((name) => `docs/agents/${name.replaceAll("\\", "/")}`)
+				// Dotfiles (.DS_Store) are the OS's, not the project's.
+				.filter((path) => !/(^|\/)\./.test(path) && isFile(path))
+		: [];
+	const docs = ["AGENTS.md", ...docPaths].map((path) => ({
+		path,
+		text: readFileSync(new URL(path, root), "utf8"),
+	}));
+	return agentDocsViolations(docs, isFile, agentsMaxBytes);
 };

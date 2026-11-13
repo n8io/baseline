@@ -1,6 +1,6 @@
 # Package rules
 
-Read before adding or changing what a Package exports: a factory, an option, a schema, a handle to close, a test helper or a span.
+Read before working in `packages/`: on a factory, an option, a schema, a handle to close, a test or a span.
 
 ## Vendors
 

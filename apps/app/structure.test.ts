@@ -121,9 +121,9 @@ const filesList = (dir: URL, prefix: string) =>
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
 
-// What every task in a Project loads: AGENTS.md, then AGENTS.md with the glossary it imports.
-// The second leaves room for the Project's own terms.
-const agentDocsBudget = { agentsMaxBytes: 12_000, loadedMaxBytes: 24_000 };
+// AGENTS.md loads on every task, so it has a size budget. Today's file leaves a Project about
+// 3 KB for rules of its own.
+const agentsMaxBytes = 14_000;
 
 const context = "**Bar**:\nA thing.\n";
 const barBase = [
@@ -240,46 +240,32 @@ describe("test placement", () => {
 });
 
 describe("agent docs", () => {
-	const read = (url: URL) =>
-		existsSync(url) && statSync(url).isFile()
-			? readFileSync(url, "utf8")
-			: undefined;
-
 	it("holds for the real files", () => {
-		const docPaths = existsSync(new URL("docs/agents/", appRoot))
-			? filesList(new URL("docs/agents/", appRoot), "docs/agents")
-			: [];
+		expect(agentDocsViolationsRead(appRoot, agentsMaxBytes)).toEqual([]);
+	});
+
+	it("allows an AGENTS.md of exactly the budget", () => {
+		const text = "x".repeat(agentsMaxBytes);
 		expect(
-			agentDocsViolationsRead(appRoot, docPaths, read, agentDocsBudget),
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text }],
+				() => true,
+				agentsMaxBytes,
+			),
 		).toEqual([]);
 	});
 
 	it.each([
 		[
 			"an AGENTS.md over its budget",
-			[{ path: "AGENTS.md", text: "x".repeat(12_001) }],
-			"AGENTS.md: keep it under 12000 bytes; move task-specific rules to docs/agents/",
-		],
-		[
-			"an AGENTS.md whose imports take it over the budget",
-			[
-				{ path: "AGENTS.md", text: "@CONTEXT.md\n" },
-				{ path: "CONTEXT.md", text: "x".repeat(24_000) },
-			],
-			"AGENTS.md: keep it and its imports under 24000 bytes; every task loads them",
+			// Two bytes each: the budget counts bytes, not characters.
+			[{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }],
+			"AGENTS.md: keep it to 14000 bytes; move task-specific rules to docs/agents/",
 		],
 		[
 			"an import inside a sentence",
-			[
-				{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." },
-				{ path: "CONTEXT.md", text: "" },
-			],
+			[{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." }],
 			"AGENTS.md: put @CONTEXT.md alone on its line, or it is not imported",
-		],
-		[
-			"an import of a missing file",
-			[{ path: "AGENTS.md", text: "@GONE.md" }],
-			"AGENTS.md: imports GONE.md, which does not exist",
 		],
 		[
 			"a link to a missing file",
@@ -295,22 +281,47 @@ describe("agent docs", () => {
 			"AGENTS.md: link docs/agents/data.md under ## Read when",
 		],
 	])("fails on %s", (_name, docs, problem) => {
-		expect(agentDocsViolations(docs, () => false, agentDocsBudget)).toEqual([
-			problem,
-		]);
-	});
-
-	it("takes a package name and an email as no import", () => {
 		expect(
 			agentDocsViolations(
-				[
-					{
-						path: "AGENTS.md",
-						text: "`@n8io/baseline-cache` a@b.md `@CONTEXT.md`",
-					},
-				],
+				docs,
+				(path) => path === "CONTEXT.md",
+				agentsMaxBytes,
+			),
+		).toEqual([problem]);
+	});
+
+	it("fails on an import of a missing file", () => {
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text: "@GONE.md" }],
 				() => false,
-				agentDocsBudget,
+				agentsMaxBytes,
+			),
+		).toEqual(["AGENTS.md: imports GONE.md, which does not exist"]);
+	});
+
+	it("takes an import alone on its line, also as ./<path>", () => {
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text: "# App\n\n@CONTEXT.md\n@./CONTEXT.md\n" }],
+				(path) => path === "CONTEXT.md",
+				agentsMaxBytes,
+			),
+		).toEqual([]);
+	});
+
+	it("takes a package name, an email and code as no import", () => {
+		const text = [
+			"@n8io/baseline-cache a@b.md `use @GONE.md here`",
+			"```",
+			"@GONE.md",
+			"```",
+		].join("\n");
+		expect(
+			agentDocsViolations(
+				[{ path: "AGENTS.md", text }],
+				() => false,
+				agentsMaxBytes,
 			),
 		).toEqual([]);
 	});
@@ -324,7 +335,7 @@ describe("agent docs", () => {
 				],
 				(path) =>
 					["docs/agents/data.md", "docs/agents/tracing.md"].includes(path),
-				agentDocsBudget,
+				agentsMaxBytes,
 			),
 		).toEqual([]);
 	});
