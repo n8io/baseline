@@ -72,7 +72,7 @@ Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
     - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- One input, or two strongly coupled required inputs, may stay positional. Three or more inputs, or any optional input, take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so keep those to the rule by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library.
+- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so keep those to the rule by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 

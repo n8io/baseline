@@ -27,7 +27,7 @@ Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md]
 
 ## Function inputs
 
-One input, or two strongly coupled required inputs, may stay positional. Three or more inputs, or any optional input, take one typed input object (`?: T | null` for optional fields). Biome's `useMaxParams` (max 2) catches functions; it misses `export default function` and type signatures (ports, method types), so keep those to the rule by hand.
+One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`?: T | null` for optional fields). Biome's `useMaxParams` (max 2) catches functions; it misses `export default function` and type signatures (ports, method types), so keep those to the rule by hand.
 
 ## Tests
 
