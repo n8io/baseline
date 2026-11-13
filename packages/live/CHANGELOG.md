@@ -1,5 +1,15 @@
 # @n8io/baseline-live
 
+## 4.0.0
+
+### Major Changes
+
+- dc8c9de: live no longer depends on `@n8io/baseline-cache`, so a project can install live without cache. `liveHubRedisCreate` takes any connected node-redis client, including the one `cacheRedisClientCreate` returns, and owns its own timeout. cache no longer exports `cacheTimeLimit`; copy the few lines into your code if you used it.
+
+### Minor Changes
+
+- f86d684: `react` and `react-router` are now optional peers, needed only for `@n8io/baseline-live/client`, so a service that only sends or streams live updates can install live without React. `useLiveUpdates` takes an optional `{ pathPrefix }` (default `/live`) for a Project that mounts the streams elsewhere.
+
 ## 3.0.0
 
 ### Major Changes

@@ -1,5 +1,25 @@
 # @n8io/baseline-postgres
 
+## 2.0.0
+
+### Major Changes
+
+- 1cc11af: Exports follow the full naming rule: factories end in `Create`, predicates end in `Is`, `Has` or `Can`, and every export starts with its package's name. No old names remain as aliases. Rename these imports:
+  - authn: `authnRoutes` → `authnRoutesCreate`, `authnMiddleware` → `authnMiddlewareCreate`.
+  - http: `httpErrorResponses` → `httpErrorResponsesCreate`, `httpErrorBody` → `httpErrorBodyCreate`, `httpProblemSchema` → `httpProblemSchemaCreate`.
+  - id: `idSchema` → `idSchemaCreate`.
+  - postgres: `postgresIdColumn` → `postgresIdColumnCreate`, `postgresTransaction` → `postgresTransactionRun`, `postgresUniqueViolation` → `postgresUniqueViolationIs`.
+  - queue: `consumerCreate` → `queueConsumerCreate`, `consumersStart` → `queueConsumersStart`, `consumersSubscribe` → `queueConsumersSubscribe`, `scheduleCreate` → `queueScheduleCreate`, `schedulesRegister` → `queueSchedulesRegister`.
+  - shutdown: `shutdownHandle` → `shutdownHandleCreate`.
+- 17d5d09: `postgresPortsGuard`, `postgresCursorEncode`, `postgresCursorDecode` and `PostgresCursor` move out of `@n8io/baseline-postgres` into the Template, because the memory adapters use them too and none of them touches Postgres. They are now `transactionPortsGuard` in `src/transaction-ports-guard.ts` and `cursorEncode`, `cursorDecode` and `Cursor` in `src/cursor.ts`. When you upgrade, copy both files from the Template. In each Domain's `spi/*-transaction.memory.ts` and `spi/*-transaction.postgres.ts`, import `transactionPortsGuard` from `../../../transaction-ports-guard.ts`; in `spi/*-repository.memory.ts` and `spi/*-repository.postgres.ts`, import `cursorEncode` and `cursorDecode` from `../../../cursor.ts`.
+
+### Patch Changes
+
+- Updated dependencies [5985c99]
+- Updated dependencies [1cc11af]
+  - @n8io/baseline-result@1.1.1
+  - @n8io/baseline-id@2.0.0
+
 ## 1.2.0
 
 ### Minor Changes

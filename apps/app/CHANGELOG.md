@@ -1,5 +1,81 @@
 # app
 
+## 3.0.0
+
+### Major Changes
+
+- 8903db0: The Template takes `@n8io/baseline-authn`'s React Router exports from its new `/react-router` subpath, and passes `memoryIssuerAllowed: envLocal` to `authnCreate`. When you upgrade, import `actorContext` and `authnExpiryContext` from `@n8io/baseline-authn/react-router`, replace `authnActorRequire(args)` in loaders and actions with `authnPageActorRequire(args)` from the same subpath, and add `memoryIssuerAllowed: envLocal` to your `authnCreate` call.
+- 1cc11af: The Template follows the full naming rule, and architecture rule A23 now checks all of it: an exported function in a Domain starts with the Domain's name, a factory ends in `Create`, and a predicate ends in `Is`, `Has` or `Can`. `ci.yml` calls `app-ci.yml@v3` and `dependabot-automerge.yml@v3`.
+
+  When you upgrade, rename in each of your Domains what `pnpm domain-create` generated from `foo`:
+  - `<domain>Routes`, `<domain>LiveRoutes`, `<domain>Schedule` → add `Create`.
+  - `<domain>RepositoryPostgres`, `<domain>RepositoryMemory`, `<domain>CacheRedis`, `<domain>CacheMemory`, `<domain>TransactionPostgres`, `<domain>TransactionMemory`, `<domain>PortsMemory` → add `Create`.
+  - Rules: `<domain>Deletable` → `<domain>DeleteCan` in `rules/<domain>-delete-can.ts`, `<domain>Updatable` → `<domain>UpdateCan` in `rules/<domain>-update-can.ts`, `<domain>Stale` → `<domain>StaleIs` in `rules/<domain>-stale-is.ts`.
+  - `use-cases/<domain>-use-cases-create.ts` → `use-cases/<domain>-use-cases.ts`.
+  - `authnProviderOptions` in `src/authn.ts` → `authnProviderOptionsCreate`.
+
+  Then rename the package imports listed in the package changelogs, and run `pnpm check`: A23 names anything you missed.
+- e5b29e0: The Template carries half as many piece blocks (85 by `git grep -c piece-start`, down from 193, and none above 5 in a file). The composition roots open every connection through `connectionsOpen(ENV, role)` in the new `src/connections.ts`, which calls one file per piece (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`) and returns the shutdown steps too. Each Domain tests its cache, live updates and Events in files of their own (`use-cases/<domain>-use-cases-<piece>.test.ts`, `spi/index-queue.test.ts`), so the shared tests carry no blocks. Behaviour is unchanged.
+
+  Upgrading changes every Domain. In each one:
+  - `spi/index.ts`: `<domain>PortsCreate(connections: Connections)` takes the object `connectionsOpen` returns. The cache reads `connections.redis` instead of an option named `cache`; `database`, `queue` and `liveHub` keep their names.
+  - `ports.ts`: the cache, live updates and Events port types sit inline in `<Domain>Ports` and `<Domain>TransactionPorts`; the separate `<Domain>Cache`, `<Domain>LiveUpdates` and `<Domain>Events` types are gone. Name them as `<Domain>Ports["<domain>Cache"]` where you need them.
+  - `index.ts` re-exports its errors, models and port types with `export *`.
+  - `spi/<domain>-ports.memory.ts` returns `{ ports, state }`; committed Events are in `state.published`, and the memory live updates port sends nothing.
+  - The get, update and delete Use cases take the whole `<Domain>Ports`.
+
+  In `src/server.ts`, `src/worker.ts` and `src/seed.ts`, replace the Redis, queue and live hub setup, the `ports` object and their shutdown entries with `const connections = await connectionsOpen(ENV, "publisher")` (`"worker"` in the Worker), pass `connections` to each `<domain>PortsCreate`, and spread `connections.intakes` and `connections.resources` into the shutdown lists. `pnpm domain-create` and `pnpm piece-remove` handle the new files.
+- 17d5d09: `postgresPortsGuard`, `postgresCursorEncode`, `postgresCursorDecode` and `PostgresCursor` move out of `@n8io/baseline-postgres` into the Template, because the memory adapters use them too and none of them touches Postgres. They are now `transactionPortsGuard` in `src/transaction-ports-guard.ts` and `cursorEncode`, `cursorDecode` and `Cursor` in `src/cursor.ts`. When you upgrade, copy both files from the Template. In each Domain's `spi/*-transaction.memory.ts` and `spi/*-transaction.postgres.ts`, import `transactionPortsGuard` from `../../../transaction-ports-guard.ts`; in `spi/*-repository.memory.ts` and `spi/*-repository.postgres.ts`, import `cursorEncode` and `cursorDecode` from `../../../cursor.ts`.
+
+### Minor Changes
+
+- 6764931: `httpCsrf` wraps Hono's `csrf()` for cookie-authenticated routes: a form, multipart or text POST answers a 403 `Forbidden` problem unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin (https when `x-forwarded-proto` says so). The app runs it on every route except `/api/*`, which uses bearer tokens, so a cross-site post to a page action or to `/auth/sign-out` no longer relies on `SameSite=Lax` alone. A TLS-terminating proxy must set `x-forwarded-proto: https`.
+- 226d3b7: `pnpm dev` starts Postgres and Redis itself (`docker compose up -d --wait`), and the Worker restarts when a file it imports changes (`node --watch`), so an edited Consumer or Schedule takes effect without a manual restart.
+- 5f822bc: `pnpm piece-remove <piece>` removes a piece of the stack (`ui`, `live`, `cache`, `redis` or `queue`) in one command: its files and blocks, its packages and the imports nothing uses any more. It refuses a tree with uncommitted changes and an order that cannot work, such as `redis` before the cache and live updates, and prints the next steps. `docs/agents/pieces.md` now names the one command per piece instead of shell blocks; adding a piece back is still `git revert` of its "Remove <piece>" commit.
+- ff5f930: A Project can now remove the cache, and then Redis, with the steps in `docs/agents/pieces.md`. The cache and live updates are separate pieces: removing the cache keeps live updates on Redis, and Redis goes only once both are gone. The composition roots open Redis with the new `src/redis.ts` (`redisClientCreate`) instead of `cacheRedisClientCreate`, so live updates no longer need `@n8io/baseline-cache`; their shutdown step is now named `redis`. Integration tests no longer pass `cacheUrl` to `productionServerStart` or `workerStart`: `production-server.ts` reads it from the global setup itself.
+- 2227ab4: A Project can now remove the queue and the Worker with the steps in `docs/agents/pieces.md`: each Domain's Events and Schedules, `src/worker.ts`, its compose service, its image entry and the `SCHEDULE_*` overrides go together, and each Domain's transaction becomes a plain Postgres transaction. `pnpm domain-create` leaves them out of new Domains once `@n8io/baseline-queue` is gone. Removing the UI pages now edits the `dev` script in place instead of replacing it, so the two removals work in either order.
+- 36477f3: A Project can now remove the UI pages or live updates. `docs/agents/pieces.md` lists the exact steps for each, and CI runs them on a fresh render to prove an API-only Project still passes check, unit tests and build and serves its API. The code each piece owns sits in `// piece-start: <piece>` to `// piece-end: <piece>` blocks, `pnpm domain-create` leaves a removed piece out of new Domains, and `src/server.ts` now exports its Hono `app`. The cache and the queue are not removable yet (#217, #218).
+
+### Patch Changes
+
+- ecc4ac7: An `/api/v1` request without a signed-in Actor now answers 401 before any route validates its input, so an anonymous caller no longer learns the API's input shape from 400 errors. `/api/v1/openapi.json` stays public.
+- 5985c99: Docs match the code: the telemetry README shows the one preload file the Template uses (no `--experimental-loader`), the result README shows errors as `Error` subclasses with a `type` field, the queue Consumer example passes a machine Actor, the glossary adds Inbox and Repository, and `grafana/otel-lgtm` is pinned to a version tag.
+- da55733: `glossary-check` takes the glossary and the tree to scan (`pnpm glossary-check [glossary] [tree]`, defaults `CONTEXT.md` and `.`), and no longer flags an alias inside a path or script name such as `test/integration` or `test:integration`.
+- 1e03649: Integration tests no longer fail now and then because a production server exits at startup. Each Vitest worker now takes the ports for the servers it starts from its own block below the kernel's ephemeral range. Before, it asked the kernel for a free port and released it, and another process could take that port before the server bound it. A server that exits before it is ready now fails the test with its exit code, signal, stdout and stderr, and the server under test logs at `fatal`, so its crash log is in that report.
+- 11e525b: Move `autoInstallPeers: false` from `.npmrc`, which pnpm 12 ignores for non-auth settings, to `pnpm-workspace.yaml`, and delete `.npmrc`. Projects that upgrade lose `.npmrc` and the Dockerfile stops copying it; keep only auth and registry lines in any `.npmrc` you add.
+- 2c71490: A Domain's Postgres repository test drops its per-test databases in parallel, so the drops share one Postgres checkpoint instead of waiting on one each, and the integration project's `hookTimeout` is 30 s as a guard. A slow checkpoint no longer times out the file's `afterAll`. To pick it up in an existing Domain, copy the `closes` and `drops` lines from the Template's repository test into yours.
+- 80f3783: The preload registers the OpenTelemetry ESM loader hook in-thread with `register()` from `import-in-the-middle/register-hooks.mjs` (`module.registerHooks`), so Node 26 no longer prints `[DEP0205] module.register() is deprecated` at startup. To match in your Project, replace `@opentelemetry/instrumentation` with `import-in-the-middle` (`^3.6.0`) in package.json and change `src/preload.ts` to:
+
+  ```ts
+  import { register } from "import-in-the-middle/register-hooks.mjs";
+    register();
+  await import("@n8io/baseline-telemetry/register");
+  ```
+
+  `@n8io/baseline-telemetry` no longer lists `@opentelemetry/instrumentation` as a direct dependency; its instrumentations still bring it.
+- 0490322: `src/server-wiring.test.ts` proves the security guards with any pieces removed: the CSP and secure headers on every kind of response, `httpCsrf` on every `/auth` post, the `__Host-` session cookie, and 401 on every anonymous `/api/v1` operation before its route reads the body.
+- bbdef54: The server reports ready on `/readyz` only once it is listening on `PORT`. Before, it marked itself ready as soon as it asked to listen, so a server about to crash on `EADDRINUSE` could answer `/readyz` 200 for a moment. A listen error now always ends in a logged crash and exit code 1 without a ready report, and the `Server listening and ready` log line marks the moment. The API-only server from `docs/agents/pieces.md` gets the same order, since it reports ready from the same listener.
+- 40f92f9: A new Project now starts with the Template's own `pnpm-lock.yaml`, so its first install takes the versions the release was tested with instead of resolving every range fresh. A fresh resolution could fail on the day a dependency shipped: `minimumReleaseAge` let a package through whose platform binaries were published minutes later and were still too new. `pnpm template-upgrade` leaves a Project's lockfile alone; the next install updates only the ranges the release changed.
+- b0fb22e: `docs/agents/template-upgrade.md` and `docs/agents/dependency-updates.md` walk a person through a Template upgrade and through dependency updates one step at a time. Ask your agent: "Walk me through a template upgrade with docs/agents/template-upgrade.md."
+- Updated dependencies [8903db0]
+- Updated dependencies [6764931]
+- Updated dependencies [5985c99]
+- Updated dependencies [dc8c9de]
+- Updated dependencies [f86d684]
+- Updated dependencies [1cc11af]
+- Updated dependencies [80f3783]
+- Updated dependencies [17d5d09]
+  - @n8io/baseline-authn@3.0.0
+  - @n8io/baseline-http@2.0.0
+  - @n8io/baseline-telemetry@1.2.1
+  - @n8io/baseline-result@1.1.1
+  - @n8io/baseline-queue@4.0.0
+  - @n8io/baseline-live@4.0.0
+  - @n8io/baseline-cache@4.0.0
+  - @n8io/baseline-id@2.0.0
+  - @n8io/baseline-postgres@2.0.0
+  - @n8io/baseline-shutdown@3.0.0
+
 ## 2.0.0
 
 ### Major Changes
