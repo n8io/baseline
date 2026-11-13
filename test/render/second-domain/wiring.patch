@@ -369,4 +369,4 @@ index b7558a7..b8e0d91 100644
 +	invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
  	// domain-create: consumers
  ]);
- await queueSchedulesRegister(
+ await queueSchedulesRegister({

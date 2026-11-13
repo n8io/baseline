@@ -15,20 +15,20 @@ const billingOrderPlacedConsumerActor: Actor = {
 	scopes: ["billing:invoice-create"],
 };
 export const billingOrderPlacedConsumerCreate = (u: BillingUseCases) =>
-	queueConsumerCreate(
-		"billing.order-placed",
-		"order.placed",
-		orderPlaced,
-		(event, inbox) =>
-			u.invoiceCreate(
-				billingOrderPlacedConsumerActor,
-				{ customerId: event.customerId, amountCents: event.totalCents },
+	queueConsumerCreate({
+		queueName: "billing.order-placed",
+		eventName: "order.placed",
+		schema: orderPlaced,
+		run: (event, inbox) =>
+			u.invoiceCreate(billingOrderPlacedConsumerActor, {
+				amountCents: event.totalCents,
+				customerId: event.customerId,
 				inbox,
-			),
-	);
+			}),
+	});
 ```
 
-- Delivery is at least once. The Use case takes `inbox` as its last argument and passes it to its transaction port: `billingTransaction(work, inbox)`.
+- Delivery is at least once. The Use case takes `inbox` in its input and passes it to its transaction port: `billingTransaction(work, inbox)`.
 - The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
 - Such a Use case returns `Result<void, E>`.
 - Publish an Event only inside the Use case's transaction, through the domain's `<domain>Events` port.

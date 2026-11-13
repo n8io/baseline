@@ -28,7 +28,9 @@ export const queueInboxPruneName = "queue.inbox-prune";
 
 // Daily, in the worker: deletes inbox rows older than 30 days.
 export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
-	await queueWithDeadLetterCreate(boss, queueInboxPruneName, {
+	await queueWithDeadLetterCreate({
+		boss,
+		name: queueInboxPruneName,
 		policy: "exclusive",
 	});
 	await boss.schedule(queueInboxPruneName, "0 4 * * *", null, {
@@ -37,13 +39,17 @@ export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
 	});
 	await boss.work(queueInboxPruneName, async (jobs) => {
 		for (const job of jobs) {
-			await queueJobRun(queueInboxPruneName, job, async () => {
-				await boss
-					.getDb()
-					.executeSql(
-						"DELETE FROM queue.inbox WHERE created_at < now() - interval '30 days'",
-					);
-				return ok(undefined);
+			await queueJobRun({
+				queueName: queueInboxPruneName,
+				job,
+				work: async () => {
+					await boss
+						.getDb()
+						.executeSql(
+							"DELETE FROM queue.inbox WHERE created_at < now() - interval '30 days'",
+						);
+					return ok(undefined);
+				},
 			});
 		}
 	});

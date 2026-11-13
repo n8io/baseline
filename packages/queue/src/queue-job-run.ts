@@ -21,11 +21,15 @@ const deadLettersCounter = (): Counter => {
 // retries and, after the last attempt, moves to the dead-letter queue. The counter sees only those
 // throws: jobs pg-boss fails itself (expired, or still active after the 15 s stop grace) skip it,
 // and pg-boss's pgboss.queue.jobs gauge shows every `<name>.dead` queue's size.
-export const queueJobRun = async (
-	queueName: string,
-	job: { retryCount: number },
-	work: () => Promise<Result<unknown, { type: string }>>,
-): Promise<void> => {
+export const queueJobRun = async ({
+	job,
+	queueName,
+	work,
+}: {
+	job: { retryCount: number };
+	queueName: string;
+	work: () => Promise<Result<unknown, { type: string }>>;
+}): Promise<void> => {
 	let result: Result<unknown, { type: string }>;
 	try {
 		result = await work();

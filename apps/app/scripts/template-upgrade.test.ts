@@ -80,7 +80,9 @@ describe("templateUpgradeRun", () => {
 		const pnpm = vi.fn();
 		const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		expect(await templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(0);
+		expect(
+			await templateUpgradeRun({ appDirectory: app, to: "1.1.0", tools, pnpm }),
+		).toBe(0);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toBe(
 			"ONE\ntwo\nthree\n4\nfive\n",
 		);
@@ -107,7 +109,9 @@ describe("templateUpgradeRun", () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		expect(await templateUpgradeRun(app, "1.1.0", tools, pnpm)).toBe(1);
+		expect(
+			await templateUpgradeRun({ appDirectory: app, to: "1.1.0", tools, pnpm }),
+		).toBe(1);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toMatch(
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
@@ -133,7 +137,14 @@ describe("templateUpgradeRun", () => {
 					: tools.fetch(version),
 		};
 
-		expect(await templateUpgradeRun(app, "1.2.0", withOwn, vi.fn())).toBe(0);
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.2.0",
+				tools: withOwn,
+				pnpm: vi.fn(),
+			}),
+		).toBe(0);
 		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("own\n");
 	});
 
@@ -143,7 +154,14 @@ describe("templateUpgradeRun", () => {
 		writeFileSync(join(app, "src/a.ts"), "dirty\n");
 		const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		expect(await templateUpgradeRun(app, "1.1.0", tools, vi.fn())).toBe(1);
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				tools,
+				pnpm: vi.fn(),
+			}),
+		).toBe(1);
 		expect(error.mock.calls.flat().join("\n")).toContain(
 			"working tree has changes",
 		);
@@ -155,7 +173,7 @@ describe("changelogBetween", () => {
 		const changelog =
 			"# app\n\n## 1.10.0\n\n- C\n\n## 1.2.0\n\n- B\n\n## 1.1.0\n\n- A\n";
 
-		expect(changelogBetween(changelog, "1.1.0", "1.10.0")).toBe(
+		expect(changelogBetween({ changelog, from: "1.1.0", to: "1.10.0" })).toBe(
 			"## 1.10.0\n\n- C\n\n## 1.2.0\n\n- B",
 		);
 	});

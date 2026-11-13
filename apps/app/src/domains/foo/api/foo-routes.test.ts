@@ -19,14 +19,24 @@ const setup = () => {
 		await next();
 	});
 	app.route("/", fooRoutesCreate(useCases));
-	const send = (path: string, method = "GET", body?: unknown) =>
+	const send = ({
+		body,
+		method = "GET",
+		path,
+	}: {
+		body?: unknown;
+		method?: string;
+		path: string;
+	}) =>
 		app.request(path, {
 			body: body === undefined ? null : JSON.stringify(body),
 			headers: { "Content-Type": "application/json" },
 			method,
 		});
 	const create = async (name: string) =>
-		(await (await send("/", "POST", { name })).json()) as { id: string };
+		(await (
+			await send({ path: "/", method: "POST", body: { name } })
+		).json()) as { id: string };
 	return {
 		app,
 		as: (next: Actor | undefined) => {
@@ -37,7 +47,15 @@ const setup = () => {
 	};
 };
 
-const problem = (status: number, title: string, code: string) => ({
+const problem = ({
+	code,
+	status,
+	title,
+}: {
+	code: string;
+	status: number;
+	title: string;
+}) => ({
 	code,
 	status,
 	title,
@@ -46,7 +64,11 @@ const problem = (status: number, title: string, code: string) => ({
 describe("POST /", () => {
 	it("creates a foo and answers 201 with RFC 3339 dates", async () => {
 		const { send } = setup();
-		const res = await send("/", "POST", { name: "alpha" });
+		const res = await send({
+			path: "/",
+			method: "POST",
+			body: { name: "alpha" },
+		});
 
 		expect(res.status).toBe(201);
 		expect(await res.json()).toStrictEqual({
@@ -62,18 +84,26 @@ describe("POST /", () => {
 	it("answers a duplicate name with a 409 problem", async () => {
 		const { create, send } = setup();
 		await create("alpha");
-		const res = await send("/", "POST", { name: "alpha" });
+		const res = await send({
+			path: "/",
+			method: "POST",
+			body: { name: "alpha" },
+		});
 
 		expect(res.status).toBe(409);
 		expect(res.headers.get("content-type")).toBe("application/problem+json");
 		expect(await res.json()).toStrictEqual(
-			problem(409, "Conflict", "FooNameTaken"),
+			problem({ status: 409, title: "Conflict", code: "FooNameTaken" }),
 		);
 	});
 
 	it("rejects an unknown body key with 400 ValidationFailed", async () => {
 		const { send } = setup();
-		const res = await send("/", "POST", { extra: 1, name: "alpha" });
+		const res = await send({
+			path: "/",
+			method: "POST",
+			body: { extra: 1, name: "alpha" },
+		});
 
 		expect(res.status).toBe(400);
 		expect(await res.json()).toMatchObject({
@@ -97,7 +127,11 @@ describe("POST /", () => {
 	it("answers 401 AuthnRequired without an actor", async () => {
 		const { as, send } = setup();
 		as(undefined);
-		const res = await send("/", "POST", { name: "alpha" });
+		const res = await send({
+			path: "/",
+			method: "POST",
+			body: { name: "alpha" },
+		});
 
 		expect(res.status).toBe(401);
 		expect(await res.json()).toMatchObject({
@@ -111,7 +145,7 @@ describe("GET /", () => {
 	it("lists foos without a total", async () => {
 		const { create, send } = setup();
 		await create("alpha");
-		const res = await send("/");
+		const res = await send({ path: "/" });
 
 		expect(res.status).toBe(200);
 		expect(await res.json()).toStrictEqual({
@@ -124,14 +158,14 @@ describe("GET /", () => {
 		const { create, send } = setup();
 		await create("alpha");
 		await create("beta");
-		const body = await (await send("/?count=true")).json();
+		const body = await (await send({ path: "/?count=true" })).json();
 
 		expect(body).toMatchObject({ total: 2 });
 	});
 
 	it.each(["/?limit=0", "/?count=yes"])("rejects %s with 400", async (path) => {
 		const { send } = setup();
-		const res = await send(path);
+		const res = await send({ path });
 
 		expect(res.status).toBe(400);
 		expect(await res.json()).toMatchObject({ code: "ValidationFailed" });
@@ -141,7 +175,7 @@ describe("GET /", () => {
 		const { create, send } = setup();
 		for (const name of ["a", "b", "c"]) await create(name);
 		const query = "archived=false&sort=name&limit=2";
-		const first = (await (await send(`/?${query}`)).json()) as {
+		const first = (await (await send({ path: `/?${query}` })).json()) as {
 			items: { name: string }[];
 			nextCursor: string;
 		};
@@ -150,7 +184,9 @@ describe("GET /", () => {
 		expect(first.nextCursor).toEqual(expect.any(String));
 
 		const second = (await (
-			await send(`/?${query}&cursor=${encodeURIComponent(first.nextCursor)}`)
+			await send({
+				path: `/?${query}&cursor=${encodeURIComponent(first.nextCursor)}`,
+			})
 		).json()) as { items: { name: string }[]; nextCursor: string | null };
 
 		expect(second.items.map((i) => i.name)).toStrictEqual(["c"]);
@@ -162,7 +198,7 @@ describe("GET /{fooId}", () => {
 	it("returns the foo", async () => {
 		const { create, send } = setup();
 		const { id } = await create("alpha");
-		const res = await send(`/${id}`);
+		const res = await send({ path: `/${id}` });
 
 		expect(res.status).toBe(200);
 		expect(await res.json()).toMatchObject({ id, name: "alpha" });
@@ -170,12 +206,12 @@ describe("GET /{fooId}", () => {
 
 	it("answers 404 FooNotFound for an unknown id", async () => {
 		const { send } = setup();
-		const res = await send(`/${idCreate("foo")}`);
+		const res = await send({ path: `/${idCreate("foo")}` });
 
 		expect(res.status).toBe(404);
 		expect(res.headers.get("content-type")).toBe("application/problem+json");
 		expect(await res.json()).toStrictEqual(
-			problem(404, "Not Found", "FooNotFound"),
+			problem({ status: 404, title: "Not Found", code: "FooNotFound" }),
 		);
 	});
 
@@ -183,7 +219,7 @@ describe("GET /{fooId}", () => {
 		"rejects id %s with 400",
 		async (id) => {
 			const { send } = setup();
-			const res = await send(`/${id}`);
+			const res = await send({ path: `/${id}` });
 
 			expect(res.status).toBe(400);
 			expect(await res.json()).toMatchObject({ code: "ValidationFailed" });
@@ -195,7 +231,11 @@ describe("PATCH /{fooId}", () => {
 	it("renames the foo", async () => {
 		const { create, send } = setup();
 		const { id } = await create("alpha");
-		const res = await send(`/${id}`, "PATCH", { name: "beta" });
+		const res = await send({
+			path: `/${id}`,
+			method: "PATCH",
+			body: { name: "beta" },
+		});
 
 		expect(res.status).toBe(200);
 		expect(await res.json()).toMatchObject({ id, name: "beta" });
@@ -203,11 +243,15 @@ describe("PATCH /{fooId}", () => {
 
 	it("answers 404 FooNotFound", async () => {
 		const { send } = setup();
-		const res = await send(`/${idCreate("foo")}`, "PATCH", { name: "beta" });
+		const res = await send({
+			path: `/${idCreate("foo")}`,
+			method: "PATCH",
+			body: { name: "beta" },
+		});
 
 		expect(res.status).toBe(404);
 		expect(await res.json()).toStrictEqual(
-			problem(404, "Not Found", "FooNotFound"),
+			problem({ status: 404, title: "Not Found", code: "FooNotFound" }),
 		);
 	});
 
@@ -215,11 +259,15 @@ describe("PATCH /{fooId}", () => {
 		const { create, send } = setup();
 		const { id } = await create("alpha");
 		await create("beta");
-		const res = await send(`/${id}`, "PATCH", { name: "beta" });
+		const res = await send({
+			path: `/${id}`,
+			method: "PATCH",
+			body: { name: "beta" },
+		});
 
 		expect(res.status).toBe(409);
 		expect(await res.json()).toStrictEqual(
-			problem(409, "Conflict", "FooNameTaken"),
+			problem({ status: 409, title: "Conflict", code: "FooNameTaken" }),
 		);
 	});
 
@@ -227,11 +275,15 @@ describe("PATCH /{fooId}", () => {
 		const { as, create, send } = setup();
 		const { id } = await create("alpha");
 		as(stranger);
-		const res = await send(`/${id}`, "PATCH", { name: "beta" });
+		const res = await send({
+			path: `/${id}`,
+			method: "PATCH",
+			body: { name: "beta" },
+		});
 
 		expect(res.status).toBe(403);
 		expect(await res.json()).toStrictEqual(
-			problem(403, "Forbidden", "FooForbidden"),
+			problem({ status: 403, title: "Forbidden", code: "FooForbidden" }),
 		);
 	});
 });
@@ -240,20 +292,20 @@ describe("DELETE /{fooId}", () => {
 	it("deletes the foo and answers 204 with no body", async () => {
 		const { create, send } = setup();
 		const { id } = await create("alpha");
-		const res = await send(`/${id}`, "DELETE");
+		const res = await send({ path: `/${id}`, method: "DELETE" });
 
 		expect(res.status).toBe(204);
 		expect(await res.text()).toBe("");
-		expect((await send(`/${id}`)).status).toBe(404);
+		expect((await send({ path: `/${id}` })).status).toBe(404);
 	});
 
 	it("answers 404 FooNotFound", async () => {
 		const { send } = setup();
-		const res = await send(`/${idCreate("foo")}`, "DELETE");
+		const res = await send({ path: `/${idCreate("foo")}`, method: "DELETE" });
 
 		expect(res.status).toBe(404);
 		expect(await res.json()).toStrictEqual(
-			problem(404, "Not Found", "FooNotFound"),
+			problem({ status: 404, title: "Not Found", code: "FooNotFound" }),
 		);
 	});
 
@@ -261,11 +313,11 @@ describe("DELETE /{fooId}", () => {
 		const { as, create, send } = setup();
 		const { id } = await create("alpha");
 		as(stranger);
-		const res = await send(`/${id}`, "DELETE");
+		const res = await send({ path: `/${id}`, method: "DELETE" });
 
 		expect(res.status).toBe(403);
 		expect(await res.json()).toStrictEqual(
-			problem(403, "Forbidden", "FooForbidden"),
+			problem({ status: 403, title: "Forbidden", code: "FooForbidden" }),
 		);
 	});
 });

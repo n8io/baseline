@@ -40,12 +40,17 @@ export const authnCookieKey = (secret: string): Uint8Array => {
 };
 
 /** Encrypts `value` into the named cookie. The cookie's name is bound into the ciphertext. */
-export const authnCookieSet = async (
-	c: Context,
-	key: Uint8Array,
-	name: AuthnCookieName,
-	value: string,
-): Promise<void> => {
+export const authnCookieSet = async ({
+	c,
+	key,
+	name,
+	value,
+}: {
+	c: Context;
+	key: Uint8Array;
+	name: AuthnCookieName;
+	value: string;
+}): Promise<void> => {
 	const options = cookieOptions[name];
 	const sealed = await new EncryptJWT({ v: value })
 		.setProtectedHeader({ alg: "dir", enc: "A256GCM" })
@@ -59,11 +64,15 @@ export const authnCookieSet = async (
  * Decrypts a cookie's sealed value: `"invalid"` when it does not decrypt with this secret, has
  * expired, or belongs to another cookie name.
  */
-export const authnCookieOpen = async (
-	key: Uint8Array,
-	name: AuthnCookieName,
-	sealed: string,
-): Promise<string | "invalid"> => {
+export const authnCookieOpen = async ({
+	key,
+	name,
+	sealed,
+}: {
+	key: Uint8Array;
+	name: AuthnCookieName;
+	sealed: string;
+}): Promise<string | "invalid"> => {
 	try {
 		const { payload } = await jwtDecrypt(sealed, key, { audience: name });
 		return typeof payload.v === "string" ? payload.v : "invalid";
@@ -73,13 +82,19 @@ export const authnCookieOpen = async (
 };
 
 /** Decrypts the named cookie: `undefined` when it is absent, else what `authnCookieOpen` returns. */
-export const authnCookieGet = async (
-	c: Context,
-	key: Uint8Array,
-	name: AuthnCookieName,
-): Promise<string | "invalid" | undefined> => {
+export const authnCookieGet = async ({
+	c,
+	key,
+	name,
+}: {
+	c: Context;
+	key: Uint8Array;
+	name: AuthnCookieName;
+}): Promise<string | "invalid" | undefined> => {
 	const sealed = getCookie(c, authnCookieNames[name]);
-	return sealed === undefined ? undefined : authnCookieOpen(key, name, sealed);
+	return sealed === undefined
+		? undefined
+		: authnCookieOpen({ key, name, sealed });
 };
 
 export const authnCookieClear = (c: Context, name: AuthnCookieName): void => {

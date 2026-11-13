@@ -10,6 +10,8 @@ const fooScheduleActor: Actor = {
 
 // Daily at 03:00 UTC. Override per environment: SCHEDULE_FOO_STALE_ARCHIVE="*/5 * * * *" or "off".
 export const fooScheduleCreate = (u: FooUseCases) =>
-	queueScheduleCreate("foo.stale-archive", "0 3 * * *", () =>
-		u.fooStaleArchive(fooScheduleActor),
-	);
+	queueScheduleCreate({
+		name: "foo.stale-archive",
+		cron: "0 3 * * *",
+		run: () => u.fooStaleArchive(fooScheduleActor),
+	});

@@ -33,7 +33,10 @@ export const postgresMigrate = async (options: {
 	vendor?: PostgresMigrateVendorOptions;
 }): Promise<void> => {
 	postgresUrlAssert(options.databaseUrl);
-	postgresVendorAssert(options.vendor ?? {}, options.databaseUrl);
+	postgresVendorAssert({
+		vendor: options.vendor ?? {},
+		databaseUrl: options.databaseUrl,
+	});
 	const pgClient = new pg.Client({
 		...options.vendor,
 		connectionString: options.databaseUrl,

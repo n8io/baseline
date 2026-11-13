@@ -13,16 +13,16 @@ const key = authnCookieKey(secret);
 const appCreate = () => {
 	const app = new Hono();
 	app.get("/set-flow", async (c) => {
-		await authnCookieSet(c, key, "flow", "flow-value");
+		await authnCookieSet({ c, key, name: "flow", value: "flow-value" });
 		return c.body(null, 204);
 	});
 	app.get("/get/:name", async (c) =>
 		c.json({
-			value: await authnCookieGet(
+			value: await authnCookieGet({
 				c,
 				key,
-				c.req.param("name") as keyof typeof authnCookieNames,
-			),
+				name: c.req.param("name") as keyof typeof authnCookieNames,
+			}),
 		}),
 	);
 	return app;

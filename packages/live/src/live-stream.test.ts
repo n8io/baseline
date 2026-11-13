@@ -63,27 +63,38 @@ describe("liveStreamCreate", () => {
 	});
 
 	test.each([
-		["after 5 minutes", 60 * 60_000, liveStreamMaxMs],
-		["at expiresAt when sooner", 90_000, 90_000],
-	])("closes %s with a retry of 1–5 s", async (_, expiresInMs, closesAtMs) => {
-		vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "Date"] });
-		vi.spyOn(Math, "random").mockReturnValue(0.999_999);
-		await using liveHub = liveHubMemoryCreate();
-		const startedAt = Date.now();
-		const app = liveAppCreate(liveHub, () => startedAt + expiresInMs);
-		const { sse } = await open(app);
-		let ended = false;
-		const end = sse.end().then((text) => {
-			ended = true;
-			return text;
-		});
+		{
+			closesAtMs: liveStreamMaxMs,
+			expiresInMs: 60 * 60_000,
+			when: "after 5 minutes",
+		},
+		{
+			closesAtMs: 90_000,
+			expiresInMs: 90_000,
+			when: "at expiresAt when sooner",
+		},
+	])(
+		"closes $when with a retry of 1–5 s",
+		async ({ closesAtMs, expiresInMs }) => {
+			vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "Date"] });
+			vi.spyOn(Math, "random").mockReturnValue(0.999_999);
+			await using liveHub = liveHubMemoryCreate();
+			const startedAt = Date.now();
+			const app = liveAppCreate(liveHub, () => startedAt + expiresInMs);
+			const { sse } = await open(app);
+			let ended = false;
+			const end = sse.end().then((text) => {
+				ended = true;
+				return text;
+			});
 
-		await vi.advanceTimersByTimeAsync(closesAtMs - 1);
-		expect(ended).toBe(false);
-		await vi.advanceTimersByTimeAsync(1);
+			await vi.advanceTimersByTimeAsync(closesAtMs - 1);
+			expect(ended).toBe(false);
+			await vi.advanceTimersByTimeAsync(1);
 
-		expect((await end).endsWith("retry: 5000\n\n")).toBe(true);
-	});
+			expect((await end).endsWith("retry: 5000\n\n")).toBe(true);
+		},
+	);
 
 	test("picks the retry between 1000 and 5000 ms", async () => {
 		await using liveHub = liveHubMemoryCreate();

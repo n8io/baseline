@@ -38,18 +38,18 @@ beforeAll(async () => {
 	queue = await queueCreate({ pgPool, role: "publisher" });
 	// Stand-in consumers, so pg-boss copies each event into a queue we can read.
 	await queueEventsCreate(queue).consumersSubscribe([
-		queueConsumerCreate(
-			"bar.foo-created",
-			"foo.created",
-			fooCreated,
-			async () => ok(undefined),
-		),
-		queueConsumerCreate(
-			"bar.foo-deleted",
-			"foo.deleted",
-			fooDeleted,
-			async () => ok(undefined),
-		),
+		queueConsumerCreate({
+			queueName: "bar.foo-created",
+			eventName: "foo.created",
+			schema: fooCreated,
+			run: async () => ok(undefined),
+		}),
+		queueConsumerCreate({
+			queueName: "bar.foo-deleted",
+			eventName: "foo.deleted",
+			schema: fooDeleted,
+			run: async () => ok(undefined),
+		}),
 	]);
 });
 

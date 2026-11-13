@@ -46,11 +46,15 @@ export const glossaryTerm = (kebab: string): string => {
 };
 
 // Renders a release's files with that release's own render code into a new directory.
-export const appRender = async (
-	directory: string,
-	files: TemplateFile[],
-	answers: TemplateAnswers,
-): Promise<void> => {
+export const appRender = async ({
+	answers,
+	directory,
+	files,
+}: {
+	answers: TemplateAnswers;
+	directory: string;
+	files: TemplateFile[];
+}): Promise<void> => {
 	filesWrite(directory, await releaseRender(files, answers));
 	templateFinish(directory, toolsDirectory);
 };
@@ -82,11 +86,15 @@ export const envFilesWrite = (directory: string, name: string): void => {
 };
 
 // Writes the answers a rendered project keeps: CONTEXT.md terms, env files and .template.json.
-export const answersWrite = (
-	directory: string,
-	answers: TemplateAnswers & { release: string },
-	terms: GlossaryTerm[],
-): void => {
+export const answersWrite = ({
+	answers,
+	directory,
+	terms,
+}: {
+	answers: TemplateAnswers & { release: string };
+	directory: string;
+	terms: GlossaryTerm[];
+}): void => {
 	const context = join(directory, "CONTEXT.md");
 	writeFileSync(
 		context,
@@ -107,17 +115,25 @@ export const answersWrite = (
 };
 
 export const pnpmRun = (directory: string, args: string[]): void => {
-	run("pnpm", args, { cwd: directory, inherit: true });
+	run({ command: "pnpm", args, options: { cwd: directory, inherit: true } });
 };
 
 export const gitCommitAll = (directory: string, message: string): void => {
 	if (!existsSync(join(directory, ".git"))) {
-		run("git", ["init", "--quiet", "--initial-branch=main"], {
-			cwd: directory,
+		run({
+			command: "git",
+			args: ["init", "--quiet", "--initial-branch=main"],
+			options: {
+				cwd: directory,
+			},
 		});
 	}
-	run("git", ["add", "--all"], { cwd: directory });
-	run("git", ["commit", "--quiet", "--message", message], { cwd: directory });
+	run({ command: "git", args: ["add", "--all"], options: { cwd: directory } });
+	run({
+		command: "git",
+		args: ["commit", "--quiet", "--message", message],
+		options: { cwd: directory },
+	});
 };
 
 // The ruleset on the default branch: every required app-ci.yml job, as `ci / <job>`.
@@ -197,7 +213,8 @@ const answersAsk = async (): Promise<AppCreateAnswers> => {
 			throw new Error("the description and the definition are required");
 		}
 		const owner =
-			values.owner ?? run("gh", ["api", "user", "--jq", ".login"]).trim();
+			values.owner ??
+			run({ command: "gh", args: ["api", "user", "--jq", ".login"] }).trim();
 		return {
 			description,
 			domain: { definition, kebab, plural },
@@ -218,13 +235,17 @@ const main = async () => {
 	console.log(`Rendering app@${release} into ${directory}`);
 	try {
 		const files = templateFetch(release);
-		await appRender(directory, files, answers);
-		answersWrite(directory, { ...answers, release }, [
-			{
-				definition: answers.domain.definition,
-				term: glossaryTerm(answers.domain.kebab),
-			},
-		]);
+		await appRender({ directory, files, answers });
+		answersWrite({
+			directory,
+			answers: { ...answers, release },
+			terms: [
+				{
+					definition: answers.domain.definition,
+					term: glossaryTerm(answers.domain.kebab),
+				},
+			],
+		});
 		// The template's lockfile drops our own packages, so this install adds them.
 		pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 		pnpmRun(directory, [
@@ -241,9 +262,9 @@ const main = async () => {
 		);
 		throw error;
 	}
-	run(
-		"gh",
-		[
+	run({
+		command: "gh",
+		args: [
 			"repo",
 			"create",
 			repository,
@@ -256,14 +277,22 @@ const main = async () => {
 			"origin",
 			"--push",
 		],
-		{ inherit: true },
-	);
-	run(
-		"gh",
-		["api", "--method", "POST", `repos/${repository}/rulesets`, "--input", "-"],
-		{ input: JSON.stringify(rulesetBodyCreate()) },
-	);
-	for (const args of securityUpdatesCalls(repository)) run("gh", args);
+		options: { inherit: true },
+	});
+	run({
+		command: "gh",
+		args: [
+			"api",
+			"--method",
+			"POST",
+			`repos/${repository}/rulesets`,
+			"--input",
+			"-",
+		],
+		options: { input: JSON.stringify(rulesetBodyCreate()) },
+	});
+	for (const args of securityUpdatesCalls(repository))
+		run({ command: "gh", args });
 	console.log(`Created https://github.com/${repository}`);
 };
 

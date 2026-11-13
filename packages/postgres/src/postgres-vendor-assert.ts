@@ -21,11 +21,15 @@ const postgresUrlSslParams = [
 ];
 
 // Throws on a vendor setting that a named option or the URL already decides.
-export const postgresVendorAssert = (
-	vendor: object,
-	databaseUrl: string,
-	owned: Record<string, string> = {},
-): void => {
+export const postgresVendorAssert = ({
+	databaseUrl,
+	owned = {},
+	vendor,
+}: {
+	databaseUrl: string;
+	owned?: Record<string, string>;
+	vendor: object;
+}): void => {
 	for (const [key, option] of Object.entries({
 		...postgresVendorOwnedKeys,
 		...owned,

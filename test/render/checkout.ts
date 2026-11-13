@@ -22,7 +22,10 @@ const monorepo = resolve(import.meta.dirname, "../..");
 export const checkoutExport = (): TemplateFile[] => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "render-and-test-"));
 	const clone = join(work.path, "clone");
-	run("git", ["clone", "--quiet", "--shared", monorepo, clone]);
+	run({
+		command: "git",
+		args: ["clone", "--quiet", "--shared", monorepo, clone],
+	});
 	return templateExport(clone, "HEAD");
 };
 
@@ -32,9 +35,9 @@ export const checkoutExport = (): TemplateFile[] => {
 // project's checks never read .tgz files.
 export const checkoutPackagesUse = (directory: string) => {
 	const folder = ".baseline-packages";
-	run(
-		"pnpm",
-		[
+	run({
+		command: "pnpm",
+		args: [
 			"-r",
 			"--filter",
 			"./packages/*",
@@ -42,8 +45,8 @@ export const checkoutPackagesUse = (directory: string) => {
 			"--pack-destination",
 			join(directory, folder),
 		],
-		{ cwd: monorepo },
-	);
+		options: { cwd: monorepo },
+	});
 	const overrides = readdirSync(join(monorepo, "packages")).map((name) => {
 		const { name: scoped, version } = JSON.parse(
 			readFileSync(join(monorepo, "packages", name, "package.json"), "utf8"),

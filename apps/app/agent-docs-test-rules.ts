@@ -21,11 +21,15 @@ const agentDocsImports = (agentsText: string): string[] => {
 // AGENTS.md loads on every task, so it stays small and links the rest. Each file it imports, or
 // that it or a doc in docs/agents/ links to, must exist, and each docs/agents/ file must be
 // linked from AGENTS.md. `docs` holds AGENTS.md and every docs/agents/ file.
-export const agentDocsViolations = (
-	docs: AgentDoc[],
-	exists: (path: string) => boolean,
-	agentsMaxBytes: number,
-): string[] => {
+export const agentDocsViolations = ({
+	agentsMaxBytes,
+	docs,
+	exists,
+}: {
+	agentsMaxBytes: number;
+	docs: AgentDoc[];
+	exists: (path: string) => boolean;
+}): string[] => {
 	const problems: string[] = [];
 	const agents = docs.find((d) => d.path === "AGENTS.md");
 	if (agents) {
@@ -80,5 +84,5 @@ export const agentDocsViolationsRead = (
 		path,
 		text: readFileSync(new URL(path, root), "utf8"),
 	}));
-	return agentDocsViolations(docs, isFile, agentsMaxBytes);
+	return agentDocsViolations({ docs, exists: isFile, agentsMaxBytes });
 };

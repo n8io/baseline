@@ -5,7 +5,7 @@ import type { RedisClient } from "./redis.ts";
 describe("cacheStoreOpen", () => {
 	it("keeps entries in memory for memory://", async () => {
 		const cacheStore = cacheStoreOpen({ redis: "memory" });
-		await cacheStore.set("entry:1", "{}", 1_000);
+		await cacheStore.set({ json: "{}", key: "entry:1", ttlMs: 1_000 });
 		expect(await cacheStore.get("entry:1")).toBe("{}");
 	});
 

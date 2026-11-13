@@ -154,37 +154,39 @@ describe("domain structure", () => {
 	});
 
 	it.each([
-		[
-			"missing ports.ts",
-			without("src/domains/bar/ports.ts"),
-			"src/domains/bar/ports.ts: add ports.ts",
-		],
-		[
-			"missing use-cases/",
-			without("src/domains/bar/use-cases/bar-create.ts"),
-			"src/domains/bar/use-cases/: add at least one file in use-cases/",
-		],
-		[
-			"api/ without index.ts",
-			[...barBase, "src/domains/bar/api/bar-routes.ts"],
-			"src/domains/bar/api/index.ts: add index.ts to api/",
-		],
-		[
-			"a stray root file",
-			[...barBase, "src/domains/bar/helper.ts"],
-			"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts and bar-errors.ts",
-		],
-		[
-			"a stray root folder",
-			[...barBase, "src/domains/bar/helpers/x.ts"],
-			"src/domains/bar/helpers/x.ts: a domain root holds only",
-		],
-		[
-			"a model with no glossary term",
-			[...barBase, "src/domains/bar/models/bar-line.ts"],
-			"CONTEXT.md: add a **Bar line**: term for bar-line",
-		],
-	])("fails on %s", (_name, paths, message) => {
+		{
+			message: "src/domains/bar/ports.ts: add ports.ts",
+			paths: without("src/domains/bar/ports.ts"),
+			name: "missing ports.ts",
+		},
+		{
+			message:
+				"src/domains/bar/use-cases/: add at least one file in use-cases/",
+			paths: without("src/domains/bar/use-cases/bar-create.ts"),
+			name: "missing use-cases/",
+		},
+		{
+			message: "src/domains/bar/api/index.ts: add index.ts to api/",
+			paths: [...barBase, "src/domains/bar/api/bar-routes.ts"],
+			name: "api/ without index.ts",
+		},
+		{
+			message:
+				"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts and bar-errors.ts",
+			paths: [...barBase, "src/domains/bar/helper.ts"],
+			name: "a stray root file",
+		},
+		{
+			message: "src/domains/bar/helpers/x.ts: a domain root holds only",
+			paths: [...barBase, "src/domains/bar/helpers/x.ts"],
+			name: "a stray root folder",
+		},
+		{
+			message: "CONTEXT.md: add a **Bar line**: term for bar-line",
+			paths: [...barBase, "src/domains/bar/models/bar-line.ts"],
+			name: "a model with no glossary term",
+		},
+	])("fails on $name", ({ message, paths }) => {
 		expect(structureViolations(paths, context)).toEqual([
 			expect.stringContaining(message),
 		]);
@@ -247,66 +249,70 @@ describe("agent docs", () => {
 	it("allows an AGENTS.md of exactly the budget", () => {
 		const text = "x".repeat(agentsMaxBytes);
 		expect(
-			agentDocsViolations(
-				[{ path: "AGENTS.md", text }],
-				() => true,
+			agentDocsViolations({
+				docs: [{ path: "AGENTS.md", text }],
+				exists: () => true,
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual([]);
 	});
 
 	it.each([
-		[
-			"an AGENTS.md over its budget",
+		{
 			// Two bytes each: the budget counts bytes, not characters.
-			[{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }],
-			"AGENTS.md: keep it to 14000 bytes; move task-specific rules to docs/agents/",
-		],
-		[
-			"an import inside a sentence",
-			[{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." }],
-			"AGENTS.md: put @CONTEXT.md alone on its line, or it is not imported",
-		],
-		[
-			"a link to a missing file",
-			[{ path: "AGENTS.md", text: "[x](docs/agents/gone.md)" }],
-			"AGENTS.md: links docs/agents/gone.md, which does not exist",
-		],
-		[
-			"a doc AGENTS.md does not link",
-			[
+			docs: [{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }],
+			problem:
+				"AGENTS.md: keep it to 14000 bytes; move task-specific rules to docs/agents/",
+			name: "an AGENTS.md over its budget",
+		},
+		{
+			docs: [{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." }],
+			problem:
+				"AGENTS.md: put @CONTEXT.md alone on its line, or it is not imported",
+			name: "an import inside a sentence",
+		},
+		{
+			docs: [{ path: "AGENTS.md", text: "[x](docs/agents/gone.md)" }],
+			problem: "AGENTS.md: links docs/agents/gone.md, which does not exist",
+			name: "a link to a missing file",
+		},
+		{
+			docs: [
 				{ path: "AGENTS.md", text: "" },
 				{ path: "docs/agents/data.md", text: "" },
 			],
-			"AGENTS.md: link docs/agents/data.md under ## Read when",
-		],
-	])("fails on %s", (_name, docs, problem) => {
+			problem: "AGENTS.md: link docs/agents/data.md under ## Read when",
+			name: "a doc AGENTS.md does not link",
+		},
+	])("fails on $name", ({ docs, problem }) => {
 		expect(
-			agentDocsViolations(
+			agentDocsViolations({
 				docs,
-				(path) => path === "CONTEXT.md",
+				exists: (path) => path === "CONTEXT.md",
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual([problem]);
 	});
 
 	it("fails on an import of a missing file", () => {
 		expect(
-			agentDocsViolations(
-				[{ path: "AGENTS.md", text: "@GONE.md" }],
-				() => false,
+			agentDocsViolations({
+				docs: [{ path: "AGENTS.md", text: "@GONE.md" }],
+				exists: () => false,
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual(["AGENTS.md: imports GONE.md, which does not exist"]);
 	});
 
 	it("takes an import alone on its line, also as ./<path>", () => {
 		expect(
-			agentDocsViolations(
-				[{ path: "AGENTS.md", text: "# App\n\n@CONTEXT.md\n@./CONTEXT.md\n" }],
-				(path) => path === "CONTEXT.md",
+			agentDocsViolations({
+				docs: [
+					{ path: "AGENTS.md", text: "# App\n\n@CONTEXT.md\n@./CONTEXT.md\n" },
+				],
+				exists: (path) => path === "CONTEXT.md",
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual([]);
 	});
 
@@ -318,25 +324,25 @@ describe("agent docs", () => {
 			"```",
 		].join("\n");
 		expect(
-			agentDocsViolations(
-				[{ path: "AGENTS.md", text }],
-				() => false,
+			agentDocsViolations({
+				docs: [{ path: "AGENTS.md", text }],
+				exists: () => false,
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual([]);
 	});
 
 	it("resolves a link relative to the doc that holds it", () => {
 		expect(
-			agentDocsViolations(
-				[
+			agentDocsViolations({
+				docs: [
 					{ path: "AGENTS.md", text: "[d](docs/agents/data.md)" },
 					{ path: "docs/agents/data.md", text: "[t](tracing.md#spans)" },
 				],
-				(path) =>
+				exists: (path) =>
 					["docs/agents/data.md", "docs/agents/tracing.md"].includes(path),
 				agentsMaxBytes,
-			),
+			}),
 		).toEqual([]);
 	});
 });

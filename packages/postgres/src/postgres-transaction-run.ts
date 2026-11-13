@@ -22,12 +22,16 @@ const clientGuard = (
 
 // Runs `work` in one transaction on one checked-out client: COMMIT on ok, ROLLBACK on err or a
 // throw. transaction_timeout (Postgres 17+) ends a transaction that runs longer than timeoutMs.
-export const postgresTransactionRun = async <T, E>(
-	pgPool: PostgresPool,
-	work: (pgClient: PostgresClient) => Promise<Result<T, E>>,
-	options: { timeoutMs?: number } = {},
-): Promise<Result<T, E>> => {
-	const timeoutMs = options.timeoutMs ?? 5_000;
+export const postgresTransactionRun = async <T, E>({
+	pgPool,
+	timeoutMs: timeoutMsGiven,
+	work,
+}: {
+	pgPool: PostgresPool;
+	timeoutMs?: number | null;
+	work: (pgClient: PostgresClient) => Promise<Result<T, E>>;
+}): Promise<Result<T, E>> => {
+	const timeoutMs = timeoutMsGiven ?? 5_000;
 	if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
 		throw new TypeError("timeoutMs must be a positive integer");
 	}

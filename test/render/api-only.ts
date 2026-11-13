@@ -50,14 +50,22 @@ type Piece =
 	| "redis"
 	| "ui";
 
-const domainAdd = (
-	directory: string,
-	files: ReturnType<typeof checkoutExport>,
-	names: typeof customer,
-) => {
+const domainAdd = ({
+	directory,
+	files,
+	names,
+}: {
+	directory: string;
+	files: ReturnType<typeof checkoutExport>;
+	names: typeof customer;
+}) => {
 	const refusal = domainNameRefusal(names, directory);
 	if (refusal !== undefined) throw new Error(refusal);
-	const created = domainFilesCreate(files, directory, names);
+	const created = domainFilesCreate({
+		templateFull: files,
+		appDirectory: directory,
+		names,
+	});
 	filesWrite(directory, created);
 	const paths = created.map((f) => f.path);
 	const unusedImports = "--only=correctness/noUnusedImports";
@@ -168,11 +176,19 @@ const apiServe = async (directory: string) => {
 };
 
 const git = (directory: string, args: string[]): string =>
-	run("git", args, { cwd: directory }).trim();
+	run({ command: "git", args, options: { cwd: directory } }).trim();
 
 // As pieces.md says: remove, then the checks the command prints (only check when every piece
 // goes), then commit, so the commit carries what check regenerates.
-const pieceRemove = (directory: string, piece: Piece, scripts: string[]) => {
+const pieceRemove = ({
+	directory,
+	piece,
+	scripts,
+}: {
+	directory: string;
+	piece: Piece;
+	scripts: string[];
+}) => {
 	console.log(`pnpm piece-remove ${piece}`);
 	pnpmRun(directory, ["piece-remove", piece]);
 	for (const script of scripts) pnpmRun(directory, [script]);
@@ -201,20 +217,24 @@ const main = async () => {
 		throw new Error("usage: node test/render/api-only.ts <new directory>");
 	}
 	const files = checkoutExport();
-	await appRender(directory, files, answers);
-	answersWrite(
+	await appRender({ directory, files, answers });
+	answersWrite({
 		directory,
-		{ ...answers, release: "checkout" },
-		[customer, invoiceLine].map((d) => ({
+		answers: { ...answers, release: "checkout" },
+		terms: [customer, invoiceLine].map((d) => ({
 			definition: d.definition,
 			term: glossaryTerm(d.kebab),
 		})),
-	);
-	run("git", ["init", "--quiet", "--initial-branch=main"], { cwd: directory });
+	});
+	run({
+		command: "git",
+		args: ["init", "--quiet", "--initial-branch=main"],
+		options: { cwd: directory },
+	});
 	checkoutPackagesUse(directory);
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
-	domainAdd(directory, files, customer);
+	domainAdd({ directory, files, names: customer });
 	pnpmRun(directory, ["check"]);
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
@@ -228,7 +248,7 @@ const main = async () => {
 		"error-tracking",
 	] as const) {
 		const before = head();
-		pieceRemove(directory, piece, checkTestBuild);
+		pieceRemove({ directory, piece, scripts: checkTestBuild });
 		revertTo(directory, before);
 		console.log(
 			`api-only: ${piece} alone passes check, test and build, and reverts`,
@@ -254,7 +274,8 @@ const main = async () => {
 		"analytics",
 		"error-tracking",
 	];
-	for (const piece of all) pieceRemove(directory, piece, ["check"]);
+	for (const piece of all)
+		pieceRemove({ directory, piece, scripts: ["check"] });
 	const removed = head();
 	revertTo(directory, before);
 	pnpmRun(directory, ["check"]);
@@ -265,7 +286,7 @@ const main = async () => {
 	// git ignores the types check generated after the revert; piece-remove ui deletes them.
 	rmSync(join(directory, ".react-router"), { force: true, recursive: true });
 	pnpmRun(directory, ["install"]);
-	domainAdd(directory, files, invoiceLine);
+	domainAdd({ directory, files, names: invoiceLine });
 	for (const script of checkTestBuild) pnpmRun(directory, [script]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");

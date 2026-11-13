@@ -9,13 +9,19 @@ export type LiveEventSourceCreate = (url: string) => LiveEventSource;
 // and every (re)connect, since updates sent while it was down are not resent.
 // The server sends `ready` once each connection is subscribed.
 // Returns the close. EventSource reconnects after the server's `retry:`.
-export const liveUpdatesOpen = (
-	channel: string,
-	id: string,
-	onChange: () => void,
-	eventSourceCreate: LiveEventSourceCreate,
+export const liveUpdatesOpen = ({
+	channel,
+	eventSourceCreate,
+	id,
+	onChange,
 	pathPrefix = "/live",
-): (() => void) => {
+}: {
+	channel: string;
+	eventSourceCreate: LiveEventSourceCreate;
+	id: string;
+	onChange: () => void;
+	pathPrefix?: string;
+}): (() => void) => {
 	const source = eventSourceCreate(
 		`${pathPrefix}/${encodeURIComponent(channel)}/${encodeURIComponent(id)}`,
 	);

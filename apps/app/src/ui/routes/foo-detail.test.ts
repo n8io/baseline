@@ -32,11 +32,15 @@ const getArgs = (context: Context, fooId: string) =>
 		params: { fooId },
 		url: `/foos/${fooId}`,
 	});
-const postArgs = (
-	context: Context,
-	fooId: string,
-	form: Record<string, string>,
-) =>
+const postArgs = ({
+	context,
+	fooId,
+	form,
+}: {
+	context: Context;
+	fooId: string;
+	form: Record<string, string>;
+}) =>
 	routeArgs({
 		context,
 		form,
@@ -93,7 +97,11 @@ describe("foo detail action update", () => {
 	it("renames the foo", async () => {
 		const { context, foo, useCases } = await setup();
 		const result = await action(
-			postArgs(context, foo.id, { intent: "update", name: "beta" }),
+			postArgs({
+				context,
+				fooId: foo.id,
+				form: { intent: "update", name: "beta" },
+			}),
 		);
 		expect(result).toEqual({ ok: true });
 		const got = await useCases.fooGet(owner, { fooId: foo.id });
@@ -103,7 +111,11 @@ describe("foo detail action update", () => {
 	it("returns 400 for an empty name", async () => {
 		const { context, foo } = await setup();
 		const result = await action(
-			postArgs(context, foo.id, { intent: "update", name: "" }),
+			postArgs({
+				context,
+				fooId: foo.id,
+				form: { intent: "update", name: "" },
+			}),
 		);
 		expect(result).toMatchObject({
 			data: { values: { name: "" } },
@@ -115,7 +127,11 @@ describe("foo detail action update", () => {
 		const { context, foo, useCases } = await setup();
 		await useCases.fooCreate(owner, { name: "beta" });
 		const result = await action(
-			postArgs(context, foo.id, { intent: "update", name: "beta" }),
+			postArgs({
+				context,
+				fooId: foo.id,
+				form: { intent: "update", name: "beta" },
+			}),
 		);
 		expect(result).toMatchObject({
 			data: { errors: { name: ["A foo named beta already exists"] } },
@@ -126,7 +142,13 @@ describe("foo detail action update", () => {
 	it("throws 403 for a stranger", async () => {
 		const { context, foo } = await setup(stranger);
 		const error = await thrown(() =>
-			action(postArgs(context, foo.id, { intent: "update", name: "beta" })),
+			action(
+				postArgs({
+					context,
+					fooId: foo.id,
+					form: { intent: "update", name: "beta" },
+				}),
+			),
 		);
 		expect(error).toMatchObject({
 			data: { type: "FooForbidden" },
@@ -139,7 +161,7 @@ describe("foo detail action delete", () => {
 	it("deletes the foo and redirects to the list", async () => {
 		const { context, foo, useCases } = await setup();
 		const result = (await action(
-			postArgs(context, foo.id, { intent: "delete" }),
+			postArgs({ context, fooId: foo.id, form: { intent: "delete" } }),
 		)) as Response;
 		expect(result.status).toBe(302);
 		expect(result.headers.get("Location")).toBe("/foos");
@@ -150,7 +172,7 @@ describe("foo detail action delete", () => {
 	it("throws 403 for a stranger", async () => {
 		const { context, foo, useCases } = await setup(stranger);
 		const error = await thrown(() =>
-			action(postArgs(context, foo.id, { intent: "delete" })),
+			action(postArgs({ context, fooId: foo.id, form: { intent: "delete" } })),
 		);
 		expect(error).toMatchObject({
 			data: { type: "FooForbidden" },
@@ -163,7 +185,13 @@ describe("foo detail action delete", () => {
 	it("throws 404 for an unknown foo", async () => {
 		const { context } = await setup();
 		const error = await thrown(() =>
-			action(postArgs(context, idCreate("foo"), { intent: "delete" })),
+			action(
+				postArgs({
+					context,
+					fooId: idCreate("foo"),
+					form: { intent: "delete" },
+				}),
+			),
 		);
 		expect(error).toMatchObject({ init: { status: 404 } });
 	});
@@ -173,7 +201,7 @@ describe("foo detail action intent", () => {
 	it("throws 400 for an unknown intent", async () => {
 		const { context, foo } = await setup();
 		const error = await thrown(() =>
-			action(postArgs(context, foo.id, { intent: "nope" })),
+			action(postArgs({ context, fooId: foo.id, form: { intent: "nope" } })),
 		);
 		expect(error).toMatchObject({
 			data: { type: "ValidationFailed" },

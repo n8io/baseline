@@ -21,11 +21,15 @@ type PieceRemoval = {
 	refusal?: (directory: string) => string | undefined;
 };
 
-const textEdit = (
-	directory: string,
-	path: string,
-	edit: (text: string) => string,
-) => {
+const textEdit = ({
+	directory,
+	edit,
+	path,
+}: {
+	directory: string;
+	edit: (text: string) => string;
+	path: string;
+}) => {
 	const file = join(directory, path);
 	if (!existsSync(file)) return;
 	const text = readFileSync(file, "utf8");
@@ -41,10 +45,14 @@ type Manifest = {
 };
 
 const manifestEdit = (directory: string, edit: (m: Manifest) => void) =>
-	textEdit(directory, "package.json", (text) => {
-		const manifest = JSON.parse(text) as Manifest;
-		edit(manifest);
-		return `${JSON.stringify(manifest, null, "\t")}\n`;
+	textEdit({
+		directory,
+		path: "package.json",
+		edit: (text) => {
+			const manifest = JSON.parse(text) as Manifest;
+			edit(manifest);
+			return `${JSON.stringify(manifest, null, "\t")}\n`;
+		},
 	});
 
 const packagesInstalled = (directory: string): Set<string> => {
@@ -57,7 +65,7 @@ const packagesInstalled = (directory: string): Set<string> => {
 };
 
 const trackedFiles = (directory: string): string[] =>
-	run("git", ["ls-files", "-z"], { cwd: directory })
+	run({ command: "git", args: ["ls-files", "-z"], options: { cwd: directory } })
 		.split("\0")
 		.filter((p) => p !== "" && existsSync(join(directory, p)));
 
@@ -92,23 +100,30 @@ if (import.meta.main) {
 const nodeServerImport = 'import { serve } from "@hono/node-server";\n';
 
 const uiEdit = (directory: string) => {
-	textEdit(directory, "biome.json", (text) => {
-		const biome = JSON.parse(text) as {
-			css?: unknown;
-			files: { includes: string[] };
-		};
-		delete biome.css;
-		biome.files.includes = biome.files.includes.filter(
-			(p) => p !== "!.react-router",
-		);
-		return `${JSON.stringify(biome, null, "\t")}\n`;
+	textEdit({
+		directory,
+		path: "biome.json",
+		edit: (text) => {
+			const biome = JSON.parse(text) as {
+				css?: unknown;
+				files: { includes: string[] };
+			};
+			delete biome.css;
+			biome.files.includes = biome.files.includes.filter(
+				(p) => p !== "!.react-router",
+			);
+			return `${JSON.stringify(biome, null, "\t")}\n`;
+		},
 	});
 	writeFileSync(join(directory, "vite.config.ts"), apiViteConfig);
-	textEdit(directory, "src/server.ts", (text) =>
-		text.includes("serverServe(serve(")
-			? text
-			: `${text.replace(/^import /m, `${nodeServerImport}import `)}${apiServeLines}`,
-	);
+	textEdit({
+		directory,
+		path: "src/server.ts",
+		edit: (text) =>
+			text.includes("serverServe(serve(")
+				? text
+				: `${text.replace(/^import /m, `${nodeServerImport}import `)}${apiServeLines}`,
+	});
 	manifestEdit(directory, (manifest) => {
 		manifest.scripts.build = "vite build";
 		manifest.scripts.check = "varlock codegen && biome check . && tsc --noEmit";
@@ -136,9 +151,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	analytics: {
 		edit: (directory) => {
 			for (const env of ["schema", "production"]) {
-				textEdit(directory, `.env.${env}`, (text) =>
-					text.replace(mixpanelTokenLines, ""),
-				);
+				textEdit({
+					directory,
+					path: `.env.${env}`,
+					edit: (text) => text.replace(mixpanelTokenLines, ""),
+				});
 			}
 		},
 		packages: ["@n8io/baseline-analytics"],
@@ -154,9 +171,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	"error-tracking": {
 		edit: (directory) => {
 			for (const env of ["schema", "production"]) {
-				textEdit(directory, `.env.${env}`, (text) =>
-					text.replace(sentryDsnLines, ""),
-				);
+				textEdit({
+					directory,
+					path: `.env.${env}`,
+					edit: (text) => text.replace(sentryDsnLines, ""),
+				});
 			}
 		},
 		packages: ["@n8io/baseline-error-tracking"],
@@ -169,9 +188,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	},
 	queue: {
 		edit: (directory) => {
-			textEdit(directory, ".env.schema", (text) =>
-				text.replace(scheduleLines, ""),
-			);
+			textEdit({
+				directory,
+				path: ".env.schema",
+				edit: (text) => text.replace(scheduleLines, ""),
+			});
 			manifestEdit(directory, (manifest) => {
 				manifest.scripts.dev = manifest.scripts.dev?.replace(workerDev, "$1");
 			});
@@ -200,9 +221,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	redis: {
 		edit: (directory) => {
 			for (const env of ["schema", "development", "production", "test"]) {
-				textEdit(directory, `.env.${env}`, (text) =>
-					text.replace(cacheUrlLines, ""),
-				);
+				textEdit({
+					directory,
+					path: `.env.${env}`,
+					edit: (text) => text.replace(cacheUrlLines, ""),
+				});
 			}
 		},
 		packages: ["redis"],
@@ -254,7 +277,11 @@ export const pieceRemoveRefusal = (
 ): string | undefined => {
 	const removal = piece === undefined ? undefined : pieceRemovals[piece];
 	if (removal === undefined) return usage;
-	const status = run("git", ["status", "--porcelain"], { cwd: directory });
+	const status = run({
+		command: "git",
+		args: ["status", "--porcelain"],
+		options: { cwd: directory },
+	});
 	if (status !== "") {
 		return "Commit or stash your changes first, so the removal is a commit of its own that git revert can take back.";
 	}
@@ -276,9 +303,12 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 	const start = `piece-start: ${piece}`;
 	for (const path of trackedFiles(directory)) {
 		if (path.endsWith(".md")) continue;
-		textEdit(directory, path, (text) =>
-			text.includes(start) ? pieceBlocksRemove(text, piece) : text,
-		);
+		textEdit({
+			directory,
+			path,
+			edit: (text) =>
+				text.includes(start) ? pieceBlocksRemove(text, piece) : text,
+		});
 	}
 	removal.edit?.(directory);
 	const left = trackedFiles(directory).filter(
@@ -296,7 +326,7 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 export const pieceRemove = (directory: string, piece: string) => {
 	pieceFilesRemove(directory, piece);
 	const pnpm = (args: string[]) =>
-		run("pnpm", args, { cwd: directory, inherit: true });
+		run({ command: "pnpm", args, options: { cwd: directory, inherit: true } });
 	const installed = packagesInstalled(directory);
 	const packages = pieceRemovals[piece]?.packages.filter((p) =>
 		installed.has(p),

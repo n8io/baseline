@@ -37,14 +37,14 @@ const fooUseCases = telemetryUseCasesTrace(
 await events.consumersStart([
 	// domain-create: consumers
 ]);
-await queueSchedulesRegister(
+await queueSchedulesRegister({
+	env: ENV,
 	queue,
-	[
+	schedules: [
 		fooScheduleCreate(fooUseCases),
 		// domain-create: schedules
 	],
-	{ env: ENV },
-);
+});
 
 shutdown = shutdownHandleCreate({
 	drainDelayMs: envLocal ? 0 : 5_000,

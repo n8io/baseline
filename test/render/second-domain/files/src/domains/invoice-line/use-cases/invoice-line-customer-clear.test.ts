@@ -40,11 +40,10 @@ describe("invoiceLineCustomerClear", () => {
 		const first = await billed("alpha", deleted);
 		const other = await billed("beta", kept);
 
-		const result = await invoiceLineCustomerClear(ports)(
-			consumer,
-			{ customerId: deleted },
-			{ consumer: "invoice-line.customer-deleted", eventId: "event-1" },
-		);
+		const result = await invoiceLineCustomerClear(ports)(consumer, {
+			customerId: deleted,
+			inbox: { consumer: "invoice-line.customer-deleted", eventId: "event-1" },
+		});
 
 		expect(result).toEqual({ ok: true, value: undefined });
 		expect(state.invoiceLines.get(first)?.customerId).toBeUndefined();
@@ -57,18 +56,16 @@ describe("invoiceLineCustomerClear", () => {
 			consumer: "invoice-line.customer-deleted",
 			eventId: "event-1",
 		};
-		await invoiceLineCustomerClear(ports)(
-			consumer,
-			{ customerId: deleted },
+		await invoiceLineCustomerClear(ports)(consumer, {
+			customerId: deleted,
 			inbox,
-		);
+		});
 		const later = await billed("gamma", deleted);
 
-		const repeat = await invoiceLineCustomerClear(ports)(
-			consumer,
-			{ customerId: deleted },
+		const repeat = await invoiceLineCustomerClear(ports)(consumer, {
+			customerId: deleted,
 			inbox,
-		);
+		});
 
 		expect(repeat).toEqual({ ok: true, value: undefined });
 		expect(state.invoiceLines.get(later)?.customerId).toBe(deleted);

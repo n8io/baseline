@@ -177,11 +177,15 @@ const namedImports = /^import\s+(type\s+)?\{([^}]*)\}\s*from\s*("[^"]+");/gm;
 
 // The first domain fills each emptied domains-start/domains-end pair with the template's lines,
 // foo's left out, and imports the template names the render's Biome pass dropped as unused.
-export const domainsPairsFill = (
-	project: string,
-	template: string,
-	path: string,
-): string => {
+export const domainsPairsFill = ({
+	path,
+	project,
+	template,
+}: {
+	path: string;
+	project: string;
+	template: string;
+}): string => {
 	const lines = project.split("\n");
 	const source = linesRemove(template, fooBlocksFind(template, path)).split(
 		"\n",
@@ -221,26 +225,32 @@ export const domainsPairsFill = (
 
 // Adds the renamed copy of each foo line in the template's version of a file to the project's
 // version: above the same marker, or after the imports for an import.
-export const wiringInsert = (
-	project: string,
-	template: string,
-	path: string,
-	names: DomainNames,
-	firstDomain: boolean,
-): string => {
+export const wiringInsert = ({
+	firstDomain,
+	names,
+	path,
+	project,
+	template,
+}: {
+	firstDomain: boolean;
+	names: DomainNames;
+	path: string;
+	project: string;
+	template: string;
+}): string => {
 	const lines = (
-		firstDomain ? domainsPairsFill(project, template, path) : project
+		firstDomain ? domainsPairsFill({ project, template, path }) : project
 	).split("\n");
 	const templateLines = template.split("\n");
 	const blocks = fooBlocksFind(template, path);
 	const inBlock = (k: number) => blocks.some(([s, e]) => k >= s && k <= e);
 	const imports: string[] = [];
 	for (const [start, end] of blocks) {
-		const text = fooRename(
-			templateLines.slice(start, end + 1).join("\n"),
+		const text = fooRename({
+			text: templateLines.slice(start, end + 1).join("\n"),
 			names,
 			path,
-		);
+		});
 		if (/^import /.test(templateLines[start] ?? "")) {
 			imports.push(text);
 			continue;
@@ -268,11 +278,15 @@ export const wiringInsert = (
 };
 
 // The files a new domain adds or changes, from the template's files and the project's.
-export const domainFilesCreate = (
-	templateFull: TemplateFile[],
-	appDirectory: string,
-	names: DomainNames,
-): TemplateFile[] => {
+export const domainFilesCreate = ({
+	appDirectory,
+	names,
+	templateFull,
+}: {
+	appDirectory: string;
+	names: DomainNames;
+	templateFull: TemplateFile[];
+}): TemplateFile[] => {
 	const template = templateWithoutPieces(
 		templateFull,
 		piecesRemovedFind(appDirectory),
@@ -298,7 +312,7 @@ export const domainFilesCreate = (
 		if (copied(file.path)) {
 			files.push({
 				path: fooPathRename(file.path, names),
-				text: fooRename(file.text, names, file.path),
+				text: fooRename({ text: file.text, names, path: file.path }),
 			});
 			continue;
 		}
@@ -317,7 +331,13 @@ export const domainFilesCreate = (
 		const project = readFileSync(target, "utf8");
 		files.push({
 			path: file.path,
-			text: wiringInsert(project, file.text, file.path, names, firstDomain),
+			text: wiringInsert({
+				project,
+				template: file.text,
+				path: file.path,
+				names,
+				firstDomain,
+			}),
 		});
 	}
 	return files;
@@ -345,7 +365,7 @@ const main = () => {
 		: templateFetch(templateJsonRead(appDirectory).release);
 	let files: TemplateFile[];
 	try {
-		files = domainFilesCreate(template, appDirectory, names);
+		files = domainFilesCreate({ templateFull: template, appDirectory, names });
 	} catch (error) {
 		console.error(`domain-create: ${(error as Error).message}`);
 		process.exit(1);
@@ -360,18 +380,34 @@ const main = () => {
 		const paths = files.map((f) => f.path);
 		// A removed piece's blocks leave imports nothing uses.
 		const unusedImports = "--only=correctness/noUnusedImports";
-		run(
-			"pnpm",
-			["exec", "biome", "lint", "--write", "--unsafe", unusedImports, ...paths],
-			{
+		run({
+			command: "pnpm",
+			args: [
+				"exec",
+				"biome",
+				"lint",
+				"--write",
+				"--unsafe",
+				unusedImports,
+				...paths,
+			],
+			options: {
 				cwd: appDirectory,
 			},
-		);
-		run("pnpm", ["exec", "biome", "check", "--write", ...paths], {
-			cwd: appDirectory,
+		});
+		run({
+			command: "pnpm",
+			args: ["exec", "biome", "check", "--write", ...paths],
+			options: {
+				cwd: appDirectory,
+			},
 		});
 		for (const script of ["check", "test"]) {
-			run("pnpm", ["run", script], { cwd: appDirectory, inherit: true });
+			run({
+				command: "pnpm",
+				args: ["run", script],
+				options: { cwd: appDirectory, inherit: true },
+			});
 		}
 	} catch {
 		console.error(

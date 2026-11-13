@@ -31,27 +31,39 @@ export type UpgradeTools = {
 };
 
 // Stores a rendered tree as a commit in the project's repository, without touching its index.
-const renderCommit = (
-	repository: string,
-	files: TemplateFile[],
-	tools: UpgradeTools,
-	message: string,
-	parent?: string,
-): string => {
+const renderCommit = ({
+	files,
+	message,
+	parent,
+	repository,
+	tools,
+}: {
+	files: TemplateFile[];
+	message: string;
+	parent?: string;
+	repository: string;
+	tools: UpgradeTools;
+}): string => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-"));
 	const tree = join(work.path, "tree");
 	filesWrite(tree, files);
 	tools.finish(tree);
 	const env = { ...process.env, GIT_INDEX_FILE: join(work.path, "index") };
 	const git = (args: string[]) =>
-		run(
-			"git",
-			["--git-dir", join(repository, ".git"), "--work-tree", tree, ...args],
-			{
+		run({
+			command: "git",
+			args: [
+				"--git-dir",
+				join(repository, ".git"),
+				"--work-tree",
+				tree,
+				...args,
+			],
+			options: {
 				cwd: tree,
 				env,
 			},
-		).trim();
+		}).trim();
 	git(["add", "--all", "--force", "."]);
 	const treeId = git(["write-tree"]);
 	return git([
@@ -65,28 +77,47 @@ const renderCommit = (
 
 // The paths git left unmerged after the cherry-pick.
 const conflictsRead = (repository: string): string[] =>
-	run("git", ["diff", "--name-only", "--diff-filter=U"], { cwd: repository })
+	run({
+		command: "git",
+		args: ["diff", "--name-only", "--diff-filter=U"],
+		options: { cwd: repository },
+	})
 		.split("\n")
 		.filter((path) => path !== "");
 
 // Applies the change between two renders to the project's working tree.
-const templateMerge = (
-	repository: string,
-	from: TemplateFile[],
-	to: TemplateFile[],
-	tools: UpgradeTools,
-	labels: { from: string; to: string },
-): { conflicts: string[] } => {
-	const base = renderCommit(repository, from, tools, `template ${labels.from}`);
-	const next = renderCommit(
+const templateMerge = ({
+	from,
+	labels,
+	repository,
+	to,
+	tools,
+}: {
+	from: TemplateFile[];
+	labels: { from: string; to: string };
+	repository: string;
+	to: TemplateFile[];
+	tools: UpgradeTools;
+}): { conflicts: string[] } => {
+	const base = renderCommit({
 		repository,
-		to,
+		files: from,
 		tools,
-		`template ${labels.to}`,
-		base,
-	);
+		message: `template ${labels.from}`,
+	});
+	const next = renderCommit({
+		repository,
+		files: to,
+		tools,
+		message: `template ${labels.to}`,
+		parent: base,
+	});
 	try {
-		run("git", ["cherry-pick", "--no-commit", next], { cwd: repository });
+		run({
+			command: "git",
+			args: ["cherry-pick", "--no-commit", next],
+			options: { cwd: repository },
+		});
 	} catch (error) {
 		// A conflict exits non-zero and leaves unmerged paths; anything else is a real failure.
 		const conflicts = conflictsRead(repository);
@@ -97,11 +128,15 @@ const templateMerge = (
 };
 
 // The `## <version>` sections of the app's changelog after `from`, up to and including `to`.
-export const changelogBetween = (
-	changelog: string,
-	from: string,
-	to: string,
-): string => {
+export const changelogBetween = ({
+	changelog,
+	from,
+	to,
+}: {
+	changelog: string;
+	from: string;
+	to: string;
+}): string => {
 	const versionKey = (v: string) =>
 		v
 			.split(".")
@@ -148,12 +183,20 @@ export const workspaceExcludesDedupe = (workspace: string): string => {
 	return workspace.replace(pnpmList, "");
 };
 
-export const templateUpgrade = async (
-	appDirectory: string,
-	to: string,
-	tools: UpgradeTools,
-): Promise<{ conflicts: string[]; changelog: string }> => {
-	const status = run("git", ["status", "--porcelain"], { cwd: appDirectory });
+export const templateUpgrade = async ({
+	appDirectory,
+	to,
+	tools,
+}: {
+	appDirectory: string;
+	to: string;
+	tools: UpgradeTools;
+}): Promise<{ conflicts: string[]; changelog: string }> => {
+	const status = run({
+		command: "git",
+		args: ["status", "--porcelain"],
+		options: { cwd: appDirectory },
+	});
 	if (status.trim() !== "") {
 		throw new Error("the working tree has changes; commit or stash them first");
 	}
@@ -164,13 +207,13 @@ export const templateUpgrade = async (
 	// The project's lockfile is its own after app-create: its next install moves only what changed.
 	const merged = (files: TemplateFile[]) =>
 		files.filter((f) => f.path !== "pnpm-lock.yaml");
-	const { conflicts } = templateMerge(
-		appDirectory,
-		await releaseRender(merged(fromFiles), answers),
-		await releaseRender(merged(toFiles), answers),
+	const { conflicts } = templateMerge({
+		repository: appDirectory,
+		from: await releaseRender(merged(fromFiles), answers),
+		to: await releaseRender(merged(toFiles), answers),
 		tools,
-		{ from: template.release, to },
-	);
+		labels: { from: template.release, to },
+	});
 	const workspace = join(appDirectory, "pnpm-workspace.yaml");
 	if (conflicts.length === 0 && existsSync(workspace)) {
 		const text = readFileSync(workspace, "utf8");
@@ -182,21 +225,26 @@ export const templateUpgrade = async (
 	);
 	const changelog = toFiles.find((f) => f.path === "CHANGELOG.md")?.text ?? "";
 	return {
-		changelog: changelogBetween(changelog, template.release, to),
+		changelog: changelogBetween({ changelog, from: template.release, to }),
 		conflicts,
 	};
 };
 
 // The CLI's steps after parsing; returns the exit code.
-export const templateUpgradeRun = async (
-	appDirectory: string,
-	to: string,
-	tools: UpgradeTools,
-	pnpm: (script: string) => void,
-): Promise<number> => {
+export const templateUpgradeRun = async ({
+	appDirectory,
+	pnpm,
+	to,
+	tools,
+}: {
+	appDirectory: string;
+	pnpm: (script: string) => void;
+	to: string;
+	tools: UpgradeTools;
+}): Promise<number> => {
 	let result: { conflicts: string[]; changelog: string };
 	try {
-		result = await templateUpgrade(appDirectory, to, tools);
+		result = await templateUpgrade({ appDirectory, to, tools });
 	} catch (error) {
 		console.error(`template-upgrade: ${(error as Error).message}`);
 		return 1;
@@ -225,17 +273,21 @@ export const templateUpgradeRun = async (
 const main = async () => {
 	const { values } = parseArgs({ options: { to: { type: "string" } } });
 	const appDirectory = process.cwd();
-	process.exitCode = await templateUpgradeRun(
+	process.exitCode = await templateUpgradeRun({
 		appDirectory,
-		values.to ?? releaseLatest(),
-		{
+		to: values.to ?? releaseLatest(),
+		tools: {
 			fetch: (version) => templateFetch(version),
 			finish: (directory) => templateFinish(directory, appDirectory),
 		},
-		(script) => {
-			run("pnpm", [script], { cwd: appDirectory, inherit: true });
+		pnpm: (script) => {
+			run({
+				command: "pnpm",
+				args: [script],
+				options: { cwd: appDirectory, inherit: true },
+			});
 		},
-	);
+	});
 };
 
 if (import.meta.main) await main();

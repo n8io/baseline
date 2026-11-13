@@ -43,7 +43,7 @@ export const postgresPoolCreate = ({
 	vendor = {},
 }: PostgresPoolOptions): PostgresPool => {
 	postgresUrlAssert(databaseUrl);
-	postgresVendorAssert(vendor, databaseUrl, { max: "max" });
+	postgresVendorAssert({ vendor, databaseUrl, owned: { max: "max" } });
 	const pgPool = new pg.Pool({
 		keepAlive: true,
 		...vendor,

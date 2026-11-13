@@ -50,16 +50,21 @@ describe("httpRouteName", () => {
 	});
 
 	it.each([
-		[
-			"GET",
-			"/api/v1/foos/foo_1",
-			"GET /api/v1/foos/:fooId",
-			"/api/v1/foos/:fooId",
-		],
-		["POST", "/api/v1/foos", "POST /api/v1/foos", "/api/v1/foos"],
+		{
+			method: "GET",
+			name: "GET /api/v1/foos/:fooId",
+			path: "/api/v1/foos/foo_1",
+			route: "/api/v1/foos/:fooId",
+		},
+		{
+			method: "POST",
+			name: "POST /api/v1/foos",
+			path: "/api/v1/foos",
+			route: "/api/v1/foos",
+		},
 	])(
-		"names the server span for %s %s after the route that answered",
-		async (method, path, name, route) => {
+		"names the server span for $method $path after the route that answered",
+		async ({ method, name, path, route }) => {
 			const span = spanFake();
 			const res = await appCreate().request(path, { method });
 
@@ -73,11 +78,21 @@ describe("httpRouteName", () => {
 	);
 
 	it.each([
-		["DELETE", "/api/v1/foos/foo_1", 500, "DELETE /api/v1/foos/:fooId"],
-		["GET", "/api/v1/foos?limit=999", 400, "GET /api/v1/foos"],
+		{
+			method: "DELETE",
+			name: "DELETE /api/v1/foos/:fooId",
+			path: "/api/v1/foos/foo_1",
+			status: 500,
+		},
+		{
+			method: "GET",
+			name: "GET /api/v1/foos",
+			path: "/api/v1/foos?limit=999",
+			status: 400,
+		},
 	])(
-		"still names the span when %s %s answers %i",
-		async (method, path, status, name) => {
+		"still names the span when $method $path answers $status",
+		async ({ method, name, path, status }) => {
 			vi.spyOn(logger, "error").mockImplementation(() => undefined);
 			const span = spanFake();
 			const res = await appCreate().request(path, { method });

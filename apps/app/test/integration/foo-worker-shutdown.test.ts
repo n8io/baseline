@@ -74,16 +74,16 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 		await locker.query("BEGIN");
 		await locker.query("LOCK TABLE foo.foo IN SHARE MODE");
 		await staleArchiveSend(databaseUrl);
-		await productionServerWaitFor(
-			"the archive UPDATE waiting on the lock",
-			async () => {
+		await productionServerWaitFor({
+			what: "the archive UPDATE waiting on the lock",
+			check: async () => {
 				const { rows } = await db.query(
 					`SELECT 1 FROM pg_stat_activity
 				 WHERE wait_event_type = 'Lock' AND query ILIKE 'update "foo"."foo"%'`,
 				);
 				return rows.length === 1;
 			},
-		);
+		});
 
 		worker.child.kill("SIGTERM");
 		await shutdownStarted(worker);

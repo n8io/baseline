@@ -16,7 +16,7 @@ let pgPool: pg.Pool;
 const queues: Queue[] = [];
 
 const schedule = (name: string, cron = "0 3 * * *") =>
-	queueScheduleCreate(name, cron, async () => ok(undefined));
+	queueScheduleCreate({ name, cron, run: async () => ok(undefined) });
 
 const worker = async (): Promise<Queue> => {
 	const queue = await queueCreate({ pgPool, role: "worker" });
@@ -52,7 +52,9 @@ afterAll(async () => {
 describe("queueSchedulesRegister", () => {
 	it("registers each schedule on an exclusive queue with a dead letter, and starts its worker", async () => {
 		const queue = await worker();
-		await queueSchedulesRegister(queue, [schedule("foo.stale-archive")], {
+		await queueSchedulesRegister({
+			queue,
+			schedules: [schedule("foo.stale-archive")],
 			env: {},
 		});
 
@@ -80,13 +82,15 @@ describe("queueSchedulesRegister", () => {
 
 	it("unschedules what is no longer in code, and keeps the package's own", async () => {
 		const queue = await worker();
-		await queueSchedulesRegister(
+		await queueSchedulesRegister({
 			queue,
-			[schedule("foo.stale-archive"), schedule("foo.report-send")],
-			{ env: {} },
-		);
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+			env: {},
+		});
 
-		await queueSchedulesRegister(queue, [schedule("foo.stale-archive")], {
+		await queueSchedulesRegister({
+			queue,
+			schedules: [schedule("foo.stale-archive")],
 			env: {},
 		});
 
@@ -100,10 +104,14 @@ describe("queueSchedulesRegister", () => {
 		const old = await worker();
 		const next = await worker();
 
-		await queueSchedulesRegister(old, [schedule("foo.report-send")], {
+		await queueSchedulesRegister({
+			queue: old,
+			schedules: [schedule("foo.report-send")],
 			env: {},
 		});
-		await queueSchedulesRegister(next, [schedule("foo.stale-archive")], {
+		await queueSchedulesRegister({
+			queue: next,
+			schedules: [schedule("foo.stale-archive")],
 			env: {},
 		});
 		expect(Object.keys(await held(next)).sort()).toEqual([
@@ -112,7 +120,9 @@ describe("queueSchedulesRegister", () => {
 		]);
 
 		// An old instance that restarts mid-rollout puts its own list back until a new one boots.
-		await queueSchedulesRegister(old, [schedule("foo.report-send")], {
+		await queueSchedulesRegister({
+			queue: old,
+			schedules: [schedule("foo.report-send")],
 			env: {},
 		});
 		expect(Object.keys(await held(next)).sort()).toEqual([
@@ -123,22 +133,20 @@ describe("queueSchedulesRegister", () => {
 
 	it("applies a cron override, and off unschedules", async () => {
 		const queue = await worker();
-		await queueSchedulesRegister(
+		await queueSchedulesRegister({
 			queue,
-			[schedule("foo.stale-archive"), schedule("foo.report-send")],
-			{ env: {} },
-		);
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+			env: {},
+		});
 
-		await queueSchedulesRegister(
+		await queueSchedulesRegister({
 			queue,
-			[schedule("foo.stale-archive"), schedule("foo.report-send")],
-			{
-				env: {
-					SCHEDULE_FOO_REPORT_SEND: "off",
-					SCHEDULE_FOO_STALE_ARCHIVE: "*/5 * * * *",
-				},
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+			env: {
+				SCHEDULE_FOO_REPORT_SEND: "off",
+				SCHEDULE_FOO_STALE_ARCHIVE: "*/5 * * * *",
 			},
-		);
+		});
 
 		expect(await held(queue)).toEqual({
 			"foo.stale-archive": "*/5 * * * *",
@@ -159,11 +167,11 @@ describe("queueSchedulesRegister", () => {
 					})[String(name)],
 			},
 		);
-		await queueSchedulesRegister(
+		await queueSchedulesRegister({
 			queue,
-			[schedule("foo.stale-archive"), schedule("foo.report-send")],
-			{ env },
-		);
+			schedules: [schedule("foo.stale-archive"), schedule("foo.report-send")],
+			env,
+		});
 
 		expect(await held(queue)).toEqual({
 			"foo.report-send": "0 3 * * *",
@@ -176,11 +184,11 @@ describe("queueSchedulesRegister", () => {
 		const queue = await worker();
 
 		await expect(
-			queueSchedulesRegister(
+			queueSchedulesRegister({
 				queue,
-				[schedule("foo.report-send"), schedule("foo.stale-archive")],
-				{ env: { SCHEDULE_FOO_STALE_ARCHIVE: "every day" } },
-			),
+				schedules: [schedule("foo.report-send"), schedule("foo.stale-archive")],
+				env: { SCHEDULE_FOO_STALE_ARCHIVE: "every day" },
+			}),
 		).rejects.toThrow(
 			"Invalid cron for SCHEDULE_FOO_STALE_ARCHIVE: use a cron string or off",
 		);
@@ -191,13 +199,11 @@ describe("queueSchedulesRegister", () => {
 		const queue = await worker();
 
 		await expect(
-			queueSchedulesRegister(
+			queueSchedulesRegister({
 				queue,
-				[schedule("foo.stale-archive", "61 * * * *")],
-				{
-					env: {},
-				},
-			),
+				schedules: [schedule("foo.stale-archive", "61 * * * *")],
+				env: {},
+			}),
 		).rejects.toThrow("Invalid cron for schedule foo.stale-archive");
 	});
 });

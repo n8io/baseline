@@ -39,7 +39,9 @@ describe("fooRename", () => {
 			`throw new Error(\`Foo \${id} not found\`); "foos"; "FooNotFound";`,
 		].join("\n");
 
-		expect(fooRename(source, names, "src/x.ts").split("\n")).toEqual([
+		expect(
+			fooRename({ text: source, names, path: "src/x.ts" }).split("\n"),
+		).toEqual([
 			'import { invoiceLineCreate } from "#domains/invoice-line/use-cases/invoice-line-create.ts";',
 			'const invoiceLine = idCreate("invoice_line"); // Saves the invoice line.',
 			"const invoiceLines: InvoiceLine[] = state.invoiceLines;",
@@ -62,17 +64,19 @@ describe("fooRename", () => {
 			'"A foo named it already exists"',
 		].join("\n");
 
-		expect(fooRename(source, names, "src/ui/routes/x.tsx").split("\n")).toEqual(
-			[
-				"<h1>Invoice lines</h1>",
-				"<CardTitle>New invoice line</CardTitle>",
-				"\t\t\t\tBack to invoice lines",
-				"<p>Delete this invoice line?</p>",
-				"{invoiceLine.name} {items.map((invoiceLine) => invoiceLine.id)}",
-				"<p>Invoice lines</p> {invoiceLine.name}",
-				'"A invoice line named it already exists"',
-			],
-		);
+		expect(
+			fooRename({ text: source, names, path: "src/ui/routes/x.tsx" }).split(
+				"\n",
+			),
+		).toEqual([
+			"<h1>Invoice lines</h1>",
+			"<CardTitle>New invoice line</CardTitle>",
+			"\t\t\t\tBack to invoice lines",
+			"<p>Delete this invoice line?</p>",
+			"{invoiceLine.name} {items.map((invoiceLine) => invoiceLine.id)}",
+			"<p>Invoice lines</p> {invoiceLine.name}",
+			'"A invoice line named it already exists"',
+		]);
 	});
 
 	it("renames paths", () => {
@@ -327,9 +331,9 @@ describe.runIf(template)("the template's own files", () => {
 			const pairs = domainsPairsFind(rendered, path);
 
 			expect(pairs.every(([start, end]) => end === start + 1)).toBe(true);
-			expect(domainsPairsFill(rendered, text, path)).toBe(
-				linesRemove(text, fooBlocksFind(text, path)),
-			);
+			expect(
+				domainsPairsFill({ project: rendered, template: text, path }),
+			).toBe(linesRemove(text, fooBlocksFind(text, path)));
 		}
 	});
 });

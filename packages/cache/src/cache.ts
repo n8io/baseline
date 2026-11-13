@@ -12,7 +12,7 @@ export type Cache<T> = {
 export type CacheStore = {
 	delete(key: string): Promise<void>;
 	get(key: string): Promise<string | undefined>;
-	set(key: string, json: string, ttlMs: number): Promise<void>;
+	set(entry: { json: string; key: string; ttlMs: number }): Promise<void>;
 };
 
 export type CacheOptions<T> = {
@@ -49,6 +49,7 @@ export const cacheCreate = <T>(
 			const result = await schema["~standard"].validate(cacheJsonParse(json));
 			return result.issues === undefined ? result.value : undefined;
 		},
-		set: (id, value) => store.set(key(id), JSON.stringify(value), ttlMs),
+		set: (id, value) =>
+			store.set({ json: JSON.stringify(value), key: key(id), ttlMs }),
 	};
 };

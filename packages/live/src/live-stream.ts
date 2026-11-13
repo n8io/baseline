@@ -62,8 +62,12 @@ export const liveStreamCreate = ({
 		let unlisten = (): void => {};
 		try {
 			if (streams.isClosed() || aborted) return;
-			const listening = streams.listen(channel, id, (update) => {
-				write(`data: ${JSON.stringify(update)}\n\n`);
+			const listening = streams.listen({
+				channel,
+				id,
+				listener: (update) => {
+					write(`data: ${JSON.stringify(update)}\n\n`);
+				},
 			});
 			// Never let a slow subscribe hold up close() or the lifetime.
 			const ready = await Promise.race([listening, stop.promise]);

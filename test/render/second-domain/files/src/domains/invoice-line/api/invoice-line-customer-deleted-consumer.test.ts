@@ -31,8 +31,7 @@ describe("invoiceLineCustomerDeletedConsumerCreate", () => {
 				kind: "client",
 				scopes: [],
 			},
-			{ customerId },
-			inbox,
+			{ customerId, inbox },
 		);
 	});
 

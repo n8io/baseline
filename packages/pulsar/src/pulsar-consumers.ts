@@ -56,12 +56,17 @@ export const pulsarConsumersSubscribe = async (
 	}
 };
 
-const pulsarEventRun = (
-	state: PulsarState,
-	consumer: Consumer,
-	subscribed: PulsarClient.Consumer,
-	message: PulsarClient.Message,
-): Promise<void> => {
+const pulsarEventRun = ({
+	consumer,
+	message,
+	state,
+	subscribed,
+}: {
+	consumer: Consumer;
+	message: PulsarClient.Message;
+	state: PulsarState;
+	subscribed: PulsarClient.Consumer;
+}): Promise<void> => {
 	const properties: Record<string, string> = { ...message.getProperties() };
 	const topic = message.getTopicName();
 	const attempt = message.getRedeliveryCount();
@@ -81,14 +86,17 @@ const pulsarEventRun = (
 		pulsarPropagator.extract(ROOT_CONTEXT, properties, defaultTextMapGetter),
 		async (span) => {
 			try {
-				await queueJobRun(consumer.queueName, { retryCount: attempt }, () =>
-					consumer.run(JSON.parse(message.getData().toString()), {
-						consumer: consumer.queueName,
-						eventId:
-							properties[pulsarEventIdProperty] ??
-							message.getMessageId().toString(),
-					}),
-				);
+				await queueJobRun({
+					queueName: consumer.queueName,
+					job: { retryCount: attempt },
+					work: () =>
+						consumer.run(JSON.parse(message.getData().toString()), {
+							consumer: consumer.queueName,
+							eventId:
+								properties[pulsarEventIdProperty] ??
+								message.getMessageId().toString(),
+						}),
+				});
 				await subscribed.acknowledge(message);
 			} catch (error) {
 				span.setAttribute(
@@ -111,11 +119,15 @@ const pulsarEventRun = (
 	);
 };
 
-const pulsarConsumerLoop = async (
-	state: PulsarState,
-	consumer: Consumer,
-	subscribed: PulsarClient.Consumer,
-): Promise<void> => {
+const pulsarConsumerLoop = async ({
+	consumer,
+	state,
+	subscribed,
+}: {
+	consumer: Consumer;
+	state: PulsarState;
+	subscribed: PulsarClient.Consumer;
+}): Promise<void> => {
 	while (!state.stopping) {
 		let message: PulsarClient.Message;
 		try {
@@ -132,7 +144,7 @@ const pulsarConsumerLoop = async (
 		// Left unacknowledged: the broker redelivers it once stop() closes the consumer.
 		if (state.stopping) return;
 		// One Event at a time per Consumer per instance, like the queue package's workers.
-		const running = pulsarEventRun(state, consumer, subscribed, message);
+		const running = pulsarEventRun({ state, consumer, subscribed, message });
 		state.running.add(running);
 		await running;
 		state.running.delete(running);
@@ -150,6 +162,6 @@ export const pulsarConsumersStart = async (
 			pulsarSubscribeConfig(state, consumer),
 		);
 		state.consumers.push(subscribed);
-		void pulsarConsumerLoop(state, consumer, subscribed);
+		void pulsarConsumerLoop({ state, consumer, subscribed });
 	}
 };

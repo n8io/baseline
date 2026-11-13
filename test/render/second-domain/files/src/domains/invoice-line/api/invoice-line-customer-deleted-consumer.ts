@@ -13,14 +13,13 @@ const invoiceLineCustomerDeletedConsumerActor: Actor = {
 export const invoiceLineCustomerDeletedConsumerCreate = (
 	u: InvoiceLineUseCases,
 ) =>
-	queueConsumerCreate(
-		"invoice-line.customer-deleted",
-		"customer.deleted",
-		customerDeleted,
-		(event, inbox) =>
-			u.invoiceLineCustomerClear(
-				invoiceLineCustomerDeletedConsumerActor,
-				{ customerId: event.customerId },
+	queueConsumerCreate({
+		queueName: "invoice-line.customer-deleted",
+		eventName: "customer.deleted",
+		schema: customerDeleted,
+		run: (event, inbox) =>
+			u.invoiceLineCustomerClear(invoiceLineCustomerDeletedConsumerActor, {
+				customerId: event.customerId,
 				inbox,
-			),
-	);
+			}),
+	});
