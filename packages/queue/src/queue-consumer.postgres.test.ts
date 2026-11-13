@@ -18,9 +18,8 @@ import {
 	type Inbox,
 	type Queue,
 	queueConsumerCreate,
-	queueConsumersStart,
 	queueCreate,
-	queueEventsPgBossCreate,
+	queueEventsCreate,
 	queueInboxInsert,
 	queueMigrate,
 } from "./index.ts";
@@ -57,15 +56,14 @@ const fooCreated = z.object({ fooId: z.string() });
 
 const publish = async (data: unknown): Promise<void> => {
 	await postgresTransactionRun(pgPool, async (pgClient) => {
-		await queueEventsPgBossCreate<{ "foo.created": unknown }>(
-			queue,
-			pgClient,
-		).publish("foo.created", data);
+		await queueEventsCreate(queue)
+			.publisherCreate<{ "foo.created": unknown }>(pgClient)
+			.publish("foo.created", data);
 		return ok(undefined);
 	});
 };
 
-describe("queueConsumersStart", () => {
+describe("consumersStart", () => {
 	it("a job keeps its id across retries, and the inbox skips the repeat", async () => {
 		const calls: Inbox[] = [];
 		// A use case whose first attempt commits, then fails before pg-boss hears back.
@@ -91,7 +89,7 @@ describe("queueConsumersStart", () => {
 			}
 			return result;
 		};
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate(
 				"billing.foo-created",
 				"foo.created",
@@ -144,7 +142,7 @@ describe("queueConsumersStart", () => {
 			}
 			return result;
 		};
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate(
 				"billing.foo-archived",
 				"foo.archived",
@@ -166,10 +164,9 @@ describe("queueConsumersStart", () => {
 		};
 
 		await postgresTransactionRun(pgPool, async (pgClient) => {
-			await queueEventsPgBossCreate<{ "foo.archived": unknown }>(
-				queue,
-				pgClient,
-			).publish("foo.archived", { fooId: "foo_2" });
+			await queueEventsCreate(queue)
+				.publisherCreate<{ "foo.archived": unknown }>(pgClient)
+				.publish("foo.archived", { fooId: "foo_2" });
 			return ok(undefined);
 		});
 		await deadLettered();
@@ -199,7 +196,7 @@ describe("queueConsumersStart", () => {
 
 	it("fails a job whose data does not match the schema, without echoing it", async () => {
 		const run = vi.fn(async () => ok(undefined));
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate("audit.foo-created", "foo.created", fooCreated, run),
 		]);
 
@@ -221,10 +218,10 @@ describe("queueConsumersStart", () => {
 	});
 });
 
-describe("queueConsumersStart trace context", () => {
+describe("consumersStart trace context", () => {
 	it("runs the Consumer in the publishing request's trace", async () => {
 		let consumerTraceId: string | undefined;
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate(
 				"billing.foo-traced",
 				"foo.traced",
@@ -240,10 +237,9 @@ describe("queueConsumersStart trace context", () => {
 			.getTracer("test")
 			.startActiveSpan("fooCreate", async (span) => {
 				await postgresTransactionRun(pgPool, async (pgClient) => {
-					await queueEventsPgBossCreate<{ "foo.traced": unknown }>(
-						queue,
-						pgClient,
-					).publish("foo.traced", { fooId: "foo_3" });
+					await queueEventsCreate(queue)
+						.publisherCreate<{ "foo.traced": unknown }>(pgClient)
+						.publish("foo.traced", { fooId: "foo_3" });
 					return ok(undefined);
 				});
 				span.end();

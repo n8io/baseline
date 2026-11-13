@@ -18,7 +18,6 @@ import {
 	httpServerClose,
 } from "@n8io/baseline-http";
 import { logger } from "@n8io/baseline-logger";
-import { queueConsumersSubscribe } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
@@ -84,8 +83,8 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
 
 // piece-start: queue
 // Creates queues and subscriptions; consumers run only in the worker.
-if (connections.queue !== "memory") {
-	await queueConsumersSubscribe(connections.queue, [
+if (connections.events !== "memory") {
+	await connections.events.consumersSubscribe([
 		// domain-create: consumers
 	]);
 }

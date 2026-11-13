@@ -68,7 +68,7 @@ const pulsarStop = async (state: PulsarState): Promise<void> => {
 // attempt; it doubles for each later one (10 s, 20 s, 40 s, 80 s, as in the queue package).
 export const pulsarCreate = (options: {
 	serviceUrl: string;
-	token?: string;
+	token?: string | undefined;
 	namespace?: string;
 	retryDelayMs?: number;
 }): Pulsar => {

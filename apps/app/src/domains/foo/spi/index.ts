@@ -1,4 +1,4 @@
-import type { Queue } from "@n8io/baseline-queue";
+import type { Events } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { Connections } from "../../../connections.ts";
 import type { FooPorts } from "../ports.ts";
@@ -12,12 +12,10 @@ import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 export const fooPortsCreate = (connections: Connections): FooPorts => {
 	const { database } = connections;
 	// piece-start: queue
-	// The queue lives in the same Postgres as the repository: both real or both memory.
-	const { queue } = connections;
-	if ((database === "memory") !== (queue === "memory")) {
-		throw new TypeError(
-			"database and queue must both be Postgres or both memory",
-		);
+	// Events commit with the repository's rows: both real or both memory.
+	const { events } = connections;
+	if ((database === "memory") !== (events === "memory")) {
+		throw new TypeError("database and events must both be real or both memory");
 	}
 	// piece-end: queue
 	const repository =
@@ -30,7 +28,7 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 					fooTransaction: fooTransactionPostgresCreate(
 						database,
 						// piece-start: queue
-						queue as Queue, // Postgres too: checked above.
+						events as Events, // real too: checked above.
 						// piece-end: queue
 					),
 				};

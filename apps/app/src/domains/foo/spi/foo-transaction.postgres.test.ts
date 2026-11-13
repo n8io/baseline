@@ -4,8 +4,8 @@ import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	type Queue,
 	queueConsumerCreate,
-	queueConsumersSubscribe,
 	queueCreate,
+	queueEventsCreate,
 } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -38,7 +38,7 @@ beforeAll(async () => {
 	pgPool = postgresPoolCreate({ databaseUrl: database.databaseUrl, max: 4 });
 	queue = await queueCreate({ pgPool, role: "publisher" });
 	// Stand-in consumers, so pg-boss copies each event into a queue we can read.
-	await queueConsumersSubscribe(queue, [
+	await queueEventsCreate(queue).consumersSubscribe([
 		queueConsumerCreate(
 			"bar.foo-created",
 			"foo.created",
@@ -64,7 +64,10 @@ describe("foo events on Postgres", () => {
 	const ports = () => ({
 		...fooPortsMemoryCreate().ports,
 		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
-		fooTransaction: fooTransactionPostgresCreate(pgPool, queue),
+		fooTransaction: fooTransactionPostgresCreate(
+			pgPool,
+			queueEventsCreate(queue),
+		),
 	});
 
 	it("publishes foo.created and foo.deleted when their transactions commit", async () => {

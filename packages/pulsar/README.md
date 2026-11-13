@@ -4,7 +4,7 @@ Events and Consumers on [Apache Pulsar](https://pulsar.apache.org) 5, for a proj
 
 How it differs from the queue package:
 
-- **Sent after commit.** `publish` only buffers; the transaction SPI calls `send()` after the commit and drops the buffer on a rollback. A crash between the commit and the send loses that Event. A send that fails is logged and counted on `baseline.pulsar.events_lost`, by `messaging.destination.name`, so you can alert on it.
+- **Sent after commit.** `publish` only buffers; the transaction SPI calls `committed()` after the commit, which sends the buffer, and drops the publisher on a rollback. A crash between the commit and the send loses that Event. A send that fails is logged and counted on `baseline.pulsar.events_lost`, by `messaging.destination.name`, so you can alert on it.
 - **Topics and subscriptions.** Each Event goes to `persistent://<namespace>/<event name>` (namespace `public/default` unless you pass one). Each Consumer is a Shared subscription named after its `queueName`, so every Worker instance takes a share.
 - **Retries and dead letters.** A Consumer that throws is tried five times in all, about 10 s, 20 s, 40 s and 80 s apart, then its Event moves to `<queueName>.dead`, which keeps a subscription of the same name.
 - **Duplicates.** Each Event carries an `event-id` property, kept through every retry and the dead letter. It is the inbox `eventId`, so `queueInboxInsert` skips a repeat as before.
@@ -18,7 +18,8 @@ How it differs from the queue package:
 2. **Environment.** Declare the broker in `.env.schema` (varlock regenerates `src/env.d.ts` on the next run):
 
    ```sh
-   # pulsar:// or pulsar+ssl://
+   # pulsar:// or pulsar+ssl://; not read while DATABASE_URL is memory://
+   # @optional
    # @type=url(allowedProtocols=[pulsar, pulsar+ssl])
    PULSAR_URL=
    # A JWT; leave it unset for a local standalone broker
@@ -26,48 +27,46 @@ How it differs from the queue package:
    PULSAR_TOKEN=
    ```
 
-3. **Transaction SPI.** In each Domain's `*-transaction.postgres.ts`, take a `Pulsar` instead of the `Queue`, publish into a `pulsarEventsCreate` buffer behind the same guard, and send it once the transaction has committed:
+3. **Open Events on Pulsar.** `src/events-open.ts` is the only file that names the Events transport. Replace its body; its caller in `src/connections.ts` already passes everything it needs:
 
    ```ts
-   import { type Pulsar, pulsarEventsCreate } from "@n8io/baseline-pulsar";
+   // src/events-open.ts
+   import { pulsarCreate, pulsarEventsCreate } from "@n8io/baseline-pulsar";
+   import type { Events, Queue } from "@n8io/baseline-queue";
+   import type { ShutdownStep } from "@n8io/baseline-shutdown";
+   import { ENV } from "#env";
 
-   export const fooTransactionPostgresCreate = (pgPool: pg.Pool, pulsar: Pulsar): FooTransaction =>
-     (async (work, inbox) => {
-       const fooEvents = pulsarEventsCreate<FooEventMap>(pulsar);
-       const result = await postgresTransactionRun(pgPool, async (pgClient) => {
-         if (inbox && !(await queueInboxInsert(pgClient, inbox))) return ok(undefined);
-         let open = true;
-         const isOpen = (): boolean => open;
-         try {
-           return await work({
-             fooEvents: transactionPortsGuard(fooEvents, isOpen),
-             fooRepository: transactionPortsGuard(fooRepositoryPostgresCreate(drizzle({ client: pgClient })), isOpen),
-           });
-         } finally {
-           open = false;
-         }
-       });
-       if (result.ok) await fooEvents.send();
-       return result;
-     }) as FooTransaction;
+   export const eventsOpen = ({
+   	intakes,
+   	queue,
+   	resources,
+   	role,
+   }: {
+   	queue: Queue | "memory";
+   	role: "publisher" | "worker";
+   	intakes: ShutdownStep[];
+   	resources: ShutdownStep[];
+   }): Events | "memory" => {
+   	// Events are real exactly when the database is; the queue is "memory" with a memory database.
+   	if (queue === "memory") return "memory";
+   	if (!ENV.PULSAR_URL) throw new Error("PULSAR_URL is not set");
+   	const pulsar = pulsarCreate({
+   		serviceUrl: ENV.PULSAR_URL,
+   		token: ENV.PULSAR_TOKEN,
+   	});
+   	// stop() is an intake: it stops receiving and lets running Consumers finish.
+   	if (role === "worker") {
+   		intakes.push({ close: () => pulsar.stop(), name: "pulsar consumers" });
+   	}
+   	// close() is a resource: it flushes what was sent, so it goes before the database.
+   	resources.unshift({ close: () => pulsar.close(), name: "pulsar" });
+   	return pulsarEventsCreate(pulsar);
+   };
    ```
 
-   In `spi/index.ts`, `fooPortsCreate` takes `pulsar: Pulsar | "memory"` in place of `queue`, with the same both-real-or-both-memory check against `database`.
+   Nothing else changes. Each Domain's transaction, `src/server.ts`, `src/worker.ts` and `src/seed.ts` already go through `connections.events` and the shutdown lists: they publish, call `committed()`, subscribe, start Consumers, report `/livez` and close the same way on either transport. The queue stays open for Schedules and inbox pruning. Consumers are built with the queue package's `queueConsumerCreate`, unchanged.
 
-4. **Composition roots.** Every root that builds ports creates one client, or `"memory"` when `PULSAR_URL` is `memory://` (allow that protocol in `.env.schema` as `DATABASE_URL` does):
-
-   ```ts
-   const pulsar = ENV.PULSAR_URL === "memory://"
-     ? "memory"
-     : pulsarCreate({ serviceUrl: ENV.PULSAR_URL, token: ENV.PULSAR_TOKEN });
-   ```
-
-   `stop()` is an intake: it stops receiving and lets running Consumers finish. `close()` is a resource: it flushes what was sent and closes the client, so list it before `database`, after every intake that may still send.
-   - `src/server.ts`: replace `queueConsumersSubscribe(queue, [...])` with `pulsarConsumersSubscribe(pulsar, [...])`, so the subscriptions exist before the first send. Drop `queueCreate`: the server used the Queue only to publish. Replace the `queue` resource and the `queue.stop()` in `serverDevClose` with `pulsar.close()`.
-   - `src/worker.ts`: replace `queueConsumersStart(queue, [...])` with `pulsarConsumersStart(pulsar, [...])`. Keep `queueCreate` and `queueSchedulesRegister` for Schedules and inbox pruning, and pass both to the ports. Check both in `/livez` (`queue.isAlive() && pulsar.isAlive()`), add `pulsar.stop()` to the intakes beside `queue.stop()`, and `pulsar.close()` to the resources.
-   - `src/seed.ts`: create the client in place of the Queue, pass it to the ports, and `close()` it where the seed now calls `queue.stop()`.
-
-   Consumers are built with the queue package's `queueConsumerCreate`, unchanged.
+4. **Tests.** Tests that build a Domain's Postgres transaction pass `queueEventsCreate(queue)`; they keep working, on the queue. To test on Pulsar, pass `pulsarEventsCreate(pulsar)` there.
 
 5. **Local broker.** Add Pulsar to `compose.yaml` and set `PULSAR_URL=pulsar://localhost:6650` in `.env`:
 

@@ -1,8 +1,8 @@
 import { postgresTransactionRun } from "@n8io/baseline-postgres";
 import {
+	type Events,
+	type EventsPublisher,
 	type Inbox,
-	type Queue,
-	queueEventsPgBossCreate,
 	queueInboxInsert,
 } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
@@ -17,31 +17,34 @@ import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 export const fooTransactionPostgresCreate = (
 	pgPool: pg.Pool,
 	// piece-start: queue
-	// Events publish in the same transaction; a repeated inbox skips the work and commits nothing.
-	queue: Queue,
+	// Events publish in the transaction; a repeated inbox skips the work and commits nothing.
+	events: Events,
 	// piece-end: queue
 ): FooTransaction =>
-	(<T, E>(
+	(async <T, E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
 		// piece-start: queue
 		inbox?: Inbox,
 		// piece-end: queue
-	) =>
-		postgresTransactionRun(pgPool, async (pgClient) => {
+	) => {
+		// piece-start: queue
+		let fooEvents: EventsPublisher<FooEventMap> | undefined;
+		// piece-end: queue
+		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
 			// piece-start: queue
 			if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 				return ok(undefined) as Result<T, E>;
 			}
+			fooEvents = events.publisherCreate<FooEventMap>(pgClient);
+			// The Use case gets publish only: committed() is this file's to call.
+			const { publish } = fooEvents;
 			// piece-end: queue
 			let open = true;
 			const isOpen = (): boolean => open;
 			try {
 				return await work({
 					// piece-start: queue
-					fooEvents: transactionPortsGuard(
-						queueEventsPgBossCreate<FooEventMap>(queue, pgClient),
-						isOpen,
-					),
+					fooEvents: transactionPortsGuard({ publish }, isOpen),
 					// piece-end: queue
 					fooRepository: transactionPortsGuard(
 						fooRepositoryPostgresCreate(drizzle({ client: pgClient })),
@@ -51,4 +54,10 @@ export const fooTransactionPostgresCreate = (
 			} finally {
 				open = false;
 			}
-		})) as FooTransaction;
+		});
+		// piece-start: queue
+		// The transaction has committed: a transport outside it sends its Events now.
+		if (result.ok) await fooEvents?.committed();
+		// piece-end: queue
+		return result;
+	}) as FooTransaction;

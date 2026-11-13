@@ -7,8 +7,8 @@ import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test
 import {
 	type Queue,
 	queueConsumerCreate,
-	queueConsumersStart,
 	queueCreate,
+	queueEventsCreate,
 	queueMigrate,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
@@ -128,7 +128,7 @@ describe("queueCreate", () => {
 		const queue = await start(pgPool, "worker");
 		const boss = queueBossGet(queue);
 		const finished: string[] = [];
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate(
 				"bar.foo-created",
 				"foo.created",
@@ -164,7 +164,7 @@ describe("queueCreate", () => {
 	it("a job still running at the timeout is failed, to be retried", async () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBossGet(queue);
-		await queueConsumersStart(queue, [
+		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate(
 				"baz.foo-deleted",
 				"foo.deleted",

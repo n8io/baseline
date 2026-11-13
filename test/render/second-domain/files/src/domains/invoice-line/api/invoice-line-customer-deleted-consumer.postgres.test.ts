@@ -4,7 +4,11 @@ import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
 import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
-import { type Queue, queueCreate } from "@n8io/baseline-queue";
+import {
+	type Queue,
+	queueCreate,
+	queueEventsCreate,
+} from "@n8io/baseline-queue";
 import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
@@ -37,6 +41,7 @@ describe("the customer.deleted consumer on Postgres", () => {
 			cacheStore: cacheStoreMemoryCreate(),
 			customerReader: { get: async () => ({ name: "Acme" }) },
 			database: pgPool,
+			events: queueEventsCreate(queue),
 			intakes: [],
 			liveHub: liveHubMemoryCreate(),
 			queue,
