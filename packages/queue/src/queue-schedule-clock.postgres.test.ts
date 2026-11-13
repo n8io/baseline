@@ -90,6 +90,8 @@ describe("schedule settings under pg-boss's TestClock", () => {
 
 	// Every ten minutes, and every start at hh:m5:30, so a start's due window holds no occurrence:
 	// a run after the downtime can only be the catch-up (with missed: "skip" there is none).
+	// Runs are matched to the minute: pg-boss sends a due job through its own polling worker, so a
+	// run lands seconds after its occurrence, by that worker's cadence.
 	it("after downtime, missed: once sends one catch-up job", async () => {
 		const clock = new TestClock(new Date("2026-11-03T00:05:30Z"));
 		const runAt: string[] = [];
@@ -100,7 +102,8 @@ describe("schedule settings under pg-boss's TestClock", () => {
 		const first = await bossStart(clock);
 		await first.work(name, run);
 		await clock.tick(5 * 60_000);
-		expect(runAt).toEqual(["2026-11-03T00:10:00.000Z"]);
+		expect(runAt).toHaveLength(1);
+		expect(runAt[0]?.startsWith("2026-11-03T00:10:")).toBe(true);
 		await first.stop({ graceful: false });
 		bosses.splice(bosses.indexOf(first), 1);
 
@@ -113,8 +116,8 @@ describe("schedule settings under pg-boss's TestClock", () => {
 		expect(runAt[1]?.startsWith("2026-11-03T01:05:")).toBe(true);
 
 		// Then the schedule carries on at the next occurrence.
-		await clock.tick(4 * 60_000 + 10_000);
-		expect(runAt.at(-1)).toBe("2026-11-03T01:10:00.000Z");
+		await clock.tick(4 * 60_000 + 30_000);
+		expect(runAt.at(-1)?.startsWith("2026-11-03T01:10:")).toBe(true);
 		expect(runAt).toHaveLength(3);
 	});
 });
