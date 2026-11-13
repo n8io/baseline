@@ -11,7 +11,7 @@ pnpm add @n8io/baseline-health
 - `healthServerCreate({ port, isAlive, isShuttingDown })`: serves `/livez` and `/readyz` on plain `node:http`. Bodies are `ok` (200) or `unavailable` (503); any other path is 404.
   - `/livez` is 200 while `isAlive()` is true.
   - `/readyz` is 503 until `ready()`, and again once `isShuttingDown()` is true.
-- `HealthServer`: `ready()` marks the process ready; `close()` stops listening.
+- `HealthServer`: `ready()` marks the process ready; `close()` stops listening, and `await using` calls it when its block ends.
 
 ## Example
 

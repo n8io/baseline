@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-live
 
 ## Exports
 
-- `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data.
+- `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data. `await using` calls `close()` when its block ends.
 - `liveHubRedisCreate({ redisClient })`: a hub on Redis pub/sub, for more than one instance.
 - `liveHubMemoryCreate()`: a hub in one process, for unit tests and `memory://`.
 - `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.

@@ -6,8 +6,11 @@ import {
 	postgresVendorAssert,
 } from "./postgres-vendor-assert.ts";
 
-/** The process's Postgres connection pool. Close it with `end()`. */
-export type PostgresPool = pg.Pool;
+/**
+ * The process's Postgres connection pool. Close it with `end()`; `await using` calls `end()` when
+ * its block ends.
+ */
+export type PostgresPool = pg.Pool & AsyncDisposable;
 
 /** One connection checked out of the pool: what `postgresTransactionRun` hands to its work. */
 export type PostgresClient = pg.PoolClient;
@@ -52,5 +55,7 @@ export const postgresPoolCreate = ({
 	pgPool.on("error", (error) => {
 		logger.error({ err: error }, "Postgres idle client error");
 	});
-	return pgPool;
+	return Object.assign(pgPool, {
+		[Symbol.asyncDispose]: () => pgPool.end(),
+	});
 };

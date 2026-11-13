@@ -5,6 +5,8 @@ export type HealthServer = {
 	ready(): void;
 	/** Stops listening; `server.close()` also drops idle keep-alive connections. */
 	close(): Promise<void>;
+	/** Calls close(), so `await using` closes the server when its block ends. */
+	[Symbol.asyncDispose](): Promise<void>;
 };
 
 /**
@@ -43,11 +45,14 @@ export const healthServerCreate = (options: {
 
 	server.listen(options.port);
 
+	const close = (): Promise<void> =>
+		new Promise((resolve, reject) => {
+			server.close((error) => (error ? reject(error) : resolve()));
+		});
+
 	return {
-		close: () =>
-			new Promise((resolve, reject) => {
-				server.close((error) => (error ? reject(error) : resolve()));
-			}),
+		close,
+		[Symbol.asyncDispose]: close,
 		ready: () => {
 			isReady = true;
 		},

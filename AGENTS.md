@@ -41,6 +41,8 @@ Tests assert with `expect()` only: `expect.requireAssertions` does not count cha
 
 In packages, only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself (`@n8io/baseline-pulsar`: `send` and `process`). Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](apps/app/docs/agents/tracing.md).
 
+A package handle that must be closed (a hub, a pool, a queue, a server) also has `[Symbol.asyncDispose]`, calling its named close. In package tests, open one inside a test body with `await using`. The rule and its traps are in [apps/app/docs/agents/using.md](apps/app/docs/agents/using.md).
+
 ## Walkthroughs
 
 Each one guides a person through a process step by step. Read the one that matches before you start, or when someone asks to be walked through it.

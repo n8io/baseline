@@ -222,7 +222,7 @@ describe("pulsarEventsCreate", () => {
 	});
 
 	it("takes the broker's authentication from vendor in place of token", async () => {
-		const viaVendor = pulsarCreate({
+		await using viaVendor = pulsarCreate({
 			serviceUrl: inject("pulsarUrl"),
 			vendor: {
 				authentication: new PulsarClient.AuthenticationToken({
@@ -236,13 +236,9 @@ describe("pulsarEventsCreate", () => {
 			"foo.vendor-auth",
 			async () => ok(undefined),
 		);
-		try {
-			await expect(
-				pulsarEventsCreate(viaVendor).consumersSubscribe([consumer]),
-			).resolves.toBeUndefined();
-		} finally {
-			await viaVendor.close();
-		}
+		await expect(
+			pulsarEventsCreate(viaVendor).consumersSubscribe([consumer]),
+		).resolves.toBeUndefined();
 	});
 
 	it("refuses a vendor key pulsarCreate sets itself, and token with vendor.authentication", () => {
@@ -280,13 +276,24 @@ describe("pulsarEventsCreate", () => {
 		await expect(
 			pulsarEventsCreate(worker).consumersSubscribe([consumer]),
 		).resolves.toBeUndefined();
-		const anonymous = pulsarCreate({ serviceUrl: inject("pulsarUrl") });
+		await using anonymous = pulsarCreate({ serviceUrl: inject("pulsarUrl") });
+		await expect(
+			pulsarEventsCreate(anonymous).consumersSubscribe([consumer]),
+		).rejects.toThrow();
+	});
+
+	it("await using closes it when its block ends", async () => {
+		const clientClose = vi.spyOn(PulsarClient.Client.prototype, "close");
 		try {
-			await expect(
-				pulsarEventsCreate(anonymous).consumersSubscribe([consumer]),
-			).rejects.toThrow();
+			{
+				await using _pulsar = pulsarCreate({
+					serviceUrl: inject("pulsarUrl"),
+					token: inject("pulsarToken"),
+				});
+			}
+			expect(clientClose).toHaveBeenCalledOnce();
 		} finally {
-			await anonymous.close();
+			clientClose.mockRestore();
 		}
 	});
 
@@ -323,19 +330,15 @@ describe("pulsarEventsCreate", () => {
 		await stopped;
 		await stopping.close();
 		// An Event acknowledged before the close is not redelivered to the next worker.
-		const next = pulsarCreate(options);
-		try {
-			await pulsarEventsCreate(next).consumersStart([
-				received(queueName, eventName, async ({ fooId }) => {
-					runs.push(fooId);
-					return ok(undefined);
-				}),
-			]);
-			await new Promise((resolve) => setTimeout(resolve, 3_000));
-			expect(runs).toEqual(["foo_stop"]);
-		} finally {
-			await next.close();
-		}
+		await using next = pulsarCreate(options);
+		await pulsarEventsCreate(next).consumersStart([
+			received(queueName, eventName, async ({ fooId }) => {
+				runs.push(fooId);
+				return ok(undefined);
+			}),
+		]);
+		await new Promise((resolve) => setTimeout(resolve, 3_000));
+		expect(runs).toEqual(["foo_stop"]);
 	});
 
 	it("sends after stop until close, then counts each Event it loses", async () => {
@@ -396,7 +399,7 @@ describe("pulsarEventsCreate", () => {
 		const createProducer = vi
 			.spyOn(PulsarClient.Client.prototype, "createProducer")
 			.mockRejectedValueOnce(new Error("Broker unavailable"));
-		const sender = pulsarCreate({
+		await using sender = pulsarCreate({
 			serviceUrl: inject("pulsarUrl"),
 			token: inject("pulsarToken"),
 		});
@@ -422,7 +425,6 @@ describe("pulsarEventsCreate", () => {
 			expect(eventsLost).toHaveBeenCalledOnce();
 		} finally {
 			createProducer.mockRestore();
-			await sender.close();
 		}
 	});
 });
