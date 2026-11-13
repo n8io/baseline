@@ -61,14 +61,14 @@ index a5b126e..aeb6d41 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -72,6 +79,7 @@ export type InvoiceLinePorts = {
+@@ -73,6 +80,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
 +	invoiceLineCustomerReader: InvoiceLineCustomerReader;
  	// piece-start: live
+ 	// Best effort and never throws; call it after commit with no catch.
  	invoiceLineLiveUpdates: {
- 		send(update: {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
 index 91ec995..93916bd 100644
 --- a/src/domains/invoice-line/spi/index.ts

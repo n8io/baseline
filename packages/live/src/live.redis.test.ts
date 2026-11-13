@@ -126,17 +126,17 @@ describe("liveHubRedisCreate", () => {
 		);
 	});
 
-	test("a failed send throws", async () => {
+	test("a send resolves when Redis is gone", async () => {
 		const redisClient = await redisClientCreate();
 		const liveHub = liveHubRedisCreate({ redisClient });
 		redisClient.destroy();
 
-		await expect(
-			liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
-		).rejects.toThrow();
+		expect(
+			await liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
+		).toBeUndefined();
 	});
 
-	test("a send Redis does not answer fails within 1 s", async () => {
+	test("a send Redis does not answer resolves within 1 s", async () => {
 		const pauser = await redisClientCreate();
 		const liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
@@ -145,19 +145,36 @@ describe("liveHubRedisCreate", () => {
 		// In the body: afterEach destroys the client before onTestFinished would run.
 		try {
 			const started = Date.now();
-			await expect(
-				liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
-			).rejects.toThrow(
-				expect.objectContaining({
-					message: "Redis did not answer within 1000 ms",
-					name: "TimeoutError",
-				}),
-			);
-			expect(Date.now() - started).toBeLessThan(1500);
+			expect(
+				await liveHub.send("foo", { id: "foo_1", type: "foo.updated" }),
+			).toBeUndefined();
+			const elapsed = Date.now() - started;
+			expect(elapsed).toBeGreaterThanOrEqual(950);
+			expect(elapsed).toBeLessThan(1500);
 		} finally {
 			await pauser.clientUnpause();
 		}
 	});
+
+	test("after the subscriber reconnects, an open stream gets ready again and keeps streaming", async () => {
+		const admin = await redisClientCreate();
+		await using liveHub = liveHubRedisCreate({
+			redisClient: await redisClientCreate(),
+		});
+		const sse = liveTestSseRead({
+			response: await liveAppCreate(liveHub).request("/live/foo/foo_1"),
+		});
+		await sse.until("event: ready");
+
+		// Drops the hub's subscriber connection, as a Redis failover does.
+		await admin.sendCommand(["CLIENT", "KILL", "TYPE", "pubsub"]);
+		await sse.until("event: ready\ndata: \n\nevent: ready");
+		await liveHub.send("foo", { id: "foo_1", type: "foo.updated" });
+
+		expect(await sse.until("foo.updated")).toBe(
+			'event: ready\ndata: \n\nevent: ready\ndata: \n\ndata: {"id":"foo_1","type":"foo.updated"}\n\n',
+		);
+	}, 15_000);
 
 	test("a stream whose subscribe fails ends with a retry, and the next one retries", async () => {
 		const redisClient = await redisClientCreate();
