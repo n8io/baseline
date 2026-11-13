@@ -40,6 +40,7 @@ describe("the customer.deleted consumer on Postgres", () => {
 			intakes: [],
 			liveHub: liveHubMemoryCreate(),
 			queue,
+			redis: "memory",
 			resources: [],
 		});
 

@@ -60,6 +60,10 @@ export const connectionsOpen = async (
 			role === "worker" ? intakes : resources,
 		),
 		// piece-end: queue
+		// piece-start: redis
+		// For a Project's own adapters. A Domain's cache goes through cacheStore instead.
+		redis,
+		// piece-end: redis
 		resources,
 	};
 };
