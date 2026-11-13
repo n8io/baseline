@@ -1,5 +1,30 @@
 # @n8io/baseline-pulsar
 
+## 4.0.1
+
+### Patch Changes
+
+- bcdb0ce: A function with three or more inputs takes one typed input object, and Biome's `useMaxParams` (max 2) now fails on a third parameter in the packages and the Template. A callback whose shape a library fixes (pino's `logMethod`, the Pulsar client's log, `String.replace`, the `DrizzleQueryError` constructor in a logger test) carries a `biome-ignore` naming that library.
+
+  Breaking changes in the packages, with the new call:
+  - `@n8io/baseline-cache`: `CacheStore.set({ json, key, ttlMs })`. A Project's own `CacheStore` changes its `set` the same way. `Cache<T>.set(id, value)` is unchanged.
+  - `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix? })`.
+  - `@n8io/baseline-postgres`: `postgresTransactionRun({ pgPool, timeoutMs?, work })`, where a `null` or missing `timeoutMs` means 5 s.
+  - `@n8io/baseline-queue`: `queueConsumerCreate({ eventName, queueName, run, schema })`, `queueScheduleCreate({ cron, name, run })`, `queueSchedulesRegister({ env, queue, schedules })` and `queueJobRun({ job, queueName, work })`.
+
+  `@n8io/baseline-authn` and `@n8io/baseline-pulsar` change only inside.
+
+  In the Template, `useLiveUpdates`, `queueScheduleCreate`, `queueSchedulesRegister` and the test helpers move to the object form. A Use case that a Consumer calls takes the `inbox` in its input, `u.invoiceCreate(actor, { amountCents, customerId, inbox })`, so a Use case keeps two parameters. To upgrade a Project: change each call above, including every Domain's `api/<domain>-schedule.ts` (`queueScheduleCreate`), `src/worker.ts` (`queueSchedulesRegister`), each `ui/routes/<domain>-detail.tsx` (`useLiveUpdates`), each `spi/<domain>-transaction.postgres.ts` (`postgresTransactionRun`) and each Consumer and the Use case it calls. Each Domain's tests copied from foo change too: `spi/<domain>-transaction.postgres.test.ts` (`queueConsumerCreate`), `test/integration/<domain>-worker-shutdown.test.ts` (`productionServerWaitFor`), and the local helpers in `api/<domain>-routes.test.ts`, `ui/routes/<domain>-detail.test.ts` and `use-cases/<domain>-stale-archive.test.ts`; then run `pnpm check`, which names any function left with three parameters.
+- 3695b6e: The Template's wiring functions each take one input object: `connectionsOpen({ role })`, `redisOpen({ steps, url })`, `redisClientCreate({ url })`, `cacheStoreOpen({ redis })`, `liveHubOpen({ redis, steps })`, `queueOpen({ database, intakes, resources, role })`, `analyticsOpen({ steps, token })` and `errorTrackingOpen({ dsn, environment, steps })`. `src/connections.ts` now reads `ENV` from `#env` itself (rule A22 allows it, and `src/events-open.ts`, where the Pulsar guide reads `PULSAR_URL`), so a call site passes only the role. `queueOpen` returns `{ events, queue }` and calls `eventsOpen` only once the queue is real, so `eventsOpen` takes a `Queue` and returns `Events`; the Pulsar guide shows the new shape.
+
+  To upgrade, change every `connectionsOpen(ENV, "publisher")` to `connectionsOpen({ role: "publisher" })` (and `"worker"` likewise), and drop the `ENV` import where nothing else uses it. Each Domain's copied tests call it: `spi/index.test.ts`, `spi/index-queue.test.ts`, `api/<domain>-live.test.ts`, `ui/routes/<domain>-list.test.ts` and `ui/routes/<domain>-detail.test.ts`. Change any call of the other functions above in the Project's own code to the object form. A Project with its own `src/events-open.ts` changes its `queue` type to `Queue` and its return type to `Events`.
+
+  `env-files.test.ts` checks `.env.development` and `.env.test` with `varlock load` itself instead of a hand-written parser of `.env.schema` decorators, so it now also checks each value's type. It reads only the committed files, never a `.local` one. Undeclared items and plain values in `.env.production` are still refused. The Template's piece markers are down from 87 to 82, and a root test keeps them at 91 or fewer, 6 per file (7 in `src/connections.ts`).
+
+  The Template's CI now calls `app-ci.yml@v6`.
+- Updated dependencies [bcdb0ce]
+  - @n8io/baseline-queue@7.0.0
+
 ## 4.0.0
 
 ### Major Changes
