@@ -6,4 +6,6 @@ export type ErrorTracking = {
 	report(error: unknown): void;
 	// Waits, for a bounded time, for the reports in flight, then stops sending.
 	close(): Promise<void>;
+	// Calls close(), so `await using` closes it when its block ends.
+	[Symbol.asyncDispose](): Promise<void>;
 };

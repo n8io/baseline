@@ -187,6 +187,20 @@ describe("errorTrackingSentryCreate", () => {
 		);
 	});
 
+	it("await using sends the reports in flight when its block ends", async () => {
+		const requests = requestsCatch();
+
+		await (async () => {
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+			errorTracking.report(new Error("boom"));
+		})();
+
+		expect(requests).toHaveLength(1);
+	});
+
 	it("sends nothing after close", async () => {
 		const requests = requestsCatch();
 		const errorTracking = errorTrackingSentryCreate({

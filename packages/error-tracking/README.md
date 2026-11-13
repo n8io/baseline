@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-error-tracking
 
 ## Exports
 
-- `ErrorTracking`: `report(error)` and `close()`. `report` never throws: a report that cannot be sent is dropped, and one Sentry refuses is logged at warn. Inside an active span, the report carries its trace id and span id, so it links to its trace.
+- `ErrorTracking`: `report(error)` and `close()`; `await using` calls `close()` when its block ends. `report` never throws: a report that cannot be sent is dropped, and one Sentry refuses is logged at warn. Inside an active span, the report carries its trace id and span id, so it links to its trace.
 - `errorTrackingSentryCreate({ dsn, environment, vendor? })`: reports to Sentry's ingestion API with `@sentry/core`'s `ServerRuntimeClient` and `fetch`, with a 5 s timeout per send. It throws on a `dsn` that is not a Sentry DSN, so a mistyped one does not look like a working setup. The report is built from `loggerErrSerialize`, the logger's safe shape, so the error itself never reaches Sentry; `code` and `constraint` become the `error.code` and `error.constraint` tags. An allowlist drops anything else the SDK adds, such as the host name. It installs nothing global: no process handler, module hook or tracer provider.
 - `ErrorTrackingSentryVendorOptions`: `vendor`, Sentry's own `release`, `dist` and `sampleRate`, outside the contract. Any other key throws: it would do nothing here, or send more than an Error report carries.
 

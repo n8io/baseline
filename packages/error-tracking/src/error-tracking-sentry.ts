@@ -147,13 +147,15 @@ export const errorTrackingSentryCreate = ({
 	const scope = new Scope();
 	scope.setClient(client);
 	client.init();
+	const close = async (): Promise<void> => {
+		const flushed = await client.close(closeTimeoutMs);
+		if (!flushed) {
+			logger.warn("Error reports still unsent at close");
+		}
+	};
 	return {
-		close: async () => {
-			const flushed = await client.close(closeTimeoutMs);
-			if (!flushed) {
-				logger.warn("Error reports still unsent at close");
-			}
-		},
+		close,
+		[Symbol.asyncDispose]: close,
 		report: (error) => {
 			try {
 				const err = loggerErrSerialize(error);
