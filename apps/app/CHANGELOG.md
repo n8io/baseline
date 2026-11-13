@@ -1,5 +1,76 @@
 # app
 
+## 7.0.0
+
+### Major Changes
+
+- d96b15b: Events are kept in order per Event key, and Consumers fetch them in batches.
+  - **Breaking:** `EventsPublisher.publish` takes one object with a required, non-empty `key`: `publish({ name, data, key })`. The key is the Event key, the id of the entity the Event is about. `queueEventsMemoryCreate` records the key too. In a Project, every `publish(name, data)` becomes `publish({ name, data, key })`, and the Domain's `<domain>Events` port and memory state gain `key`.
+  - Each Consumer gets the Events of one Event key one at a time, in the order their transactions committed, on any number of workers; other keys run beside them. A worker fetches up to 10 Events at once and runs 4 at a time, and a backlog drains without waiting for a poll (measured: about 1,000 Events a second over 50 keys on 12 workers, about 150 a second on one busy key).
+  - An Event that fails all five attempts now stays in its queue for 7 days and holds back its Event key, with a copy in `<queueName>.dead`. `queue.blockedKeys()` lists blocked keys, the worker logs each at error level, and the queue README has the runbook to run the Event again or give it up.
+  - A worker that dies mid-Event or mid-Schedule is noticed within 30 to 90 s (it was 15 minutes), and a fetch still running after five minutes has its unfinished Events failed and retried.
+  - Upgrading needs no step: Consumer queues move to `<queueName>.ordered`, the old queues are drained during the rollout and removed by a `queueMigrate` a week or more later. See "Upgrading to 8" in the queue README.
+  - `events-and-bridges.md` gains the Event key, the ordering guarantee and the rule for changing an Event's shape across a rollout. "Event key" is a glossary term.
+- c12b043: Workers stay up through a Postgres failover, and Schedules are safe in a rolling deploy.
+  - **Liveness.** `queue.isAlive()` is false only when the worker's own poll loop hangs. A poll that fails counts as proof the loop runs, so a Postgres outage of any length no longer makes every Worker fail `/livez` and restart together; they carry on by themselves when Postgres is back. A process that cannot reach Postgres at boot still fails and never reports ready.
+  - **Breaking:** `queueSchedulesRegister` is replaced by two functions. `queueSchedulesSync({ databaseUrl, schedules, env })` adds, updates and removes Schedules from the migrate entry, once per deploy with the newest code. `queueSchedulesStart({ queue, schedules, env })` runs them in the worker and changes nothing: a Worker of the previous version that boots mid-rollout can no longer remove a new Schedule or put an old cron back. A Schedule the database does not hold is not started and is logged as a warning.
+  - `queueCreate` takes `concurrency`: how many Events and Schedule runs a worker has under way at once, across all its Consumers and Schedules (default 4). It was 4 per Consumer, which let a Worker with a few Consumers use up its own pool. An Event or run that the queue has given up, because it hangs, gives its place back.
+  - Every worker looks for blocked Event keys once a minute, logs each new one at error level and reports `baseline.queue.blocked_keys` per Consumer, so a key blocked by an Event the queue failed by itself is seen too.
+  - Queue errors that pg-boss reports as plain objects are logged as an `Error` with the message, stack and code, and the object as its `cause`, and each queue's failures are logged once per 30 s, so an outage does not log every failed poll. A worker whose queue `queueMigrate` has removed logs one warning and stops polling it, where it used to log an error on every poll.
+  - Template: `src/migrate.ts` syncs the Schedules, `src/worker.ts` starts them, and each Domain's `api/<domain>-schedule.ts` exports its name and cron as `<domain>Schedule` beside `<domain>ScheduleCreate`. `src/connections.ts` runs one query at boot, so a Server or Worker that cannot reach Postgres never reports ready. The Worker no longer waits 5 s before it shuts down, since no load balancer sends it traffic, and it runs one Event or Schedule run fewer at once than its pool has connections.
+
+  To upgrade a Project: in each `api/<domain>-schedule.ts` export `<domain>Schedule = { cron, name }` and spread it into `queueScheduleCreate`; export it from `api/index.ts`; in `src/migrate.ts` call `queueSchedulesSync({ databaseUrl, env: ENV, schedules: [...] })` after `queueMigrate`; in `src/worker.ts` rename `queueSchedulesRegister` to `queueSchedulesStart` and set `drainDelayMs: 0`; copy the query in `connectionsOpen` and the `concurrency` line in `src/queue-open.ts`. Run migrate before the new Workers start, as every deploy does, and give migrate the same `SCHEDULE_*` variables as the Worker: the cron overrides now act in migrate, and the Worker reads only `off`.
+
+### Minor Changes
+
+- 5b701d0: Production can boot without calling 1Password, and a Kubernetes deploy guide says how to run many pods.
+  - `OP_SERVICE_ACCOUNT_TOKEN` is no longer required in production. A variable already set in the environment wins over its `op()` reference in `.env.production` and is never fetched, so a runner that sets every one of them (a Kubernetes Secret synced from the vault, for example) boots with no token and no call to 1Password. With a token nothing changes. With no token, a reference that is not set fails the boot and names the variable.
+  - New `docs/agents/deploy-kubernetes.md`: roles, probes, pool sizing with a worked 12-pod example, PgBouncer, secrets, graceful shutdown, the load balancer idle timeout, rolling deploys, Redis outages, Event order and blocked Event keys, Redis high availability, alerts, known gaps and example manifests.
+
+  To upgrade a Project: in `.env.schema` change the line above `OP_SERVICE_ACCOUNT_TOKEN=` from `# @required=forEnv(production)` to `# @required=false`, and copy `docs/agents/deploy-kubernetes.md` with its line in `AGENTS.md`.
+- 11a204e: Postgres holds up with many processes on one database.
+  - `postgresPoolCreate` takes `queryTimeoutMs` (default 15 s, `null` for no limit): a query that runs longer rejects and its connection is closed. The server may still finish it. Idle connections are probed after 10 s. A Project with a query that needs longer than 15 s outside `postgresMigrate` sets `queryTimeoutMs` in `src/connections.ts`.
+  - `postgresMigrate` waits at most `lockWaitMs` (default 60 s) for its lock and then fails with an error that names the lock. It refuses to run through a connection pooler such as PgBouncer, where the lock would outlive the run and block the next one.
+  - Template: `DATABASE_POOL_MAX` sets the most Postgres connections one process opens; without it the Server opens up to 10 and the Worker up to 5 (it was 10). `DATABASE_MIGRATE_URL` points migrate at Postgres itself where `DATABASE_URL` goes through a pooler.
+- 32025d0: Survive pods of two UI versions during a rolling deploy.
+
+  While old and new pods serve side by side, a page from one version can ask a pod of the other for its hashed files. Before, that pod rendered a whole 404 page (or a redirect to sign-in) with no cache header, and the browser was left with a page without styles or scripts.
+  - `src/server.ts`: a request under `/assets/` for a file this build does not have answers a bare `404` with `cache-control: no-store`, so nothing in front keeps it and a retry can reach a pod that has the file.
+  - `src/ui/asset-reload-listen.ts`, inlined first in `<head>` by `src/ui/root.tsx`: when one of the page's own stylesheets or scripts fails to load, the page reloads once (a page that was itself reloaded this way does not reload again). React Router already reloads when a route's script fails to load or the route manifest's version has changed.
+  - `src/ui/csp-nonce.ts`: `CspNonce` gives a component the request's CSP nonce for an inline script of its own; `src/ui/entry.server.tsx` provides it.
+  - `test/integration/rollout.test.ts` runs two versions side by side; `productionServerStart` takes a `directory`.
+
+  To adopt it in a Project, copy those files and the `configure` option in `src/server.ts`. One reload narrows the window but cannot close it; to close it, serve `/assets/` from storage that keeps the previous build, or use session affinity.
+
+### Patch Changes
+
+- 31cc578: Outlast the load balancer's idle timeout, and stop tracing idle polls.
+  - http: `httpServerKeepAlive(server)` keeps idle connections open for 65 s (Node's default is 5 s) and gives headers 66 s. A load balancer with the usual 60 s idle timeout no longer reuses a connection the pod has closed, which the client saw as an occasional 502. Keep the balancer's idle timeout under 65 s.
+  - app: `src/server.ts` calls `httpServerKeepAlive(server)` first in `serverServe`. A Project adds that line and its import on upgrade.
+  - health: the probe server keeps idle connections for 65 s too, and `close()` now drops every open connection, so a half-sent probe cannot hold shutdown.
+  - telemetry: pg and Redis spans are made only inside a trace (`requireParentSpan`). A query in a request, a Consumer or Schedule run or a use case keeps its span; a queue poll, boot or maintenance query makes none. Redis still makes one `redis-connect` span per connection it opens. pg's metrics follow its spans: `db.client.operation.duration` counts only queries inside a trace, and a pool's `db.client.connection.*` metrics start with its first query inside a trace.
+- 0029cba: Baseline no longer supports Apache Pulsar. `@n8io/baseline-pulsar` is removed from the repo and gets no further releases; Events run on the queue alone.
+  - **Breaking:** queue no longer exports `queueJobRun` or `queueRetryLimit`, which only the pulsar package used.
+  - app: `eventsOpen(queue)` in `src/events-open.ts` takes the queue alone, and only the composition roots, `src/authn.ts` and `src/connections.ts` read `#env` (rule A22). The docs drop their Pulsar notes. To upgrade, change `src/events-open.ts` and its call in `src/queue-open.ts` to match, and copy `architecture-test-rules.ts` with `architecture-test-samples/a22-ui-reads-env.txt` together (the A22 message changed). A Project still on Pulsar stays on its pulsar 4.x and this Template's previous release: pulsar 4 works with queue 7 only.
+- 1b14e24: Keep serving through a Redis outage.
+  - cache: `cacheCreate` fails open. A store error or timeout is a miss on `get` and resolves on `set` and `delete`; it is counted on `baseline.cache.store_errors` and logged once per 30 s. After a failed `set` or `delete` the same process reads that id as a miss until the entry has expired. `onStoreError: "throw"` keeps the old behaviour. The package now has `@opentelemetry/api` as a peer.
+  - live: `liveHub.send` never rejects. A lost update is counted on `baseline.live.sends_failed` and logged once per 30 s. When the Redis subscriber reconnects, every open stream sends `ready` again within 1 to 5 s, so pages reread what they missed. The package now has `@opentelemetry/api` as a peer.
+  - app: no code to change in a Project. Tests show a Use case still answers with the cache store or the hub down, and `docs/agents/pieces.md` states how stale a cached read can be (the entry's lifetime, 60 s by default).
+- 0029cba: The unit test project gives hooks 20 s, like its tests. Importing `server.ts` in a `beforeAll` took over the default 10 s on a busy CI runner.
+- Updated dependencies [d96b15b]
+- Updated dependencies [31cc578]
+- Updated dependencies [11a204e]
+- Updated dependencies [0029cba]
+- Updated dependencies [1b14e24]
+- Updated dependencies [c12b043]
+  - @n8io/baseline-queue@8.0.0
+  - @n8io/baseline-health@2.0.1
+  - @n8io/baseline-http@2.1.0
+  - @n8io/baseline-telemetry@1.4.0
+  - @n8io/baseline-postgres@5.1.0
+  - @n8io/baseline-cache@6.1.0
+  - @n8io/baseline-live@7.1.0
+
 ## 6.0.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-telemetry",
-	"version": "1.3.0",
+	"version": "1.4.0",
 	"description": "The OpenTelemetry preload and use-case spans every baseline app starts with.",
 	"type": "module",
 	"license": "MIT",

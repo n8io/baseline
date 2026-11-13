@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-health",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Liveness and readiness probes on /livez and /readyz",
 	"license": "MIT",
 	"type": "module",
