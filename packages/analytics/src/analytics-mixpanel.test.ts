@@ -1,3 +1,4 @@
+import { setTimeout } from "node:timers/promises";
 import { logger } from "@n8io/baseline-logger";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analyticsMixpanelCreate } from "./analytics-mixpanel.ts";
@@ -92,6 +93,24 @@ describe("analyticsMixpanelCreate", () => {
 
 		requests[0]?.answer(new Response("{}"));
 		await closing;
+		expect(closed).toBe(true);
+	});
+
+	it("await using waits for the send in flight when its block ends", async () => {
+		const requests = requestsCatch();
+		let closed = false;
+
+		const block = (async () => {
+			await using analytics = analyticsMixpanelCreate({ token: "token" });
+			analytics.track({ actorId: "user-1", name: "foo.created" });
+		})().then(() => {
+			closed = true;
+		});
+		await setTimeout(10);
+		expect(closed).toBe(false);
+
+		requests[0]?.answer(new Response("{}"));
+		await block;
 		expect(closed).toBe(true);
 	});
 

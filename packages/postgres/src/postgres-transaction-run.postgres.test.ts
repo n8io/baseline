@@ -14,9 +14,13 @@ import {
 	vi,
 } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresPoolCreate, postgresTransactionRun } from "./index.ts";
+import {
+	type PostgresPool,
+	postgresPoolCreate,
+	postgresTransactionRun,
+} from "./index.ts";
 
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 
 const names = async (): Promise<string[]> =>
 	(
@@ -159,7 +163,7 @@ describe("postgresTransactionRun", () => {
 // A pool whose one client records its queries, for the paths a live server can't force.
 const fakePoolCreate = (
 	failing: string[] = [],
-): { pgClient: pg.PoolClient; pgPool: pg.Pool; queries: string[] } => {
+): { pgClient: pg.PoolClient; pgPool: PostgresPool; queries: string[] } => {
 	const queries: string[] = [];
 	const pgClient = Object.assign(new EventEmitter(), {
 		query: vi.fn(async (text: string) => {
@@ -171,7 +175,7 @@ const fakePoolCreate = (
 		}),
 		release: vi.fn(),
 	}) as unknown as pg.PoolClient;
-	const pgPool = { connect: async () => pgClient } as unknown as pg.Pool;
+	const pgPool = { connect: async () => pgClient } as unknown as PostgresPool;
 	return { pgClient, pgPool, queries };
 };
 

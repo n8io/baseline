@@ -9,6 +9,8 @@ export type Queue = {
 	// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
 	// the composition root closes it after.
 	stop(): Promise<void>;
+	/** Calls stop(), so `await using` stops the queue when its block ends. */
+	[Symbol.asyncDispose](): Promise<void>;
 };
 
 // Every pg-boss table, function and queue lives in this Postgres schema, beside queue.inbox.
@@ -146,6 +148,8 @@ export const queueCreate = async (options: {
 
 const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 	const startedAt = Date.now();
+	const stop = (): Promise<void> =>
+		boss.stop({ graceful: true, timeout: 15_000 });
 	const queue: Queue = {
 		isAlive: () => {
 			if (!worker) {
@@ -158,7 +162,8 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 			);
 			return Date.now() - heartbeat < queueHeartbeatLimitMs;
 		},
-		stop: () => boss.stop({ graceful: true, timeout: 15_000 }),
+		stop,
+		[Symbol.asyncDispose]: stop,
 	};
 	queueBosses.set(queue, boss);
 	if (worker) {

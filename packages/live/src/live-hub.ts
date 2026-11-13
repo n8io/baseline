@@ -6,6 +6,8 @@ export type LiveUpdate = { type: string; id: string };
 export type LiveHub = {
 	send(channel: string, update: LiveUpdate): Promise<void>;
 	close(): Promise<void>;
+	/** Calls close(), so `await using` closes the hub when its block ends. */
+	[Symbol.asyncDispose](): Promise<void>;
 };
 
 export type LiveListener = (update: LiveUpdate) => void;
@@ -92,13 +94,15 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 		return subscription;
 	};
 
+	const close = async (): Promise<void> => {
+		if (closed) return;
+		closed = true;
+		await Promise.all([...ends].map((end) => end()));
+		await transport.close();
+	};
 	const liveHub: LiveHub = {
-		close: async () => {
-			if (closed) return;
-			closed = true;
-			await Promise.all([...ends].map((end) => end()));
-			await transport.close();
-		},
+		close,
+		[Symbol.asyncDispose]: close,
 		send: async (channel, { id, type }) => {
 			await transport.publish(channel, JSON.stringify({ id, type }));
 		},

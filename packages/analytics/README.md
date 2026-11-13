@@ -8,7 +8,7 @@ pnpm add @n8io/baseline-analytics
 
 ## Exports
 
-- `Analytics`: `track({ name, actorId, properties })` and `close()`. `track` never throws: a failed send is logged at warn and dropped.
+- `Analytics`: `track({ name, actorId, properties })` and `close()`. `track` never throws: a failed send is logged at warn and dropped. `await using` calls `close()` when its block ends.
 - `AnalyticsEvent`: `name` (`foo.created`), `actorId` and `properties`, which carry ids and counts only, never a Model, an input or personal data.
 - `analyticsMixpanelCreate({ token, vendor? })`: posts each event to Mixpanel's ingestion API (`/track`) with `fetch`, with geolocation off and a 5 s timeout per send, so `close()` is bounded too. `vendor.host` picks Mixpanel's ingestion host for data residency (`api-eu.mixpanel.com`); it is named as the SDK's init config names it, and is outside the contract. It does not use the `mixpanel` Node SDK: 0.24 throws on `init` whenever `HTTPS_PROXY` is set and sets no request timeout.
 - `analyticsLoggerCreate()`: logs each event at debug instead, for development and tests.

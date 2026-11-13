@@ -1,7 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresPoolCreate } from "./index.ts";
+import { type PostgresPool, postgresPoolCreate } from "./index.ts";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -22,10 +22,10 @@ describe("postgresPoolCreate", () => {
 	});
 
 	it("applies the defaults and lets overrides win", async () => {
-		const pgPool = postgresPoolCreate({
+		await using pgPool = postgresPoolCreate({
 			databaseUrl: "postgresql://localhost/db",
 		});
-		const pgPoolSmall = postgresPoolCreate({
+		await using pgPoolSmall = postgresPoolCreate({
 			databaseUrl: "postgres://localhost/db",
 			max: 2,
 		});
@@ -37,11 +37,10 @@ describe("postgresPoolCreate", () => {
 			max: 10,
 		});
 		expect(pgPoolSmall.options.max).toBe(2);
-		await Promise.all([pgPool.end(), pgPoolSmall.end()]);
 	});
 
 	it("passes vendor settings to pg, and its own options win", async () => {
-		const pgPool = postgresPoolCreate({
+		await using pgPool = postgresPoolCreate({
 			databaseUrl: "postgres://localhost/db",
 			max: 3,
 			vendor: { idleTimeoutMillis: 1_000, keepAlive: false },
@@ -53,7 +52,6 @@ describe("postgresPoolCreate", () => {
 			keepAlive: false,
 			max: 3,
 		});
-		await pgPool.end();
 	});
 
 	it.each([
@@ -90,7 +88,7 @@ describe("postgresPoolCreate", () => {
 
 	it("logs idle client errors instead of crashing the process", async () => {
 		const loggerError = vi.spyOn(logger, "error").mockReturnValue(undefined);
-		const pgPool = postgresPoolCreate({
+		await using pgPool = postgresPoolCreate({
 			databaseUrl: "postgres://localhost/db",
 		});
 		const error = new Error("connection reset");
@@ -101,11 +99,22 @@ describe("postgresPoolCreate", () => {
 			{ err: error },
 			"Postgres idle client error",
 		);
-		await pgPool.end();
+	});
+
+	it("await using ends the pool when its block ends", async () => {
+		let ended: PostgresPool;
+		{
+			await using pgPool = postgresPoolCreate({
+				databaseUrl: "postgres://localhost/db",
+			});
+			ended = pgPool;
+		}
+
+		expect(ended.ended).toBe(true);
 	});
 
 	it("connects to Postgres 18", async () => {
-		const pgPool = postgresPoolCreate({
+		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
 		});
 
@@ -114,6 +123,5 @@ describe("postgresPoolCreate", () => {
 		);
 
 		expect(Number(rows[0]?.server_version_num)).toBeGreaterThanOrEqual(180_000);
-		await pgPool.end();
 	});
 });

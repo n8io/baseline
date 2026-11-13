@@ -38,10 +38,10 @@ afterEach(async () => {
 
 describe("liveHubRedisCreate", () => {
 	test("a note published on one hub instance reaches a stream on another", async () => {
-		const serverHub = liveHubRedisCreate({
+		await using serverHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
-		const workerHub = liveHubRedisCreate({
+		await using workerHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
 		const sse = liveTestSseRead(
@@ -54,15 +54,13 @@ describe("liveHubRedisCreate", () => {
 		expect(await sse.until("foo.updated")).toContain(
 			'data: {"id":"foo_1","type":"foo.updated"}\n\n',
 		);
-		await serverHub.close();
-		await workerHub.close();
 	});
 
 	test("publishes { type, id } as JSON on Redis channel live:<channel>", async () => {
 		const listener = await redisClientCreate();
 		const received = Promise.withResolvers<string>();
 		await listener.subscribe("live:foo", received.resolve);
-		const liveHub = liveHubRedisCreate({
+		await using liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
 
@@ -72,13 +70,12 @@ describe("liveHubRedisCreate", () => {
 			id: "foo_1",
 			type: "foo.updated",
 		});
-		await liveHub.close();
 	});
 
 	test("opens one subscriber per instance, only once a stream opens", async () => {
 		const channel = `live:${crypto.randomUUID()}`;
 		const name = channel.slice("live:".length);
-		const liveHub = liveHubRedisCreate({
+		await using liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
 		await liveHub.send(name, { id: "foo_1", type: "foo.updated" });
@@ -102,7 +99,7 @@ describe("liveHubRedisCreate", () => {
 
 	test("drops a malformed message and keeps streaming", async () => {
 		const publisher = await redisClientCreate();
-		const liveHub = liveHubRedisCreate({
+		await using liveHub = liveHubRedisCreate({
 			redisClient: await redisClientCreate(),
 		});
 		const sse = liveTestSseRead(
@@ -117,7 +114,6 @@ describe("liveHubRedisCreate", () => {
 		expect(await sse.until("foo.updated")).toBe(
 			'event: ready\ndata: \n\ndata: {"id":"foo_1","type":"foo.updated"}\n\n',
 		);
-		await liveHub.close();
 	});
 
 	test("a failed send throws", async () => {
@@ -152,7 +148,7 @@ describe("liveHubRedisCreate", () => {
 
 	test("a stream whose subscribe fails ends with a retry, and the next one retries", async () => {
 		const redisClient = await redisClientCreate();
-		const liveHub = liveHubRedisCreate({ redisClient });
+		await using liveHub = liveHubRedisCreate({ redisClient });
 		const app = liveAppCreate(liveHub);
 		const duplicate = vi
 			.spyOn(redisClient, "duplicate")
@@ -168,6 +164,5 @@ describe("liveHubRedisCreate", () => {
 		const sse = liveTestSseRead(await app.request("/live/foo/foo_1"));
 		expect(await sse.until("event: ready")).toBe("event: ready\ndata: \n\n");
 		expect(duplicate).toHaveBeenCalledTimes(2);
-		await liveHub.close();
 	});
 });
