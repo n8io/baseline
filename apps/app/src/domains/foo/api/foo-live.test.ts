@@ -4,7 +4,6 @@ import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterEach, describe, expect, it } from "vitest";
-import { ENV } from "#env";
 import { connectionsOpen } from "../../../connections.ts";
 import { fooUseCasesCreate } from "../index.ts";
 import { fooPortsCreate } from "../spi/index.ts";
@@ -12,7 +11,7 @@ import { fooLiveRoutesCreate } from "./foo-live.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 
-const connections = await connectionsOpen(ENV, "publisher");
+const connections = await connectionsOpen({ role: "publisher" });
 
 const closers: (() => Promise<void>)[] = [];
 afterEach(async () => {

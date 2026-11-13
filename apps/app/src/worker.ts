@@ -16,7 +16,7 @@ import { ENV, envLocal } from "#env";
 import { connectionsOpen } from "./connections.ts";
 
 let shutdown: ShutdownHandle | undefined;
-const connections = await connectionsOpen(ENV, "worker");
+const connections = await connectionsOpen({ role: "worker" });
 const { events, queue } = connections;
 // connectionsOpen refuses a memory database here, so the queue and Events are real.
 if (queue === "memory" || events === "memory") {

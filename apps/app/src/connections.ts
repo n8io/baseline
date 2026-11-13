@@ -4,78 +4,64 @@
 // "memory" stands in for a connection whose URL is memory://.
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
+import { ENV } from "#env";
 import { analyticsOpen } from "./analytics-open.ts";
 import { cacheStoreOpen } from "./cache-store-open.ts";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
-import { eventsOpen } from "./events-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis.ts";
 
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
 // is an intake, since it brings work in; elsewhere the live hub is, since it streams out.
-export const connectionsOpen = async (
-	env: {
-		DATABASE_URL: string;
-		// piece-start: redis
-		CACHE_URL: string;
-		// piece-end: redis
-		// piece-start: analytics
-		MIXPANEL_TOKEN?: string;
-		// piece-end: analytics
-		// piece-start: error-tracking
-		APP_ENV: string;
-		SENTRY_DSN?: string;
-		// piece-end: error-tracking
-	},
-	role: "publisher" | "worker",
-) => {
-	if (role === "worker" && env.DATABASE_URL === "memory://") {
+export const connectionsOpen = async ({
+	role,
+}: {
+	role: "publisher" | "worker";
+}) => {
+	if (role === "worker" && ENV.DATABASE_URL === "memory://") {
 		throw new Error(
 			"The worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
 	const database =
-		env.DATABASE_URL === "memory://"
+		ENV.DATABASE_URL === "memory://"
 			? ("memory" as const)
-			: postgresPoolCreate({ databaseUrl: env.DATABASE_URL });
+			: postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
 	const intakes: ShutdownStep[] = [];
 	const resources: ShutdownStep[] = [];
 	// piece-start: error-tracking
 	// First, so it reports what the other connections log while they open. It closes first too.
-	errorTrackingOpen(
-		{ dsn: env.SENTRY_DSN, environment: env.APP_ENV },
-		resources,
-	);
+	errorTrackingOpen({
+		dsn: ENV.SENTRY_DSN,
+		environment: ENV.APP_ENV,
+		steps: resources,
+	});
 	// piece-end: error-tracking
 	if (database !== "memory") {
 		resources.push({ close: () => database.end(), name: "database" });
 	}
 	// piece-start: redis
-	const redis = await redisOpen(env.CACHE_URL, resources);
+	const redis = await redisOpen({ steps: resources, url: ENV.CACHE_URL });
 	// piece-end: redis
-	// piece-start: queue
-	const queue = await queueOpen(
-		database,
-		role,
-		role === "worker" ? intakes : resources,
-	);
-	// piece-end: queue
 	return {
 		// piece-start: analytics
-		analytics: analyticsOpen(env.MIXPANEL_TOKEN, resources),
+		analytics: analyticsOpen({ steps: resources, token: ENV.MIXPANEL_TOKEN }),
 		// piece-end: analytics
 		// piece-start: cache
-		cacheStore: cacheStoreOpen(redis),
+		cacheStore: cacheStoreOpen({ redis }),
 		// piece-end: cache
 		database,
 		intakes,
 		// piece-start: live
-		liveHub: liveHubOpen(redis, role === "worker" ? resources : intakes),
+		liveHub: liveHubOpen({
+			redis,
+			steps: role === "worker" ? resources : intakes,
+		}),
 		// piece-end: live
 		// piece-start: queue
-		events: eventsOpen({ intakes, queue, resources, role }),
-		queue,
+		// `events` and `queue`.
+		...(await queueOpen({ database, intakes, resources, role })),
 		// piece-end: queue
 		// piece-start: redis
 		// For a Project's own adapters. A Domain's cache goes through cacheStore instead.

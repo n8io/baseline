@@ -666,9 +666,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
 					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root";
 				}
-				const rootsWithEnv = [...roots, "src/migrate.ts", "src/authn.ts"];
+				const rootsWithEnv = [
+					...roots,
+					"src/authn.ts",
+					"src/connections.ts",
+					"src/migrate.ts",
+				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the composition roots and src/authn.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+					? "only the composition roots, src/authn.ts and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
 		),

@@ -28,7 +28,7 @@ How it differs from the queue package:
    PULSAR_TOKEN=
    ```
 
-3. **Open Events on Pulsar.** `src/events-open.ts` is the only file that names the Events transport. Replace its body; its caller in `src/connections.ts` already passes everything it needs:
+3. **Open Events on Pulsar.** `src/events-open.ts` is the only file that names the Events transport. Replace its body; its caller in `src/queue-open.ts` already passes everything it needs, and calls it only when the database is real:
 
    ```ts
    // src/events-open.ts
@@ -43,13 +43,11 @@ How it differs from the queue package:
    	resources,
    	role,
    }: {
-   	queue: Queue | "memory";
+   	queue: Queue;
    	role: "publisher" | "worker";
    	intakes: ShutdownStep[];
    	resources: ShutdownStep[];
-   }): Events | "memory" => {
-   	// Events are real exactly when the database is; the queue is "memory" with a memory database.
-   	if (queue === "memory") return "memory";
+   }): Events => {
    	if (!ENV.PULSAR_URL) throw new Error("PULSAR_URL is not set");
    	const pulsar = pulsarCreate({
    		serviceUrl: ENV.PULSAR_URL,

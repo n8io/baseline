@@ -15,7 +15,7 @@ Where the Package has to build that object itself, its factory takes one more op
 ```ts
 // src/connections.ts
 postgresPoolCreate({
-	databaseUrl: env.DATABASE_URL,
+	databaseUrl: ENV.DATABASE_URL,
 	vendor: { idleTimeoutMillis: 30_000, ssl: { ca } },
 });
 ```

@@ -1,6 +1,6 @@
-// How Events travel, for a composition root: on the queue, or "memory" with a memory database. The
-// only file that names the Events transport: to move Events to another one, change this file and
-// nothing else. `pnpm piece-remove queue` deletes this file.
+// How Events travel, for a composition root: on the queue. The only file that names the Events
+// transport: to move Events to another one, change this file and nothing else. queue-open.ts calls
+// it once the queue is real. `pnpm piece-remove queue` deletes this file.
 import {
 	type Events,
 	type Queue,
@@ -13,9 +13,8 @@ import type { ShutdownStep } from "@n8io/baseline-shutdown";
 export const eventsOpen = ({
 	queue,
 }: {
-	queue: Queue | "memory";
+	queue: Queue;
 	role: "publisher" | "worker";
 	intakes: ShutdownStep[];
 	resources: ShutdownStep[];
-}): Events | "memory" =>
-	queue === "memory" ? "memory" : queueEventsCreate(queue);
+}): Events => queueEventsCreate(queue);

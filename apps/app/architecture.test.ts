@@ -40,12 +40,10 @@ describe("architecture", () => {
 	it("reads every source file and its imports", () => {
 		// Domain-generic, so it holds after template-render removes the example domain.
 		const server = files.find((f) => f.path === "src/server.ts");
-		// piece-start: ui
-		const root = files.find((f) => f.path === "src/ui/root.tsx");
-		// piece-end: ui
 		expect(files.length).toBeGreaterThan(10);
 		expect(server?.imports.map((imp) => imp.target)).toContain("src/env.ts");
 		// piece-start: ui
+		const root = files.find((f) => f.path === "src/ui/root.tsx");
 		expect(root?.imports.map((imp) => imp.specifier)).toContain("react-router");
 		// piece-end: ui
 	});
