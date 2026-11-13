@@ -141,7 +141,7 @@ describe("queueEventsCreate", () => {
 describe("queueEventsMemoryCreate", () => {
 	it("records publishes and delivers nothing", async () => {
 		const published: { name: keyof FooEvents; data: unknown }[] = [];
-		const events = queueEventsMemoryCreate<FooEvents>(published);
+		const events = queueEventsMemoryCreate<FooEvents>({ published });
 
 		await events.publish("foo.created", { fooId: "foo_1" });
 
@@ -150,7 +150,7 @@ describe("queueEventsMemoryCreate", () => {
 		]);
 	});
 
-	it("works without an array", async () => {
+	it("works without options", async () => {
 		await expect(
 			queueEventsMemoryCreate<FooEvents>().publish("foo.created", {
 				fooId: "foo_1",
