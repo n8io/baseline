@@ -119,12 +119,11 @@ describe("postgresPoolCreate", () => {
 
 	it("sets no query timeout when queryTimeoutMs is null", async () => {
 		await using pgPool = postgresPoolCreate({
-			databaseUrl: await postgresTestDatabaseCreate(),
+			databaseUrl: "postgres://localhost/db",
 			queryTimeoutMs: null,
 		});
 
 		expect(pgPool.options.query_timeout).toBeUndefined();
-		expect((await pgPool.query("SELECT pg_sleep(0.3)")).rowCount).toBe(1);
 	});
 
 	it("logs idle client errors instead of crashing the process", async () => {

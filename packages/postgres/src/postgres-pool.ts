@@ -32,8 +32,8 @@ export type PostgresPoolOptions = {
 	/** The most connections the pool opens. Default 10. */
 	max?: number;
 	/**
-	 * How long one query may take before it rejects and its connection is closed. Default 15 s;
-	 * `null` turns it off.
+	 * How long the caller waits for one query before it rejects. Default 15 s; `null` turns it off.
+	 * The pool closes that connection; the server may still finish the query.
 	 */
 	queryTimeoutMs?: number | null;
 	/** Settings only pg has, such as `ssl` or `idleTimeoutMillis`. */

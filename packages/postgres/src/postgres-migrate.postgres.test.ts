@@ -84,7 +84,14 @@ const pgbouncerStart = async (
 		"AUTH_TYPE=scram-sha-256",
 		"--publish",
 		"127.0.0.1::5432",
+		// Like the Postgres container, it ends by itself when teardown never runs.
+		"--entrypoint",
+		"timeout",
 		"edoburu/pgbouncer:v1.26.1-p0",
+		"300",
+		"/entrypoint.sh",
+		"/usr/bin/pgbouncer",
+		"/etc/pgbouncer/pgbouncer.ini",
 	);
 	onTestFinished(() => {
 		docker("rm", "--force", "--volumes", name);
@@ -197,5 +204,7 @@ describe("postgresMigrate", () => {
 				await query(databaseUrl, "SELECT to_regclass('foo.foo') AS foo"),
 			).toEqual([{ foo: null }]);
 		},
+		// Room to pull the PgBouncer image on a cold machine.
+		120_000,
 	);
 });

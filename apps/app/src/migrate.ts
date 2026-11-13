@@ -8,7 +8,7 @@ if (ENV.DATABASE_URL === "memory://") {
 	logger.info("memory database: nothing to migrate");
 	process.exit(0);
 }
-// Migrations need Postgres itself: postgresMigrate refuses a connection pooler.
+// Postgres itself where DATABASE_URL is a connection pooler: postgresMigrate refuses one.
 const databaseUrl = ENV.DATABASE_MIGRATE_URL ?? ENV.DATABASE_URL;
 await postgresMigrate({ databaseUrl, migrationsFolder: "./migrations" });
 // piece-start: queue
