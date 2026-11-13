@@ -87,11 +87,7 @@ export const cacheContract = (
 			await cache.set("first", "First");
 			expect(await cache.get("first")).toBe("First");
 
-			const numbers = cacheCreate(store(), {
-				prefix: `${prefix}-name`,
-				schema: z.number(),
-			});
-			await numbers.set("second", 2);
+			await store().set(`${prefix}-name:second`, "2", 60_000);
 			expect(await cache.get("second")).toBeUndefined();
 		});
 

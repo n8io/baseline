@@ -14,7 +14,7 @@ pnpm add @n8io/baseline-queue
 - `EventsPublisher`: one per transaction. `publish(name, data)` inside it, then `committed()` once it has committed; on a rollback, drop it.
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
 - `queueEventsMemoryCreate(published?)`: records publishes in an array, for unit tests.
-- `queueConsumerCreate(queueName, eventName, schema, run)`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed and never a value.
+- `queueConsumerCreate(queueName, eventName, schema, run)`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
 - `queueScheduleCreate(name, cron, run)`, `queueSchedulesRegister(queue, schedules, { env })`, `Schedule`: UTC cron jobs in the worker. `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
 - `queueJobRun(queueName, job, work)`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`).

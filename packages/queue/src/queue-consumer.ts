@@ -40,8 +40,8 @@ export const queueConsumerCreate = <S extends StandardSchemaV1>(
 	run: async (data, inbox) => {
 		const result = await schema["~standard"].validate(data);
 		if (result.issues !== undefined) {
-			// Paths only: a validator's message may repeat the Event's values, and this error is
-			// logged and kept on the job.
+			// Paths only, never a validator's message: it may repeat the Event's values, and this
+			// error is logged and kept on the job. A path does include a record's or map's keys.
 			const paths = [...new Set(result.issues.map(issuePath))]
 				.filter((path) => path !== "")
 				.join(", ");
