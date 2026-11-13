@@ -7,9 +7,11 @@
 #   migrate: ["node", "src/migrate.ts"]
 # NODE_OPTIONS preloads src/preload.ts (secrets, then tracing) for every entry.
 # Runner: allow a 30 s grace period; probe /livez and /readyz on HEALTH_PORT (9000);
-# run the migrate entry once before rollout; the other entries may then start in any order and scale independently;
+# run the migrate entry once before rollout; the other entries may then start in any order, and each
+# runs as many instances as you need (docs/agents/deploy-kubernetes.md);
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
-# give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password; secrets are fetched at boot.
+# secrets: give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password, which fetches them at
+# boot, or set every variable .env.production names in the environment, which needs no token.
 # Build: docker build .
 
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build

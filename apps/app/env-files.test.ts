@@ -13,7 +13,14 @@ const keys = (name: string) => Object.keys(parseEnv(fileRead(name)));
 // varlock itself, as `pnpm dev` and the tests load it: every required item has a value and every
 // value has its type. Only the committed files count: no `.local` file, and none of this
 // process's own values of the items.
-const varlockLoad = (appEnv: "development" | "test", dir = appRoot) =>
+// `set` stands for variables the runner sets, which win over the files.
+const varlockLoad = (
+	appEnv: "development" | "production" | "test",
+	{
+		dir = appRoot,
+		set = {},
+	}: { dir?: string; set?: Record<string, string | undefined> } = {},
+) =>
 	spawnSync(
 		`${appRoot}node_modules/.bin/varlock`,
 		["load", "-p", join(dir, ".env.schema"), "-p", join(dir, `.env.${appEnv}`)],
@@ -29,10 +36,20 @@ const varlockLoad = (appEnv: "development" | "test", dir = appRoot) =>
 				__VARLOCK_ENV: undefined,
 				APP_ENV: appEnv,
 				DO_NOT_TRACK: "1",
+				...set,
 			},
 			timeout: 15_000,
 		},
 	);
+
+// A value of the right type for every item .env.production fetches from 1Password, as a runner
+// that syncs the vault into its own secret store sets them.
+const productionSet = () => {
+	const values = parseEnv(fileRead(".env.test"));
+	return Object.fromEntries(
+		keys(".env.production").map((key) => [key, values[key]]),
+	);
+};
 
 describe("env files", () => {
 	it.each(["development", "test"] as const)(
@@ -51,10 +68,27 @@ describe("env files", () => {
 			"# @currentEnv=$APP_ENV\n# @defaultRequired=true\n# ---\nAPP_ENV=test\nA_KEY=\n",
 		);
 		writeFileSync(join(dir, ".env.test"), "A_KEY=\n");
-		const { status, stderr } = varlockLoad("test", dir);
+		const { status, stderr } = varlockLoad("test", { dir });
 		expect({ status, stderr }).toMatchObject({
 			status: 1,
 			stderr: expect.stringContaining("A_KEY"),
+		});
+	});
+
+	// No OP_SERVICE_ACCOUNT_TOKEN in either test, so 1Password cannot be asked.
+	it("load production with no 1Password token when every reference is already set", () => {
+		const set = productionSet();
+		expect(Object.values(set)).not.toContain(undefined);
+		const { status, stderr, stdout } = varlockLoad("production", { set });
+		expect({ status, stderr, stdout }).toMatchObject({ status: 0 });
+	});
+
+	it("fail to load production with no 1Password token when one reference is not set", () => {
+		const { AUTHN_SECRET: _, ...set } = productionSet();
+		const { status, stderr } = varlockLoad("production", { set });
+		expect({ status, stderr }).toMatchObject({
+			status: 1,
+			stderr: expect.stringMatching(/Invalid env vars: AUTHN_SECRET\b/),
 		});
 	});
 

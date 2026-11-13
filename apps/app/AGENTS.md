@@ -140,6 +140,7 @@ These docs load only when the task needs them. Read the one that matches before 
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
+- Running a Project on Kubernetes or on more than one instance (probes, pool sizing, PgBouncer, secrets, rollouts, outages): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)

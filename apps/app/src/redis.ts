@@ -7,7 +7,10 @@ import { createClient } from "redis";
 export type RedisClient = ReturnType<typeof createClient>;
 
 // Resolves once connected, so an unreachable Redis stops startup within the connect timeout.
-// After that a dropped connection reconnects every min(retries × 100 ms, 2 s).
+// After that a dropped connection reconnects every min(retries × 100 ms, 2 s), for as long as it
+// takes. One URL fits a highly available Redis whose endpoint follows the primary (a managed one,
+// or a proxy in front of Sentinel). Sentinel or Cluster addressed directly needs createSentinel or
+// createCluster here instead; nothing tests that path.
 export const redisClientCreate = async ({
 	url,
 }: {
