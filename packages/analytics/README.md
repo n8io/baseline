@@ -39,3 +39,13 @@ await analytics.close();
 ## Needs
 
 - A Mixpanel project token. The Template reads it from `MIXPANEL_TOKEN`, which is optional: without it, events go to the debug log and are not sent.
+
+## Moving to the mixpanel SDK
+
+`analyticsMixpanelCreate` uses `fetch` only because `mixpanel` 0.19.1 to 0.24.0 throw `HttpsProxyAgent is not a constructor` on `init` whenever `HTTPS_PROXY` is set ([mixpanel-node#252](https://github.com/mixpanel/mixpanel-node/issues/252)). Once a release fixes that:
+
+1. `pnpm add mixpanel` in `packages/analytics`.
+2. In `src/analytics-mixpanel.ts`, replace the `fetch` call with `Mixpanel.init(token).track(name, { ...properties, distinct_id: distinctId }, callback)`. Wrap the call in try/catch, because the SDK throws on some properties, and keep each send bounded, because the SDK sets no request timeout.
+3. Update `src/analytics-mixpanel.test.ts` to stand in for the SDK instead of `fetch`.
+
+Nothing else changes: `Analytics` and `analyticsMixpanelCreate(token)` keep their shape, so Projects and the Template need no edits, and the change is a patch release.

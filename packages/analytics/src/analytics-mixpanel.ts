@@ -7,7 +7,10 @@ const trackUrl = "https://api.mixpanel.com/track?ip=0&strict=1";
 // Bounds each send, so close() never waits longer than this.
 const sendTimeoutMs = 5000;
 
-// Sends each event to Mixpanel's /track, one request per event.
+// Sends each event to Mixpanel's /track, one request per event. Plain fetch, not the `mixpanel`
+// SDK: 0.19.1 to 0.24.0 throw on init when HTTPS_PROXY is set
+// (https://github.com/mixpanel/mixpanel-node/issues/252). This file is the only one that knows
+// how events reach Mixpanel; README.md "Moving to the mixpanel SDK" says how to swap it.
 export const analyticsMixpanelCreate = (token: string): Analytics => {
 	const sending = new Set<Promise<void>>();
 	return {
