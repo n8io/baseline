@@ -1,5 +1,4 @@
 import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
-import { idSchemaCreate } from "@n8io/baseline-id";
 import { useLiveUpdates } from "@n8io/baseline-live/client";
 import { useState } from "react";
 import {
@@ -11,7 +10,7 @@ import {
 	useNavigation,
 } from "react-router";
 import { z } from "zod";
-import { FooUpdateInput } from "#domains/foo/index.ts";
+import { Foo, FooUpdateInput } from "#domains/foo/index.ts";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -38,7 +37,7 @@ const notFound = () =>
 	data({ type: "FooNotFound", message: "Foo not found" }, { status: 404 });
 
 const fooIdParse = (params: { fooId?: string | undefined }) => {
-	const parsed = idSchemaCreate("foo").safeParse(params.fooId);
+	const parsed = Foo.shape.id.safeParse(params.fooId);
 	if (!parsed.success) {
 		throw notFound();
 	}

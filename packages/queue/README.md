@@ -14,7 +14,7 @@ pnpm add @n8io/baseline-queue
 - `EventsPublisher`: one per transaction. `publish(name, data)` inside it, then `committed()` once it has committed; on a rollback, drop it.
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
 - `queueEventsMemoryCreate(published?)`: records publishes in an array, for unit tests.
-- `queueConsumerCreate(queueName, eventName, schema, run)`, `Consumer`: parses each Event with Zod and runs the Consumer.
+- `queueConsumerCreate(queueName, eventName, schema, run)`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed and never a value.
 - `queueScheduleCreate(name, cron, run)`, `queueSchedulesRegister(queue, schedules, { env })`, `Schedule`: UTC cron jobs in the worker. `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
 - `queueJobRun(queueName, job, work)`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`).
@@ -25,6 +25,7 @@ pnpm add @n8io/baseline-queue
 
 ```ts
 import type { Actor } from "@n8io/baseline-authn";
+import { z } from "zod";
 import {
 	queueConsumerCreate,
 	queueCreate,
@@ -32,6 +33,12 @@ import {
 	queueScheduleCreate,
 	queueSchedulesRegister,
 } from "@n8io/baseline-queue";
+
+// The Event's schema, in the publishing Domain's models. Here it is Zod.
+const orderPlaced = z.object({
+	customerId: z.string(),
+	totalCents: z.number().int(),
+});
 
 // The worker's composition root.
 const queue = await queueCreate({ pgPool, role: "worker" });
@@ -45,7 +52,7 @@ const billingOrderPlacedConsumerActor: Actor = {
 const billingOrderPlaced = queueConsumerCreate(
 	"billing.order-placed", // queueName: <consumer domain>.<event>
 	"order.placed", // eventName
-	orderPlaced, // Zod schema
+	orderPlaced, // the Zod schema; `event` below is its output type
 	(event, inbox) =>
 		billingUseCases.invoiceCreate(
 			billingOrderPlacedConsumerActor,
@@ -66,7 +73,7 @@ await queueSchedulesRegister(queue, [fooStaleArchive], { env: ENV });
 
 ## Needs
 
-- Peers: `zod` and `@opentelemetry/api`. The pool you pass to `queueCreate` is yours; pg-boss brings its own `pg` for `queueMigrate`.
+- Peer: `@opentelemetry/api`. You bring the schema library (the Template uses Zod); the package imports none. The pool you pass to `queueCreate` is yours; pg-boss brings its own `pg` for `queueMigrate`.
 - Env, by the template's convention: `DATABASE_URL`, and an optional `SCHEDULE_<NAME>` per Schedule.
 
 ## Tests

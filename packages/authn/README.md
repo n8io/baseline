@@ -12,7 +12,7 @@ pnpm add @n8io/baseline-authn
 - `authnMiddlewareCreate(authn, { source })`: sets `c.var.actor` from a `"bearer"` token (API) or the `"cookie"` session (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in.
 - `authnRoutesCreate(authn)`: `/sign-in`, `/callback`, `/refresh` and `/sign-out`, mounted at `/auth`.
 - `authnActorRequire(c)`: the signed-in Actor of an API request, else 401.
-- `Actor`: `{ id, kind: "user" | "client", scopes }`, as a type and a Zod schema.
+- `Actor`: the type `{ id, kind: "user" | "client", scopes }`. What `actorFromClaims` returns is checked against it, and anything else counts as an invalid token.
 - `AuthnRequiredError`: the 401 `authnActorRequire` throws.
 - `authnMemoryTokenCreate(authn, actor)`: a bearer token from the memory issuer, for integration tests.
 
@@ -54,7 +54,26 @@ app.use("/api/v1/*", authnMiddlewareCreate(authn, { source: "bearer" }));
 app.route("/auth", authnRoutesCreate(authn));
 ```
 
+### Checking claims with Zod
+
+You bring your own schema library. To check the token's claims with Zod, parse them in `actorFromClaims`; a throw means the token is not an Actor's:
+
+```ts
+import type { Actor, AuthnClaims } from "@n8io/baseline-authn";
+import { z } from "zod";
+
+const Claims = z.object({
+	sub: z.string().min(1),
+	scope: z.string().default(""),
+});
+
+export const actorFromClaims = (claims: AuthnClaims): Actor => {
+	const { sub, scope } = Claims.parse(claims);
+	return { id: sub, kind: "user", scopes: scope.split(" ").filter(Boolean) };
+};
+```
+
 ## Needs
 
-- Peers: `hono`, `zod` and `@opentelemetry/api`. `react` and `react-router` are optional peers, needed only for the `/react-router` and `/client` subpaths.
+- Peers: `hono` and `@opentelemetry/api`. The package uses Zod inside, as its own dependency; you do not install it. `react` and `react-router` are optional peers, needed only for the `/react-router` and `/client` subpaths.
 - Env, by the template's convention: `AUTHN_ISSUER_URL` (`https://` or `memory://`), `AUTHN_CLIENT_ID`, `AUTHN_CLIENT_SECRET`, `AUTHN_AUDIENCE`, and `AUTHN_SECRET` (base64url, at least 32 bytes; it encrypts the cookies).

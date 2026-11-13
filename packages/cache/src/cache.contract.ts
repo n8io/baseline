@@ -1,9 +1,22 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { type CacheStore, cacheCreate } from "./index.ts";
 
 const Foo = z.object({ id: z.string(), name: z.string() });
 type Foo = z.infer<typeof Foo>;
+
+// A Standard Schema from no library, answering with a Promise as the spec allows.
+const nameSchema: StandardSchemaV1<unknown, string> = {
+	"~standard": {
+		validate: async (value) =>
+			typeof value === "string"
+				? { value }
+				: { issues: [{ message: "Expected text" }] },
+		vendor: "test",
+		version: 1,
+	},
+};
 
 // The behaviour a Cache must have on every store. `wait` moves time forward:
 // fake timers for memory, a real sleep for Redis.
@@ -64,6 +77,22 @@ export const cacheContract = (
 			});
 			await oldCache.set(foo.id, { id: foo.id });
 			expect(await newCache.get(foo.id)).toBeUndefined();
+		});
+
+		test("takes any Standard Schema, also one that validates async", async () => {
+			const cache = cacheCreate(store(), {
+				prefix: `${prefix}-name`,
+				schema: nameSchema,
+			});
+			await cache.set("first", "First");
+			expect(await cache.get("first")).toBe("First");
+
+			const numbers = cacheCreate(store(), {
+				prefix: `${prefix}-name`,
+				schema: z.number(),
+			});
+			await numbers.set("second", 2);
+			expect(await cache.get("second")).toBeUndefined();
 		});
 
 		test("values round-trip through JSON, so a Date comes back a string", async () => {
