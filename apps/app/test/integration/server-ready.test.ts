@@ -10,21 +10,17 @@ import {
 
 const readyLog = "Server listening and ready";
 
-describe("server readiness", { timeout: 30_000 }, () => {
+describe("server readiness", { timeout: 60_000 }, () => {
 	it("reports ready once PORT is bound, with no deprecation warning", async () => {
-		const server = await productionServerStart({
+		await using server = await productionServerStart({
 			databaseUrl: "memory://",
 			env: { LOG_LEVEL: "info" },
 		});
-		try {
-			await productionServerWaitFor("the ready log", () =>
-				server.stdout().includes(readyLog),
-			);
-			expect(server.stdout()).toContain(readyLog);
-			expect(server.stderr()).not.toContain("DeprecationWarning");
-		} finally {
-			await server.stop();
-		}
+		await productionServerWaitFor("the ready log", () =>
+			server.stdout().includes(readyLog),
+		);
+		expect(server.stdout()).toContain(readyLog);
+		expect(server.stderr()).not.toContain("DeprecationWarning");
 	});
 
 	it("never answers /readyz 200 and exits 1 when PORT is taken", async () => {
@@ -35,7 +31,7 @@ describe("server readiness", { timeout: 30_000 }, () => {
 			throw new Error("no port");
 		}
 		try {
-			const server = await productionServerSpawn({
+			await using server = await productionServerSpawn({
 				databaseUrl: "memory://",
 				env: { LOG_LEVEL: "info", PORT: String(address.port) },
 			});

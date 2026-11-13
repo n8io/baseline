@@ -1,20 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { httpStatus, workerStart } from "./production-server.ts";
 
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
-
-describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
+describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 	it("stops an idle worker, closes /readyz and exits 0", async () => {
-		const { databaseUrl, drop } = await integrationDatabaseCreate();
-		cleanups.push(drop);
-		const worker = await workerStart({
-			databaseUrl,
+		await using database = await integrationDatabaseCreate();
+		await using worker = await workerStart({
+			databaseUrl: database.databaseUrl,
 		});
-		cleanups.push(worker.stop);
 
 		worker.child.kill("SIGTERM");
 

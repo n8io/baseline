@@ -1,7 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	type DisposableTempDir,
+	mkdtempDisposableSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	answersWrite,
 	contextLanguageWrite,
@@ -12,10 +17,9 @@ import {
 	securityUpdatesCalls,
 } from "../scripts/app-create.ts";
 
-const directories: string[] = [];
-const projectCreate = () => {
-	const directory = mkdtempSync(join(tmpdir(), "app-create-test-"));
-	directories.push(directory);
+const projectCreate = (): DisposableTempDir => {
+	const folder = mkdtempDisposableSync(join(tmpdir(), "app-create-test-"));
+	const directory = folder.path;
 	writeFileSync(
 		join(directory, ".env.development"),
 		"APP_ENV=development\nAUTHN_SECRET=template-secret\nPORT=3000\n",
@@ -28,16 +32,10 @@ const projectCreate = () => {
 		join(directory, "CONTEXT.md"),
 		"# Invoices.\n\n## Architecture\n\n**Domain**:\nOne entity.\n\n## Language\n",
 	);
-	return directory;
+	return folder;
 };
 const read = (directory: string, path: string) =>
 	readFileSync(join(directory, path), "utf8");
-
-afterEach(() => {
-	for (const directory of directories.splice(0)) {
-		rmSync(directory, { force: true, recursive: true });
-	}
-});
 
 describe("app-create", () => {
 	it("names the glossary term domain-create looks for", () => {
@@ -57,7 +55,8 @@ describe("app-create", () => {
 	});
 
 	it("writes a fresh AUTHN_SECRET and the project's own production vault", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		envFilesWrite(directory, "invoicing");
 		const secret = /^AUTHN_SECRET=(.*)$/m.exec(
 			read(directory, ".env.development"),
@@ -68,14 +67,16 @@ describe("app-create", () => {
 		expect(read(directory, ".env.production")).toBe(
 			"# References only.\nDATABASE_URL=op(op://invoicing-production/database/url)\nAUTHN_SECRET=op(op://invoicing-production/authn/secret)\n",
 		);
-		envFilesWrite(projectCreate(), "invoicing");
-		expect(read(directories[1] ?? "", ".env.development")).not.toContain(
+		using second = projectCreate();
+		envFilesWrite(second.path, "invoicing");
+		expect(read(second.path, ".env.development")).not.toContain(
 			`AUTHN_SECRET=${secret}`,
 		);
 	});
 
 	it("saves the answers template-upgrade reads back in .template.json", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		answersWrite(
 			directory,
 			{

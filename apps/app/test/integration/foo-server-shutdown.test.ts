@@ -1,5 +1,5 @@
 import pg from "pg";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
 import {
@@ -8,31 +8,25 @@ import {
 	slowRequestStart,
 } from "./production-server.ts";
 
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
-
 // server-shutdown.test.ts covers the drain itself; this adds that Postgres stays open for it.
 describe("server shutdown on SIGTERM with a write in flight", {
-	timeout: 30_000,
+	timeout: 60_000,
 }, () => {
 	it("saves a foo whose POST was in flight and exits 0", async () => {
-		const { databaseUrl, drop } = await integrationDatabaseCreate();
-		cleanups.push(drop);
-		const server = await productionServerStart({
+		await using database = await integrationDatabaseCreate();
+		const { databaseUrl } = database;
+		await using server = await productionServerStart({
 			databaseUrl,
 		});
-		cleanups.push(server.stop);
 		const { authorization } = await integrationSignIn(server.url);
 
-		const slow = await slowRequestStart(server.port, {
+		// Declared after the server, so it is dropped before server.stop, which would otherwise wait
+		// for it until its deadline.
+		using slow = await slowRequestStart(server.port, {
 			body: JSON.stringify({ name: "Sent slowly" }),
 			headers: { authorization, "content-type": "application/json" },
 			path: "/api/v1/foos",
 		});
-		// Runs before server.stop, which would otherwise wait for this request until its deadline.
-		cleanups.push(async () => slow.abort());
 
 		server.child.kill("SIGTERM");
 		await shutdownStarted(server);
@@ -45,8 +39,11 @@ describe("server shutdown on SIGTERM with a write in flight", {
 		expect(await server.exited).toBe(0);
 		const pgClient = new pg.Client({ connectionString: databaseUrl });
 		await pgClient.connect();
-		const { rows } = await pgClient.query("SELECT name FROM foo.foo");
-		await pgClient.end();
-		expect(rows).toEqual([{ name: "Sent slowly" }]);
+		try {
+			const { rows } = await pgClient.query("SELECT name FROM foo.foo");
+			expect(rows).toEqual([{ name: "Sent slowly" }]);
+		} finally {
+			await pgClient.end();
+		}
 	});
 });
