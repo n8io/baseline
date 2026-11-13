@@ -157,36 +157,36 @@ describe("domain structure", () => {
 		{
 			message: "src/domains/bar/ports.ts: add ports.ts",
 			paths: without("src/domains/bar/ports.ts"),
-			row0: "missing ports.ts",
+			name: "missing ports.ts",
 		},
 		{
 			message:
 				"src/domains/bar/use-cases/: add at least one file in use-cases/",
 			paths: without("src/domains/bar/use-cases/bar-create.ts"),
-			row0: "missing use-cases/",
+			name: "missing use-cases/",
 		},
 		{
 			message: "src/domains/bar/api/index.ts: add index.ts to api/",
 			paths: [...barBase, "src/domains/bar/api/bar-routes.ts"],
-			row0: "api/ without index.ts",
+			name: "api/ without index.ts",
 		},
 		{
 			message:
 				"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts and bar-errors.ts",
 			paths: [...barBase, "src/domains/bar/helper.ts"],
-			row0: "a stray root file",
+			name: "a stray root file",
 		},
 		{
 			message: "src/domains/bar/helpers/x.ts: a domain root holds only",
 			paths: [...barBase, "src/domains/bar/helpers/x.ts"],
-			row0: "a stray root folder",
+			name: "a stray root folder",
 		},
 		{
 			message: "CONTEXT.md: add a **Bar line**: term for bar-line",
 			paths: [...barBase, "src/domains/bar/models/bar-line.ts"],
-			row0: "a model with no glossary term",
+			name: "a model with no glossary term",
 		},
-	])("fails on $row0", ({ message, paths }) => {
+	])("fails on $name", ({ message, paths }) => {
 		expect(structureViolations(paths, context)).toEqual([
 			expect.stringContaining(message),
 		]);
@@ -259,21 +259,22 @@ describe("agent docs", () => {
 
 	it.each([
 		{
-			docs: [{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }], // Two bytes each: the budget counts bytes, not characters.
+			// Two bytes each: the budget counts bytes, not characters.
+			docs: [{ path: "AGENTS.md", text: "é".repeat(agentsMaxBytes / 2 + 1) }],
 			problem:
 				"AGENTS.md: keep it to 14000 bytes; move task-specific rules to docs/agents/",
-			row0: "an AGENTS.md over its budget",
+			name: "an AGENTS.md over its budget",
 		},
 		{
 			docs: [{ path: "AGENTS.md", text: "Glossary: @CONTEXT.md. Read it." }],
 			problem:
 				"AGENTS.md: put @CONTEXT.md alone on its line, or it is not imported",
-			row0: "an import inside a sentence",
+			name: "an import inside a sentence",
 		},
 		{
 			docs: [{ path: "AGENTS.md", text: "[x](docs/agents/gone.md)" }],
 			problem: "AGENTS.md: links docs/agents/gone.md, which does not exist",
-			row0: "a link to a missing file",
+			name: "a link to a missing file",
 		},
 		{
 			docs: [
@@ -281,9 +282,9 @@ describe("agent docs", () => {
 				{ path: "docs/agents/data.md", text: "" },
 			],
 			problem: "AGENTS.md: link docs/agents/data.md under ## Read when",
-			row0: "a doc AGENTS.md does not link",
+			name: "a doc AGENTS.md does not link",
 		},
-	])("fails on $row0", ({ docs, problem }) => {
+	])("fails on $name", ({ docs, problem }) => {
 		expect(
 			agentDocsViolations({
 				docs,

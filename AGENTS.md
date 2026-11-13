@@ -23,7 +23,11 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 
 ## Naming
 
-Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app/src`. A function with three or more inputs takes one typed input object; Biome's `useMaxParams` enforces it.
+Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app/src`.
+
+## Function inputs
+
+One input, or two strongly coupled required inputs, may stay positional. Three or more inputs, or any optional input, take one typed input object (`?: T | null` for optional fields). Biome's `useMaxParams` (max 2) catches functions; it misses `export default function` and type signatures (ports, method types), so keep those to the rule by hand.
 
 ## Tests
 

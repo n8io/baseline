@@ -8,17 +8,17 @@ export const queueRetryLimit = 4;
 export const queueWithDeadLetterCreate = async ({
 	boss,
 	name,
-	policy = "standard",
+	policy,
 }: {
 	boss: PgBoss;
 	name: string;
-	policy?: "standard" | "exclusive";
+	policy?: "standard" | "exclusive" | null;
 }): Promise<void> => {
 	const deadLetter = `${name}.dead`;
 	await boss.createQueue(deadLetter);
 	await boss.createQueue(name, {
 		deadLetter,
-		policy,
+		policy: policy ?? "standard",
 		retryBackoff: true,
 		retryDelay: 10,
 		retryLimit: queueRetryLimit,
