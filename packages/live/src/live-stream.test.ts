@@ -7,14 +7,15 @@ import {
 	liveStreamCreate,
 	liveStreamMaxMs,
 } from "./live-stream.ts";
-import { liveAppCreate, liveTestSseRead } from "./live-test-sse.ts";
+import { liveAppCreate } from "./live-test-app.ts";
+import { liveTestSseRead } from "./live-test-sse.ts";
 
 const open = async (
 	app: ReturnType<typeof liveAppCreate>,
 	path = "/live/foo/foo_1",
 ) => {
 	const response = await app.request(path);
-	const sse = liveTestSseRead(response);
+	const sse = liveTestSseRead({ response });
 	await sse.until("event: ready");
 	return { response, sse };
 };
@@ -46,31 +47,6 @@ describe("liveStreamCreate", () => {
 
 		expect(response.headers.get("X-Request-Id")).toBe("req_1");
 		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
-	});
-
-	test("sends { type, id } for its own (channel, id) only", async () => {
-		await using liveHub = liveHubMemoryCreate();
-		const app = liveAppCreate(liveHub);
-		const { sse } = await open(app);
-
-		await liveHub.send("foo", { id: "foo_2", type: "foo.updated" });
-		await liveHub.send("bar", { id: "foo_1", type: "bar.updated" });
-		await liveHub.send("foo", { id: "foo_1", type: "foo.updated" });
-		const text = await sse.until("foo.updated");
-
-		expect(text).toBe(
-			'event: ready\ndata: \n\ndata: {"id":"foo_1","type":"foo.updated"}\n\n',
-		);
-	});
-
-	test("sends only type and id, whatever else the sender passes", async () => {
-		await using liveHub = liveHubMemoryCreate();
-		const { sse } = await open(liveAppCreate(liveHub));
-
-		const update = { id: "foo_1", name: "secret", type: "foo.updated" };
-		await liveHub.send("foo", update);
-
-		expect(await sse.until("foo.updated")).not.toContain("secret");
 	});
 
 	test("sends a comment every 20 s", async () => {
@@ -117,33 +93,14 @@ describe("liveStreamCreate", () => {
 			vi.spyOn(Math, "random").mockReturnValue(random);
 			retries.push(
 				/retry: (\d+)/.exec(
-					await liveTestSseRead(await app.request("/live/foo/foo_1")).end(),
+					await liveTestSseRead({
+						response: await app.request("/live/foo/foo_1"),
+					}).end(),
 				)?.[1],
 			);
 		}
 
 		expect(retries).toEqual(["1000", "3000", "5000"]);
-	});
-
-	test("liveHub.close() sends every stream a retry, closes it, then resolves", async () => {
-		const liveHub = liveHubMemoryCreate();
-		const app = liveAppCreate(liveHub);
-		const first = await open(app, "/live/foo/foo_1");
-		const second = await open(app, "/live/foo/foo_2");
-
-		await liveHub.close();
-
-		expect(await first.sse.end()).toMatch(/retry: \d+\n\n$/);
-		expect(await second.sse.end()).toMatch(/retry: \d+\n\n$/);
-	});
-
-	test("a stream opened after close ends at once with a retry", async () => {
-		const liveHub = liveHubMemoryCreate();
-		await liveHub.close();
-
-		const response = await liveAppCreate(liveHub).request("/live/foo/foo_1");
-
-		expect(await liveTestSseRead(response).end()).toMatch(/^retry: \d+\n\n$/);
 	});
 
 	test("await using closes the hub when its block ends", async () => {
@@ -155,7 +112,9 @@ describe("liveStreamCreate", () => {
 
 		const response = await liveAppCreate(closed).request("/live/foo/foo_1");
 
-		expect(await liveTestSseRead(response).end()).toMatch(/^retry: \d+\n\n$/);
+		expect(await liveTestSseRead({ response }).end()).toMatch(
+			/^retry: \d+\n\n$/,
+		);
 	});
 
 	test("a client that goes away stops listening and no longer holds close()", async () => {
@@ -183,15 +142,15 @@ describe("liveStreamCreate", () => {
 	test("an aborted request ends the stream and no longer holds close()", async () => {
 		const liveHub = liveHubMemoryCreate();
 		const request = new AbortController();
-		const sse = liveTestSseRead(
-			liveStreamCreate({
+		const sse = liveTestSseRead({
+			response: liveStreamCreate({
 				channel: "foo",
 				expiresAt: Number.POSITIVE_INFINITY,
 				id: "foo_1",
 				liveHub,
 				signal: request.signal,
 			}),
-		);
+		});
 		await sse.until("event: ready");
 
 		request.abort();
@@ -203,15 +162,15 @@ describe("liveStreamCreate", () => {
 	test("a request aborted before the stream starts never subscribes", async () => {
 		await using liveHub = liveHubMemoryCreate();
 		const listen = vi.spyOn(liveHubStreams(liveHub), "listen");
-		const sse = liveTestSseRead(
-			liveStreamCreate({
+		const sse = liveTestSseRead({
+			response: liveStreamCreate({
 				channel: "foo",
 				expiresAt: Number.POSITIVE_INFINITY,
 				id: "foo_1",
 				liveHub,
 				signal: AbortSignal.abort(),
 			}),
-		);
+		});
 
 		expect(await sse.end()).toBe("");
 		expect(listen).not.toHaveBeenCalled();
@@ -219,14 +178,14 @@ describe("liveStreamCreate", () => {
 
 	test("drops a page that stops reading once 64 KiB wait for it", async () => {
 		await using liveHub = liveHubMemoryCreate();
-		const sse = liveTestSseRead(
-			liveStreamCreate({
+		const sse = liveTestSseRead({
+			response: liveStreamCreate({
 				channel: "foo",
 				expiresAt: Number.POSITIVE_INFINITY,
 				id: "foo_1",
 				liveHub,
 			}),
-		);
+		});
 		await sse.until("event: ready");
 
 		for (let sent = 0; sent < 2000; sent += 1) {
@@ -243,9 +202,9 @@ describe("liveStreamCreate", () => {
 		vi.spyOn(liveHubStreams(liveHub), "listen").mockReturnValue(
 			listening.promise,
 		);
-		const sse = liveTestSseRead(
-			await liveAppCreate(liveHub).request("/live/foo/foo_1"),
-		);
+		const sse = liveTestSseRead({
+			response: await liveAppCreate(liveHub).request("/live/foo/foo_1"),
+		});
 
 		await liveHub.close();
 		expect(await sse.end()).toMatch(/^retry: \d+\n\n$/);

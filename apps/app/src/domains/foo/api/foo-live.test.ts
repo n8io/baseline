@@ -2,6 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
+import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { ENV } from "#env";
 import { connectionsOpen } from "../../../connections.ts";
@@ -37,21 +38,10 @@ const setup = (
 	return { app, useCases };
 };
 
-// Reads an SSE body; `until(text)` reads on until the body holds `text` or the stream ends.
-const sseReader = (res: Response) => {
-	const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-	closers.push(() => reader.cancel());
-	const decoder = new TextDecoder();
-	let body = "";
-	const until = async (text: string) => {
-		while (!body.includes(text)) {
-			const chunk = await reader.read();
-			if (chunk.done) return { body, ended: true };
-			body += decoder.decode(chunk.value, { stream: true });
-		}
-		return { body, ended: false };
-	};
-	return { until };
+const sseRead = (response: Response) => {
+	const sse = liveTestSseRead({ response });
+	closers.push(() => sse.cancel());
+	return sse;
 };
 
 describe("GET /live/foo/:fooId", () => {
@@ -64,15 +54,14 @@ describe("GET /live/foo/:fooId", () => {
 		const res = await app.request(`/live/foo/${fooId}`);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("content-type")).toMatch(/^text\/event-stream/);
-		const stream = sseReader(res);
-		expect((await stream.until("event: ready")).ended).toBe(false);
+		const sse = sseRead(res);
+		await sse.until("event: ready");
 		// Without a token expiry the stream stays open past its first moments.
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		const updated = await useCases.fooUpdate(owner, { fooId, name: "beta" });
 		expect(updated.ok).toBe(true);
-		const { body } = await stream.until("foo.updated");
-		expect(body).toContain(
+		expect(await sse.until("foo.updated")).toContain(
 			`data: ${JSON.stringify({ id: fooId, type: "foo.updated" })}`,
 		);
 	});
@@ -87,9 +76,7 @@ describe("GET /live/foo/:fooId", () => {
 
 		const res = await app.request(`/live/foo/${created.value.id}`);
 		// No ready text is awaited: the stream must end by itself.
-		const { body, ended } = await sseReader(res).until("never sent");
-		expect(ended).toBe(true);
-		expect(body).toMatch(/retry: \d+/);
+		expect(await sseRead(res).end()).toMatch(/retry: \d+/);
 	});
 
 	it("answers a foo that does not exist with a 404 problem", async () => {

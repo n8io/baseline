@@ -1,3 +1,4 @@
+import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
@@ -32,20 +33,6 @@ afterAll(async () => {
 	await drop?.();
 });
 
-// Reads the stream until `text` has arrived; throws when it ends first.
-const streamUntil = async (
-	reader: ReadableStreamDefaultReader<Uint8Array>,
-	received: { text: string },
-	text: string,
-): Promise<void> => {
-	const decoder = new TextDecoder();
-	while (!received.text.includes(text)) {
-		const { done, value } = await reader.read();
-		if (done) throw new Error(`stream ended before ${text}`);
-		received.text += decoder.decode(value, { stream: true });
-	}
-};
-
 describe("live updates across server instances", { timeout: 30_000 }, () => {
 	it("delivers a change made on one instance to a stream open on another", async () => {
 		const [streaming, changing] = servers as [
@@ -74,11 +61,9 @@ describe("live updates across server instances", { timeout: 30_000 }, () => {
 			});
 			expect(res.status).toBe(200);
 			expect(res.headers.get("content-type")).toMatch(/^text\/event-stream/);
-			const body = res.body?.getReader();
-			if (body === undefined) throw new Error("no stream body");
-			const received = { text: "" };
+			const sse = liveTestSseRead({ response: res });
 			// Subscribed on Redis: anything sent from now on reaches this stream.
-			await streamUntil(body, received, "event: ready");
+			await sse.until("event: ready");
 
 			const renamed = await fetch(`${changing.url}/api/v1/foos/${id}`, {
 				body: JSON.stringify({ name: "Watched and renamed" }),
@@ -92,9 +77,10 @@ describe("live updates across server instances", { timeout: 30_000 }, () => {
 
 			// The event arrives while the stream stays open: @preventLeaks' response scan
 			// flushes each event rather than holding the body until it ends.
-			await streamUntil(body, received, "foo.updated");
-			expect(received.text).toContain(`{"id":"${id}","type":"foo.updated"}`);
-			await body.cancel();
+			expect(await sse.until("foo.updated")).toContain(
+				`{"id":"${id}","type":"foo.updated"}`,
+			);
+			await sse.cancel();
 		} finally {
 			clearTimeout(timer);
 			abort.abort();

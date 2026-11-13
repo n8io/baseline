@@ -35,4 +35,27 @@ describe("the main entry", () => {
 		expect(imports.size).toBeGreaterThan(3);
 		expect(reactImports).toStrictEqual([]);
 	});
+
+	it("reaches no test helper", () => {
+		const files = [...reachableImports("./index.ts").keys()];
+
+		expect(files.length).toBeGreaterThan(3);
+		expect(files.filter((file) => /testing|-test-/.test(file))).toStrictEqual(
+			[],
+		);
+	});
+});
+
+describe("the testing entry", () => {
+	it("imports no package, so no test runner and no server", () => {
+		const imports = reachableImports("./testing.ts");
+		const packageImports = [...imports].flatMap(([file, specifiers]) =>
+			specifiers
+				.filter((specifier) => !specifier.startsWith("./"))
+				.map((specifier) => `${file} imports ${specifier}`),
+		);
+
+		expect(imports.size).toBe(2);
+		expect(packageImports).toStrictEqual([]);
+	});
 });
