@@ -1,0 +1,7 @@
+// A24: only *.test.ts(x) files and files under test/ import @n8io/baseline-<package>/testing
+// expect: src/domains/bar/api/bar-seed.ts imports @n8io/baseline-authn/testing: only *.test.ts(x) files and files under test/ import a Package's test helpers
+// @file src/domains/bar/api/bar-seed.ts
+import { authnTestSignIn } from "@n8io/baseline-authn/testing";
+
+export const barSeed = (app: { request: typeof fetch }) =>
+	authnTestSignIn({ app });

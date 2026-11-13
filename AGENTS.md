@@ -32,10 +32,17 @@ Never return the vendor's client from a neutral handle. The Project's side of th
 
 ## Tests
 
-- A test for one source file sits beside it as `<name>.test.ts`. Test helpers sit beside the tests that use them and are never exported from `index.ts`.
+- A test for one source file sits beside it as `<name>.test.ts`.
 - A test that needs a real service names it before `.test` (`.postgres.test.ts`, `.redis.test.ts`).
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
 - Root `test/` tests the template and holds service setup shared across packages (`test/postgres/`, `test/redis/`).
+
+A Package exports two things for tests, and no mocks, spies or fixtures:
+
+- A memory adapter, `<package><Port>MemoryCreate` (`cacheStoreMemoryCreate`), in the main entry. It takes one options object or none. It is a real adapter, the one a `memory://` URL picks in development, so a `<port>.contract.ts` runs the same cases against it and the real adapter (`packages/cache/src/cache.contract.ts`).
+- A test helper, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. It takes one options object. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
+
+Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24).
 
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
 

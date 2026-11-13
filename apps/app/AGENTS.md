@@ -34,6 +34,7 @@ When a budget trips, decide again deliberately: make the code faster or set a ne
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
 - A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts`, `dockerfile.test.ts` and `env-files.test.ts`.
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
+- A Package's test helpers come from `@n8io/baseline-<package>/testing`. Only a `*.test.ts(x)` file or a file under `test/` imports it (architecture rule A24). Use them and the Package's memory adapter; never copy a Package's internals into a test.
 - `structure.test.ts` fails on a test anywhere else. There is no `test/unit/`.
 
 ## Where new work goes
