@@ -1,5 +1,7 @@
 # App
 
+The glossary is [CONTEXT.md](CONTEXT.md). Use its terms for every name. The next line loads it in Claude Code, so it stays alone on its line:
+
 @CONTEXT.md
 
 Run with Node 26 (`.node-version`) and the pnpm version pinned in `packageManager`.
@@ -112,7 +114,6 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - Track an analytics event after commit, named like the Event for the same change (`foo.created`). The Domain's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch. One catch-up run must cover any number of missed ticks, and a repeat must change nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
-- Dependabot update PRs merge themselves once CI passes, unless they are major. A major PR needs a human to review and merge it.
 - Reuse an existing shadcn component before making one. Add components only with `pnpm shadcn add <name>`. Never write them by hand.
 
 ## Env and secrets
