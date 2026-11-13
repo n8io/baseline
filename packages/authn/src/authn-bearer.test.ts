@@ -18,7 +18,7 @@ afterEach(() => {
 describe("authnMiddlewareCreate with the bearer token", () => {
 	it("sets the actor from a memory-issuer token through actorFromClaims", async () => {
 		const { app, authn } = await authnTestAppCreate();
-		const token = await authnMemoryTokenCreate(authn, machine);
+		const token = await authnMemoryTokenCreate({ actor: machine, authn });
 		const res = await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});
@@ -33,7 +33,7 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 			setAttribute,
 		} as unknown as ReturnType<typeof trace.getActiveSpan>);
 		const { app, authn } = await authnTestAppCreate();
-		const token = await authnMemoryTokenCreate(authn, machine);
+		const token = await authnMemoryTokenCreate({ actor: machine, authn });
 		await app.request(`${appOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});
@@ -79,7 +79,7 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 
 	it("answers 401 AuthnInvalid for an expired token and never redirects", async () => {
 		const { app, authn } = await authnTestAppCreate();
-		const token = await authnMemoryTokenCreate(authn, machine);
+		const token = await authnMemoryTokenCreate({ actor: machine, authn });
 		vi.useFakeTimers({ now: Date.now() + 16 * 60_000, toFake: ["Date"] });
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
 			headers: { Authorization: `Bearer ${token}` },
@@ -91,7 +91,10 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 
 	it("answers 401 AuthnInvalid for a token from another memory issuer", async () => {
 		const other = await authnTestAppCreate();
-		const token = await authnMemoryTokenCreate(other.authn, machine);
+		const token = await authnMemoryTokenCreate({
+			actor: machine,
+			authn: other.authn,
+		});
 		const { app } = await authnTestAppCreate();
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
 			headers: { Authorization: `Bearer ${token}` },

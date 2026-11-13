@@ -35,4 +35,33 @@ describe("the main entry", () => {
 		expect(imports.size).toBeGreaterThan(5);
 		expect(reactImports).toStrictEqual([]);
 	});
+
+	it("reaches no test helper", () => {
+		const files = [...reachableImports("./index.ts").keys()];
+
+		expect(files.length).toBeGreaterThan(5);
+		expect(files.filter((file) => /testing|-test-/.test(file))).toStrictEqual(
+			[],
+		);
+	});
+});
+
+describe("the testing entry", () => {
+	it("reaches only the sign-in helper and the cookie code, so no test runner and no server", () => {
+		const imports = reachableImports("./testing.ts");
+
+		expect([...imports.keys()].sort()).toStrictEqual([
+			"./authn-cookie.ts",
+			"./authn-test-sign-in.ts",
+			"./testing.ts",
+		]);
+		expect([...new Set([...imports.values()].flat())].sort()).toStrictEqual([
+			"./authn-cookie.ts",
+			"./authn-test-sign-in.ts",
+			"hono",
+			"hono/cookie",
+			"jose",
+			"node:crypto",
+		]);
+	});
 });

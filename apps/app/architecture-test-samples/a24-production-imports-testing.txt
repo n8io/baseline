@@ -3,5 +3,5 @@
 // @file src/domains/bar/api/bar-seed.ts
 import { authnTestSignIn } from "@n8io/baseline-authn/testing";
 
-export const barSeed = (app: { request: typeof fetch }) =>
-	authnTestSignIn({ app });
+export const barSeed = (url: string, secret: string) =>
+	authnTestSignIn({ secret, url, who: "user" });

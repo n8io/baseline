@@ -19,7 +19,8 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./client": "./src/client.ts",
-		"./react-router": "./src/react-router.ts"
+		"./react-router": "./src/react-router.ts",
+		"./testing": "./src/testing.ts"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -35,6 +36,10 @@
 			"./react-router": {
 				"types": "./dist/react-router.d.ts",
 				"default": "./dist/react-router.js"
+			},
+			"./testing": {
+				"types": "./dist/testing.d.ts",
+				"default": "./dist/testing.js"
 			}
 		},
 		"registry": "https://registry.npmjs.org"

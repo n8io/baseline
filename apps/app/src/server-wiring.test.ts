@@ -28,10 +28,9 @@ let app: typeof import("./server.ts")["app"];
 
 const bearer = async () => {
 	if (!authn) throw new Error("authn was not captured");
-	const token = await authnMemoryTokenCreate(authn, {
-		id: "user-1",
-		kind: "user",
-		scopes: [],
+	const token = await authnMemoryTokenCreate({
+		actor: { id: "user-1", kind: "user", scopes: [] },
+		authn,
 	});
 	return {
 		Authorization: `Bearer ${token}`,
@@ -318,10 +317,9 @@ describe("server wiring", () => {
 		};
 
 		it("sends a live update to an open detail stream when the foo is updated", async () => {
-			const token = await authnMemoryTokenCreate(authn as Authn, {
-				id: "user-1",
-				kind: "user",
-				scopes: [],
+			const token = await authnMemoryTokenCreate({
+				actor: { id: "user-1", kind: "user", scopes: [] },
+				authn: authn as Authn,
 			});
 			const headers = {
 				Authorization: `Bearer ${token}`,
@@ -356,10 +354,9 @@ describe("server wiring", () => {
 		});
 
 		it("reads only the cookie: a bearer token gets 401", async () => {
-			const token = await authnMemoryTokenCreate(authn as Authn, {
-				id: "user-1",
-				kind: "user",
-				scopes: [],
+			const token = await authnMemoryTokenCreate({
+				actor: { id: "user-1", kind: "user", scopes: [] },
+				authn: authn as Authn,
 			});
 			const res = await app.request(
 				"/live/foo/foo_01m6gtefj7e9bayj0wmqpjjmg8",
