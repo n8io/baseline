@@ -1,5 +1,4 @@
 import { getRandomValues } from "node:crypto";
-import { z } from "zod";
 
 // A prefixed TypeID (https://github.com/jetify-com/typeid): `<prefix>_<suffix>`, where the
 // suffix is a UUID in 26 characters of Crockford base32, lowercase. New ids carry a UUIDv7.
@@ -57,17 +56,11 @@ export const idCreate = <P extends string>(prefix: P): Id<P> => {
 	return `${prefix}_${suffixFromHex(uuidV7Hex())}`;
 };
 
-// Accepts only ids with exactly this prefix, so a `bar` id never passes as a `foo` id.
-export const idSchemaCreate = <P extends string>(
-	prefix: P,
-): z.ZodType<Id<P>> => {
+// Matches only ids with exactly this prefix, so a `bar` id never passes as a `foo` id. Give it to
+// your validator's string pattern check to build an id schema.
+export const idPatternCreate = (prefix: string): RegExp => {
 	prefixAssert(prefix);
-	return z
-		.string()
-		.regex(
-			new RegExp(`^${prefix}_${suffixPattern}$`),
-			`Expected a ${prefix} id`,
-		) as z.ZodType<Id<P>>;
+	return new RegExp(`^${prefix}_${suffixPattern}$`);
 };
 
 // The bare UUID for the postgres `uuid` column.

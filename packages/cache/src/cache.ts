@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 // A typed cache for one kind of value, keyed by id.
 export type Cache<T> = {
@@ -17,7 +17,8 @@ export type CacheStore = {
 
 export type CacheOptions<T> = {
 	prefix: string;
-	schema: z.ZodType<T>;
+	// Any Standard Schema (https://standardschema.dev): a Zod, Valibot or ArkType schema as it is.
+	schema: StandardSchemaV1<unknown, T>;
 	ttlMs?: number;
 };
 
@@ -32,7 +33,7 @@ const cacheJsonParse = (json: string): unknown => {
 };
 
 // A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
-// Zod parse on read. An entry that fails the parse (an older deploy may have
+// validated by the schema on read. An entry that fails it (an older deploy may have
 // written it) counts as a miss.
 export const cacheCreate = <T>(
 	store: CacheStore,
@@ -45,8 +46,8 @@ export const cacheCreate = <T>(
 		get: async (id) => {
 			const json = await store.get(key(id));
 			if (json === undefined) return undefined;
-			const parsed = schema.safeParse(cacheJsonParse(json));
-			return parsed.success ? parsed.data : undefined;
+			const result = await schema["~standard"].validate(cacheJsonParse(json));
+			return result.issues === undefined ? result.value : undefined;
 		},
 		set: (id, value) => store.set(key(id), JSON.stringify(value), ttlMs),
 	};

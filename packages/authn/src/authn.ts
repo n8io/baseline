@@ -10,7 +10,8 @@ import {
 	SignJWT,
 } from "jose";
 import { type Configuration, discovery } from "openid-client";
-import { Actor } from "./actor.ts";
+import type { Actor } from "./actor.ts";
+import { actorSchema } from "./actor-schema.ts";
 import { authnCookieKey } from "./authn-cookie.ts";
 
 /** The claims of a verified access token, as the provider sent them. */
@@ -128,7 +129,7 @@ const actorFrom = (
 	payload: JWTPayload,
 ): Actor | undefined => {
 	try {
-		return Actor.safeParse(options.actorFromClaims(payload)).data;
+		return actorSchema.safeParse(options.actorFromClaims(payload)).data;
 	} catch {
 		return undefined;
 	}

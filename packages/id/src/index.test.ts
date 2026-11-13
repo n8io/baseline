@@ -3,7 +3,7 @@ import {
 	type Id,
 	idCreate,
 	idFromUuid,
-	idSchemaCreate,
+	idPatternCreate,
 	idToUuid,
 } from "./index.ts";
 
@@ -98,10 +98,9 @@ describe("idToUuid and idFromUuid", () => {
 	});
 });
 
-describe("idSchemaCreate", () => {
-	test("accepts an id with its prefix", () => {
-		const id = idCreate("foo");
-		expect(idSchemaCreate("foo").parse(id)).toBe(id);
+describe("idPatternCreate", () => {
+	test("matches an id with its prefix", () => {
+		expect(idPatternCreate("foo").test(idCreate("foo"))).toBe(true);
 	});
 
 	test.each([
@@ -109,12 +108,12 @@ describe("idSchemaCreate", () => {
 		["a longer prefix", idCreate("foo_bar")],
 		["a malformed suffix", "foo_8zzzzzzzzzzzzzzzzzzzzzzzzz"],
 		["a bare UUID", "01890a5d-ac96-774b-bcce-b302099a8057"],
-		["a number", 42],
-	])("rejects %s", (_name, value) => {
-		expect(idSchemaCreate("foo").safeParse(value).success).toBe(false);
+		["an id with text after it", `${idCreate("foo")}\n`],
+	])("does not match %s", (_name, value) => {
+		expect(idPatternCreate("foo").test(value)).toBe(false);
 	});
 
 	test("rejects a bad prefix", () => {
-		expect(() => idSchemaCreate("foo-bar")).toThrow(TypeError);
+		expect(() => idPatternCreate("foo-bar")).toThrow(TypeError);
 	});
 });

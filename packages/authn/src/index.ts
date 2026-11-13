@@ -1,4 +1,4 @@
-export { Actor } from "./actor.ts";
+export type { Actor } from "./actor.ts";
 export {
 	type Authn,
 	type AuthnClaims,

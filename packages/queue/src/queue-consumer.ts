@@ -1,5 +1,5 @@
 import type { Result } from "@n8io/baseline-result";
-import type { z } from "zod";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { type Queue, queueBossGet } from "./queue.ts";
 import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
@@ -15,28 +15,41 @@ export type Consumer = {
 	) => Promise<Result<unknown, { type: string }>>;
 };
 
+// Where an issue is in the Event, as `items.0.name`; the Event itself is the empty path.
+const issuePath = (issue: StandardSchemaV1.Issue): string =>
+	(issue.path ?? [])
+		.map((segment) =>
+			String(typeof segment === "object" ? segment.key : segment),
+		)
+		.join(".");
+
 // queueName is `<consumer domain>.<event entity>-<event verb>` (billing.order-placed); it is also the
-// inbox `consumer` key.
-export const queueConsumerCreate = <S extends z.ZodType>(
+// inbox `consumer` key. The schema is any Standard Schema (https://standardschema.dev): a Zod,
+// Valibot or ArkType schema as it is.
+export const queueConsumerCreate = <S extends StandardSchemaV1>(
 	queueName: string,
 	eventName: string,
 	schema: S,
 	run: (
-		event: z.infer<S>,
+		event: StandardSchemaV1.InferOutput<S>,
 		inbox: Inbox,
 	) => Promise<Result<unknown, { type: string }>>,
 ): Consumer => ({
 	eventName,
 	queueName,
 	run: async (data, inbox) => {
-		const parsed = schema.safeParse(data);
-		if (!parsed.success) {
-			// The issues name paths and codes only: Zod 4 leaves input values out by default.
-			throw new Error(`Event failed validation for ${queueName}`, {
-				cause: parsed.error,
-			});
+		const result = await schema["~standard"].validate(data);
+		if (result.issues !== undefined) {
+			// Paths only, never a validator's message: it may repeat the Event's values, and this
+			// error is logged and kept on the job. A path does include a record's or map's keys.
+			const paths = [...new Set(result.issues.map(issuePath))]
+				.filter((path) => path !== "")
+				.join(", ");
+			throw new Error(
+				`Event failed validation for ${queueName}${paths === "" ? "" : ` at ${paths}`}`,
+			);
 		}
-		return run(parsed.data, inbox);
+		return run(result.value, inbox);
 	},
 });
 

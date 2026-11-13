@@ -48,22 +48,21 @@
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
 		"jose": "^6.2.15",
-		"openid-client": "^6.8.9"
+		"openid-client": "^6.8.9",
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@n8io/baseline-http": "workspace:^",
 		"@opentelemetry/api": "^1.10.0",
 		"hono": "^4.13.16",
 		"react": "^19.3.1",
-		"react-router": "^8.5.1",
-		"zod": "^4.6.7"
+		"react-router": "^8.5.1"
 	},
 	"peerDependencies": {
 		"@opentelemetry/api": "^1.10.0",
 		"hono": "^4.13.16",
 		"react": "^19.3.1",
-		"react-router": "^8.5.1",
-		"zod": "^4.6.7"
+		"react-router": "^8.5.1"
 	},
 	"peerDependenciesMeta": {
 		"react": {

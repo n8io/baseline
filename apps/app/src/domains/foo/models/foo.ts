@@ -1,5 +1,5 @@
-import { idSchemaCreate } from "@n8io/baseline-id";
 import { z } from "zod";
+import { idSchemaCreate } from "../../../id-schema.ts";
 
 export const Foo = z.object({
 	id: idSchemaCreate("foo"),
