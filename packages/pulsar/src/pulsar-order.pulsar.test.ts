@@ -76,6 +76,7 @@ describe("Events of one Event key", () => {
 			interval: 250,
 			timeout: 50_000,
 		});
-		expect(workersUsed.size).toBeGreaterThan(1);
+		// The keys are spread over every worker, not handed to one.
+		expect(workersUsed.size).toBe(3);
 	});
 });
