@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import {
 	existsSync,
 	mkdirSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readdirSync,
 	readFileSync,
 	rmSync,
@@ -602,74 +602,66 @@ export const templateExport = (
 	checkout: string,
 	ref: string,
 ): TemplateFile[] => {
-	const work = mkdtempSync(join(tmpdir(), "template-export-"));
-	try {
-		const app = join(work, "app");
-		mkdirSync(app);
-		const archive = join(work, "app.tar");
-		run("git", ["archive", "--output", archive, `${ref}:apps/app`], {
-			cwd: checkout,
-		});
-		run("tar", ["-xf", archive, "-C", app]);
-		const packed = join(work, "packed");
-		mkdirSync(packed);
-		run("pnpm", ["pack", "--pack-destination", packed], {
-			cwd: join(checkout, "apps/app"),
-		});
-		const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
-		if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
-		run("tar", [
-			"-xzf",
-			join(packed, tarball),
-			"-C",
-			packed,
-			"package/package.json",
-		]);
-		// pnpm pack drops packageManager, which CI's pnpm setup reads.
-		const manifest = JSON.parse(
-			readFileSync(join(packed, "package/package.json"), "utf8"),
-		) as Record<string, unknown>;
-		const { packageManager } = JSON.parse(
-			readFileSync(join(checkout, "apps/app/package.json"), "utf8"),
-		) as { packageManager: string };
-		writeFileSync(
-			join(app, "package.json"),
-			`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
-		);
-		writeFileSync(
-			join(app, "pnpm-workspace.yaml"),
-			workspaceRender(
-				readFileSync(join(checkout, "pnpm-workspace.yaml"), "utf8"),
-			),
-		);
-		writeFileSync(
-			join(app, "pnpm-lock.yaml"),
-			lockfileRender(readFileSync(join(checkout, "pnpm-lock.yaml"), "utf8")),
-		);
-		return filesRead(app);
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-export-"));
+	const app = join(work.path, "app");
+	mkdirSync(app);
+	const archive = join(work.path, "app.tar");
+	run("git", ["archive", "--output", archive, `${ref}:apps/app`], {
+		cwd: checkout,
+	});
+	run("tar", ["-xf", archive, "-C", app]);
+	const packed = join(work.path, "packed");
+	mkdirSync(packed);
+	run("pnpm", ["pack", "--pack-destination", packed], {
+		cwd: join(checkout, "apps/app"),
+	});
+	const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
+	if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
+	run("tar", [
+		"-xzf",
+		join(packed, tarball),
+		"-C",
+		packed,
+		"package/package.json",
+	]);
+	// pnpm pack drops packageManager, which CI's pnpm setup reads.
+	const manifest = JSON.parse(
+		readFileSync(join(packed, "package/package.json"), "utf8"),
+	) as Record<string, unknown>;
+	const { packageManager } = JSON.parse(
+		readFileSync(join(checkout, "apps/app/package.json"), "utf8"),
+	) as { packageManager: string };
+	writeFileSync(
+		join(app, "package.json"),
+		`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
+	);
+	writeFileSync(
+		join(app, "pnpm-workspace.yaml"),
+		workspaceRender(
+			readFileSync(join(checkout, "pnpm-workspace.yaml"), "utf8"),
+		),
+	);
+	writeFileSync(
+		join(app, "pnpm-lock.yaml"),
+		lockfileRender(readFileSync(join(checkout, "pnpm-lock.yaml"), "utf8")),
+	);
+	return filesRead(app);
 };
 
 // Clones the release (blobless) and exports its apps/app, then removes the clone.
 export const templateFetch = (version: string): TemplateFile[] => {
-	const work = mkdtempSync(join(tmpdir(), "template-"));
-	try {
-		const clone = join(work, "clone");
-		run("git", [
-			"clone",
-			"--quiet",
-			"--filter=blob:none",
-			"--branch",
-			releaseTag(version),
-			`https://github.com/${templateRepository}.git`,
-			clone,
-		]);
-		return templateExport(clone, releaseTag(version));
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
+	const clone = join(work.path, "clone");
+	run("git", [
+		"clone",
+		"--quiet",
+		"--filter=blob:none",
+		"--branch",
+		releaseTag(version),
+		`https://github.com/${templateRepository}.git`,
+		clone,
+	]);
+	return templateExport(clone, releaseTag(version));
 };
 
 export const monorepoAppIs = (appDirectory: string): boolean =>

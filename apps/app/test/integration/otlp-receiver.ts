@@ -24,7 +24,8 @@ export type OtlpMetric = {
 	name: string;
 };
 
-export type OtlpReceiver = {
+/** `await using` closes the receiver at the end of the block, like `close`. */
+export type OtlpReceiver = AsyncDisposable & {
 	close: () => Promise<void>;
 	/** Every request body by signal path: /v1/traces, /v1/logs, /v1/metrics. */
 	bodies: Record<string, Buffer[]>;
@@ -86,12 +87,14 @@ export const otlpReceiverStart = async (): Promise<OtlpReceiver> => {
 	if (address === null || typeof address === "string") {
 		throw new Error("no receiver port");
 	}
+	const close = (): Promise<void> =>
+		new Promise((resolve) => {
+			server.close(() => resolve());
+		});
 	return {
+		[Symbol.asyncDispose]: close,
 		bodies,
-		close: () =>
-			new Promise((resolve) => {
-				server.close(() => resolve());
-			}),
+		close,
 		endpoint: `http://127.0.0.1:${address.port}`,
 		metrics: () =>
 			otlpDecode<{

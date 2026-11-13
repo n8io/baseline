@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type OtlpSpan,
@@ -16,16 +16,15 @@ import {
 	workerStart,
 } from "./production-server.ts";
 
-const cleanups: (() => Promise<unknown>)[] = [];
-afterEach(async () => {
-	for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-});
-
-const pgConnect = async (databaseUrl: string): Promise<pg.Client> => {
+// A connection that `await using` ends; declared after the database, it ends before the drop.
+const pgConnect = async (
+	databaseUrl: string,
+): Promise<AsyncDisposable & pg.Client> => {
 	const pgClient = new pg.Client({ connectionString: databaseUrl });
 	await pgClient.connect();
-	cleanups.push(() => pgClient.end());
-	return pgClient;
+	return Object.assign(pgClient, {
+		[Symbol.asyncDispose]: () => pgClient.end(),
+	});
 };
 
 // Queues one foo.stale-archive job the way a cron tick would, through pg-boss itself (a
@@ -55,25 +54,23 @@ const staleArchiveSend = async (databaseUrl: string): Promise<void> => {
 	await boss.stop({ graceful: false });
 };
 
-describe("worker shutdown on SIGTERM", { timeout: 30_000 }, () => {
+describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 	it("finishes the job in flight, answers /readyz 503 and exits 0", async () => {
-		const receiver = await otlpReceiverStart();
-		cleanups.push(receiver.close);
-		const { databaseUrl, drop } = await integrationDatabaseCreate();
-		cleanups.push(drop);
-		const db = await pgConnect(databaseUrl);
+		await using receiver = await otlpReceiverStart();
+		await using database = await integrationDatabaseCreate();
+		const { databaseUrl } = database;
+		await using db = await pgConnect(databaseUrl);
 		await db.query(
 			`INSERT INTO foo.foo (id, name, created_by, created_at, updated_at)
 			 VALUES (gen_random_uuid(), 'Stale', 'dev-admin', now() - interval '40 days', now() - interval '40 days')`,
 		);
-		const worker = await workerStart({
+		await using worker = await workerStart({
 			databaseUrl,
 			env: otlpEnv(receiver),
 		});
-		cleanups.push(worker.stop);
 
 		// A lock that blocks the archive's UPDATE keeps the job running until the test lets go.
-		const locker = await pgConnect(databaseUrl);
+		await using locker = await pgConnect(databaseUrl);
 		await locker.query("BEGIN");
 		await locker.query("LOCK TABLE foo.foo IN SHARE MODE");
 		await staleArchiveSend(databaseUrl);

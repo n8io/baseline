@@ -3,10 +3,9 @@
 import {
 	appendFileSync,
 	existsSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readdirSync,
 	readFileSync,
-	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,14 +20,10 @@ const monorepo = resolve(import.meta.dirname, "../..");
 
 // This checkout's apps/app, exported from a throwaway clone of HEAD as a release would be.
 export const checkoutExport = (): TemplateFile[] => {
-	const work = mkdtempSync(join(tmpdir(), "render-and-test-"));
-	try {
-		const clone = join(work, "clone");
-		run("git", ["clone", "--quiet", "--shared", monorepo, clone]);
-		return templateExport(clone, "HEAD");
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
+	using work = mkdtempDisposableSync(join(tmpdir(), "render-and-test-"));
+	const clone = join(work.path, "clone");
+	run("git", ["clone", "--quiet", "--shared", monorepo, clone]);
+	return templateExport(clone, "HEAD");
 };
 
 // Packs this checkout's packages/* into the project and points every @n8io/baseline-* dependency

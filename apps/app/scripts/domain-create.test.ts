@@ -1,14 +1,14 @@
 import {
+	type DisposableTempDir,
 	existsSync,
 	mkdirSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readdirSync,
-	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	domainFilesCreate,
 	domainNameRefusal,
@@ -31,15 +31,9 @@ const template =
 		.filter((name) => !name.startsWith("."))
 		.join() === "foo";
 
-const directories: string[] = [];
-afterEach(() => {
-	for (const d of directories.splice(0))
-		rmSync(d, { force: true, recursive: true });
-});
-
-const appCreate = (context: string): string => {
-	const directory = mkdtempSync(join(tmpdir(), "domain-create-"));
-	directories.push(directory);
+const appCreate = (context: string): DisposableTempDir => {
+	const folder = mkdtempDisposableSync(join(tmpdir(), "domain-create-"));
+	const directory = folder.path;
 	writeFileSync(join(directory, "CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
 	const dependencies = {
@@ -53,12 +47,13 @@ const appCreate = (context: string): string => {
 		join(directory, "package.json"),
 		JSON.stringify({ dependencies }),
 	);
-	return directory;
+	return folder;
 };
 
 describe("domainNameRefusal", () => {
 	it("accepts a kebab-case name the glossary defines", () => {
-		const app = appCreate("**Invoice line**:\nOne line.\n");
+		using folder = appCreate("**Invoice line**:\nOne line.\n");
+		const app = folder.path;
 
 		expect(domainTerm("invoice-line")).toBe("Invoice line");
 		expect(domainNameRefusal(names, app)).toBeUndefined();
@@ -71,7 +66,8 @@ describe("domainNameRefusal", () => {
 		[{ kebab: "sheep", plural: "sheep" }, "must differ"],
 		[{ kebab: "customer", plural: "customers" }, "no **Customer**: entry"],
 	])("refuses %j", (refused, reason) => {
-		const app = appCreate("**Invoice line**:\nOne line.\n**Sheep**:\nA.\n");
+		using folder = appCreate("**Invoice line**:\nOne line.\n**Sheep**:\nA.\n");
+		const app = folder.path;
 
 		expect(domainNameRefusal(refused, app)).toContain(reason);
 	});
@@ -183,7 +179,8 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 	const file = (path: string) => files.find((f) => f.path === path)?.text ?? "";
 
 	it("refuses to overwrite a file the project already has", () => {
-		const app = appCreate("**Bar**:\nA thing.\n");
+		using folder = appCreate("**Bar**:\nA thing.\n");
+		const app = folder.path;
 		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
 		writeFileSync(join(app, "src/ui/routes/invoice-line-list.tsx"), "mine\n");
 
@@ -216,7 +213,8 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		expect(paths).not.toContain("src/ui/routes/home.tsx");
 
 		// A first domain (no folder in src/domains) brings home.tsx back with its test.
-		const app = appCreate("**Invoice line**:\nA line.\n");
+		using folder = appCreate("**Invoice line**:\nA line.\n");
+		const app = folder.path;
 		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
 		writeFileSync(join(app, "src/ui/routes/home.test.ts"), "mine\n");
 		expect(() =>
@@ -248,7 +246,8 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 	});
 
 	it("leaves out the pieces a Project removed, which have no package left", () => {
-		const app = appCreate("**Invoice line**:\nA line.\n");
+		using folder = appCreate("**Invoice line**:\nA line.\n");
+		const app = folder.path;
 		filesWrite(
 			app,
 			templateWithoutPieces(filesRead(appRoot.pathname), [
