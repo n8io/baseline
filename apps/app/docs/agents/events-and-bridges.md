@@ -49,7 +49,7 @@ await transaction.orderEvents.publish({
 - Each Consumer gets the Events of one Event key one at a time, in the order their transactions committed, however many workers run. Events with different Event keys run beside each other, so never rely on order across entities.
 - The port types `key` as the Domain's own id (`Id<"order">`), so a publish without one, or with another Domain's id, does not compile.
 - While an Event waits for a retry, the later Events of its Event key wait behind it. Keep a Consumer's Use case short, and let it return `err` for an outcome you expect: only a throw is retried.
-- An Event that fails all five attempts blocks its Event key until someone releases it. The worker logs it at error level, `queue.blockedKeys()` lists it, and the runbook is "A blocked key" in the `@n8io/baseline-queue` README.
+- An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on. The worker logs it at error level, `queue.blockedKeys()` lists it, and the runbook is "A blocked key" in the `@n8io/baseline-queue` README.
 
 ## Changing an Event's shape
 

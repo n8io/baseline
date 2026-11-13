@@ -1,6 +1,6 @@
 import type { PgBoss } from "pg-boss";
 
-// Five attempts, waiting about 10 s, then 20 s, 40 s and 80 s between them. Kept small: while a
+// Five attempts, waiting 10 s, then 20 s, 40 s and 80 s between them, each up to twice as long. Kept small: while a
 // Consumer's job waits for its retry, the later Events of its key wait behind it.
 export const queueRetryLimit = 4;
 

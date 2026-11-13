@@ -43,15 +43,20 @@ const queueMigrateIndexesWait = async (boss: PgBoss): Promise<void> => {
 };
 
 // The unordered Consumer queues of a release before 8 that are done: the ordered queue beside it
-// exists, nothing in it is waiting or running, and nothing was published to it for a day, so no
-// process of that release is still running. A queue that is not there yet waits for a later run.
+// is a week old, nothing in the unordered one is waiting or running, and nothing was published to
+// it for a week. Deleting it also deletes its subscription, and a process of the old release
+// that then published would lose the Event without an error, so this waits until a rollout, a
+// retried rollout or a rollback to that release is long over.
 const queueUnorderedDone = `
 	SELECT q.name FROM queue.queue q
 	WHERE q.policy = 'standard'
-		AND EXISTS (SELECT FROM queue.queue o WHERE o.name = q.name || '.ordered')
+		AND EXISTS (
+			SELECT FROM queue.queue o WHERE o.name = q.name || '.ordered'
+				AND o.created_on < now() - interval '7 days'
+		)
 		AND NOT EXISTS (
 			SELECT FROM queue.job j WHERE j.name = q.name
-				AND (j.state < 'completed' OR j.created_on > now() - interval '1 day')
+				AND (j.state < 'completed' OR j.created_on > now() - interval '7 days')
 		)`;
 
 /**

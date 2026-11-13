@@ -121,6 +121,9 @@ export const queueEventsMemoryCreate = <M extends Record<string, unknown>>({
 } = {}): EventsPublisher<M> => ({
 	committed: async () => undefined,
 	publish: async ({ data, key, name }) => {
+		if (key === "") {
+			throw new TypeError(`Event ${name} needs a key`);
+		}
 		published.push({ data, key, name });
 	},
 });

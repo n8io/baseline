@@ -193,4 +193,14 @@ describe("queueEventsMemoryCreate", () => {
 			}),
 		).resolves.toBeUndefined();
 	});
+
+	it("refuses an empty key, as the queue does", async () => {
+		await expect(
+			queueEventsMemoryCreate<FooEvents>().publish({
+				data: { fooId: "foo_1" },
+				key: "",
+				name: "foo.created",
+			}),
+		).rejects.toThrow("Event foo.created needs a key");
+	});
 });

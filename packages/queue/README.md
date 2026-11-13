@@ -19,7 +19,7 @@ pnpm add @n8io/baseline-queue
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
 - `queueJobRun({ queueName, job, work })`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`). With `job.key`, the last failure is logged as a blocked key.
 - `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the package needs no `pg` types.
-- `queueRetryLimit`: retries before a job is copied to `<queueName>.dead` (4, so five attempts, about 10 s, 20 s, 40 s and 80 s apart).
+- `queueRetryLimit`: retries before a job is copied to `<queueName>.dead` (4, so five attempts, waiting 10 s, 20 s, 40 s and 80 s, each up to twice as long).
 
 ## Example
 
@@ -76,13 +76,15 @@ await queueSchedulesRegister({ env: ENV, queue, schedules: [fooStaleArchive] });
 Every publish names an Event key: the id of the entity the Event is about. Each Consumer gets the Events of one Event key one at a time, in the order their transactions committed, on any number of workers. Events of different Event keys run beside each other. Below, "key" means the Event key.
 
 - **At publish.** A publish locks its key until its transaction ends, so two transactions never publish for one key at once, and the Event is stamped while the lock is held. Publish after the write the Event is about. A transaction that publishes for several keys should always take them in the same order.
-- **At the Consumer.** A worker fetches up to 10 Events at a time, each of another key, and runs 4 of them at once. While an Event waits for its retry, the later Events of its key wait behind it; other keys carry on. A worker that dies mid-Event is noticed within about a minute, and a handler that runs longer than five minutes is failed and retried.
-- **Throughput.** Measured against one Postgres 18: 12 workers drain 2,000 waiting Events over 50 keys in under 2 s (about 1,100 a second), and a single busy key drains at about 170 Events a second, on 1 worker or 12.
-- **Traces.** A Consumer runs in the trace of the request that published its Event, also when one fetch brings several.
+- **At the Consumer.** A worker fetches up to 10 Events at a time, each of another key, runs 4 of them at once and settles each as it ends, so another worker can take that key's next Event at once; the same worker fetches again when its slowest Event of the fetch ends. While an Event waits for its retry, the later Events of its key wait behind it; other keys carry on. A worker that dies mid-Event is noticed within 30 to 90 s. A fetch still running after five minutes has its unfinished Events failed and retried, so keep a Consumer well under that.
+- **Throughput.** Measured once on a development machine against one Postgres 18, with a Consumer that writes one row: 12 workers drain 2,000 waiting Events over 50 keys at about 1,000 a second, and a single busy key drains at about 150 Events a second, on 1 worker or 12. The package's tests hold the single key to 20 a second.
+- **Traces.** A Consumer runs in the trace of the request that published its Event, also when one fetch brings several. In such a fetch the Consumer has no span of its own: its spans hang off the publishing request's, and an `err` result marks no span.
 
 ## A blocked key
 
-An Event that fails all five attempts stays in its queue as failed, and a copy goes to `<queueName>.dead`. Strict order means the later Events of that key now wait until someone decides; every other key carries on. The worker logs it at error level ("its key is blocked until released") with the queue and the key.
+An Event that fails all five attempts stays in its queue as failed, and a copy goes to `<queueName>.dead`. Strict order means the later Events of that key now wait until someone decides; every other key carries on. The worker logs it at error level ("its key is blocked until released") with the queue and the key. An Event the queue fails itself (a dead worker or a fetch out of time, five times over) blocks its key without that log line, so also watch `blockedKeys()`.
+
+Decide within 7 days. After that pg-boss deletes the failed Event, and the key moves on without it.
 
 List what is blocked with `queue.blockedKeys()`, or in SQL:
 
@@ -101,7 +103,7 @@ SET state = 'retry', retry_limit = retry_limit + 1, completed_on = NULL, start_a
 WHERE name = 'billing.order-placed.ordered' AND singleton_key = 'order_123' AND state = 'failed';
 ```
 
-Or give the Event up, so the key moves on without it. The copy in `billing.order-placed.dead` stays for the record:
+Or give the Event up, so the key moves on without it. The copy in `billing.order-placed.dead` stays for the record; redriving that copy later runs the Event after the ones that were waiting behind it:
 
 ```sql
 DELETE FROM queue.job
@@ -114,9 +116,9 @@ Releases before 8 kept a Consumer's jobs in an unordered queue named `<queueName
 
 1. During the rollout, processes of the old release keep publishing to the old queue and working it. Processes of the new release publish to the ordered queue and work both, so no Event is lost or waits for the rollout to end.
 2. Events left in the old queue run as they did before, without a key, so they have no order among themselves or against new Events. If that matters for a Consumer, let its queue empty before you roll out.
-3. A later `queueMigrate` removes the old queue, once nothing in it is waiting or running and nothing has been published to it for a day.
+3. A later `queueMigrate` removes the old queue, once the ordered queue is a week old, nothing in the old one is waiting or running and nothing has been published to it for a week.
 
-A rollback to the old release leaves the Events already in the ordered queues waiting until you roll forward again.
+A rollback to the old release leaves the Events already in the ordered queues waiting until you roll forward again; pg-boss deletes a waiting Event after 14 days. Do not roll back to it once the old queues are gone: its publishes would find no queue and be lost.
 
 ## Needs
 

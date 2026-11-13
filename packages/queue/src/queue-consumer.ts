@@ -67,8 +67,8 @@ export const queueConsumerCreate = <S extends StandardSchemaV1>({
 	},
 });
 
-// A Consumer handler that runs longer than this is failed and retried, so a hung one holds its key
-// for five minutes at most.
+// A fetch whose jobs are not all done after this long has its unfinished jobs failed and retried,
+// so a hung Consumer holds its key, and the jobs fetched with it, for five minutes at most.
 const queueConsumerExpireSeconds = 300;
 
 // Jobs taken per fetch (each of another key), and how many of them run at once.
@@ -118,12 +118,14 @@ const consumerTraceContexts = async (
 	if (jobs.length < 2 || first === undefined) {
 		return new Map();
 	}
+	// A failed read costs the jobs their trace, never their run.
 	const { rows } = await boss
 		.getDb()
 		.executeSql(
 			"SELECT id, trace_context FROM queue.job WHERE name = $1 AND id = ANY($2::uuid[])",
 			[first.name, jobs.map((job) => job.id)],
-		);
+		)
+		.catch(() => ({ rows: [] }));
 	return new Map(
 		(rows as { id: string; trace_context: unknown }[]).map((row) => [
 			row.id,
@@ -140,7 +142,9 @@ const consumerTraceContexts = async (
 
 // Works one queue for a Consumer. A fetch that brought jobs is followed by the next at once, so a
 // backlog (one busy key included, which gives one job per fetch) drains without waiting for a
-// poll; an empty fetch goes back to polling. One failed job fails alone, not its batch.
+// poll; an empty fetch goes back to polling. Each job is settled the moment it ends, so its key
+// moves on while slower jobs of the same fetch still run, and one failed job fails alone. The
+// results returned at the end settle only what that could not (pg-boss skips a settled job).
 const consumerWork = async ({
 	boss,
 	consumer,
@@ -163,6 +167,11 @@ const consumerWork = async ({
 			const lane = async (): Promise<void> => {
 				for (let job = waiting.shift(); job; job = waiting.shift()) {
 					const { id } = job;
+					// pg-boss gave the job up (the fetch ran out of time, or the worker is stopping) and
+					// has failed it for a retry: do not start it here as well.
+					if (job.signal.aborted) {
+						continue;
+					}
 					const run = (): Promise<void> =>
 						queueJobRun({
 							job: { key: job.singletonKey, retryCount: job.retryCount },
@@ -177,8 +186,10 @@ const consumerWork = async ({
 					try {
 						await (traceContext ? context.with(traceContext, run) : run());
 						results.push({ id, status: "completed" });
+						await boss.complete(name, id).catch(() => undefined);
 					} catch (error) {
 						results.push({ id, output: error, status: "failed" });
+						await boss.fail(name, id, error as Error).catch(() => undefined);
 					}
 				}
 			};

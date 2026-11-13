@@ -153,10 +153,17 @@ describe("queueMigrate", () => {
 		// The next rollout, the same day: the unordered queue is kept, in case that release still runs.
 		await queueMigrate({ databaseUrl });
 		expect(await old.getQueue("bar.foo-created")).not.toBeNull();
-
-		// A rollout after a quiet day removes it and its subscription; the ordered queue carries on.
+		// Its jobs are long gone but the ordered queue is new: still kept, since a process of that
+		// release may be publishing again after a rollback.
 		await pgPool.query(
-			"UPDATE queue.job SET created_on = created_on - interval '2 days' WHERE name = 'bar.foo-created'",
+			"UPDATE queue.job SET created_on = created_on - interval '8 days' WHERE name = 'bar.foo-created'",
+		);
+		await queueMigrate({ databaseUrl });
+		expect(await old.getQueue("bar.foo-created")).not.toBeNull();
+
+		// A rollout after a quiet week removes it and its subscription; the ordered queue carries on.
+		await pgPool.query(
+			"UPDATE queue.queue SET created_on = created_on - interval '8 days' WHERE name = 'bar.foo-created.ordered'",
 		);
 		await queueMigrate({ databaseUrl });
 		const names = await pgPool.query(
@@ -190,7 +197,10 @@ describe("queueMigrate", () => {
 			}),
 		]);
 		await pgPool.query(
-			"UPDATE queue.job SET created_on = created_on - interval '2 days'",
+			"UPDATE queue.job SET created_on = created_on - interval '8 days'",
+		);
+		await pgPool.query(
+			"UPDATE queue.queue SET created_on = created_on - interval '8 days'",
 		);
 
 		await queueMigrate({ databaseUrl });

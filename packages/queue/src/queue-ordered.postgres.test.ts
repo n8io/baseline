@@ -196,6 +196,50 @@ describe("order per key", () => {
 	});
 });
 
+describe("a slow Event", () => {
+	it("holds back only its own key on other workers, not the Events fetched with it", async () => {
+		const names = { eventName: "foo.slow", queueName: "ledger.foo-slow" };
+		let release = (): void => undefined;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const consumer = queueConsumerCreate({
+			...names,
+			run: async (event) => {
+				if (event.key === "foo_slow") {
+					await gate;
+				}
+				await pgPool.query(
+					"INSERT INTO handled (consumer, key, seq) VALUES ($1, $2, $3)",
+					[names.queueName, event.key, event.seq],
+				);
+				return ok(undefined);
+			},
+			schema: z.object({ key: z.string(), seq: z.number() }),
+		});
+		await queueEventsCreate(publisher).consumersSubscribe([consumer]);
+		await publish(names.eventName, [
+			{ key: "foo_slow", seq: 1 },
+			{ key: "foo_quick", seq: 1 },
+			{ key: "foo_quick", seq: 2 },
+			{ key: "foo_slow", seq: 2 },
+		]);
+
+		// The first worker's fetch takes the first Event of both keys together and stays busy with the
+		// slow one. The quick one is settled as it ends, so a second worker can take its key's next.
+		await queueEventsCreate(await worker()).consumersStart([consumer]);
+		await handledWait(names.queueName, 1);
+		await queueEventsCreate(await worker()).consumersStart([consumer]);
+		await handledWait(names.queueName, 2);
+		expect(await handled(names.queueName, "foo_quick")).toEqual([1, 2]);
+		expect(await handled(names.queueName, "foo_slow")).toEqual([]);
+
+		release();
+		await handledWait(names.queueName, 4);
+		expect(await handled(names.queueName, "foo_slow")).toEqual([1, 2]);
+	});
+});
+
 describe("order at publish", () => {
 	const names = { eventName: "foo.renamed", queueName: "search.foo-renamed" };
 	const consumer = consumerCreate(names);
