@@ -115,10 +115,9 @@ describe("cookies", () => {
 
 	it("encrypts the token, so the cookie never holds the JWT", async () => {
 		const { authn, jar } = await signIn("user");
-		const token = await authnMemoryTokenCreate(authn, {
-			id: "dev-user",
-			kind: "user",
-			scopes: [],
+		const token = await authnMemoryTokenCreate({
+			actor: { id: "dev-user", kind: "user", scopes: [] },
+			authn,
 		});
 
 		expect(jar.get("__Host-authn")?.split(".")).toHaveLength(5);

@@ -300,10 +300,13 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 };
 
 /** Signs an access token for `actor` with the memory issuer, for integration tests' bearer calls. */
-export const authnMemoryTokenCreate = async (
-	authn: Authn,
-	actor: Actor,
-): Promise<string> => {
+export const authnMemoryTokenCreate = async ({
+	actor,
+	authn,
+}: {
+	actor: Actor;
+	authn: Authn;
+}): Promise<string> => {
 	const { issuer } = authnState(authn);
 	if (issuer.kind !== "memory") {
 		throw new TypeError(

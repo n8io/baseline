@@ -14,12 +14,16 @@ pnpm add @n8io/baseline-authn
 - `authnActorRequire(c)`: the signed-in Actor of an API request, else 401.
 - `Actor`: the type `{ id, kind: "user" | "client", scopes }`. What `actorFromClaims` returns is checked against it, and anything else counts as an invalid token.
 - `AuthnRequiredError`: the 401 `authnActorRequire` throws.
-- `authnMemoryTokenCreate(authn, actor)`: a bearer token from the memory issuer, for integration tests.
+- `authnMemoryTokenCreate({ authn, actor })`: a bearer token from the memory issuer, for tests that hold the `Authn`.
 
 The main entry imports nothing from React or React Router, so an API or Worker installs neither. Pages import the two subpaths:
 
 - `@n8io/baseline-authn/react-router`: `actorContext` and `authnExpiryContext`, the React Router contexts the load context fills, and `authnPageActorRequire(args)`, the signed-in Actor of a loader or action (else a document redirect to sign-in).
 - `@n8io/baseline-authn/client`: `authnRefreshClientMiddleware`, the root route's `clientMiddleware` that refreshes the token before it expires.
+
+Tests import one more:
+
+- `@n8io/baseline-authn/testing`: `authnTestSignIn({ url, who, secret })`, which signs in at a served app in a test. See [Testing](#testing).
 
 ## Example
 
@@ -72,6 +76,31 @@ export const actorFromClaims = (claims: AuthnClaims): Actor => {
 	return { id: sub, kind: "user", scopes: scope.split(" ").filter(Boolean) };
 };
 ```
+
+## Testing
+
+A test that holds the `Authn` gets a bearer token with `authnMemoryTokenCreate`. A test that only has a served app's URL signs in with `authnTestSignIn` from `@n8io/baseline-authn/testing`. Both need the memory issuer (`issuerUrl` `memory://`). Import the helper from test files only.
+
+```ts
+import { authnTestSignIn } from "@n8io/baseline-authn/testing";
+
+const signedIn = await authnTestSignIn({
+	secret: ENV.AUTHN_SECRET,
+	url: "http://localhost:3000",
+	who: "admin",
+});
+
+await fetch("http://localhost:3000/api/v1/invoices", {
+	headers: { authorization: signedIn.authorization },
+});
+await fetch("http://localhost:3000/invoices", {
+	headers: { cookie: signedIn.cookie },
+});
+```
+
+- `who` is `"admin"` (the Dev admin, with `memoryAdminScopes`) or `"user"` (the Dev user, with no scopes).
+- `secret` is the server's `secret`. The helper opens the access cookie with it, and throws when it is another server's.
+- It returns `authorization` (the `Authorization` header value), `cookie` (the `Cookie` header value), `token` (the access token) and `accessCookie` (the access cookie's sealed value).
 
 ## Needs
 

@@ -421,7 +421,10 @@ describe("authnCreate with a provider", () => {
 		const { authn } = await authnTestAppCreate(oidcOptions);
 
 		await expect(
-			authnMemoryTokenCreate(authn, { id: "x", kind: "user", scopes: [] }),
+			authnMemoryTokenCreate({
+				actor: { id: "x", kind: "user", scopes: [] },
+				authn,
+			}),
 		).rejects.toThrow("memory://");
 	});
 });

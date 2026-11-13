@@ -56,22 +56,30 @@ export const authnCookieSet = async (
 };
 
 /**
- * Decrypts the named cookie: `undefined` when it is absent, `"invalid"` when it does not decrypt
- * with this secret, has expired, or belongs to another cookie name.
+ * Decrypts a cookie's sealed value: `"invalid"` when it does not decrypt with this secret, has
+ * expired, or belongs to another cookie name.
  */
-export const authnCookieGet = async (
-	c: Context,
+export const authnCookieOpen = async (
 	key: Uint8Array,
 	name: AuthnCookieName,
-): Promise<string | "invalid" | undefined> => {
-	const sealed = getCookie(c, authnCookieNames[name]);
-	if (sealed === undefined) return undefined;
+	sealed: string,
+): Promise<string | "invalid"> => {
 	try {
 		const { payload } = await jwtDecrypt(sealed, key, { audience: name });
 		return typeof payload.v === "string" ? payload.v : "invalid";
 	} catch {
 		return "invalid";
 	}
+};
+
+/** Decrypts the named cookie: `undefined` when it is absent, else what `authnCookieOpen` returns. */
+export const authnCookieGet = async (
+	c: Context,
+	key: Uint8Array,
+	name: AuthnCookieName,
+): Promise<string | "invalid" | undefined> => {
+	const sealed = getCookie(c, authnCookieNames[name]);
+	return sealed === undefined ? undefined : authnCookieOpen(key, name, sealed);
 };
 
 export const authnCookieClear = (c: Context, name: AuthnCookieName): void => {
