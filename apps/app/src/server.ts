@@ -161,6 +161,13 @@ const serverListening = ({ port }: { port: number }) => {
 // React Router serves the pages and hosts app: Vite in development, its build in production.
 export default await createHonoServer({
 	app,
+	// Mid-rollout, a page from another version's pod asks this one for hashed files it lacks. A
+	// bare 404 nothing may cache, so a retry can reach a pod that has the file.
+	configure: (server) => {
+		server.all("/assets/*", (c) =>
+			c.text("Not Found", 404, { "cache-control": "no-store" }),
+		);
+	},
 	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
 	defaultLogger: false,
 	getLoadContext: (c) =>
