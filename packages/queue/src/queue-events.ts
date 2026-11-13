@@ -21,8 +21,8 @@ export type EventsPublisher<M> = {
 	committed(): Promise<void>;
 };
 
-// How Events travel between Domains. A composition root opens one (queueEventsCreate, or another
-// package's adapter) and nothing else names the transport.
+// How Events travel between Domains. A composition root opens one (queueEventsCreate) and nothing
+// else names the transport.
 export type Events = {
 	// false only when this process's own receiving loop is stuck, which a restart fixes; report it
 	// on /livez. An outage of the transport itself never makes it false.

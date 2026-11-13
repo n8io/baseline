@@ -16,7 +16,7 @@ Give migrate the same variables as the Worker (put any `SCHEDULE_<NAME>` in the 
 
 All three probes use `HEALTH_PORT` (9000). A dependency that is down keeps new pods from starting and never restarts a running one.
 
-- **Liveness** (`/livez`) is the process only. The Server always passes. The Worker fails only when its own poll loop has hung for 60 s. Postgres, Redis or the broker being down never fails it, so running pods ride out a failover and carry on by themselves.
+- **Liveness** (`/livez`) is the process only. The Server always passes. The Worker fails only when its own poll loop has hung for 60 s. Postgres or Redis being down never fails it, so running pods ride out a failover and carry on by themselves.
 - **Startup.** The health port opens only after secrets load (on a Worker, only after its connections open), and a Server or Worker that cannot reach Postgres or Redis (the Server: also the identity provider) exits 1 at boot. So during an outage new pods crash-loop, never become ready, and a rollout stalls with the old pods still serving.
 - **Readiness** (`/readyz`) is 200 once the pod has booted and listens, and 503 from SIGTERM on. It does not ask Postgres again on a running pod.
 

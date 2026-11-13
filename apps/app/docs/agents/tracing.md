@@ -7,7 +7,7 @@ Read when adding a log line, a span, a span attribute or a metric.
 One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every script runs `node --import ./src/preload.ts`, the image sets it in `NODE_OPTIONS`) does all of it:
 
 - **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
-- **Into the worker.** An Event carries the publishing request's trace: on the pg-boss job row. The Consumer runs in that trace, retries included.
+- **Into the worker.** An Event carries the publishing request's trace on its pg-boss job row. The Consumer runs in that trace, retries included.
 - **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
 - **Logs.** Every `logger` line inside a request, job or Consumer has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.

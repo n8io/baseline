@@ -26,7 +26,7 @@ Nothing a Package exports imports a test runner, and no production source import
 
 ## Spans
 
-Only `@n8io/baseline-telemetry` starts spans, except a package that wraps a client no OpenTelemetry instrumentation covers: it starts that client's spans by the semantic conventions and carries W3C trace context itself. Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
+Only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
 
 ## Handles to close
 
