@@ -77,6 +77,10 @@ _Avoid_: push, notification, real-time event
 A record that an actor did something, sent to product analytics (Mixpanel) for funnels and retention. It carries ids and counts only. Unlike an event, nothing in the app consumes it, it is sent after commit without blocking the request, and losing one is acceptable.
 _Avoid_: tracking event, product event, metric
 
+**Error report**:
+An unexpected error sent to error tracking (Sentry) for triage: its class name, stack frames, cause chain and trace id, never its message. Every error the logger logs at error or fatal becomes one, so code reports an error by logging it.
+_Avoid_: crash report, Sentry issue
+
 **Composition root**:
 A file that starts one process: it parses config, opens connections, picks adapters, builds each domain's use cases and wires its intakes (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`). Holds no business rules.
 _Avoid_: bootstrap, main, container

@@ -68,22 +68,23 @@ The project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the rules every task n
 
 Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-<name>` needs no registry setup. Each package's README lists its exports, an example, and the env vars and peers it needs.
 
-| Package                           | What it does                                             |
-| --------------------------------- | -------------------------------------------------------- |
-| [`analytics`](packages/analytics) | Analytics events to Mixpanel, sent without blocking      |
-| [`authn`](packages/authn)         | OIDC code flow, JWT verification and the Actor           |
-| [`cache`](packages/cache)         | Typed cache on any store (Redis or memory)               |
-| [`health`](packages/health)       | `/livez` and `/readyz` probes                            |
-| [`http`](packages/http)           | Hono error handling and helpers                          |
-| [`id`](packages/id)               | Prefixed TypeIDs, to and from UUIDs                      |
-| [`live`](packages/live)           | Live updates over SSE and Redis pub/sub                  |
-| [`logger`](packages/logger)       | The one pino logger                                      |
-| [`postgres`](packages/postgres)   | Pool, transactions, migrations and id columns on Drizzle |
-| [`pulsar`](packages/pulsar)       | Events and Consumers on Apache Pulsar, sent after commit |
-| [`queue`](packages/queue)         | pg-boss Events, Consumers and Schedules with an inbox    |
-| [`result`](packages/result)       | `Result`, `ok` and `err` for expected business errors    |
-| [`shutdown`](packages/shutdown)   | Graceful shutdown in order                               |
-| [`telemetry`](packages/telemetry) | OpenTelemetry preload and use-case spans                 |
+| Package                                     | What it does                                             |
+| ------------------------------------------- | -------------------------------------------------------- |
+| [`analytics`](packages/analytics)           | Analytics events to Mixpanel, sent without blocking      |
+| [`authn`](packages/authn)                   | OIDC code flow, JWT verification and the Actor           |
+| [`cache`](packages/cache)                   | Typed cache on any store (Redis or memory)               |
+| [`error-tracking`](packages/error-tracking) | Error reports to Sentry, linked to their trace           |
+| [`health`](packages/health)                 | `/livez` and `/readyz` probes                            |
+| [`http`](packages/http)                     | Hono error handling and helpers                          |
+| [`id`](packages/id)                         | Prefixed TypeIDs, to and from UUIDs                      |
+| [`live`](packages/live)                     | Live updates over SSE and Redis pub/sub                  |
+| [`logger`](packages/logger)                 | The one pino logger                                      |
+| [`postgres`](packages/postgres)             | Pool, transactions, migrations and id columns on Drizzle |
+| [`pulsar`](packages/pulsar)                 | Events and Consumers on Apache Pulsar, sent after commit |
+| [`queue`](packages/queue)                   | pg-boss Events, Consumers and Schedules with an inbox    |
+| [`result`](packages/result)                 | `Result`, `ok` and `err` for expected business errors    |
+| [`shutdown`](packages/shutdown)             | Graceful shutdown in order                               |
+| [`telemetry`](packages/telemetry)           | OpenTelemetry preload and use-case spans                 |
 
 ## Working on baseline
 

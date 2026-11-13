@@ -53,6 +53,9 @@ const projectFiles: Record<string, string> = {
 		"# Mixpanel project token",
 		"# @required=forEnv(production)",
 		"MIXPANEL_TOKEN=",
+		"# Sentry project DSN",
+		"# @type=url @required=false",
+		"SENTRY_DSN=",
 		"",
 	].join("\n"),
 	".env.production": "PORT=3000\nMIXPANEL_TOKEN=op(op://app/mixpanel/token)\n",
@@ -65,6 +68,7 @@ const projectFiles: Record<string, string> = {
 	"src/domains/invoice/api/invoice-live.test.ts": "test\n",
 	"src/domains/invoice/api/invoice-live.ts": "live\n",
 	"src/analytics-open.ts": "analytics\n",
+	"src/error-tracking-open.ts": "error tracking\n",
 	"src/domains/invoice/api/invoice-schedule.ts": "schedule\n",
 	"src/domains/invoice/spi/invoice-cache.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-cache.test.ts": "cache\n",
@@ -83,6 +87,7 @@ const projectFiles: Record<string, string> = {
 		block("live", 'app.route("/live", liveRoutes);'),
 		block("cache", "\tcache: redisClient,"),
 		block("analytics", "\tanalytics: analyticsOpen(),"),
+		block("error-tracking", "errorTrackingOpen();"),
 		"",
 	].join("\n"),
 	"src/ui/routes/home.tsx": "home\n",
@@ -262,6 +267,22 @@ describe("pieceFilesRemove", () => {
 			),
 		);
 		expect(read(directory, ".env.production")).toBe("PORT=3000\n");
+	});
+
+	it("drops error tracking and SENTRY_DSN with the error-tracking piece", () => {
+		using folder = projectCreate();
+		const directory = folder.path;
+		pieceFilesRemove(directory, "error-tracking");
+		expect(existsSync(join(directory, "src/error-tracking-open.ts"))).toBe(
+			false,
+		);
+		expect(read(directory, "src/server.ts")).not.toContain("errorTrackingOpen");
+		expect(read(directory, ".env.schema")).toBe(
+			projectFiles[".env.schema"]?.replace(
+				"# Sentry project DSN\n# @type=url @required=false\nSENTRY_DSN=\n",
+				"",
+			),
+		);
 	});
 
 	it("drops the Worker, its schedules and their overrides with the queue", () => {

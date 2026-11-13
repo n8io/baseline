@@ -1,5 +1,5 @@
 // pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
-// redis, queue or analytics). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// redis, queue, analytics or error-tracking). It deletes the piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, and never commits.
 // docs/agents/pieces.md says what each piece is and how to take one back. Running it again after
 // a template-upgrade takes out the lines the upgrade brought back.
@@ -124,6 +124,8 @@ const uiEdit = (directory: string) => {
 const cacheUrlLines = /^(#.*\n)*CACHE_URL=.*\n/m;
 // MIXPANEL_TOKEN, its comment and its decorators.
 const mixpanelTokenLines = /^(# Mixpanel.*\n)?(# @.*\n)*MIXPANEL_TOKEN=.*\n/m;
+// SENTRY_DSN, its comment and its decorators.
+const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
 // The SCHEDULE_* overrides and the marker domain-create adds them at.
 const scheduleLines =
 	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m;
@@ -148,6 +150,17 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 		paths: ["src/cache-store-open.ts", "src/cache-store-open.test.ts"],
 		srcFiles:
 			/(\/spi\/[^/]*-cache(d|(\.[a-z]+)*)\.ts|-use-cases-cache\.test\.ts)$/,
+	},
+	"error-tracking": {
+		edit: (directory) => {
+			for (const env of ["schema", "production"]) {
+				textEdit(directory, `.env.${env}`, (text) =>
+					text.replace(sentryDsnLines, ""),
+				);
+			}
+		},
+		packages: ["@n8io/baseline-error-tracking"],
+		paths: ["src/error-tracking-open.ts", "src/error-tracking-open.test.ts"],
 	},
 	live: {
 		packages: ["@n8io/baseline-live"],

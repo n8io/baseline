@@ -210,6 +210,9 @@ importers:
       '@n8io/baseline-cache':
         specifier: workspace:^
         version: link:../../packages/cache
+      '@n8io/baseline-error-tracking':
+        specifier: workspace:^
+        version: link:../../packages/error-tracking
       '@n8io/baseline-health':
         specifier: workspace:^
         version: link:../../packages/health
@@ -387,6 +390,22 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+
+  packages/error-tracking:
+    dependencies:
+      '@n8io/baseline-logger':
+        specifier: workspace:^
+        version: link:../logger
+      '@sentry/core':
+        specifier: ^11.12.0
+        version: 11.12.0
+    devDependencies:
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
+      '@opentelemetry/context-async-hooks':
+        specifier: 3.1.0
+        version: 3.1.0(@opentelemetry/api@1.10.0)
 
   packages/health: {}
 
@@ -2150,6 +2169,14 @@ packages:
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
+
+  '@sentry/conventions@0.32.0':
+    resolution: {integrity: sha512-WkSQcDhUUsz1SwxR23LpmyPKba+dgxxiH0DWV4VSM9yaAvhhl87ppW2Ts3g4piIKCVflc31aJeWy+biUbYfsMQ==}
+    engines: {node: '>=14'}
+
+  '@sentry/core@11.12.0':
+    resolution: {integrity: sha512-HKER7EcRpPPgC8mLRe5BzP6njfRYFZ53BFLZxVp1whWbY6lp/b2mvTBk4q6+rKsUFhLhRDsd6jL8y/8ddEWv6A==}
+    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
   '@shadcn/registry@0.2.1':
     resolution: {integrity: sha512-wMvZ3DGdnhCwtpeFbwKybSGfCcP52bZX77jMKgZvupmirgyA5KRLlkeQXkI2RGHIaD8TX2iWe2wcIEjjqzg2FQ==}
@@ -6136,6 +6163,12 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
+
+  '@sentry/conventions@0.32.0': {}
+
+  '@sentry/core@11.12.0':
+    dependencies:
+      '@sentry/conventions': 0.32.0
 
   '@shadcn/registry@0.2.1(supports-color@7.2.0)':
     dependencies:

@@ -52,6 +52,12 @@ const pieces = [
 		package: "@n8io/baseline-analytics",
 		paths: [/^src\/domains\/foo\/.*-analytics\.test\.ts$/],
 	},
+	// Owns no Domain file; listed so its blocks stay out once it is removed.
+	{
+		name: "error-tracking",
+		package: "@n8io/baseline-error-tracking",
+		paths: [],
+	},
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
