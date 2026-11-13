@@ -106,6 +106,42 @@ const received = ({
 	) => Promise<Result<unknown, { type: string }>>;
 }) => queueConsumerCreate({ eventName, queueName, run, schema: fooCreated });
 
+// A way to the broker that a test can cut and open again, as a broker outage looks to a client.
+const brokerWayCreate = async () => {
+	const broker = new URL(inject("pulsarUrl"));
+	const sockets = new Set<Socket>();
+	const server = createServer((near) => {
+		const far = connect(Number(broker.port), broker.hostname);
+		for (const [socket, other] of [
+			[near, far],
+			[far, near],
+		] as const) {
+			sockets.add(socket);
+			socket.pipe(other);
+			socket.on("error", () => other.destroy());
+			socket.on("close", () => {
+				sockets.delete(socket);
+				other.destroy();
+			});
+		}
+	});
+	const open = (port: number): Promise<void> =>
+		new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
+	const cut = (): Promise<void> =>
+		new Promise((resolve) => {
+			server.close(() => resolve());
+			for (const socket of sockets) socket.destroy();
+		});
+	await open(0);
+	const { port } = server.address() as AddressInfo;
+	return {
+		cut,
+		open: () => open(port),
+		serviceUrl: `pulsar://127.0.0.1:${port}`,
+		[Symbol.asyncDispose]: cut,
+	};
+};
+
 describe("pulsarEventsCreate", () => {
 	it("sends a committed Event to each subscribed Consumer and nothing on rollback", async () => {
 		const eventName = eventNameCreate();
@@ -370,36 +406,17 @@ describe("pulsarEventsCreate", () => {
 	});
 
 	it("stays alive while the broker cannot be reached, and carries on when it is back", async () => {
-		const broker = new URL(inject("pulsarUrl"));
-		const sockets = new Set<Socket>();
-		// The way to the broker, so the test can cut it and bring it back.
-		const proxy = createServer((near) => {
-			const far = connect(Number(broker.port), broker.hostname);
-			for (const [socket, other] of [
-				[near, far],
-				[far, near],
-			] as const) {
-				sockets.add(socket);
-				socket.pipe(other);
-				socket.on("error", () => other.destroy());
-				socket.on("close", () => {
-					sockets.delete(socket);
-					other.destroy();
-				});
-			}
-		});
-		await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
-		const { port } = proxy.address() as AddressInfo;
+		await using way = await brokerWayCreate();
 		const eventName = eventNameCreate();
 		const runs: string[] = [];
-		const realNow = Date.now.bind(Date);
-		const now = vi.spyOn(Date, "now");
-		await using viaProxy = pulsarCreate({
-			serviceUrl: `pulsar://127.0.0.1:${port}`,
+		const realNow = performance.now.bind(performance);
+		const now = vi.spyOn(performance, "now");
+		await using viaWay = pulsarCreate({
+			serviceUrl: way.serviceUrl,
 			token: inject("pulsarToken"),
 		});
 		try {
-			await pulsarEventsCreate(viaProxy).consumersStart([
+			await pulsarEventsCreate(viaWay).consumersStart([
 				received({
 					queueName: `billing.foo-created-${randomUUID()}`,
 					eventName,
@@ -409,38 +426,73 @@ describe("pulsarEventsCreate", () => {
 					},
 				}),
 			]);
-			expect(viaProxy.isAlive()).toBe(true);
-			await new Promise<void>((resolve) => {
-				proxy.close(() => resolve());
-				for (const socket of sockets) socket.destroy();
-			});
+			expect(viaWay.isAlive()).toBe(true);
+			await way.cut();
 			// More than the 60 s limit later the loop is still coming round, so it is alive again
 			// within one receive wait.
-			const start = realNow();
-			now.mockImplementation(() => start + 61_000 + (realNow() - start));
-			expect(viaProxy.isAlive()).toBe(false);
-			await vi.waitFor(() => expect(viaProxy.isAlive()).toBe(true), {
+			now.mockImplementation(() => realNow() + 61_000);
+			expect(viaWay.isAlive()).toBe(false);
+			await vi.waitFor(() => expect(viaWay.isAlive()).toBe(true), {
 				timeout: 5_000,
 			});
 			now.mockRestore();
-			await new Promise<void>((resolve) =>
-				proxy.listen(port, "127.0.0.1", resolve),
-			);
-			await commit({ eventName, event: { fooId: "foo_after_outage" } });
-			await vi.waitFor(() => expect(runs).toEqual(["foo_after_outage"]), {
+			// Sent straight to the broker: the worker cannot get it until its way is back.
+			await commit({ eventName, event: { fooId: "foo_in_outage" } });
+			await new Promise((resolve) => setTimeout(resolve, 2_000));
+			expect(runs).toEqual([]);
+			await way.open();
+			await vi.waitFor(() => expect(runs).toEqual(["foo_in_outage"]), {
 				timeout: 30_000,
 			});
 		} finally {
 			now.mockRestore();
-			proxy.close();
-			for (const socket of sockets) socket.destroy();
 		}
+	});
+
+	it("runs an Event it holds once when the broker sends it again after a reconnect", async () => {
+		await using way = await brokerWayCreate();
+		const eventName = eventNameCreate();
+		const runs: string[] = [];
+		let release = (): void => undefined;
+		const released = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		await using viaWay = pulsarCreate({
+			serviceUrl: way.serviceUrl,
+			token: inject("pulsarToken"),
+		});
+		await pulsarEventsCreate(viaWay).consumersStart([
+			received({
+				queueName: `billing.foo-created-${randomUUID()}`,
+				eventName,
+				run: async ({ fooId }) => {
+					runs.push(fooId);
+					await released;
+					return ok(undefined);
+				},
+			}),
+		]);
+		await commit({ eventName, event: { fooId: "foo_held" } });
+		await vi.waitFor(() => expect(runs).toEqual(["foo_held"]), {
+			timeout: 20_000,
+		});
+		await way.cut();
+		await way.open();
+		// Proof the worker is connected again, and so has been sent the held Event a second time.
+		await commit({ eventName, event: { fooId: "foo_held" } });
+		await new Promise((resolve) => setTimeout(resolve, 5_000));
+		release();
+		await vi.waitFor(() => expect(runs).toEqual(["foo_held", "foo_held"]), {
+			timeout: 30_000,
+		});
+		await new Promise((resolve) => setTimeout(resolve, 2_000));
+		expect(runs).toEqual(["foo_held", "foo_held"]);
 	});
 
 	it("reports not alive once a receive loop has not come round for 60 s", async () => {
 		// A receive that never returns: the loop is stuck.
 		const subscribe = PulsarClient.Client.prototype.subscribe;
-		const batchReceive = vi
+		const subscribeStuck = vi
 			.spyOn(PulsarClient.Client.prototype, "subscribe")
 			.mockImplementation(async function (this: PulsarClient.Client, config) {
 				const subscribed = await subscribe.call(this, config);
@@ -449,7 +501,7 @@ describe("pulsarEventsCreate", () => {
 				});
 				return subscribed;
 			});
-		const now = vi.spyOn(Date, "now");
+		const now = vi.spyOn(performance, "now");
 		await using stuck = pulsarCreate({
 			serviceUrl: inject("pulsarUrl"),
 			token: inject("pulsarToken"),
@@ -462,14 +514,14 @@ describe("pulsarEventsCreate", () => {
 					run: async () => ok(undefined),
 				}),
 			]);
-			batchReceive.mockRestore();
-			const start = Date.now();
+			subscribeStuck.mockRestore();
+			const start = performance.now();
 			now.mockReturnValue(start + 59_000);
 			expect(stuck.isAlive()).toBe(true);
 			now.mockReturnValue(start + 61_000);
 			expect(stuck.isAlive()).toBe(false);
 		} finally {
-			batchReceive.mockRestore();
+			subscribeStuck.mockRestore();
 			now.mockRestore();
 		}
 	});

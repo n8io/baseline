@@ -129,22 +129,26 @@ const pulsarEventDeadLetter = async ({
 	subscribed,
 }: PulsarEventHeld): Promise<void> => {
 	const topic = state.topic(`${consumer.queueName}.dead`);
+	let sent = false;
 	while (!state.stop.signal.aborted) {
 		try {
-			// A topic keeps an Event only for a subscription that exists, so make sure of it first.
-			const kept = await state.client.subscribe({
-				receiverQueueSize: 0,
-				subscription: consumer.queueName,
-				subscriptionType: "Shared",
-				topic,
-			});
-			await kept.close();
-			const producer = await state.producer(topic);
-			await producer.send({
-				data: message.getData(),
-				partitionKey: message.getPartitionKey(),
-				properties: message.getProperties(),
-			});
+			if (!sent) {
+				// A topic keeps an Event only for a subscription that exists, so make sure of it first.
+				const kept = await state.client.subscribe({
+					receiverQueueSize: 0,
+					subscription: consumer.queueName,
+					subscriptionType: "Shared",
+					topic,
+				});
+				await kept.close();
+				const producer = await state.producer(topic);
+				await producer.send({
+					data: message.getData(),
+					partitionKey: message.getPartitionKey(),
+					properties: message.getProperties(),
+				});
+				sent = true;
+			}
 			await subscribed.acknowledge(message);
 			return;
 		} catch (error) {
@@ -193,15 +197,16 @@ const pulsarConsumerLoop = async ({
 	state: PulsarState;
 	subscribed: PulsarClient.Consumer;
 }): Promise<void> => {
-	const loop = { beatAt: Date.now() };
+	const loop = { beatAt: performance.now() };
 	state.loops.push(loop);
 	// Per Event key, the Events held now: each runs after the one before it has ended.
 	const lanes = new Map<string, Promise<void>>();
-	let held = 0;
+	// After a reconnect the broker sends again what is still held here; those copies are dropped.
+	const heldIds = new Set<string>();
 	let heldFewer = (): void => undefined;
 	while (!state.stop.signal.aborted) {
-		loop.beatAt = Date.now();
-		if (held >= pulsarHeldLimit) {
+		loop.beatAt = performance.now();
+		if (heldIds.size >= pulsarHeldLimit) {
 			await Promise.race([
 				new Promise<void>((resolve) => {
 					heldFewer = resolve;
@@ -225,13 +230,15 @@ const pulsarConsumerLoop = async ({
 		}
 		// Left unacknowledged: the broker redelivers it once stop() closes the consumer.
 		if (message === undefined || state.stop.signal.aborted) continue;
+		const id = message.getMessageId().toString();
+		if (heldIds.has(id)) continue;
+		heldIds.add(id);
 		const key = message.getPartitionKey();
 		const event = { consumer, message, state, subscribed };
-		held += 1;
 		const lane = (lanes.get(key) ?? Promise.resolve())
 			.then(() => pulsarEventRun(event))
 			.then(() => {
-				held -= 1;
+				heldIds.delete(id);
 				heldFewer();
 				state.running.delete(lane);
 				if (lanes.get(key) === lane) lanes.delete(key);

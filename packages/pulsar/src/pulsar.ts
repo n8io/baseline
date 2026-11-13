@@ -4,6 +4,7 @@ import PulsarClient from "pulsar-client";
 export type Pulsar = {
 	// false once a Consumer's receive loop has not come round for 60 s, which only a restart can
 	// fix. A broker that cannot be reached does not count: the loop keeps turning and reconnects.
+	// Nor does a Consumer that never returns: nothing here times a run out.
 	isAlive(): boolean;
 	// An intake: stops receiving and waits up to 15 s for running Consumers. Events they send
 	// still go out until close().
@@ -19,7 +20,7 @@ export type Pulsar = {
 export type PulsarState = {
 	readonly client: PulsarClient.Client;
 	readonly consumers: PulsarClient.Consumer[];
-	// One per receive loop: when it last came round.
+	// One per receive loop: when it last came round, on the monotonic clock.
 	readonly loops: { beatAt: number }[];
 	readonly retryDelayMs: number;
 	readonly running: Set<Promise<void>>;
@@ -160,7 +161,7 @@ export const pulsarCreate = (options: {
 		isAlive: () =>
 			state.stop.signal.aborted ||
 			state.loops.every(
-				(loop) => Date.now() - loop.beatAt < pulsarLoopStuckLimitMs,
+				(loop) => performance.now() - loop.beatAt < pulsarLoopStuckLimitMs,
 			),
 		stop: () => {
 			stopped ??= pulsarStop(state);
