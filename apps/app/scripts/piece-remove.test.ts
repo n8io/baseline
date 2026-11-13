@@ -1,14 +1,14 @@
 import {
+	type DisposableTempDir,
 	existsSync,
 	mkdirSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readFileSync,
-	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	pieceFilesRemove,
 	pieceRemovals,
@@ -95,15 +95,11 @@ const projectFiles: Record<string, string> = {
 	"vite.config.ts": "react router\n",
 };
 
-const directories: string[] = [];
-afterEach(() => {
-	for (const d of directories.splice(0))
-		rmSync(d, { force: true, recursive: true });
-});
-
-const projectCreate = (extra: Record<string, string> = {}): string => {
-	const directory = mkdtempSync(join(tmpdir(), "piece-remove-"));
-	directories.push(directory);
+const projectCreate = (
+	extra: Record<string, string> = {},
+): DisposableTempDir => {
+	const folder = mkdtempDisposableSync(join(tmpdir(), "piece-remove-"));
+	const directory = folder.path;
 	// Generated, and ignored by git.
 	mkdirSync(join(directory, ".react-router/types"), { recursive: true });
 	writeFileSync(join(directory, ".gitignore"), ".react-router/\n");
@@ -118,7 +114,7 @@ const projectCreate = (extra: Record<string, string> = {}): string => {
 	git("init", "--quiet");
 	git("add", "-A");
 	git("commit", "--quiet", "-m", "Create");
-	return directory;
+	return folder;
 };
 
 const read = (directory: string, path: string) =>
@@ -143,7 +139,8 @@ const manifestWrite = (
 
 describe("pieceRemoveRefusal", () => {
 	it("names the pieces when the piece is unknown or missing", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		const pieces = Object.keys(pieceRemovals).join("|");
 		expect(pieceRemoveRefusal(directory, "pages")).toBe(
 			`usage: pnpm piece-remove <${pieces}>`,
@@ -152,13 +149,15 @@ describe("pieceRemoveRefusal", () => {
 	});
 
 	it("refuses a tree with uncommitted changes", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		writeFileSync(join(directory, "notes.txt"), "draft");
 		expect(pieceRemoveRefusal(directory, "live")).toMatch(/^Commit or stash/);
 	});
 
 	it("refuses redis until the cache and live updates are gone", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		expect(pieceRemoveRefusal(directory, "redis")).toBe(
 			"Remove the cache and live updates first: both run on Redis.",
 		);
@@ -175,13 +174,13 @@ describe("pieceRemoveRefusal", () => {
 		const consumerTest = {
 			"src/domains/invoice/spi/invoice-events.test.ts": "queueConsumerCreate\n",
 		};
-		expect(
-			pieceRemoveRefusal(projectCreate(consumerTest), "queue"),
-		).toBeUndefined();
+		using withTest = projectCreate(consumerTest);
+		expect(pieceRemoveRefusal(withTest.path, "queue")).toBeUndefined();
 		const consumer = {
 			"src/consumers/invoice-archive.ts": "queueConsumerCreate({})\n",
 		};
-		expect(pieceRemoveRefusal(projectCreate(consumer), "queue")).toBe(
+		using withConsumer = projectCreate(consumer);
+		expect(pieceRemoveRefusal(withConsumer.path, "queue")).toBe(
 			"Remove your Consumers first: they run only in the Worker.",
 		);
 	});
@@ -189,7 +188,8 @@ describe("pieceRemoveRefusal", () => {
 
 describe("pieceFilesRemove", () => {
 	it("deletes live's files and blocks and leaves Markdown alone", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "live");
 		expect(
 			existsSync(join(directory, "src/domains/invoice/api/invoice-live.ts")),
@@ -207,7 +207,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("deletes the cache's adapters only", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "cache");
 		const spi = join(directory, "src/domains/invoice/spi");
 		expect(existsSync(join(spi, "invoice-cache.ts"))).toBe(false);
@@ -229,7 +230,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("drops CACHE_URL from the env files with redis, and its compose service", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "redis");
 		expect(read(directory, ".env.schema")).toBe(
 			projectFiles[".env.schema"]?.replace(
@@ -245,7 +247,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("drops analytics, its test and MIXPANEL_TOKEN with the analytics piece", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "analytics");
 		expect(existsSync(join(directory, "src/analytics-open.ts"))).toBe(false);
 		expect(
@@ -282,7 +285,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("drops the Worker, its schedules and their overrides with the queue", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "queue");
 		expect(existsSync(join(directory, "src/worker.ts"))).toBe(false);
 		const domain = join(directory, "src/domains/invoice");
@@ -303,7 +307,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("turns the ui-less server into one that serves itself, once", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "ui");
 		pieceFilesRemove(directory, "ui");
 		for (const path of [
@@ -334,9 +339,10 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("fails when a block has no end", () => {
-		const directory = projectCreate({
+		using folder = projectCreate({
 			"src/env.ts": `${marker("start", "cache")}\nconst a = 1;\n`,
 		});
+		const directory = folder.path;
 		expect(() => pieceFilesRemove(directory, "cache")).toThrow(
 			"piece-start: cache has no matching piece-end in src/env.ts",
 		);

@@ -3,9 +3,8 @@
 // committing: a 3-way merge that leaves standard conflict markers and exits 1 on a conflict.
 import {
 	existsSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readFileSync,
-	rmSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -39,33 +38,29 @@ const renderCommit = (
 	message: string,
 	parent?: string,
 ): string => {
-	const work = mkdtempSync(join(tmpdir(), "template-render-"));
-	try {
-		const tree = join(work, "tree");
-		filesWrite(tree, files);
-		tools.finish(tree);
-		const env = { ...process.env, GIT_INDEX_FILE: join(work, "index") };
-		const git = (args: string[]) =>
-			run(
-				"git",
-				["--git-dir", join(repository, ".git"), "--work-tree", tree, ...args],
-				{
-					cwd: tree,
-					env,
-				},
-			).trim();
-		git(["add", "--all", "--force", "."]);
-		const treeId = git(["write-tree"]);
-		return git([
-			"commit-tree",
-			treeId,
-			"-m",
-			message,
-			...(parent === undefined ? [] : ["-p", parent]),
-		]);
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-"));
+	const tree = join(work.path, "tree");
+	filesWrite(tree, files);
+	tools.finish(tree);
+	const env = { ...process.env, GIT_INDEX_FILE: join(work.path, "index") };
+	const git = (args: string[]) =>
+		run(
+			"git",
+			["--git-dir", join(repository, ".git"), "--work-tree", tree, ...args],
+			{
+				cwd: tree,
+				env,
+			},
+		).trim();
+	git(["add", "--all", "--force", "."]);
+	const treeId = git(["write-tree"]);
+	return git([
+		"commit-tree",
+		treeId,
+		"-m",
+		message,
+		...(parent === undefined ? [] : ["-p", parent]),
+	]);
 };
 
 // The paths git left unmerged after the cherry-pick.
@@ -134,17 +129,13 @@ export const releaseRender = async (
 ): Promise<TemplateFile[]> => {
 	const own = files.find((f) => f.path === "scripts/template-render.ts");
 	if (own === undefined) return templateFilesRender(files, answers);
-	const work = mkdtempSync(join(tmpdir(), "template-render-code-"));
-	try {
-		const path = join(work, "template-render.ts");
-		writeFileSync(path, own.text);
-		const module = (await import(pathToFileURL(path).href)) as {
-			templateFilesRender: typeof templateFilesRender;
-		};
-		return module.templateFilesRender(files, answers);
-	} finally {
-		rmSync(work, { force: true, recursive: true });
-	}
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-code-"));
+	const path = join(work.path, "template-render.ts");
+	writeFileSync(path, own.text);
+	const module = (await import(pathToFileURL(path).href)) as {
+		templateFilesRender: typeof templateFilesRender;
+	};
+	return module.templateFilesRender(files, answers);
 };
 
 // pnpm writes its own minimumReleaseAgeExclude of exact @n8io/baseline-* versions when they are
