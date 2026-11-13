@@ -735,7 +735,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			(f) => !testIs(f.path) && !/(^|\/)test\//.test(f.path),
 			(imp) =>
 				/^@n8io\/baseline-[^/]+\/testing$/.test(imp.specifier)
-					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports the Package's main entry, where its memory adapter is"
+					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
 					: undefined,
 		),
 };
