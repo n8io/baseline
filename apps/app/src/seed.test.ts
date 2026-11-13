@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { describe, expect, it } from "vitest";
 
 // Runs `node src/seed.ts` the way `pnpm seed` does: varlock through the preload alone.
-const seedRun = async (env: Record<string, string>) => {
+const seedRun = async (env: Record<string, string | undefined>) => {
 	const child = spawn(
 		"node",
 		["--import", "varlock/auto-load", "src/seed.ts"],
@@ -36,6 +36,7 @@ describe("src/seed.ts", () => {
 			CACHE_URL: "redis://cache.example.com",
 			DATABASE_URL: "postgres://db.example.com/app",
 			// Every op() item is set here, so varlock never asks 1Password and needs no token for it.
+			OP_SERVICE_ACCOUNT_TOKEN: undefined,
 		});
 		expect(code).toBe(1);
 		expect(output).toContain(
