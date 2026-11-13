@@ -2,7 +2,9 @@ import { logger } from "@n8io/baseline-logger";
 import PulsarClient from "pulsar-client";
 
 export type Pulsar = {
-	// false once a producer or consumer has stayed disconnected for 60 s.
+	// false once a Consumer's receive loop has not come round for 60 s, which only a restart can
+	// fix. A broker that cannot be reached does not count: the loop keeps turning and reconnects.
+	// Nor does a Consumer that never returns: nothing here times a run out.
 	isAlive(): boolean;
 	// An intake: stops receiving and waits up to 15 s for running Consumers. Events they send
 	// still go out until close().
@@ -18,14 +20,17 @@ export type Pulsar = {
 export type PulsarState = {
 	readonly client: PulsarClient.Client;
 	readonly consumers: PulsarClient.Consumer[];
+	// One per receive loop: when it last came round, on the monotonic clock.
+	readonly loops: { beatAt: number }[];
 	readonly retryDelayMs: number;
 	readonly running: Set<Promise<void>>;
-	stopping: boolean;
+	// Aborted when stop() begins: loops end and waits between attempts are cut short.
+	readonly stop: AbortController;
 	producer(topic: string): Promise<PulsarClient.Producer>;
 	topic(name: string): string;
 };
 
-const pulsarDisconnectedLimitMs = 60_000;
+const pulsarLoopStuckLimitMs = 60_000;
 const pulsarStopGraceMs = 15_000;
 
 const pulsarStates = new WeakMap<Pulsar, PulsarState>();
@@ -56,7 +61,7 @@ const pulsarLog = (
 };
 
 const pulsarStop = async (state: PulsarState): Promise<void> => {
-	state.stopping = true;
+	state.stop.abort();
 	// Running Consumers finish and acknowledge first; what they leave goes back to the broker.
 	await Promise.race([
 		Promise.allSettled(state.running),
@@ -75,7 +80,8 @@ export type PulsarVendorOptions = Omit<PulsarClient.ClientConfigBase, "log">;
 // Opens a client to `serviceUrl` (pulsar:// or pulsar+ssl://). `token` is a JWT for the broker's
 // token authentication; without one the client connects unauthenticated. Each Event's topic is
 // `persistent://<namespace>/<event name>`. retryDelayMs is the wait before a failed Event's second
-// attempt; it doubles for each later one (10 s, 20 s, 40 s, 80 s, as in the queue package).
+// attempt; it doubles for each later one (10 s, 20 s, 40 s, 80 s, as in the queue package). The
+// worker keeps the Event while it waits, so later Events of its key wait behind it.
 export const pulsarCreate = (options: {
 	serviceUrl: string;
 	token?: string | undefined;
@@ -111,7 +117,6 @@ export const pulsarCreate = (options: {
 		serviceUrl: options.serviceUrl,
 	});
 	const producers = new Map<string, Promise<PulsarClient.Producer>>();
-	const opened: PulsarClient.Producer[] = [];
 	let closing = false;
 	const state: PulsarState = {
 		client,
@@ -122,22 +127,23 @@ export const pulsarCreate = (options: {
 			}
 			let opening = producers.get(topic);
 			if (opening === undefined) {
-				opening = client.createProducer({ topic });
+				// Batches hold one key each, so the broker can hand every key to its own consumer.
+				opening = client.createProducer({
+					batchingType: "KeyBasedBatching",
+					topic,
+				});
 				producers.set(topic, opening);
-				opening.then(
-					(producer) => opened.push(producer),
-					// A failed create is tried again on the next send.
-					() => producers.delete(topic),
-				);
+				// A failed create is tried again on the next send.
+				opening.catch(() => producers.delete(topic));
 			}
 			return opening;
 		},
+		loops: [],
 		retryDelayMs: options.retryDelayMs ?? 10_000,
 		running: new Set(),
-		stopping: false,
+		stop: new AbortController(),
 		topic: (name) => `persistent://${namespace}/${name}`,
 	};
-	let downSince: number | undefined;
 	let stopped: Promise<void> | undefined;
 	const pulsar: Pulsar = {
 		close: async () => {
@@ -152,15 +158,11 @@ export const pulsarCreate = (options: {
 			);
 			await client.close();
 		},
-		isAlive: () => {
-			const connections = [...state.consumers, ...opened];
-			if (connections.every((connection) => connection.isConnected())) {
-				downSince = undefined;
-				return true;
-			}
-			downSince ??= Date.now();
-			return Date.now() - downSince < pulsarDisconnectedLimitMs;
-		},
+		isAlive: () =>
+			state.stop.signal.aborted ||
+			state.loops.every(
+				(loop) => performance.now() - loop.beatAt < pulsarLoopStuckLimitMs,
+			),
 		stop: () => {
 			stopped ??= pulsarStop(state);
 			return stopped;

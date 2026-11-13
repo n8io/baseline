@@ -75,7 +75,7 @@ const pulsarEventSend = (
 				const producer = await state.producer(topic);
 				const messageId = await producer.send({
 					data: Buffer.from(JSON.stringify(event.data)),
-					// The Event's key, so the broker can keep one key's Events together and in order.
+					// The Event key: the broker gives one key's Events to one worker at a time, in order.
 					partitionKey: event.key,
 					properties,
 				});
@@ -115,6 +115,7 @@ export const pulsarPublisherCreate = <M extends Record<string, unknown>>(
 			await Promise.all(sending.map((event) => pulsarEventSend(state, event)));
 		},
 		publish: async ({ data, key, name }) => {
+			if (key === "") throw new TypeError(`Event ${name} needs a key`);
 			buffered.push({
 				context: context.active(),
 				data,
