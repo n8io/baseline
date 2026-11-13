@@ -1,5 +1,5 @@
-// A22: varlock/env only in src/env.ts; #env only in the composition roots and src/authn.ts; process.env never
-// expect: src/ui/routes/bar-list.tsx imports #env: only the composition roots, src/authn.ts and src/connections.ts read #env
+// A22: varlock/env only in src/env.ts; #env only in the composition roots, src/authn.ts, src/connections.ts and src/events-open.ts; process.env never
+// expect: src/ui/routes/bar-list.tsx imports #env: only the composition roots, src/authn.ts, src/connections.ts and src/events-open.ts read #env
 // @file src/ui/routes/bar-list.tsx
 import { ENV } from "#env";
 
