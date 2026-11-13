@@ -9,7 +9,7 @@ index ca1d925..dbefcc7 100644
  export { invoiceLineLiveRoutesCreate } from "./invoice-line-live.ts";
  // piece-end: live
 diff --git a/src/domains/invoice-line/models/invoice-line.ts b/src/domains/invoice-line/models/invoice-line.ts
-index a4f7076..8e8a069 100644
+index 551c8e5..e12079f 100644
 --- a/src/domains/invoice-line/models/invoice-line.ts
 +++ b/src/domains/invoice-line/models/invoice-line.ts
 @@ -9,6 +9,8 @@ export const InvoiceLine = z.object({
@@ -207,10 +207,10 @@ index 05a645f..9117d03 100644
  	invoiceLineGet: invoiceLineGet(ports),
  	invoiceLineList: invoiceLineList(ports),
 diff --git a/src/env.d.ts b/src/env.d.ts
-index b6ca19d..b58eef6 100644
+index 52f621f..63d52f3 100644
 --- a/src/env.d.ts
 +++ b/src/env.d.ts
-@@ -100,13 +100,26 @@ export type CoercedEnvSchema = {
+@@ -107,13 +107,26 @@ export type CoercedEnvSchema = {
     */
    OP_SERVICE_ACCOUNT_TOKEN?: string;
    
@@ -229,36 +229,36 @@ index b6ca19d..b58eef6 100644
 +  
  };
  
--type _CoercedEnvSchema_52234afb = CoercedEnvSchema;
-+type _CoercedEnvSchema_21266a68 = CoercedEnvSchema;
+-type _CoercedEnvSchema_16a23064 = CoercedEnvSchema;
++type _CoercedEnvSchema_b7dc3a27 = CoercedEnvSchema;
  
  declare module 'varlock/env' {
--  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_52234afb> {}
--  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_52234afb, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
-+  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_21266a68> {}
-+  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_21266a68, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
+-  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_16a23064> {}
+-  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_16a23064, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
++  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_b7dc3a27> {}
++  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_b7dc3a27, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
  }
  
  
-@@ -116,17 +129,17 @@ export type EnvSchemaAsStrings = {
+@@ -123,17 +136,17 @@ export type EnvSchemaAsStrings = {
        : (NonNullable<CoercedEnvSchema[Property]> extends boolean ? ('true' | 'false') : string)
  };
  
--type _EnvSchemaAsStrings_52234afb = EnvSchemaAsStrings;
-+type _EnvSchemaAsStrings_21266a68 = EnvSchemaAsStrings;
+-type _EnvSchemaAsStrings_16a23064 = EnvSchemaAsStrings;
++type _EnvSchemaAsStrings_b7dc3a27 = EnvSchemaAsStrings;
  declare global {
  
    // add types for global import.meta.env
--  interface ImportMetaEnv extends _EnvSchemaAsStrings_52234afb {}
-+  interface ImportMetaEnv extends _EnvSchemaAsStrings_21266a68 {}
+-  interface ImportMetaEnv extends _EnvSchemaAsStrings_16a23064 {}
++  interface ImportMetaEnv extends _EnvSchemaAsStrings_b7dc3a27 {}
    interface ImportMeta {
      readonly env: ImportMetaEnv;
    }
  
    // add types for global process.env
    namespace NodeJS {
--    interface ProcessEnv extends _EnvSchemaAsStrings_52234afb {}
-+    interface ProcessEnv extends _EnvSchemaAsStrings_21266a68 {}
+-    interface ProcessEnv extends _EnvSchemaAsStrings_16a23064 {}
++    interface ProcessEnv extends _EnvSchemaAsStrings_b7dc3a27 {}
    }
  }
 \ No newline at end of file
