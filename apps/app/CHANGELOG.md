@@ -1,5 +1,65 @@
 # app
 
+## 5.0.0
+
+### Major Changes
+
+- d75cd90: `@n8io/baseline-authn/testing` is new: `authnTestSignIn({ url, who, secret })` signs in at a served app through the memory issuer's form and returns `authorization`, `cookie`, `token` and `accessCookie`. It opens the access cookie with the package's own cookie code. Import it from test files only. The README has a Testing section.
+
+  `authnMemoryTokenCreate` takes one options object: `authnMemoryTokenCreate({ authn, actor })`. A call that passes `authn` and the Actor as two arguments no longer compiles.
+
+  In the Template, `test/integration/integration-sign-in.ts` calls `authnTestSignIn` and holds no cryptography of its own; `integrationSignIn(url, who)` and `SignedIn` are unchanged, so tests that call it do not change. `src/server-wiring.test.ts` passes `{ actor, authn }`. When you upgrade, take the new `integration-sign-in.ts` whole, and change every `authnMemoryTokenCreate(authn, actor)` in your own tests to `authnMemoryTokenCreate({ actor, authn })`.
+- 719041e: `queueEventsMemoryCreate` takes one options object: `queueEventsMemoryCreate({ published })`. `published` is optional and so is the whole argument, so `queueEventsMemoryCreate()` still works. A call that passes the array on its own no longer compiles.
+
+  In the Template, `foo-transaction.memory.ts` passes `{ published: pending }`. When you upgrade, make the same change in every Domain's `spi/<domain>-transaction.memory.ts`: `queueEventsMemoryCreate<…>(pending)` becomes `queueEventsMemoryCreate<…>({ published: pending })`.
+- 94f2893: Four Packages no longer need you to install Zod to use them. You bring the schema library, and each README shows how to pass a Zod schema.
+  - `@n8io/baseline-cache` and `@n8io/baseline-queue`: `cacheCreate`'s `schema` and `queueConsumerCreate`'s schema are any [Standard Schema](https://standardschema.dev), so a Zod, Valibot or ArkType schema goes in as it is. Calls that pass a Zod schema do not change. The `zod` peer is gone. A Consumer's validation error now names the paths that failed in its message (`Event failed validation for billing.order-placed at totalCents`) and has no `cause`, so no validator's message can put an Event's values in a log.
+  - `@n8io/baseline-id`: `idSchemaCreate` is gone. `idPatternCreate(prefix)` returns the `RegExp` to build an id schema from, in any schema library.
+  - `@n8io/baseline-authn`: `Actor` is a type only; the Zod schema of the same name is no longer exported. Zod is the package's own dependency now, not a peer.
+
+  `@n8io/baseline-http` keeps its `zod` peer: it is built on `@hono/zod-openapi`.
+
+  In the Template, the new `src/id-schema.ts` exports `idSchemaCreate`, the Zod schema built from `idPatternCreate`. Foo: `models/foo.ts` imports `idSchemaCreate` from `../../../id-schema.ts`, not from `@n8io/baseline-id`, and `ui/routes/foo-detail.tsx` parses the id with `Foo.shape.id`. When you upgrade, change that import in every Domain's `models/<domain>.ts` and anywhere else that imports `idSchemaCreate`.
+
+  This Release is `app@5.0.0`, so it creates the tag `v5`. The Template's `ci.yml` calls `app-ci.yml@v5` and `dependabot-automerge.yml@v5`; `v4` stays frozen at `app@4.0.0`.
+
+### Minor Changes
+
+- 0ab399e: `structure.test.ts` now budgets `AGENTS.md` in bytes instead of lines (14,000, about 3 KB above the Template's own file), since every task loads it. It also fails when an `@CONTEXT.md` import is not alone on its line (in a sentence, Claude Code takes the punctuation after it as part of the path and loads nothing) or names a missing file. The check lives in `agent-docs-test-rules.ts`. A Project whose `AGENTS.md` is over the budget moves task-specific rules to `docs/agents/` and links them under `## Read when`.
+
+  `AGENTS.md` now says in words where the glossary is, for agents that do not follow `@` imports, and drops the Dependabot merge rule, which `docs/agents/dependency-updates.md` holds. `docs/agents/deploy.md` drops its Template upgrade line, which `template-upgrade.md` holds, and the walkthroughs no longer name a fixed `app-ci.yml` major.
+- 3348934: Add `@n8io/baseline-error-tracking`: Error reports sent to Sentry (through `@sentry/core`) with their class name, stack, cause chain, error code and trace id, never their message. `@n8io/baseline-logger` gains `loggerErrorListen`, which hears every error logged at error or fatal, so the Template reports HTTP 500s, failed jobs and crashes without changing a caller. The Template reads an optional `SENTRY_DSN` (without it, errors are only logged) and removes it all with `pnpm piece-remove error-tracking`.
+- b89fc1a: The Template has a new architecture rule, A24: only a `*.test.ts(x)` file or a file under `test/` imports `@n8io/baseline-<package>/testing`, the entry a Package exports its test helpers from. Production code imports the Package's main entry, where its memory adapter is. `AGENTS.md` says so under Tests.
+
+### Patch Changes
+
+- a61f217: Every handle that must be closed now has `[Symbol.asyncDispose]`, which calls its named close, so `await using` closes it however its block ends: `LiveHub` (`close`), `Queue` (`stop`), `HealthServer` (`close`), `Analytics` (`close`), `Pulsar` (`close`) and `PostgresPool` (`end`; the type is now pg's pool plus `AsyncDisposable`, and `postgresPoolCreate` adds the method to the pool it returns). The named methods stay.
+
+  Breaking for code that builds one of these handles by hand, such as a test fake typed `LiveHub` or `Analytics`, or a raw `pg.Pool` passed where a `PostgresPool` is expected: add `[Symbol.asyncDispose]`, or build the pool with `postgresPoolCreate`.
+
+  In the Template, `docs/agents/using.md` states the rule: use `using` for a resource that lives for one block (a test, a script step, a short helper); the shutdown package owns everything that lives as long as the process.
+- 4f2d9eb: Integration tests close what they open with `await using`. The integration database, the app process the server and worker helpers start, the OTLP receiver and the slow request now dispose themselves (`drop`, `stop`, `close` and `abort` still work), so a test declares each one with `await using` (`using` for the slow request) and they close in reverse order: the process stops before its database is removed. Those tests now get 60 s, since teardown counts against the test timeout. The `cleanups` arrays and their `afterEach` hooks are gone.
+- 797590d: `@n8io/baseline-live/testing` is new: `liveTestSseRead({ response })` reads a live stream in a test. `until(text)` waits for text to arrive, `end()` waits for the server to end the stream and `cancel()` goes away like a page that closes. Import it from test files only. The README has a Testing section with the memory hub and the reader together.
+
+  In the Template, the Foo tests read their live streams with this reader, so no test reads a response body by hand. When you upgrade, a Domain test that copied the hand-written reader can use `liveTestSseRead` in its place.
+- 9cd00df: The template scripts remove their temp folders with `using` and `fs.mkdtempDisposableSync` instead of `try`/`finally`. No behaviour change.
+- Updated dependencies [d75cd90]
+- Updated dependencies [3348934]
+- Updated dependencies [a61f217]
+- Updated dependencies [797590d]
+- Updated dependencies [719041e]
+- Updated dependencies [94f2893]
+  - @n8io/baseline-authn@5.0.0
+  - @n8io/baseline-error-tracking@1.0.0
+  - @n8io/baseline-logger@3.1.0
+  - @n8io/baseline-analytics@2.0.0
+  - @n8io/baseline-health@2.0.0
+  - @n8io/baseline-live@6.0.0
+  - @n8io/baseline-postgres@4.0.0
+  - @n8io/baseline-queue@6.0.0
+  - @n8io/baseline-cache@5.1.0
+  - @n8io/baseline-id@3.0.0
+
 ## 4.0.0
 
 ### Major Changes

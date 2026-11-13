@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-pulsar",
-	"version": "3.0.0",
+	"version": "4.0.0",
 	"description": "Events and Consumers on Apache Pulsar, sent after the transaction commits, with the queue package's inbox for duplicates.",
 	"type": "module",
 	"license": "MIT",

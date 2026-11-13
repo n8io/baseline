@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-error-tracking",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Error reports sent to Sentry with their trace id and never their message, without blocking the request.",
 	"license": "MIT",
 	"type": "module",
