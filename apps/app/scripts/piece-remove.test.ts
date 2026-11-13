@@ -50,8 +50,12 @@ const projectFiles: Record<string, string> = {
 		"# @sensitive=false @required=false",
 		"SCHEDULE_INVOICE_STALE_ARCHIVE=",
 		"# domain-create: schedules",
+		"# Mixpanel project token",
+		"# @required=forEnv(production)",
+		"MIXPANEL_TOKEN=",
 		"",
 	].join("\n"),
+	".env.production": "PORT=3000\nMIXPANEL_TOKEN=op(op://app/mixpanel/token)\n",
 	".env.test": "CACHE_URL=memory://\nPORT=3000\n",
 	"biome.json": `${JSON.stringify({ css: {}, files: { includes: ["**", "!.react-router"] } }, null, "\t")}\n`,
 	"compose.yaml": `services:\n${block("redis", "  redis:\n    image: redis", "#")}\n  postgres:\n    image: postgres\n`,
@@ -60,12 +64,14 @@ const projectFiles: Record<string, string> = {
 	"public/favicon.ico": "icon",
 	"src/domains/invoice/api/invoice-live.test.ts": "test\n",
 	"src/domains/invoice/api/invoice-live.ts": "live\n",
+	"src/analytics-open.ts": "analytics\n",
 	"src/domains/invoice/api/invoice-schedule.ts": "schedule\n",
 	"src/domains/invoice/spi/invoice-cache.memory.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-cache.redis.test.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-cached.ts": "cache\n",
 	"src/domains/invoice/spi/invoice-transaction.postgres.test.ts": "events\n",
 	"src/domains/invoice/spi/invoice-transaction.postgres.ts": "transaction\n",
+	"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts": "test\n",
 	"src/redis.ts": "redis\n",
 	"src/server.ts": [
 		'import { Hono } from "hono";',
@@ -73,6 +79,7 @@ const projectFiles: Record<string, string> = {
 		"export const app = new Hono();",
 		block("live", 'app.route("/live", liveRoutes);'),
 		block("cache", "\tcache: redisClient,"),
+		block("analytics", "\tanalytics: analyticsOpen(),"),
 		"",
 	].join("\n"),
 	"src/ui/routes/home.tsx": "home\n",
@@ -216,6 +223,28 @@ describe("pieceFilesRemove", () => {
 			"services:\n  postgres:\n    image: postgres\n",
 		);
 		expect(existsSync(join(directory, "src/redis.ts"))).toBe(false);
+	});
+
+	it("drops analytics, its test and MIXPANEL_TOKEN with the analytics piece", () => {
+		const directory = projectCreate();
+		pieceFilesRemove(directory, "analytics");
+		expect(existsSync(join(directory, "src/analytics-open.ts"))).toBe(false);
+		expect(
+			existsSync(
+				join(
+					directory,
+					"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts",
+				),
+			),
+		).toBe(false);
+		expect(read(directory, "src/server.ts")).not.toContain("analyticsOpen");
+		expect(read(directory, ".env.schema")).toBe(
+			projectFiles[".env.schema"]?.replace(
+				"# Mixpanel project token\n# @required=forEnv(production)\nMIXPANEL_TOKEN=\n",
+				"",
+			),
+		);
+		expect(read(directory, ".env.production")).toBe("PORT=3000\n");
 	});
 
 	it("drops the Worker, its schedules and their overrides with the queue", () => {

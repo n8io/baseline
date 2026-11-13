@@ -70,6 +70,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 
 | Package                           | What it does                                             |
 | --------------------------------- | -------------------------------------------------------- |
+| [`analytics`](packages/analytics) | Analytics events to Mixpanel, sent without blocking      |
 | [`authn`](packages/authn)         | OIDC code flow, JWT verification and the Actor           |
 | [`cache`](packages/cache)         | Typed cache on Redis or memory                           |
 | [`health`](packages/health)       | `/livez` and `/readyz` probes                            |

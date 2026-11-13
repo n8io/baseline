@@ -36,6 +36,16 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 					),
 				};
 	return {
+		// piece-start: analytics
+		fooAnalytics: {
+			track: ({ actorId, fooId, name }) =>
+				connections.analytics.track({
+					actorId,
+					name,
+					properties: { fooId },
+				}),
+		},
+		// piece-end: analytics
 		// piece-start: cache
 		fooCache:
 			connections.redis === "memory"

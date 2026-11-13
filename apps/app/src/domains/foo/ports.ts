@@ -46,6 +46,16 @@ export type FooTransaction = {
 };
 
 export type FooPorts = {
+	// piece-start: analytics
+	// Returns at once and never throws; call it after commit.
+	fooAnalytics: {
+		track(event: {
+			name: "foo.created";
+			actorId: string;
+			fooId: Id<"foo">;
+		}): void;
+	};
+	// piece-end: analytics
 	// piece-start: cache
 	fooCache: {
 		get(id: Id<"foo">): Promise<Foo | undefined>;

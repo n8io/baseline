@@ -73,6 +73,10 @@ _Avoid_: cron job, timer, task
 A short note to open pages that something they show has changed, so they reload it.
 _Avoid_: push, notification, real-time event
 
+**Analytics event**:
+A record that an actor did something, sent to product analytics (Mixpanel) for funnels and retention. It carries ids and counts only. Unlike an event, nothing in the app consumes it, it is sent after commit without blocking the request, and losing one is acceptable.
+_Avoid_: tracking event, product event, metric
+
 **Composition root**:
 A file that starts one process: it parses config, opens connections, picks adapters, builds each domain's use cases and wires its intakes (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`). Holds no business rules.
 _Avoid_: bootstrap, main, container

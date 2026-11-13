@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis.ts`, `src/live-hub-open.ts`, `src/queue-open.ts`, `src/analytics-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
 
 ## How to remove a piece
 
@@ -60,3 +60,13 @@ The command also drops the `SCHEDULE_*` overrides from `.env.schema` and takes t
 Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts`, `spi/*-transaction.postgres.test.ts`, `spi/index-queue.test.ts` and `use-cases/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` marker in `src/worker.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 To run Events on Apache Pulsar instead of the queue, follow the [Pulsar swap guide](https://github.com/n8io/baseline/blob/main/packages/pulsar/README.md).
+
+## Analytics
+
+`pnpm piece-remove analytics`
+
+Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Domain's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
+
+`MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=op(op://<project>-production/mixpanel/token)` to `.env.production`.
+
+Add analytics back: `git revert` the "Remove analytics" commit. For each Domain created after it, copy every `piece-start: analytics` block and `use-cases/*-use-cases-analytics.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.

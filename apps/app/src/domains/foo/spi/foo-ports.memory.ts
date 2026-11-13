@@ -8,7 +8,8 @@ import {
 import { fooTransactionMemoryCreate } from "./foo-transaction.memory.ts";
 
 // Every foo port in memory, plus the state they share: committed foos and, with the queue,
-// committed events. Live updates go nowhere; a test that checks them passes its own.
+// committed events. Live updates and analytics events go nowhere; a test that checks them passes
+// its own.
 export const fooPortsMemoryCreate = (): {
 	ports: FooPorts;
 	state: FooMemoryState;
@@ -16,6 +17,9 @@ export const fooPortsMemoryCreate = (): {
 	const state = fooMemoryStateCreate();
 	return {
 		ports: {
+			// piece-start: analytics
+			fooAnalytics: { track: () => undefined },
+			// piece-end: analytics
 			// piece-start: cache
 			fooCache: fooCacheMemoryCreate(),
 			// piece-end: cache

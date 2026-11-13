@@ -108,6 +108,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - An action calls exactly one write Use case. A loader may call any number of read Use cases across Domains.
 - Do one write per Use case where possible.
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
+- Track an analytics event after commit, named like the Event for the same change (`foo.created`). The Domain's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch. One catch-up run must cover any number of missed ticks, and a repeat must change nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
 - Dependabot update PRs merge themselves once CI passes, unless they are major. A major PR needs a human to review and merge it.
@@ -123,7 +124,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Privacy
 
-- Logs, spans and metrics carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
+- Logs, spans, metrics and analytics events carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
 - Paths and queries never carry personal data. Path parameters are ids.
 - Card numbers never enter the app. Accepting card data is a stop-and-ask.
 - At deploy time, recommend the OpenTelemetry Collector `redaction` processor as a second line of defence.
@@ -138,4 +139,4 @@ These docs load only when the task needs them. Read the one that matches before 
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
-- Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)
+- Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker, analytics) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)

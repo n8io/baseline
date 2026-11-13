@@ -6,14 +6,14 @@ import type { Foo, FooCreateInput } from "../models/foo.ts";
 import type { FooPorts } from "../ports.ts";
 
 export const fooCreate =
-	({ fooTransaction }: Pick<FooPorts, "fooTransaction">) =>
-	(
+	(ports: FooPorts) =>
+	async (
 		actor: Actor,
 		input: FooCreateInput,
-	): Promise<Result<Foo, FooNameTakenError>> =>
-		fooTransaction(async (transaction) => {
+	): Promise<Result<Foo, FooNameTakenError>> => {
+		const result = await ports.fooTransaction(async (transaction) => {
 			const now = new Date();
-			const result = await transaction.fooRepository.insert({
+			const inserted = await transaction.fooRepository.insert({
 				id: idCreate("foo"),
 				name: input.name,
 				createdBy: actor.id,
@@ -22,11 +22,22 @@ export const fooCreate =
 				archivedAt: null,
 			});
 			// piece-start: queue
-			if (result.ok) {
+			if (inserted.ok) {
 				await transaction.fooEvents.publish("foo.created", {
-					fooId: result.value.id,
+					fooId: inserted.value.id,
 				});
 			}
 			// piece-end: queue
-			return result;
+			return inserted;
 		});
+		// piece-start: analytics
+		if (result.ok) {
+			ports.fooAnalytics.track({
+				actorId: actor.id,
+				fooId: result.value.id,
+				name: "foo.created",
+			});
+		}
+		// piece-end: analytics
+		return result;
+	};
