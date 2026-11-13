@@ -24,11 +24,14 @@ export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
 				httpProblemHeaders,
 			);
 		}
-		return liveStreamCreate(c, {
+		const live = liveStreamCreate({
 			channel: "foo",
 			// No known expiry: the stream's own 5-minute limit applies.
 			expiresAt: c.var.authnExpiresAt ?? Number.POSITIVE_INFINITY,
 			id: result.value.id,
 			liveHub,
+			signal: c.req.raw.signal,
 		});
+		// Through the context, so headers that middleware set with c.header() stay.
+		return c.newResponse(live.body, live);
 	});

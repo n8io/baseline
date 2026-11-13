@@ -20,7 +20,7 @@ Most spans already exist. Instrumentations time inbound and outbound HTTP, Postg
 
 Decide in this order:
 
-1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId })`. Use a semantic-convention key when one exists, otherwise `baseline.<domain>.<key>` in snake_case.
+1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `telemetrySpanAttributesSet({ "baseline.foo.id": input.fooId })` from `@n8io/baseline-telemetry/span`. Use a semantic-convention key when one exists, otherwise `baseline.<domain>.<key>` in snake_case.
 2. Does a span already time it? Then it is not a span. That covers a port call, a transaction, a whole Use case, loader or action.
 3. Is it a step inside a Use case whose own duration you would ask about in an incident? Start one child span around it. It qualifies only when no instrumentation times it and it routinely takes milliseconds or grows with input size: parsing an upload, rendering a document, hashing, a large in-memory sort or merge, or a whole batch loop.
 
@@ -35,18 +35,11 @@ Never start a span:
 Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
 
 ```ts
-const rows = await trace
-	.getTracer("foo")
-	.startActiveSpan("fooImport parse", async (span) => {
-		try {
-			const rows = fooImportRowsParse(input.file);
-			span.setAttribute("baseline.foo.row_count", rows.length);
-			return rows;
-		} catch (error) {
-			span.setStatus({ code: SpanStatusCode.ERROR });
-			throw error;
-		} finally {
-			span.end();
-		}
-	});
+const rows = await telemetrySpanRun("fooImport parse", () => {
+	const rows = fooImportRowsParse(input.file);
+	telemetrySpanAttributesSet({ "baseline.foo.row_count": rows.length });
+	return rows;
+});
 ```
+
+A Domain never imports `@opentelemetry/api`: `telemetrySpanAttributesSet` and `telemetrySpanRun` are the whole surface, and a throw inside `telemetrySpanRun` sets status Error and `error.type`, and is rethrown.

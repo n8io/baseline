@@ -1,0 +1,6 @@
+// A8: src/ never imports @opentelemetry/api; spans go through @n8io/baseline-telemetry
+// expect: src/domains/bar/use-cases/bar-get.ts imports @opentelemetry/api: src/ never imports OpenTelemetry
+// @file src/domains/bar/use-cases/bar-get.ts
+import { trace } from "@opentelemetry/api";
+
+export const barSpan = () => trace.getActiveSpan();

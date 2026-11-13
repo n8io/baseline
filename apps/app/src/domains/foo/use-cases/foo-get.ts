@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { err, ok, type Result } from "@n8io/baseline-result";
-import { trace } from "@opentelemetry/api";
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import { FooNotFoundError } from "../foo-errors.ts";
 import type { Foo, FooGetInput } from "../models/foo.ts";
 import type { FooPorts } from "../ports.ts";
@@ -12,7 +12,7 @@ export const fooGet =
 		_actor: Actor,
 		input: FooGetInput,
 	): Promise<Result<Foo, FooNotFoundError>> => {
-		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
+		telemetrySpanAttributesSet({ "baseline.foo.id": input.fooId });
 		// piece-start: cache
 		const cached = await ports.fooCache.get(input.fooId);
 		if (cached) return ok(cached);

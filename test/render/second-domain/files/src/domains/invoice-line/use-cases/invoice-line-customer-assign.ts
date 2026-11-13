@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { err, type Result } from "@n8io/baseline-result";
-import { trace } from "@opentelemetry/api";
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import {
 	InvoiceLineForbiddenError,
 	type InvoiceLineNameTakenError,
@@ -35,9 +35,9 @@ export const invoiceLineCustomerAssign =
 			| InvoiceLineForbiddenError
 		>
 	> => {
-		trace
-			.getActiveSpan()
-			?.setAttributes({ "baseline.invoice_line.id": input.invoiceLineId });
+		telemetrySpanAttributesSet({
+			"baseline.invoice_line.id": input.invoiceLineId,
+		});
 		if (!(await invoiceLineCustomerReader.get(input.customerId))) {
 			return err(new InvoiceLineNotFoundError(input.invoiceLineId));
 		}

@@ -311,12 +311,16 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A8: (files) =>
 		importsCheck(
 			files,
-			(f) => layerOf(f.path) !== "use-cases",
-			(imp) =>
-				imp.specifier === "@opentelemetry/api" ||
-				imp.specifier.startsWith("@opentelemetry/api/")
+			(f) => !testIs(f.path),
+			(imp, f) => {
+				if (imp.specifier.startsWith("@opentelemetry/")) {
+					return "src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span";
+				}
+				return imp.specifier === "@n8io/baseline-telemetry/span" &&
+					layerOf(f.path) !== "use-cases"
 					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in the composition roots"
-					: undefined,
+					: undefined;
+			},
 		),
 
 	A9: (files) =>
@@ -518,7 +522,9 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				);
 				// Keys are what follows `{` or a comma: shorthand counts, a ternary's branches do not.
 				const many = [
-					...f.source.matchAll(/\.setAttributes\(\s*\{([^}]*)\}/g),
+					...f.source.matchAll(
+						/(?:\.setAttributes|\btelemetrySpanAttributesSet)\(\s*\{([^}]*)\}/g,
+					),
 				].flatMap((m) =>
 					[
 						...`,${m[1] ?? ""}`.matchAll(
@@ -527,13 +533,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					].map((k) => k[2] ?? k[3] ?? ""),
 				);
 				const valid = new RegExp(
-					`^baseline\\.${domain}\\.(id|[a-z][a-z0-9_]*_id)$`,
+					`^baseline\\.${domain}\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
 				);
 				return [...single, ...many]
 					.filter((key) => !valid.test(key))
 					.map(
 						(key) =>
-							`${f.path}: span attribute ${key} must be baseline.${domain}.id or baseline.${domain}.<thing>_id; never put names or other personal data on spans`,
+							`${f.path}: span attribute ${key} must be baseline.${domain}.id or baseline.${domain}.<thing>_id, or a baseline.${domain}.<thing>_count; never put names or other personal data on spans`,
 					);
 			}),
 
@@ -625,6 +631,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (pkg === "@n8io/baseline-result" || pkg === "@n8io/baseline-id") {
 					return undefined;
 				}
+				if (
+					imp.specifier === "@n8io/baseline-telemetry/span" &&
+					layerOf(f.path) === "use-cases"
+				) {
+					return undefined;
+				}
 				const typeAllowed =
 					imp.typeOnly &&
 					(pkg === "@n8io/baseline-queue" || pkg === "@n8io/baseline-authn") &&
@@ -633,7 +645,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						layerOf(f.path) === "use-cases");
 				return typeAllowed
 					? undefined
-					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
+					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in use-cases/ and `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
 			},
 		),
 

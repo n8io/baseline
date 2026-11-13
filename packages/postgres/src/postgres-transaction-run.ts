@@ -1,13 +1,13 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
-import type pg from "pg";
+import type { PostgresClient, PostgresPool } from "./postgres-pool.ts";
 
 // A client that throws on any use once its transaction has ended, so a callback that leaks it
 // (a stray promise, a closure kept for later) fails loudly instead of running outside it.
 const clientGuard = (
-	pgClient: pg.PoolClient,
+	pgClient: PostgresClient,
 	isOpen: () => boolean,
-): pg.PoolClient =>
+): PostgresClient =>
 	new Proxy(pgClient, {
 		get(target, property) {
 			if (!isOpen()) {
@@ -23,8 +23,8 @@ const clientGuard = (
 // Runs `work` in one transaction on one checked-out client: COMMIT on ok, ROLLBACK on err or a
 // throw. transaction_timeout (Postgres 17+) ends a transaction that runs longer than timeoutMs.
 export const postgresTransactionRun = async <T, E>(
-	pgPool: pg.Pool,
-	work: (pgClient: pg.PoolClient) => Promise<Result<T, E>>,
+	pgPool: PostgresPool,
+	work: (pgClient: PostgresClient) => Promise<Result<T, E>>,
 	options: { timeoutMs?: number } = {},
 ): Promise<Result<T, E>> => {
 	const timeoutMs = options.timeoutMs ?? 5_000;

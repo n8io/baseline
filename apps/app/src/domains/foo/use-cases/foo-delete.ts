@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { err, ok, type Result } from "@n8io/baseline-result";
-import { trace } from "@opentelemetry/api";
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import { FooForbiddenError, FooNotFoundError } from "../foo-errors.ts";
 import type { FooDeleteInput } from "../models/foo.ts";
 import type { FooPorts } from "../ports.ts";
@@ -12,7 +12,7 @@ export const fooDelete =
 		actor: Actor,
 		input: FooDeleteInput,
 	): Promise<Result<void, FooNotFoundError | FooForbiddenError>> => {
-		trace.getActiveSpan()?.setAttributes({ "baseline.foo.id": input.fooId });
+		telemetrySpanAttributesSet({ "baseline.foo.id": input.fooId });
 		const result = await ports.fooTransaction<
 			void,
 			FooNotFoundError | FooForbiddenError

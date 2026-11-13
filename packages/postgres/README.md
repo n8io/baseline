@@ -8,7 +8,8 @@ pnpm add @n8io/baseline-postgres
 
 ## Exports
 
-- `postgresPoolCreate({ databaseUrl, ...pg.PoolConfig })`: the process's one pool (10 connections, 3 s connect timeout).
+- `postgresPoolCreate({ databaseUrl, max?, connectTimeoutMs? })`: the process's one pool (10 connections, 3 s connect timeout).
+- `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
 - `postgresTransactionRun(pgPool, work, { timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresMigrate({ databaseUrl, migrationsFolder })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.

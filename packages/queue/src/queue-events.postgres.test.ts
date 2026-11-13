@@ -1,9 +1,9 @@
 import {
+	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
-import type pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
@@ -19,7 +19,7 @@ import {
 type FooEvents = { "foo.created": { fooId: string } };
 
 let databaseUrl: string;
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 let queue: Queue;
 const warnings: Error[] = [];
 const onWarning = (warning: Error): void => {

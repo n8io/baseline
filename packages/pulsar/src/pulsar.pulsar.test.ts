@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
@@ -17,7 +18,6 @@ import {
 	SimpleSpanProcessor,
 	TracerProvider,
 } from "@opentelemetry/sdk-trace";
-import type pg from "pg";
 import PulsarClient from "pulsar-client";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { z } from "zod";
@@ -38,7 +38,7 @@ vi.spyOn(metrics, "getMeter").mockReturnValue({
 	createCounter: () => ({ add: eventsLost }),
 } as unknown as ReturnType<typeof metrics.getMeter>);
 
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 let publisher: Pulsar;
 let worker: Pulsar;
 

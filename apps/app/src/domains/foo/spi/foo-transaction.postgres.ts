@@ -1,4 +1,7 @@
-import { postgresTransactionRun } from "@n8io/baseline-postgres";
+import {
+	type PostgresPool,
+	postgresTransactionRun,
+} from "@n8io/baseline-postgres";
 import {
 	type Events,
 	type EventsPublisher,
@@ -7,7 +10,6 @@ import {
 } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
 import { drizzle } from "drizzle-orm/node-postgres";
-import type pg from "pg";
 import { transactionPortsGuard } from "../../../transaction-ports-guard.ts";
 import type { FooEventMap } from "../models/foo.ts";
 import type { FooTransaction, FooTransactionPorts } from "../ports.ts";
@@ -15,7 +17,7 @@ import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 
 // One Postgres transaction: everything the work writes commits or rolls back together.
 export const fooTransactionPostgresCreate = (
-	pgPool: pg.Pool,
+	pgPool: PostgresPool,
 	// piece-start: queue
 	// Events publish in the transaction; a repeated inbox skips the work and commits nothing.
 	events: Events,

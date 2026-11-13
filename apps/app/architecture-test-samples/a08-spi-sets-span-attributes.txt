@@ -1,0 +1,6 @@
+// A8: only use cases set span attributes or start a child span
+// expect: src/domains/bar/spi/bar-repository.postgres.ts imports @n8io/baseline-telemetry/span: only use cases touch spans
+// @file src/domains/bar/spi/bar-repository.postgres.ts
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
+
+export const barSpan = () => telemetrySpanAttributesSet({ "baseline.bar.id": "1" });

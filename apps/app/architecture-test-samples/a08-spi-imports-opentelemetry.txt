@@ -1,6 +1,0 @@
-// A8: @opentelemetry/api is imported only in use-cases/
-// expect: src/domains/bar/spi/bar-repository.postgres.ts imports @opentelemetry/api: only use cases touch spans
-// @file src/domains/bar/spi/bar-repository.postgres.ts
-import { trace } from "@opentelemetry/api";
-
-export const barSpan = () => trace.getActiveSpan();

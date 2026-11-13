@@ -3,13 +3,12 @@ import type { Actor } from "@n8io/baseline-authn";
 import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
 import { idCreate } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
-import { postgresPoolCreate } from "@n8io/baseline-postgres";
+import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	type Queue,
 	queueCreate,
 	queueEventsCreate,
 } from "@n8io/baseline-queue";
-import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { invoiceLinePortsCreate } from "../spi/index.ts";
@@ -17,7 +16,7 @@ import { invoiceLineUseCasesCreate } from "../use-cases/invoice-line-use-cases.t
 import { invoiceLineCustomerDeletedConsumerCreate } from "./invoice-line-customer-deleted-consumer.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 let queue: Queue;
 let drop: () => Promise<void>;
 

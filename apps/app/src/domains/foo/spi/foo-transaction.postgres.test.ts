@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { postgresPoolCreate } from "@n8io/baseline-postgres";
+import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
 	type Queue,
 	queueConsumerCreate,
@@ -9,7 +9,6 @@ import {
 } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
 import { drizzle } from "drizzle-orm/node-postgres";
-import type pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { fooCreated, fooDeleted } from "../models/foo.ts";
@@ -19,7 +18,7 @@ import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
 const actor: Actor = { id: "owner", kind: "client", scopes: [] };
-let pgPool: pg.Pool;
+let pgPool: PostgresPool;
 let queue: Queue;
 let drop: () => Promise<void>;
 
