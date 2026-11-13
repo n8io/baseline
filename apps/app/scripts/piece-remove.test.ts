@@ -270,7 +270,8 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("drops error tracking and SENTRY_DSN with the error-tracking piece", () => {
-		const directory = projectCreate();
+		using folder = projectCreate();
+		const directory = folder.path;
 		pieceFilesRemove(directory, "error-tracking");
 		expect(existsSync(join(directory, "src/error-tracking-open.ts"))).toBe(
 			false,
