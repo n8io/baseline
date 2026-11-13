@@ -111,5 +111,17 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 					spanAncestors(span, spans).includes(useCase as OtlpSpan),
 			),
 		).toBe(true);
+		// Queue polls, boot and maintenance run outside any trace and make no span. Redis still
+		// makes one redis-connect span per connection it opens.
+		expect(
+			spans
+				.filter(
+					(span) =>
+						!span.parentSpanId &&
+						spanAttribute(span, "db.system.name") !== undefined,
+				)
+				.map((span) => span.name)
+				.filter((name) => name !== "redis-connect"),
+		).toEqual([]);
 	});
 });

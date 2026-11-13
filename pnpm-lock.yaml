@@ -380,10 +380,16 @@ importers:
 
   packages/cache:
     dependencies:
+      '@n8io/baseline-logger':
+        specifier: workspace:^
+        version: link:../logger
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
     devDependencies:
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
       redis:
         specifier: ^6.3.1
         version: 6.3.1(@opentelemetry/api@1.10.0)
@@ -439,6 +445,9 @@ importers:
         specifier: workspace:^
         version: link:../logger
     devDependencies:
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -631,6 +640,9 @@ importers:
       protobufjs:
         specifier: ^8.8.1
         version: 8.8.1
+      redis:
+        specifier: ^6.3.1
+        version: 6.3.1(@opentelemetry/api@1.10.0)
 
 packages:
 

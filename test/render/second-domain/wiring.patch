@@ -61,14 +61,14 @@ index a5b126e..aeb6d41 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -72,6 +79,7 @@ export type InvoiceLinePorts = {
+@@ -73,6 +80,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
 +	invoiceLineCustomerReader: InvoiceLineCustomerReader;
  	// piece-start: live
+ 	// Best effort and never throws; call it after commit with no catch.
  	invoiceLineLiveUpdates: {
- 		send(update: {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
 index 91ec995..93916bd 100644
 --- a/src/domains/invoice-line/spi/index.ts
@@ -207,10 +207,10 @@ index 05a645f..9117d03 100644
  	invoiceLineGet: invoiceLineGet(ports),
  	invoiceLineList: invoiceLineList(ports),
 diff --git a/src/env.d.ts b/src/env.d.ts
-index 52f621f..63d52f3 100644
+index 43ee204..16c2538 100644
 --- a/src/env.d.ts
 +++ b/src/env.d.ts
-@@ -107,13 +107,26 @@ export type CoercedEnvSchema = {
+@@ -121,13 +121,26 @@ export type CoercedEnvSchema = {
     */
    OP_SERVICE_ACCOUNT_TOKEN?: string;
    
@@ -229,36 +229,36 @@ index 52f621f..63d52f3 100644
 +  
  };
  
--type _CoercedEnvSchema_16a23064 = CoercedEnvSchema;
-+type _CoercedEnvSchema_b7dc3a27 = CoercedEnvSchema;
+-type _CoercedEnvSchema_d5dd90bf = CoercedEnvSchema;
++type _CoercedEnvSchema_5e28a93f = CoercedEnvSchema;
  
  declare module 'varlock/env' {
--  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_16a23064> {}
--  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_16a23064, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
-+  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_b7dc3a27> {}
-+  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_b7dc3a27, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
+-  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_d5dd90bf> {}
+-  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_d5dd90bf, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT'>> {}
++  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_5e28a93f> {}
++  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_5e28a93f, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_CUSTOMER_STALE_ARCHIVE' | 'SCHEDULE_INVOICE_LINE_STALE_ARCHIVE'>> {}
  }
  
  
-@@ -123,17 +136,17 @@ export type EnvSchemaAsStrings = {
+@@ -137,17 +150,17 @@ export type EnvSchemaAsStrings = {
        : (NonNullable<CoercedEnvSchema[Property]> extends boolean ? ('true' | 'false') : string)
  };
  
--type _EnvSchemaAsStrings_16a23064 = EnvSchemaAsStrings;
-+type _EnvSchemaAsStrings_b7dc3a27 = EnvSchemaAsStrings;
+-type _EnvSchemaAsStrings_d5dd90bf = EnvSchemaAsStrings;
++type _EnvSchemaAsStrings_5e28a93f = EnvSchemaAsStrings;
  declare global {
  
    // add types for global import.meta.env
--  interface ImportMetaEnv extends _EnvSchemaAsStrings_16a23064 {}
-+  interface ImportMetaEnv extends _EnvSchemaAsStrings_b7dc3a27 {}
+-  interface ImportMetaEnv extends _EnvSchemaAsStrings_d5dd90bf {}
++  interface ImportMetaEnv extends _EnvSchemaAsStrings_5e28a93f {}
    interface ImportMeta {
      readonly env: ImportMetaEnv;
    }
  
    // add types for global process.env
    namespace NodeJS {
--    interface ProcessEnv extends _EnvSchemaAsStrings_16a23064 {}
-+    interface ProcessEnv extends _EnvSchemaAsStrings_b7dc3a27 {}
+-    interface ProcessEnv extends _EnvSchemaAsStrings_d5dd90bf {}
++    interface ProcessEnv extends _EnvSchemaAsStrings_5e28a93f {}
    }
  }
 \ No newline at end of file

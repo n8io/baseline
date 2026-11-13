@@ -8,10 +8,10 @@ pnpm add @n8io/baseline-postgres
 
 ## Exports
 
-- `postgresPoolCreate({ databaseUrl, max?, connectTimeoutMs?, vendor? })`: the process's one pool (10 connections, 3 s connect timeout). `vendor` takes pg's own pool settings, such as `ssl` or `idleTimeoutMillis`, and passes them through. The named options win: `vendor` throws on the keys they set, on `host`, `port`, `database`, `user` and `password` (pg lets the URL win, so put them in `databaseUrl`), and on `ssl` when the URL carries an `ssl*` parameter. It is outside the contract: nothing in it is tested here, and moving off pg deletes it.
+- `postgresPoolCreate({ databaseUrl, max?, connectTimeoutMs?, queryTimeoutMs?, vendor? })`: the process's one pool (10 connections, 3 s connect timeout). A query that takes longer than `queryTimeoutMs` (default 15 s, `null` for no limit) rejects with `Query read timeout`, so a server that stops answering cannot hold a request or a pool slot forever. The pool closes that connection; inside `postgresTransactionRun` it is closed once the rollback has been tried, which can take one more `queryTimeoutMs`. The timer runs in this process and sends no cancel: a server that is slow, not gone, may still finish the query, a write included, so treat the rejection as "unknown", not "did not happen". The limit is per query, inside a transaction too. An idle connection is probed after 10 s (TCP keep-alive). `vendor` takes pg's own pool settings, such as `ssl` or `idleTimeoutMillis`, and passes them through. The named options win: `vendor` throws on the keys they set, on `host`, `port`, `database`, `user` and `password` (pg lets the URL win, so put them in `databaseUrl`), and on `ssl` when the URL carries an `ssl*` parameter. It is outside the contract: nothing in it is tested here, and moving off pg deletes it.
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
 - `postgresTransactionRun({ pgPool, work, timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
-- `postgresMigrate({ databaseUrl, migrationsFolder, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
+- `postgresMigrate({ databaseUrl, migrationsFolder, lockWaitMs?, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. A run waits up to `lockWaitMs` (default 60 s) for the lock, then fails with an error that names it. The lock belongs to the session, so `databaseUrl` must reach Postgres itself: through a connection pooler such as PgBouncer the run refuses before it changes anything. Queries here have no time limit. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
 
@@ -49,8 +49,12 @@ const result = await postgresTransactionRun({
 ## Needs
 
 - Peers: `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`.
-- Env, by the template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`). Transactions use `transaction_timeout`, so Postgres 17 or newer.
+- Env, by the template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`), `DATABASE_POOL_MAX` for `max`, and `DATABASE_MIGRATE_URL` for `postgresMigrate` where `DATABASE_URL` goes through a pooler. Transactions use `transaction_timeout`, so Postgres 17 or newer.
+
+## Sizing the pool
+
+Every process opens up to `max` connections, and Postgres refuses new ones past its `max_connections`. Keep the sum over every process (`max` times the number of processes, counting the extra ones a rollout starts) under that limit, with a few left for migrate and for people. Behind a pooler, keep it under the pooler's limit instead.
 
 ## Tests
 
-`pnpm test` needs Docker: it starts a Postgres container.
+`pnpm test` needs Docker: it starts a Postgres container and, for the migrate tests, PgBouncer.
