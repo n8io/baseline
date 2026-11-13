@@ -77,15 +77,15 @@ describe("app-create", () => {
 	it("saves the answers template-upgrade reads back in .template.json", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
-		answersWrite(
+		answersWrite({
 			directory,
-			{
+			answers: {
 				description: "Invoices.",
 				name: "invoicing",
 				release: "1.0.1",
 			},
-			[{ definition: "A charge.", term: "Invoice line" }],
-		);
+			terms: [{ definition: "A charge.", term: "Invoice line" }],
+		});
 
 		expect(JSON.parse(read(directory, ".template.json"))).toEqual({
 			description: "Invoices.",

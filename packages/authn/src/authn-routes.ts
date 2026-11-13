@@ -59,26 +59,49 @@ const returnToQuery = (c: Context): string =>
  * provider may already have rotated it, so it must survive a verify that throws (an outage).
  * No refresh token clears the old one, so a new sign-in never inherits another's.
  */
-const tokensStore = async (
-	c: Context,
-	authn: AuthnState,
-	tokens: AuthnTokens,
-): Promise<number | undefined> => {
+const tokensStore = async ({
+	authn,
+	c,
+	tokens,
+}: {
+	authn: AuthnState;
+	c: Context;
+	tokens: AuthnTokens;
+}): Promise<number | undefined> => {
 	if (tokens.refreshToken === undefined) authnCookieClear(c, "refresh");
-	else await authnCookieSet(c, authn.cookieKey, "refresh", tokens.refreshToken);
+	else
+		await authnCookieSet({
+			c,
+			key: authn.cookieKey,
+			name: "refresh",
+			value: tokens.refreshToken,
+		});
 	const verified = await authn.verify(tokens.accessToken);
 	if (verified.status !== "valid") return undefined;
-	await authnCookieSet(c, authn.cookieKey, "access", tokens.accessToken);
+	await authnCookieSet({
+		c,
+		key: authn.cookieKey,
+		name: "access",
+		value: tokens.accessToken,
+	});
 	return verified.expiresAt;
 };
 
 // Another tab may have refreshed already; its cookie is then fresh and needs no grant.
-const accessFreshFor = async (
-	c: Context,
-	authn: AuthnState,
-	minimumMs: number,
-): Promise<number | undefined> => {
-	const accessToken = await authnCookieGet(c, authn.cookieKey, "access");
+const accessFreshFor = async ({
+	authn,
+	c,
+	minimumMs,
+}: {
+	authn: AuthnState;
+	c: Context;
+	minimumMs: number;
+}): Promise<number | undefined> => {
+	const accessToken = await authnCookieGet({
+		c,
+		key: authn.cookieKey,
+		name: "access",
+	});
 	if (accessToken === undefined || accessToken === "invalid") return undefined;
 	// Read `exp` before verifying, so an expiring token costs no JWKS lookup.
 	let exp: number | undefined;
@@ -98,21 +121,26 @@ const accessFreshFor = async (
 
 const refreshSkipMs = 60_000;
 
-const signInStart = async (
-	c: Context,
-	authn: AuthnState,
-	issuer: AuthnOidcIssuer,
-	returnTo: string,
-): Promise<Response> => {
+const signInStart = async ({
+	authn,
+	c,
+	issuer,
+	returnTo,
+}: {
+	authn: AuthnState;
+	c: Context;
+	issuer: AuthnOidcIssuer;
+	returnTo: string;
+}): Promise<Response> => {
 	const codeVerifier = randomPKCECodeVerifier();
 	const nonce = randomNonce();
 	const state = randomState();
-	await authnCookieSet(
+	await authnCookieSet({
 		c,
-		authn.cookieKey,
-		"flow",
-		JSON.stringify({ codeVerifier, nonce, returnTo, state }),
-	);
+		key: authn.cookieKey,
+		name: "flow",
+		value: JSON.stringify({ codeVerifier, nonce, returnTo, state }),
+	});
 	const url = buildAuthorizationUrl(issuer.config, {
 		scope: "openid offline_access",
 		...issuer.authorizeParams,
@@ -125,12 +153,20 @@ const signInStart = async (
 	return c.redirect(url.href, 302);
 };
 
-const callback = async (
-	c: Context,
-	authn: AuthnState,
-	config: Configuration,
-): Promise<Response> => {
-	const flowCookie = await authnCookieGet(c, authn.cookieKey, "flow");
+const callback = async ({
+	authn,
+	c,
+	config,
+}: {
+	authn: AuthnState;
+	c: Context;
+	config: Configuration;
+}): Promise<Response> => {
+	const flowCookie = await authnCookieGet({
+		c,
+		key: authn.cookieKey,
+		name: "flow",
+	});
 	authnCookieClear(c, "flow");
 	const flow =
 		flowCookie === undefined || flowCookie === "invalid"
@@ -146,9 +182,13 @@ const callback = async (
 			idTokenExpected: true,
 			pkceCodeVerifier: flow.codeVerifier,
 		});
-		const stored = await tokensStore(c, authn, {
-			accessToken: tokens.access_token,
-			refreshToken: tokens.refresh_token,
+		const stored = await tokensStore({
+			c,
+			authn,
+			tokens: {
+				accessToken: tokens.access_token,
+				refreshToken: tokens.refresh_token,
+			},
 		});
 		if (stored === undefined) {
 			return c.html(authnSignInFailedPage(flow.returnTo), 400);
@@ -188,13 +228,17 @@ const refreshRun = async (
 	c: Context,
 	authn: AuthnState,
 ): Promise<number | undefined> => {
-	const fresh = await accessFreshFor(c, authn, refreshSkipMs);
+	const fresh = await accessFreshFor({ c, authn, minimumMs: refreshSkipMs });
 	if (fresh !== undefined) return fresh;
-	const refreshToken = await authnCookieGet(c, authn.cookieKey, "refresh");
+	const refreshToken = await authnCookieGet({
+		c,
+		key: authn.cookieKey,
+		name: "refresh",
+	});
 	if (refreshToken === undefined || refreshToken === "invalid")
 		return undefined;
 	const tokens = await tokensRefresh(authn, refreshToken);
-	return tokens === undefined ? undefined : tokensStore(c, authn, tokens);
+	return tokens === undefined ? undefined : tokensStore({ c, authn, tokens });
 };
 
 /**
@@ -237,7 +281,11 @@ const refreshTokenRevoke = async (
 };
 
 const signOut = async (c: Context, authn: AuthnState): Promise<Response> => {
-	const refreshToken = await authnCookieGet(c, authn.cookieKey, "refresh");
+	const refreshToken = await authnCookieGet({
+		c,
+		key: authn.cookieKey,
+		name: "refresh",
+	});
 	authnCookieClear(c, "access");
 	authnCookieClear(c, "refresh");
 	if (authn.issuer.kind === "memory") return c.redirect("/", 302);
@@ -272,7 +320,7 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 	routes.get("/sign-in", (c) =>
 		issuer.kind === "memory"
 			? c.html(authnMemorySignInPage(returnToQuery(c)))
-			: signInStart(c, state, issuer, returnToQuery(c)),
+			: signInStart({ c, authn: state, issuer, returnTo: returnToQuery(c) }),
 	);
 	routes.get("/refresh", (c) => refresh(c, state));
 	routes.post("/sign-out", (c) => signOut(c, state));
@@ -281,7 +329,7 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 			const form = MemorySignIn.safeParse(await c.req.parseBody());
 			if (!form.success) return c.body(null, 400);
 			const tokens = await issuer.tokensCreate(issuer.devActors[form.data.who]);
-			if ((await tokensStore(c, state, tokens)) === undefined) {
+			if ((await tokensStore({ c, authn: state, tokens })) === undefined) {
 				throw new TypeError(
 					"authn: actorFromClaims rejected a memory issuer token",
 				);
@@ -290,7 +338,7 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 		});
 	} else {
 		const { config } = issuer;
-		routes.get("/callback", (c) => callback(c, state, config));
+		routes.get("/callback", (c) => callback({ c, authn: state, config }));
 	}
 	return routes;
 };

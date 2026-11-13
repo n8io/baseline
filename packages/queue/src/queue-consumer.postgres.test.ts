@@ -55,11 +55,14 @@ afterAll(async () => {
 const fooCreated = z.object({ fooId: z.string() });
 
 const publish = async (data: unknown): Promise<void> => {
-	await postgresTransactionRun(pgPool, async (pgClient) => {
-		await queueEventsCreate(queue)
-			.publisherCreate<{ "foo.created": unknown }>(pgClient)
-			.publish("foo.created", data);
-		return ok(undefined);
+	await postgresTransactionRun({
+		pgPool,
+		work: async (pgClient) => {
+			await queueEventsCreate(queue)
+				.publisherCreate<{ "foo.created": unknown }>(pgClient)
+				.publish("foo.created", data);
+			return ok(undefined);
+		},
 	});
 };
 
@@ -72,9 +75,9 @@ describe("consumersStart", () => {
 			inbox: Inbox,
 		): Promise<Result<undefined, { type: string }>> => {
 			calls.push(inbox);
-			const result = await postgresTransactionRun<undefined, { type: string }>(
+			const result = await postgresTransactionRun<undefined, { type: string }>({
 				pgPool,
-				async (pgClient) => {
+				work: async (pgClient) => {
 					if (!(await queueInboxInsert(pgClient, inbox))) {
 						return ok(undefined);
 					}
@@ -83,19 +86,19 @@ describe("consumersStart", () => {
 					]);
 					return ok(undefined);
 				},
-			);
+			});
 			if (calls.length === 1) {
 				throw new Error("Connection lost after commit");
 			}
 			return result;
 		};
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate(
-				"billing.foo-created",
-				"foo.created",
-				fooCreated,
-				invoiceCreate,
-			),
+			queueConsumerCreate({
+				queueName: "billing.foo-created",
+				eventName: "foo.created",
+				schema: fooCreated,
+				run: invoiceCreate,
+			}),
 		]);
 
 		await publish({ fooId: "foo_1" });
@@ -125,9 +128,9 @@ describe("consumersStart", () => {
 			inbox: Inbox,
 		): Promise<Result<undefined, { type: string }>> => {
 			calls.push(inbox);
-			const result = await postgresTransactionRun<undefined, { type: string }>(
+			const result = await postgresTransactionRun<undefined, { type: string }>({
 				pgPool,
-				async (pgClient) => {
+				work: async (pgClient) => {
 					if (!(await queueInboxInsert(pgClient, inbox))) {
 						return ok(undefined);
 					}
@@ -136,19 +139,19 @@ describe("consumersStart", () => {
 					]);
 					return ok(undefined);
 				},
-			);
+			});
 			if (calls.length < 3) {
 				throw new Error("Connection lost after commit");
 			}
 			return result;
 		};
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate(
-				"billing.foo-archived",
-				"foo.archived",
-				fooCreated,
-				invoiceArchive,
-			),
+			queueConsumerCreate({
+				queueName: "billing.foo-archived",
+				eventName: "foo.archived",
+				schema: fooCreated,
+				run: invoiceArchive,
+			}),
 		]);
 		const boss = queueBossGet(queue);
 		// No retries, so each failure goes straight to the dead-letter queue.
@@ -163,11 +166,14 @@ describe("consumersStart", () => {
 			);
 		};
 
-		await postgresTransactionRun(pgPool, async (pgClient) => {
-			await queueEventsCreate(queue)
-				.publisherCreate<{ "foo.archived": unknown }>(pgClient)
-				.publish("foo.archived", { fooId: "foo_2" });
-			return ok(undefined);
+		await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				await queueEventsCreate(queue)
+					.publisherCreate<{ "foo.archived": unknown }>(pgClient)
+					.publish("foo.archived", { fooId: "foo_2" });
+				return ok(undefined);
+			},
 		});
 		await deadLettered();
 		expect(await boss.redrive("billing.foo-archived.dead")).toBe(1);
@@ -197,7 +203,12 @@ describe("consumersStart", () => {
 	it("fails a job whose data does not match the schema, without echoing it", async () => {
 		const run = vi.fn(async () => ok(undefined));
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate("audit.foo-created", "foo.created", fooCreated, run),
+			queueConsumerCreate({
+				queueName: "audit.foo-created",
+				eventName: "foo.created",
+				schema: fooCreated,
+				run,
+			}),
 		]);
 
 		await publish({ fooId: 42, secret: "hunter2" });
@@ -222,25 +233,28 @@ describe("consumersStart trace context", () => {
 	it("runs the Consumer in the publishing request's trace", async () => {
 		let consumerTraceId: string | undefined;
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate(
-				"billing.foo-traced",
-				"foo.traced",
-				fooCreated,
-				async () => {
+			queueConsumerCreate({
+				queueName: "billing.foo-traced",
+				eventName: "foo.traced",
+				schema: fooCreated,
+				run: async () => {
 					consumerTraceId = trace.getActiveSpan()?.spanContext().traceId;
 					return ok(undefined);
 				},
-			),
+			}),
 		]);
 
 		const publisherTraceId = await trace
 			.getTracer("test")
 			.startActiveSpan("fooCreate", async (span) => {
-				await postgresTransactionRun(pgPool, async (pgClient) => {
-					await queueEventsCreate(queue)
-						.publisherCreate<{ "foo.traced": unknown }>(pgClient)
-						.publish("foo.traced", { fooId: "foo_3" });
-					return ok(undefined);
+				await postgresTransactionRun({
+					pgPool,
+					work: async (pgClient) => {
+						await queueEventsCreate(queue)
+							.publisherCreate<{ "foo.traced": unknown }>(pgClient)
+							.publish("foo.traced", { fooId: "foo_3" });
+						return ok(undefined);
+					},
 				});
 				span.end();
 				return span.spanContext().traceId;
@@ -256,12 +270,12 @@ describe("consumersStart trace context", () => {
 describe("queueConsumerCreate", () => {
 	it("parses the event and passes the inbox through", async () => {
 		const run = vi.fn(async () => ok("done"));
-		const consumer = queueConsumerCreate(
-			"billing.foo-created",
-			"foo.created",
-			fooCreated,
+		const consumer = queueConsumerCreate({
+			queueName: "billing.foo-created",
+			eventName: "foo.created",
+			schema: fooCreated,
 			run,
-		);
+		});
 		const inbox = { consumer: "billing.foo-created", eventId: "job-1" };
 
 		expect(await consumer.run({ extra: 1, fooId: "foo_1" }, inbox)).toEqual(
@@ -278,7 +292,11 @@ describe("queueConsumerCreate", () => {
 describe("queueJobRun", () => {
 	it("completes on ok", async () => {
 		await expect(
-			queueJobRun("billing.foo-created", { retryCount: 0 }, async () => ok(1)),
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { retryCount: 0 },
+				work: async () => ok(1),
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -289,9 +307,11 @@ describe("queueJobRun", () => {
 		} as unknown as ReturnType<typeof trace.getActiveSpan>);
 
 		await expect(
-			queueJobRun("billing.foo-created", { retryCount: 0 }, async () =>
-				err({ type: "FooNotFound" }),
-			),
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { retryCount: 0 },
+				work: async () => err({ type: "FooNotFound" }),
+			}),
 		).resolves.toBeUndefined();
 		expect(setAttribute).toHaveBeenCalledWith("error.type", "FooNotFound");
 	});
@@ -306,11 +326,19 @@ describe("queueJobRun", () => {
 		};
 
 		await expect(
-			queueJobRun("billing.foo-created", { retryCount: 3 }, boom),
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { retryCount: 3 },
+				work: boom,
+			}),
 		).rejects.toThrow("boom");
 		expect(add).not.toHaveBeenCalled();
 		await expect(
-			queueJobRun("billing.foo-created", { retryCount: 4 }, boom),
+			queueJobRun({
+				queueName: "billing.foo-created",
+				job: { retryCount: 4 },
+				work: boom,
+			}),
 		).rejects.toThrow("boom");
 		expect(add).toHaveBeenCalledWith(1, {
 			"messaging.destination.name": "billing.foo-created",

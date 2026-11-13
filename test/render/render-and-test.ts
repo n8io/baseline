@@ -68,32 +68,44 @@ const main = async () => {
 	const version = `${(JSON.parse(manifest) as { version: string }).version}-checkout`;
 
 	console.log(`origin/main: app@${previous} with no domain`);
-	await appRender(directory, previousFiles, answers);
-	answersWrite(
+	await appRender({ directory, files: previousFiles, answers });
+	answersWrite({
 		directory,
-		{ ...answers, release: previous },
-		domains.map((d) => ({
+		answers: { ...answers, release: previous },
+		terms: domains.map((d) => ({
 			definition: d.definition,
 			term: glossaryTerm(d.kebab),
 		})),
-	);
+	});
 	// The template's lockfile drops our own packages, so this install adds them.
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, previousFiles);
 	gitCommitAll(directory, `Create render-test from app@${previous}`);
-	run("git", ["update-ref", "refs/remotes/origin/main", "HEAD"], {
-		cwd: directory,
+	run({
+		command: "git",
+		args: ["update-ref", "refs/remotes/origin/main", "HEAD"],
+		options: {
+			cwd: directory,
+		},
 	});
 
 	console.log(`HEAD: template-upgrade to this checkout (${version})`);
-	const { conflicts } = await templateUpgrade(directory, version, {
-		fetch: (release) => (release === version ? files : previousFiles),
-		finish: (tree) => templateFinish(tree, toolsDirectory),
+	const { conflicts } = await templateUpgrade({
+		appDirectory: directory,
+		to: version,
+		tools: {
+			fetch: (release) => (release === version ? files : previousFiles),
+			finish: (tree) => templateFinish(tree, toolsDirectory),
+		},
 	});
 	if (conflicts.length > 0) {
 		throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
 	}
-	const upgraded = run("git", ["status", "--porcelain"], { cwd: directory });
+	const upgraded = run({
+		command: "git",
+		args: ["status", "--porcelain"],
+		options: { cwd: directory },
+	});
 	console.log(`template-upgrade changed:\n${upgraded || "(nothing)"}`);
 	checkoutPackagesUse(directory);
 	// template-upgrade leaves the project's lockfile alone, so the ranges this checkout changed
@@ -109,7 +121,11 @@ const main = async () => {
 	for (const names of domains) {
 		const refusal = domainNameRefusal(names, directory);
 		if (refusal !== undefined) throw new Error(refusal);
-		const created = domainFilesCreate(files, directory, names);
+		const created = domainFilesCreate({
+			templateFull: files,
+			appDirectory: directory,
+			names,
+		});
 		filesWrite(directory, created);
 		pnpmRun(directory, [
 			"exec",
@@ -126,8 +142,12 @@ const main = async () => {
 		return;
 	}
 	cpSync(join(fixture, "files"), directory, { recursive: true });
-	run("git", ["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")], {
-		cwd: directory,
+	run({
+		command: "git",
+		args: ["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")],
+		options: {
+			cwd: directory,
+		},
 	});
 	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
 	pnpmRun(directory, ["codegen"]);

@@ -164,16 +164,16 @@ describe("queueCreate", () => {
 		const boss = queueBossGet(queue);
 		const finished: string[] = [];
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate(
-				"bar.foo-created",
-				"foo.created",
-				z.object({}),
-				async () => {
+			queueConsumerCreate({
+				queueName: "bar.foo-created",
+				eventName: "foo.created",
+				schema: z.object({}),
+				run: async () => {
 					await setTimeout(1_500);
 					finished.push("run");
 					return ok(undefined);
 				},
-			),
+			}),
 		]);
 		await boss.publish("foo.created", {});
 		await vi.waitFor(
@@ -214,15 +214,15 @@ describe("queueCreate", () => {
 		const queue = await start(poolCreate(), "worker");
 		const boss = queueBossGet(queue);
 		await queueEventsCreate(queue).consumersStart([
-			queueConsumerCreate(
-				"baz.foo-deleted",
-				"foo.deleted",
-				z.object({}),
-				async () => {
+			queueConsumerCreate({
+				queueName: "baz.foo-deleted",
+				eventName: "foo.deleted",
+				schema: z.object({}),
+				run: async () => {
 					await setTimeout(5_000);
 					return ok(undefined);
 				},
-			),
+			}),
 		]);
 		await boss.publish("foo.deleted", {});
 		await vi.waitFor(

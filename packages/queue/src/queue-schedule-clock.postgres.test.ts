@@ -40,7 +40,7 @@ const scheduleRegister = async (
 	cron: string,
 ): Promise<void> => {
 	const boss = await bossStart(clock, { schedule: false });
-	await queueWithDeadLetterCreate(boss, name, { policy: "exclusive" });
+	await queueWithDeadLetterCreate({ boss, name, policy: "exclusive" });
 	await boss.schedule(name, cron, null, { missed: "once", tz: "UTC" });
 	await boss.stop({ graceful: false });
 	bosses.splice(bosses.indexOf(boss), 1);

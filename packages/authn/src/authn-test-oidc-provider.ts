@@ -43,7 +43,15 @@ export const authnTestOidcProviderCreate = async (
 		revokeFails: false,
 		rotate: true,
 	};
-	const sign = (claims: JWTPayload, audience: string, sub: string) =>
+	const sign = ({
+		audience,
+		claims,
+		sub,
+	}: {
+		audience: string;
+		claims: JWTPayload;
+		sub: string;
+	}) =>
 		new SignJWT(claims)
 			.setProtectedHeader({ alg: "RS256", kid: "k1" })
 			.setIssuer(idpOrigin)
@@ -59,16 +67,22 @@ export const authnTestOidcProviderCreate = async (
 		const refreshToken = randomUUID();
 		refreshTokens.add(refreshToken);
 		return {
-			access_token: await sign(
-				{ scope: grant.scope },
-				options.accessAudience,
-				grant.sub,
-			),
+			access_token: await sign({
+				claims: { scope: grant.scope },
+				audience: options.accessAudience,
+				sub: grant.sub,
+			}),
 			expires_in: 600,
 			refresh_token: refreshToken,
 			token_type: "Bearer",
 			...(withIdToken
-				? { id_token: await sign({ nonce: grant.nonce }, clientId, grant.sub) }
+				? {
+						id_token: await sign({
+							claims: { nonce: grant.nonce },
+							audience: clientId,
+							sub: grant.sub,
+						}),
+					}
 				: {}),
 		};
 	};
@@ -134,7 +148,11 @@ export const authnTestOidcProviderCreate = async (
 
 	return {
 		accessToken: (sub = "user-1") =>
-			sign({ scope: "foo:read" }, options.accessAudience, sub),
+			sign({
+				claims: { scope: "foo:read" },
+				audience: options.accessAudience,
+				sub,
+			}),
 		app,
 		authorize: (authorizeUrl, sub = "user-1") => {
 			const params = new URL(authorizeUrl).searchParams;

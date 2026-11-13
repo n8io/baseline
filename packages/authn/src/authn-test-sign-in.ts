@@ -41,11 +41,11 @@ export const authnTestSignIn = async ({
 	const access = pairs.find((pair) => pair?.startsWith(prefix));
 	if (access === undefined) throw new Error(`sign-in failed: ${res.status}`);
 	const accessCookie = access.slice(prefix.length);
-	const token = await authnCookieOpen(
-		authnCookieKey(secret),
-		"access",
-		accessCookie,
-	);
+	const token = await authnCookieOpen({
+		key: authnCookieKey(secret),
+		name: "access",
+		sealed: accessCookie,
+	});
 	if (token === "invalid") {
 		throw new Error("the access cookie did not open with this secret");
 	}

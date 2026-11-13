@@ -260,7 +260,15 @@ const nearExpiry = () => {
 	vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
 };
 
-const refreshGet = (app: Hono, jar: CookieJar, query = "") =>
+const refreshGet = ({
+	app,
+	jar,
+	query = "",
+}: {
+	app: Hono;
+	jar: CookieJar;
+	query?: string;
+}) =>
 	app.request(`${appOrigin}/auth/refresh${query}`, {
 		headers: { Cookie: jar.header() },
 	});
@@ -271,21 +279,21 @@ describe("OIDC refresh", () => {
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
 		nearExpiry();
-		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
+		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 		jar.store(res);
 
 		expect(res.headers.get("Location")).toBe("/foos");
 		expect(provider.refreshTokens.has(before[0] ?? "")).toBe(false);
 		expect(provider.refreshTokens.size).toBe(1);
 		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
-		expect((await refreshGet(app, jar)).status).toBe(200);
+		expect((await refreshGet({ app, jar })).status).toBe(200);
 	});
 
 	it("answers without a grant while the access cookie has over a minute left", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
-		const res = await refreshGet(app, jar);
+		const res = await refreshGet({ app, jar });
 
 		expect(res.status).toBe(200);
 		expect(
@@ -299,10 +307,10 @@ describe("OIDC refresh", () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		nearExpiry();
-		const first = await refreshGet(app, jar);
+		const first = await refreshGet({ app, jar });
 		jar.store(first);
 		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
-		const second = await refreshGet(app, jar);
+		const second = await refreshGet({ app, jar });
 
 		expect(first.status).toBe(200);
 		expect(authnSetCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
@@ -314,7 +322,7 @@ describe("OIDC refresh", () => {
 		const { jar } = await signIn(app);
 		provider.refreshTokens.clear();
 		nearExpiry();
-		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
+		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
 		expect(res.headers.getSetCookie()).toStrictEqual([]);
@@ -327,7 +335,7 @@ describe("OIDC refresh", () => {
 		vi.useFakeTimers({ now: Date.now() + 11 * 60_000, toFake: ["Date"] });
 		provider.options.jwksFails = true;
 		vi.spyOn(logger, "error").mockImplementation(() => undefined);
-		const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
+		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 		expect(res.status).toBe(500);
 		expect(provider.refreshTokens.size).toBe(1);
@@ -360,7 +368,7 @@ describe("OIDC refresh", () => {
 			const logError = vi
 				.spyOn(logger, "error")
 				.mockImplementation(() => undefined);
-			const res = await refreshGet(app, jar, "?returnTo=%2Ffoos");
+			const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 			expect(res.status).toBe(500);
 			expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeUndefined();

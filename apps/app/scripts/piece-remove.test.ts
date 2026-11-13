@@ -17,12 +17,29 @@ import {
 import { run } from "./template-render.ts";
 
 // Built, never written out, so a removal run over this file finds no block in it.
-const marker = (edge: "end" | "start", piece: string, comment = "//") =>
-	`${comment} piece-${edge}: ${piece}`;
-const block = (piece: string, body: string, comment = "//") =>
-	[marker("start", piece, comment), body, marker("end", piece, comment)].join(
-		"\n",
-	);
+const marker = ({
+	comment = "//",
+	edge,
+	piece,
+}: {
+	comment?: string;
+	edge: "end" | "start";
+	piece: string;
+}) => `${comment} piece-${edge}: ${piece}`;
+const block = ({
+	body,
+	comment = "//",
+	piece,
+}: {
+	body: string;
+	comment?: string;
+	piece: string;
+}) =>
+	[
+		marker({ comment, edge: "start", piece }),
+		body,
+		marker({ comment, edge: "end", piece }),
+	].join("\n");
 
 const manifest = {
 	dependencies: {
@@ -61,8 +78,8 @@ const projectFiles: Record<string, string> = {
 	".env.production": "PORT=3000\nMIXPANEL_TOKEN=op(op://app/mixpanel/token)\n",
 	".env.test": "CACHE_URL=memory://\nPORT=3000\n",
 	"biome.json": `${JSON.stringify({ css: {}, files: { includes: ["**", "!.react-router"] } }, null, "\t")}\n`,
-	"compose.yaml": `services:\n${block("redis", "  redis:\n    image: redis", "#")}\n  postgres:\n    image: postgres\n`,
-	"docs/agents/pieces.md": `${block("live", "Kept: docs are left alone.")}\n`,
+	"compose.yaml": `services:\n${block({ body: "  redis:\n    image: redis", comment: "#", piece: "redis" })}\n  postgres:\n    image: postgres\n`,
+	"docs/agents/pieces.md": `${block({ body: "Kept: docs are left alone.", piece: "live" })}\n`,
 	"package.json": `${JSON.stringify(manifest, null, "\t")}\n`,
 	"public/favicon.ico": "icon",
 	"src/domains/invoice/api/invoice-live.test.ts": "test\n",
@@ -84,10 +101,10 @@ const projectFiles: Record<string, string> = {
 		'import { Hono } from "hono";',
 		"",
 		"export const app = new Hono();",
-		block("live", 'app.route("/live", liveRoutes);'),
-		block("cache", "\tcache: redisClient,"),
-		block("analytics", "\tanalytics: analyticsOpen(),"),
-		block("error-tracking", "errorTrackingOpen();"),
+		block({ body: 'app.route("/live", liveRoutes);', piece: "live" }),
+		block({ body: "\tcache: redisClient,", piece: "cache" }),
+		block({ body: "\tanalytics: analyticsOpen(),", piece: "analytics" }),
+		block({ body: "errorTrackingOpen();", piece: "error-tracking" }),
 		"",
 	].join("\n"),
 	"src/ui/routes/home.tsx": "home\n",
@@ -108,8 +125,12 @@ const projectCreate = (
 		writeFileSync(join(directory, path), text);
 	}
 	const git = (...args: string[]) =>
-		run("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
-			cwd: directory,
+		run({
+			command: "git",
+			args: ["-c", "user.name=t", "-c", "user.email=t@t", ...args],
+			options: {
+				cwd: directory,
+			},
 		});
 	git("init", "--quiet");
 	git("add", "-A");
@@ -128,13 +149,21 @@ const manifestWrite = (
 		join(directory, "package.json"),
 		JSON.stringify({ ...manifest, dependencies }),
 	);
-	run(
-		"git",
-		["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "Remove"],
-		{
+	run({
+		command: "git",
+		args: [
+			"-c",
+			"user.name=t",
+			"-c",
+			"user.email=t@t",
+			"commit",
+			"-qam",
+			"Remove",
+		],
+		options: {
 			cwd: directory,
 		},
-	);
+	});
 };
 
 describe("pieceRemoveRefusal", () => {
@@ -202,7 +231,7 @@ describe("pieceFilesRemove", () => {
 		expect(read(directory, "src/server.ts")).not.toContain("liveRoutes");
 		expect(read(directory, "src/server.ts")).toContain("cache: redisClient");
 		expect(read(directory, "docs/agents/pieces.md")).toContain(
-			marker("start", "live"),
+			marker({ edge: "start", piece: "live" }),
 		);
 	});
 
@@ -341,7 +370,7 @@ describe("pieceFilesRemove", () => {
 
 	it("fails when a block has no end", () => {
 		using folder = projectCreate({
-			"src/env.ts": `${marker("start", "cache")}\nconst a = 1;\n`,
+			"src/env.ts": `${marker({ edge: "start", piece: "cache" })}\nconst a = 1;\n`,
 		});
 		const directory = folder.path;
 		expect(() => pieceFilesRemove(directory, "cache")).toThrow(

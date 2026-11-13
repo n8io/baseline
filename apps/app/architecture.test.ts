@@ -60,13 +60,17 @@ describe("architecture", () => {
 
 	// The regex checks of A11 and A14 also pass the corrected sample.
 	it.each([
-		[
-			"a11-bridge-writes.txt",
-			"\tensure: (name) => u.bazCreate(actor, { name }),\n",
-			"",
-		],
-		["a14-column-without-consumer.txt", '"baz.created"', '"baz.deleted"'],
-	])("%s passes once fixed", async (name, from, to) => {
+		{
+			from: "\tensure: (name) => u.bazCreate(actor, { name }),\n",
+			name: "a11-bridge-writes.txt",
+			to: "",
+		},
+		{
+			from: '"baz.created"',
+			name: "a14-column-without-consumer.txt",
+			to: '"baz.deleted"',
+		},
+	])("$name passes once fixed", async ({ from, name, to }) => {
 		const sample = samples.find((s) => s.name === name);
 		const fixed = await Promise.all(
 			(sample?.files ?? []).map((f) =>

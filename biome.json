@@ -37,6 +37,7 @@
 				"noUselessThisAlias": "error",
 				"noUselessTypeConstraint": "error",
 				"noUselessUndefinedInitialization": "error",
+				"useMaxParams": { "level": "error", "options": { "max": 2 } },
 				"useArrowFunction": "error",
 				"useDateNow": "error",
 				"useFlatMap": "error",

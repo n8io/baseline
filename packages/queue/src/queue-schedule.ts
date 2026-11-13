@@ -10,11 +10,15 @@ export type Schedule = {
 };
 
 // name is `<domain>.<use case words, kebab>` (foo.stale-archive); cron is UTC, minute precision.
-export const queueScheduleCreate = (
-	name: string,
-	cron: string,
-	run: () => Promise<Result<unknown, { type: string }>>,
-): Schedule => ({ cron, name, run });
+export const queueScheduleCreate = ({
+	cron,
+	name,
+	run,
+}: {
+	cron: string;
+	name: string;
+	run: () => Promise<Result<unknown, { type: string }>>;
+}): Schedule => ({ cron, name, run });
 
 // foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE
 export const queueScheduleEnvName = (name: string): string =>
@@ -22,17 +26,21 @@ export const queueScheduleEnvName = (name: string): string =>
 
 // Registers each schedule (worker process only) and unschedules any pg-boss holds that is no longer
 // in code or is turned `off`. Every override is validated before anything registers.
-export const queueSchedulesRegister = async (
-	queue: Queue,
-	schedules: Schedule[],
-	// env is the composition root's ENV (or any object): an undeclared or non-string item means no override.
-	options: { env: object },
-): Promise<void> => {
+export const queueSchedulesRegister = async ({
+	env,
+	queue,
+	schedules,
+}: {
+	// The composition root's ENV (or any object): an undeclared or non-string item means no override.
+	env: object;
+	queue: Queue;
+	schedules: Schedule[];
+}): Promise<void> => {
 	const boss = queueBossGet(queue);
 	const active: { schedule: Schedule; cron: string }[] = [];
 	for (const schedule of schedules) {
 		const variable = queueScheduleEnvName(schedule.name);
-		const value: unknown = Reflect.get(options.env, variable);
+		const value: unknown = Reflect.get(env, variable);
 		const override = typeof value === "string" ? value : undefined;
 		if (override === "off") {
 			continue;
@@ -52,7 +60,9 @@ export const queueSchedulesRegister = async (
 	}
 	for (const { cron, schedule } of active) {
 		// exclusive: one job queued or active, so a tick while a run is active is skipped.
-		await queueWithDeadLetterCreate(boss, schedule.name, {
+		await queueWithDeadLetterCreate({
+			boss,
+			name: schedule.name,
 			policy: "exclusive",
 		});
 		await boss.schedule(schedule.name, cron, null, {
@@ -61,7 +71,11 @@ export const queueSchedulesRegister = async (
 		});
 		await boss.work(schedule.name, async (jobs) => {
 			for (const job of jobs) {
-				await queueJobRun(schedule.name, job, schedule.run);
+				await queueJobRun({
+					queueName: schedule.name,
+					job,
+					work: schedule.run,
+				});
 			}
 		});
 	}

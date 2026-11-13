@@ -74,12 +74,12 @@ describe("queueMigrate", () => {
 		await queueMigrate({ databaseUrl });
 		const queue = await start();
 		await queueEventsCreate(queue).consumersSubscribe([
-			queueConsumerCreate(
-				"bar.foo-created",
-				"foo.created",
-				z.object({}),
-				async () => ok(undefined),
-			),
+			queueConsumerCreate({
+				queueName: "bar.foo-created",
+				eventName: "foo.created",
+				schema: z.object({}),
+				run: async () => ok(undefined),
+			}),
 		]);
 		await queue.stop();
 		queues.splice(0);

@@ -31,16 +31,20 @@ export type DomainNames = { kebab: string; plural: string };
 const templateRepository = "n8io/baseline";
 
 // Runs a command and returns its stdout; `inherit` shows its output instead.
-export const run = (
-	command: string,
-	args: string[],
-	options: {
+export const run = ({
+	args,
+	command,
+	options = {},
+}: {
+	args: string[];
+	command: string;
+	options?: {
 		cwd?: string;
 		env?: NodeJS.ProcessEnv;
 		inherit?: boolean;
 		input?: string;
-	} = {},
-): string =>
+	};
+}): string =>
 	execFileSync(command, args, {
 		cwd: options.cwd,
 		encoding: "utf8",
@@ -78,7 +82,15 @@ const modesRead = (text: string, path: string): Mode[] => {
 	let braceDepth = 0;
 	let i = 0;
 	let previous = "";
-	const mark = (from: number, to: number, mode: Mode) => {
+	const mark = ({
+		from,
+		mode,
+		to,
+	}: {
+		from: number;
+		mode: Mode;
+		to: number;
+	}) => {
 		for (let k = from; k < to && k < text.length; k++) modes[k] = mode;
 	};
 	const stringSkip = (quote: string): number => {
@@ -104,16 +116,16 @@ const modesRead = (text: string, path: string): Mode[] => {
 		if (c === "/" && next === "/") {
 			const end = text.indexOf("\n", i);
 			const to = end === -1 ? text.length : end;
-			mark(i, to, "comment");
+			mark({ from: i, to, mode: "comment" });
 			i = to;
 		} else if (c === "/" && next === "*") {
 			const end = text.indexOf("*/", i + 2);
 			const to = end === -1 ? text.length : end + 2;
-			mark(i, to, "comment");
+			mark({ from: i, to, mode: "comment" });
 			i = to;
 		} else if (c === '"' || c === "'") {
 			const to = stringSkip(c);
-			mark(i, to, "string");
+			mark({ from: i, to, mode: "string" });
 			i = to;
 			previous = c;
 		} else if (
@@ -131,7 +143,7 @@ const modesRead = (text: string, path: string): Mode[] => {
 				else if (text[k] === "/" && !inClass) break;
 				k++;
 			}
-			mark(i, text[k] === "\n" ? k : k + 1, "string");
+			mark({ from: i, to: text[k] === "\n" ? k : k + 1, mode: "string" });
 			i = text[k] === "\n" ? k : k + 1;
 			previous = "/";
 		} else if (
@@ -141,7 +153,7 @@ const modesRead = (text: string, path: string): Mode[] => {
 			if (c === "}") templateDepths.pop();
 			const to = templateSkip(i + 1);
 			const end = Math.abs(to);
-			mark(i, end, "string");
+			mark({ from: i, to: end, mode: "string" });
 			if (to < 0) templateDepths.push(braceDepth);
 			i = end;
 			previous = "`";
@@ -176,7 +188,15 @@ const jsxKeywords = new Set([
 ]);
 
 // JSX text (`<h1>Foos</h1>`, `Back to foos`) is UI copy, not an identifier.
-const fooProseIs = (text: string, start: number, end: number): boolean => {
+const fooProseIs = ({
+	end,
+	start,
+	text,
+}: {
+	end: number;
+	start: number;
+	text: string;
+}): boolean => {
 	const next = text[end] ?? "";
 	if (/[A-Za-z0-9_]/.test(next)) return false;
 	if (text[start - 1] === ">" || next === "<") return true;
@@ -192,13 +212,19 @@ const fooProseIs = (text: string, start: number, end: number): boolean => {
 type Form = "camel" | "constant" | "kebab" | "snake" | "words";
 
 // Which spelling an occurrence of foo takes, from where it stands.
-const formPick = (
-	text: string,
-	modes: Mode[],
-	start: number,
-	end: number,
-	path: string,
-): Form => {
+const formPick = ({
+	end,
+	modes,
+	path,
+	start,
+	text,
+}: {
+	end: number;
+	modes: Mode[];
+	path: string;
+	start: number;
+	text: string;
+}): Form => {
 	const token = text.slice(start, end);
 	const next = text[end] ?? "";
 	const previous = text[start - 1] ?? "";
@@ -206,7 +232,7 @@ const formPick = (
 	if (next === "_") return "snake";
 	if (/[A-Z0-9]/.test(next)) return "camel";
 	if (modes[start] === "code") {
-		return path.endsWith(".tsx") && fooProseIs(text, start, end)
+		return path.endsWith(".tsx") && fooProseIs({ text, start, end })
 			? "words"
 			: "camel";
 	}
@@ -219,12 +245,17 @@ const formPick = (
 	return "words";
 };
 
-const spell = (
-	names: DomainNames,
-	form: Form,
-	token: string,
-	plural: boolean,
-): string => {
+const spell = ({
+	form,
+	names,
+	plural,
+	token,
+}: {
+	form: Form;
+	names: DomainNames;
+	plural: boolean;
+	token: string;
+}): string => {
 	const kebab = plural ? names.plural : names.kebab;
 	const upper = token.startsWith("F");
 	switch (form) {
@@ -245,21 +276,26 @@ const spell = (
 
 // Renames every foo in a file's text: fooCreate → invoiceLineCreate, FOO_X → INVOICE_LINE_X,
 // pgSchema("foo") → "invoice_line", "/foos" → "/invoice-lines", "foo:read" → "invoice-line:read".
-export const fooRename = (
-	text: string,
-	names: DomainNames,
-	path: string,
-): string => {
+export const fooRename = ({
+	names,
+	path,
+	text,
+}: {
+	names: DomainNames;
+	path: string;
+	text: string;
+}): string => {
 	const modes = modesRead(text, path);
 	return text.replace(
 		fooPattern,
+		// biome-ignore lint/complexity/useMaxParams: String.replace passes each match this way.
 		(token: string, base: string, s: string, start: number) =>
-			spell(
+			spell({
 				names,
-				formPick(text, modes, start, start + token.length, path),
-				base,
-				s === "s",
-			),
+				form: formPick({ text, modes, start, end: start + token.length, path }),
+				token: base,
+				plural: s === "s",
+			}),
 	);
 };
 
@@ -528,19 +564,27 @@ export const templateFinish = (
 	if (linked) symlinkSync(join(toolsDirectory, "node_modules"), modules);
 	try {
 		const bin = (name: string) => join(modules, ".bin", name);
-		run(
-			bin("biome"),
-			[
+		run({
+			command: bin("biome"),
+			args: [
 				"lint",
 				"--write",
 				"--unsafe",
 				"--only=correctness/noUnusedImports",
 				".",
 			],
-			{ cwd: directory },
-		);
-		run(bin("biome"), ["check", "--write", "."], { cwd: directory });
-		run(bin("varlock"), ["codegen"], { cwd: directory });
+			options: { cwd: directory },
+		});
+		run({
+			command: bin("biome"),
+			args: ["check", "--write", "."],
+			options: { cwd: directory },
+		});
+		run({
+			command: bin("varlock"),
+			args: ["codegen"],
+			options: { cwd: directory },
+		});
 	} finally {
 		if (linked) rmSync(modules);
 	}
@@ -552,13 +596,16 @@ export const templateFinish = (
 const releaseTag = (version: string): string => `app@${version}`;
 
 export const releaseLatest = (): string => {
-	const tags = run("git", [
-		"ls-remote",
-		"--tags",
-		"--refs",
-		`https://github.com/${templateRepository}.git`,
-		"app@*",
-	]);
+	const tags = run({
+		command: "git",
+		args: [
+			"ls-remote",
+			"--tags",
+			"--refs",
+			`https://github.com/${templateRepository}.git`,
+			"app@*",
+		],
+	});
 	const versions = [...tags.matchAll(/refs\/tags\/app@(\d+)\.(\d+)\.(\d+)$/gm)]
 		.map((m) => [Number(m[1]), Number(m[2]), Number(m[3])] as const)
 		.filter(([major]) => major > 0)
@@ -606,24 +653,29 @@ export const templateExport = (
 	const app = join(work.path, "app");
 	mkdirSync(app);
 	const archive = join(work.path, "app.tar");
-	run("git", ["archive", "--output", archive, `${ref}:apps/app`], {
-		cwd: checkout,
+	run({
+		command: "git",
+		args: ["archive", "--output", archive, `${ref}:apps/app`],
+		options: {
+			cwd: checkout,
+		},
 	});
-	run("tar", ["-xf", archive, "-C", app]);
+	run({ command: "tar", args: ["-xf", archive, "-C", app] });
 	const packed = join(work.path, "packed");
 	mkdirSync(packed);
-	run("pnpm", ["pack", "--pack-destination", packed], {
-		cwd: join(checkout, "apps/app"),
+	run({
+		command: "pnpm",
+		args: ["pack", "--pack-destination", packed],
+		options: {
+			cwd: join(checkout, "apps/app"),
+		},
 	});
 	const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
 	if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
-	run("tar", [
-		"-xzf",
-		join(packed, tarball),
-		"-C",
-		packed,
-		"package/package.json",
-	]);
+	run({
+		command: "tar",
+		args: ["-xzf", join(packed, tarball), "-C", packed, "package/package.json"],
+	});
 	// pnpm pack drops packageManager, which CI's pnpm setup reads.
 	const manifest = JSON.parse(
 		readFileSync(join(packed, "package/package.json"), "utf8"),
@@ -652,15 +704,18 @@ export const templateExport = (
 export const templateFetch = (version: string): TemplateFile[] => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
 	const clone = join(work.path, "clone");
-	run("git", [
-		"clone",
-		"--quiet",
-		"--filter=blob:none",
-		"--branch",
-		releaseTag(version),
-		`https://github.com/${templateRepository}.git`,
-		clone,
-	]);
+	run({
+		command: "git",
+		args: [
+			"clone",
+			"--quiet",
+			"--filter=blob:none",
+			"--branch",
+			releaseTag(version),
+			`https://github.com/${templateRepository}.git`,
+			clone,
+		],
+	});
 	return templateExport(clone, releaseTag(version));
 };
 

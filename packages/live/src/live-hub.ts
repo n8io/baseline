@@ -16,11 +16,11 @@ export type LiveListener = (update: LiveUpdate) => void;
 export type LiveHubStreams = {
 	isClosed(): boolean;
 	// Resolves once updates for (channel, id) reach `listener`; returns the unlisten.
-	listen(
-		channel: string,
-		id: string,
-		listener: LiveListener,
-	): Promise<() => void>;
+	listen(input: {
+		channel: string;
+		id: string;
+		listener: LiveListener;
+	}): Promise<() => void>;
 	// Registers a stream's end, which close() calls and awaits; returns the unregister.
 	track(end: () => Promise<void>): () => void;
 };
@@ -110,7 +110,7 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 
 	liveHubStreamsByHub.set(liveHub, {
 		isClosed: () => closed,
-		listen: async (channel, id, listener) => {
+		listen: async ({ channel, id, listener }) => {
 			await subscribe(channel);
 			const listenerKey = key(channel, id);
 			let set = listeners.get(listenerKey);

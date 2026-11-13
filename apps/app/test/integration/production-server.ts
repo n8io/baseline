@@ -48,11 +48,15 @@ const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls `check` every 50 ms until it returns true, or throws `what` after `timeoutMs`.
-export const productionServerWaitFor = async (
-	what: string,
-	check: () => Promise<boolean> | boolean,
+export const productionServerWaitFor = async ({
+	check,
 	timeoutMs = 10_000,
-): Promise<void> => {
+	what,
+}: {
+	check: () => Promise<boolean> | boolean;
+	timeoutMs?: number;
+	what: string;
+}): Promise<void> => {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		if (await check()) return;
@@ -83,11 +87,15 @@ const hasExited = (child: ChildProcess): boolean =>
 	child.exitCode !== null || child.signalCode !== null;
 
 // Spawns the entry with the image's preloads and env; does not wait for anything.
-const appProcessSpawn = async (
-	entry: string,
-	{ databaseUrl, env = {} }: AppProcessOptions,
-	extraEnv: Record<string, string>,
-): Promise<AppProcess> => {
+const appProcessSpawn = async ({
+	entry,
+	extraEnv,
+	options: { databaseUrl, env = {} },
+}: {
+	entry: string;
+	extraEnv: Record<string, string>;
+	options: AppProcessOptions;
+}): Promise<AppProcess> => {
 	const healthPort = await portClaim();
 	const child = spawn(process.execPath, [...preloadFlags, entry], {
 		env: {
@@ -148,11 +156,15 @@ const appProcessSpawn = async (
 };
 
 // The error for a child that exited while a test waited for it to start, with everything it said.
-const appProcessExitError = async (
-	app: AppProcess,
-	entry: string,
-	waitingFor: string,
-): Promise<Error> => {
+const appProcessExitError = async ({
+	app,
+	entry,
+	waitingFor,
+}: {
+	app: AppProcess;
+	entry: string;
+	waitingFor: string;
+}): Promise<Error> => {
 	// "close" waits for stdout and stderr to drain, so the last lines are in.
 	const code = await app.exited;
 	return new Error(
@@ -162,36 +174,45 @@ const appProcessExitError = async (
 };
 
 // Waits until `check` passes; throws the exit report as soon as the child exits.
-const appProcessWaitFor = (
-	app: AppProcess,
-	entry: string,
-	waitingFor: string,
-	check: () => Promise<boolean>,
-): Promise<void> =>
-	productionServerWaitFor(
-		waitingFor,
-		async () => {
+const appProcessWaitFor = ({
+	app,
+	check,
+	entry,
+	waitingFor,
+}: {
+	app: AppProcess;
+	check: () => Promise<boolean>;
+	entry: string;
+	waitingFor: string;
+}): Promise<void> =>
+	productionServerWaitFor({
+		what: waitingFor,
+		check: async () => {
 			if (hasExited(app.child)) {
-				throw await appProcessExitError(app, entry, waitingFor);
+				throw await appProcessExitError({ app, entry, waitingFor });
 			}
 			return check();
 		},
-		20_000,
-	);
+		timeoutMs: 20_000,
+	});
 
-const appProcessStart = async (
-	entry: string,
-	options: AppProcessOptions,
-	extraEnv: Record<string, string>,
-): Promise<AppProcess> => {
-	const app = await appProcessSpawn(entry, options, extraEnv);
+const appProcessStart = async ({
+	entry,
+	extraEnv,
+	options,
+}: {
+	entry: string;
+	extraEnv: Record<string, string>;
+	options: AppProcessOptions;
+}): Promise<AppProcess> => {
+	const app = await appProcessSpawn({ entry, options, extraEnv });
 	try {
-		await appProcessWaitFor(
+		await appProcessWaitFor({
 			app,
 			entry,
-			"/readyz answered 200",
-			async () => (await httpStatus(app.healthPort, "/readyz")) === 200,
-		);
+			waitingFor: "/readyz answered 200",
+			check: async () => (await httpStatus(app.healthPort, "/readyz")) === 200,
+		});
 	} catch (error) {
 		await app.stop();
 		throw error;
@@ -212,11 +233,14 @@ export const httpStatus = async (
 
 /** Waits for /readyz 503 (shutdown started); throws if the process exits first. */
 export const shutdownStarted = (app: AppProcess): Promise<void> =>
-	productionServerWaitFor("/readyz 503", async () => {
-		if (hasExited(app.child)) {
-			throw new Error("exited before /readyz answered 503");
-		}
-		return (await httpStatus(app.healthPort, "/readyz")) === 503;
+	productionServerWaitFor({
+		what: "/readyz 503",
+		check: async () => {
+			if (hasExited(app.child)) {
+				throw new Error("exited before /readyz answered 503");
+			}
+			return (await httpStatus(app.healthPort, "/readyz")) === 503;
+		},
 	});
 
 // Resolves with the error code of a new TCP connection, or "connected".
@@ -300,7 +324,7 @@ export const productionServerSpawn = (
 	options: AppProcessOptions,
 ): Promise<AppProcess> => {
 	serverEntryCheck();
-	return appProcessSpawn(serverEntry, options, {});
+	return appProcessSpawn({ entry: serverEntry, options, extraEnv: {} });
 };
 
 /**
@@ -313,16 +337,20 @@ export const productionServerStart = async (
 ): Promise<ProductionServer> => {
 	serverEntryCheck();
 	const port = await portClaim();
-	const app = await appProcessStart(serverEntry, options, {
-		PORT: String(port),
+	const app = await appProcessStart({
+		entry: serverEntry,
+		options,
+		extraEnv: {
+			PORT: String(port),
+		},
 	});
 	try {
-		await appProcessWaitFor(
+		await appProcessWaitFor({
 			app,
-			serverEntry,
-			"PORT answered 200",
-			async () => (await httpStatus(port, "/auth/sign-in")) === 200,
-		);
+			entry: serverEntry,
+			waitingFor: "PORT answered 200",
+			check: async () => (await httpStatus(port, "/auth/sign-in")) === 200,
+		});
 	} catch (error) {
 		await app.stop();
 		throw error;
@@ -333,9 +361,9 @@ export const productionServerStart = async (
 // piece-start: queue
 /** Boots `src/worker.ts` as native TS with the same preloads; resolves once /readyz is 200. */
 export const workerStart = (options: AppProcessOptions): Promise<AppProcess> =>
-	appProcessStart("src/worker.ts", options, {});
+	appProcessStart({ entry: "src/worker.ts", options, extraEnv: {} });
 
 /** Starts the worker without waiting for readiness, for boots that are meant to fail. */
 export const workerSpawn = (options: AppProcessOptions): Promise<AppProcess> =>
-	appProcessSpawn("src/worker.ts", options, {});
+	appProcessSpawn({ entry: "src/worker.ts", options, extraEnv: {} });
 // piece-end: queue

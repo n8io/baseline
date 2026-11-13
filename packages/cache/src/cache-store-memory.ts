@@ -20,7 +20,7 @@ export const cacheStoreMemoryCreate = (): CacheStore => {
 			}
 			return entry.json;
 		},
-		set: async (key, json, ttlMs) => {
+		set: async ({ json, key, ttlMs }) => {
 			entries.set(key, { expiresAt: Date.now() + ttlMs, json });
 		},
 	};

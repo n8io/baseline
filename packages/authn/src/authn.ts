@@ -136,11 +136,15 @@ const actorFrom = (
 };
 
 const verifyCreate =
-	(
-		options: AuthnOptions,
-		jwks: JWTVerifyGetKey,
-		issuer: string,
-	): AuthnState["verify"] =>
+	({
+		issuer,
+		jwks,
+		options,
+	}: {
+		issuer: string;
+		jwks: JWTVerifyGetKey;
+		options: AuthnOptions;
+	}): AuthnState["verify"] =>
 	async (accessToken) => {
 		let payload: JWTPayload;
 		try {
@@ -187,12 +191,17 @@ const memoryIssuerCreate = async (
 	const jwks = createLocalJWKSet({
 		keys: [{ ...(await exportJWK(publicKey)), alg: "ES256", kid }],
 	});
-	const sign = (
-		claims: JWTPayload,
-		subject: string,
-		audience: string,
-		ttl: string,
-	): Promise<string> =>
+	const sign = ({
+		audience,
+		claims,
+		subject,
+		ttl,
+	}: {
+		audience: string;
+		claims: JWTPayload;
+		subject: string;
+		ttl: string;
+	}): Promise<string> =>
 		new SignJWT(claims)
 			.setProtectedHeader({ alg: "ES256", kid })
 			.setIssuer(memoryIssuerUrl)
@@ -205,13 +214,18 @@ const memoryIssuerCreate = async (
 		claims: JWTPayload,
 		subject: string,
 	): Promise<AuthnTokens> => ({
-		accessToken: await sign(claims, subject, options.audience, memoryAccessTtl),
-		refreshToken: await sign(
+		accessToken: await sign({
 			claims,
 			subject,
-			memoryRefreshAudience,
-			memoryRefreshTtl,
-		),
+			audience: options.audience,
+			ttl: memoryAccessTtl,
+		}),
+		refreshToken: await sign({
+			claims,
+			subject,
+			audience: memoryRefreshAudience,
+			ttl: memoryRefreshTtl,
+		}),
 	});
 	return {
 		issuer: {
@@ -287,7 +301,7 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 			clientId: options.clientId,
 			cookieKey,
 			issuer,
-			verify: verifyCreate(options, jwks, memoryIssuerUrl),
+			verify: verifyCreate({ options, jwks, issuer: memoryIssuerUrl }),
 		});
 	}
 	const { issuer, issuerId, jwks } = await oidcIssuerCreate(options);
@@ -295,7 +309,7 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 		clientId: options.clientId,
 		cookieKey,
 		issuer,
-		verify: verifyCreate(options, jwks, issuerId),
+		verify: verifyCreate({ options, jwks, issuer: issuerId }),
 	});
 };
 

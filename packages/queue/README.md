@@ -14,10 +14,10 @@ pnpm add @n8io/baseline-queue
 - `EventsPublisher`: one per transaction. `publish(name, data)` inside it, then `committed()` once it has committed; on a rollback, drop it.
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
 - `queueEventsMemoryCreate({ published? })`: records publishes in the `published` array, for unit tests. The argument is optional.
-- `queueConsumerCreate(queueName, eventName, schema, run)`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
-- `queueScheduleCreate(name, cron, run)`, `queueSchedulesRegister(queue, schedules, { env })`, `Schedule`: UTC cron jobs in the worker. `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
+- `queueConsumerCreate({ queueName, eventName, schema, run })`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
+- `queueScheduleCreate({ name, cron, run })`, `queueSchedulesRegister({ queue, schedules, env })`, `Schedule`: UTC cron jobs in the worker. `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
-- `queueJobRun(queueName, job, work)`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`).
+- `queueJobRun({ queueName, job, work })`: runs one job's work, logs a throw and counts dead letters (`baseline.queue.dead_letters`).
 - `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the package needs no `pg` types.
 - `queueRetryLimit`: retries before a job moves to `<queueName>.dead` (4, so five attempts).
 
@@ -49,26 +49,26 @@ const billingOrderPlacedConsumerActor: Actor = {
 	kind: "client",
 	scopes: ["billing:invoice-create"],
 };
-const billingOrderPlaced = queueConsumerCreate(
-	"billing.order-placed", // queueName: <consumer domain>.<event>
-	"order.placed", // eventName
-	orderPlaced, // the Zod schema; `event` below is its output type
-	(event, inbox) =>
-		billingUseCases.invoiceCreate(
-			billingOrderPlacedConsumerActor,
-			{ customerId: event.customerId, amountCents: event.totalCents },
+const billingOrderPlaced = queueConsumerCreate({
+	eventName: "order.placed",
+	queueName: "billing.order-placed", // <consumer domain>.<event>
+	run: (event, inbox) =>
+		billingUseCases.invoiceCreate(billingOrderPlacedConsumerActor, {
+			amountCents: event.totalCents,
+			customerId: event.customerId,
 			inbox,
-		),
-);
+		}),
+	schema: orderPlaced, // the Zod schema; `event` above is its output type
+});
 const events = queueEventsCreate(queue);
 await events.consumersStart([billingOrderPlaced]);
 
-const fooStaleArchive = queueScheduleCreate(
-	"foo.stale-archive",
-	"0 3 * * *",
-	() => fooUseCases.fooStaleArchive(fooScheduleActor),
-);
-await queueSchedulesRegister(queue, [fooStaleArchive], { env: ENV });
+const fooStaleArchive = queueScheduleCreate({
+	cron: "0 3 * * *",
+	name: "foo.stale-archive",
+	run: () => fooUseCases.fooStaleArchive(fooScheduleActor),
+});
+await queueSchedulesRegister({ env: ENV, queue, schedules: [fooStaleArchive] });
 ```
 
 ## Needs

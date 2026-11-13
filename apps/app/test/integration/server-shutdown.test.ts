@@ -28,11 +28,11 @@ describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 
 		server.child.kill("SIGTERM");
 		await shutdownStarted(server);
-		await productionServerWaitFor(
-			"new connections refused",
-			async () =>
+		await productionServerWaitFor({
+			what: "new connections refused",
+			check: async () =>
 				(await productionServerConnectResult(server.port)) === "ECONNREFUSED",
-		);
+		});
 		expect(server.child.exitCode).toBeNull();
 
 		const res = await slow.finish();

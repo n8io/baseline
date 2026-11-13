@@ -94,14 +94,10 @@ const main = (
 ) => {
 	try {
 		const aliases = glossaryAliasesRead(readFileSync(glossary, "utf8"));
-		const diff = run("git", [
-			"diff",
-			"--unified=0",
-			"--no-color",
-			"origin/main",
-			"--",
-			tree,
-		]);
+		const diff = run({
+			command: "git",
+			args: ["diff", "--unified=0", "--no-color", "origin/main", "--", tree],
+		});
 		const hits = glossaryHitsFind(diff, aliases);
 		const actions = process.env.GITHUB_ACTIONS === "true";
 		for (const hit of hits) console.log(glossaryHitFormat(hit, actions));

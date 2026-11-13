@@ -93,9 +93,13 @@ describe("wiringInsert", () => {
 		].join("\n");
 
 		expect(
-			wiringInsert(project, templateText, "src/server.ts", names, false).split(
-				"\n",
-			),
+			wiringInsert({
+				project,
+				template: templateText,
+				path: "src/server.ts",
+				names,
+				firstDomain: false,
+			}).split("\n"),
 		).toEqual([
 			'import { barRoutesCreate } from "#domains/bar/api/index.ts";',
 			'import { ENV } from "#env";',
@@ -109,13 +113,13 @@ describe("wiringInsert", () => {
 
 	it("stops and names the file when the project lost a marker", () => {
 		expect(() =>
-			wiringInsert(
-				'import { ENV } from "#env";\n',
-				templateText,
-				"src/server.ts",
+			wiringInsert({
+				project: 'import { ENV } from "#env";\n',
+				template: templateText,
+				path: "src/server.ts",
 				names,
-				false,
-			),
+				firstDomain: false,
+			}),
 		).toThrow('src/server.ts: missing marker "// domain-create: routes"');
 	});
 });
@@ -160,22 +164,28 @@ describe("domainsPairsFill", () => {
 			"// domain-create: domains-end",
 		].join("\n");
 
-		expect(domainsPairsFill(project, template, "x.ts").split("\n")).toEqual([
+		expect(
+			domainsPairsFill({ project, template, path: "x.ts" }).split("\n"),
+		).toEqual([
 			'import { a } from "./a.ts";',
 			'import { type B } from "./a.ts";',
 			"// domain-create: domains-start",
 			"const c = a();",
 			"// domain-create: domains-end",
 		]);
-		expect(() => domainsPairsFill("", template, "x.ts")).toThrow(
-			"x.ts: has 0 domains-start/domains-end pairs, the template 1",
-		);
+		expect(() =>
+			domainsPairsFill({ project: "", template, path: "x.ts" }),
+		).toThrow("x.ts: has 0 domains-start/domains-end pairs, the template 1");
 	});
 });
 
 describe.runIf(template)("domainFilesCreate on the template", () => {
 	const files = template
-		? domainFilesCreate(filesRead(appRoot.pathname), appRoot.pathname, names)
+		? domainFilesCreate({
+				templateFull: filesRead(appRoot.pathname),
+				appDirectory: appRoot.pathname,
+				names,
+			})
 		: [];
 	const file = (path: string) => files.find((f) => f.path === path)?.text ?? "";
 
@@ -186,7 +196,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		writeFileSync(join(app, "src/ui/routes/invoice-line-list.tsx"), "mine\n");
 
 		expect(() =>
-			domainFilesCreate(filesRead(appRoot.pathname), app, names),
+			domainFilesCreate({
+				templateFull: filesRead(appRoot.pathname),
+				appDirectory: app,
+				names,
+			}),
 		).toThrow("src/ui/routes/invoice-line-list.tsx already exists");
 	});
 
@@ -219,7 +233,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
 		writeFileSync(join(app, "src/ui/routes/home.test.ts"), "mine\n");
 		expect(() =>
-			domainFilesCreate(filesRead(appRoot.pathname), app, names),
+			domainFilesCreate({
+				templateFull: filesRead(appRoot.pathname),
+				appDirectory: app,
+				names,
+			}),
 		).toThrow("src/ui/routes/home.test.ts already exists");
 	});
 
@@ -265,7 +283,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			JSON.stringify({ dependencies: {} }),
 		);
 
-		const created = domainFilesCreate(filesRead(appRoot.pathname), app, names);
+		const created = domainFilesCreate({
+			templateFull: filesRead(appRoot.pathname),
+			appDirectory: app,
+			names,
+		});
 		const paths = created.map((f) => f.path);
 		expect(paths).toContain("src/domains/invoice-line/ports.ts");
 		expect(

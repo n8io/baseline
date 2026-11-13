@@ -26,15 +26,20 @@ const issuePath = (issue: StandardSchemaV1.Issue): string =>
 // queueName is `<consumer domain>.<event entity>-<event verb>` (billing.order-placed); it is also the
 // inbox `consumer` key. The schema is any Standard Schema (https://standardschema.dev): a Zod,
 // Valibot or ArkType schema as it is.
-export const queueConsumerCreate = <S extends StandardSchemaV1>(
-	queueName: string,
-	eventName: string,
-	schema: S,
+export const queueConsumerCreate = <S extends StandardSchemaV1>({
+	eventName,
+	queueName,
+	run,
+	schema,
+}: {
+	eventName: string;
+	queueName: string;
 	run: (
 		event: StandardSchemaV1.InferOutput<S>,
 		inbox: Inbox,
-	) => Promise<Result<unknown, { type: string }>>,
-): Consumer => ({
+	) => Promise<Result<unknown, { type: string }>>;
+	schema: S;
+}): Consumer => ({
 	eventName,
 	queueName,
 	run: async (data, inbox) => {
@@ -61,7 +66,7 @@ export const queueConsumersSubscribe = async (
 ): Promise<void> => {
 	const boss = queueBossGet(queue);
 	for (const consumer of consumers) {
-		await queueWithDeadLetterCreate(boss, consumer.queueName);
+		await queueWithDeadLetterCreate({ boss, name: consumer.queueName });
 		await boss.subscribe(consumer.eventName, consumer.queueName);
 	}
 };
@@ -87,12 +92,15 @@ export const queueConsumersStart = async (
 			{ includeMetadata: true },
 			async (jobs) => {
 				for (const job of jobs) {
-					await queueJobRun(consumer.queueName, job, () =>
-						consumer.run(job.data, {
-							consumer: consumer.queueName,
-							eventId: consumerEventId(job),
-						}),
-					);
+					await queueJobRun({
+						queueName: consumer.queueName,
+						job,
+						work: () =>
+							consumer.run(job.data, {
+								consumer: consumer.queueName,
+								eventId: consumerEventId(job),
+							}),
+					});
 				}
 			},
 		);

@@ -15,11 +15,15 @@ const cacheCommandTimeoutMs = 1000;
 
 // Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
 // node-redis's own command timeout stops once a command is sent.
-const cacheTimeLimit = async <T>(
-	work: Promise<T>,
-	ms: number,
-	message: string,
-): Promise<T> => {
+const cacheTimeLimit = async <T>({
+	message,
+	ms,
+	work,
+}: {
+	message: string;
+	ms: number;
+	work: Promise<T>;
+}): Promise<T> => {
 	let timer: NodeJS.Timeout | undefined;
 	const timedOut = new Promise<never>((_, reject) => {
 		timer = setTimeout(() => {
@@ -42,18 +46,18 @@ export const cacheStoreRedisCreate = ({
 	redisClient: CacheRedisClient;
 }): CacheStore => {
 	const limit = <R>(work: Promise<R>): Promise<R> =>
-		cacheTimeLimit(
+		cacheTimeLimit({
+			message: `Redis did not answer within ${cacheCommandTimeoutMs} ms`,
+			ms: cacheCommandTimeoutMs,
 			work,
-			cacheCommandTimeoutMs,
-			`Redis did not answer within ${cacheCommandTimeoutMs} ms`,
-		);
+		});
 
 	return {
 		delete: async (key) => {
 			await limit(redisClient.del(key));
 		},
 		get: async (key) => (await limit(redisClient.get(key))) ?? undefined,
-		set: async (key, json, ttlMs) => {
+		set: async ({ json, key, ttlMs }) => {
 			await limit(
 				redisClient.set(key, json, {
 					expiration: { type: "PX", value: ttlMs },

@@ -44,6 +44,7 @@ const pulsarLogLevels = new Map<PulsarClient.LogLevel, "warn" | "error">([
 ]);
 
 // The client logs through its C++ library; only warnings and errors reach the app's logger.
+// biome-ignore lint/complexity/useMaxParams: the Pulsar client calls its log with four arguments.
 const pulsarLog = (
 	level: PulsarClient.LogLevel,
 	file: string,

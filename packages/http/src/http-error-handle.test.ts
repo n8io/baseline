@@ -102,13 +102,17 @@ describe("httpErrorHandle with Hono's HTTPException", () => {
 	});
 
 	it.each([
-		[400, "ValidationFailed", "Bad Request"],
-		[413, "PayloadTooLarge", "Payload Too Large"],
-		[415, "UnsupportedMediaType", "Unsupported Media Type"],
-		[418, "ImATeapot", "I'm a Teapot"],
+		{ code: "ValidationFailed", status: 400, title: "Bad Request" },
+		{ code: "PayloadTooLarge", status: 413, title: "Payload Too Large" },
+		{
+			code: "UnsupportedMediaType",
+			status: 415,
+			title: "Unsupported Media Type",
+		},
+		{ code: "ImATeapot", status: 418, title: "I'm a Teapot" },
 	] as const)(
-		"answers a 4xx HTTPException %i with code %s, unlogged",
-		async (status, code, title) => {
+		"answers a 4xx HTTPException $status with code $code, unlogged",
+		async ({ code, status, title }) => {
 			const logError = vi
 				.spyOn(logger, "error")
 				.mockImplementation(() => undefined);

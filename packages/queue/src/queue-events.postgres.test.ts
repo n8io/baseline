@@ -42,12 +42,12 @@ beforeAll(async () => {
 	// Three consumers of one event: pg-boss sends to every queue at once on the one client, and pg
 	// warns from the third query queued on a busy client.
 	const consumer = (name: string) =>
-		queueConsumerCreate(
-			name,
-			"foo.created",
-			z.object({ fooId: z.string() }),
-			async () => ok(undefined),
-		);
+		queueConsumerCreate({
+			queueName: name,
+			eventName: "foo.created",
+			schema: z.object({ fooId: z.string() }),
+			run: async () => ok(undefined),
+		});
 	await queueEventsCreate(queue).consumersSubscribe([
 		consumer("bar.foo-created"),
 		consumer("baz.foo-created"),
@@ -71,13 +71,16 @@ afterAll(async () => {
 describe("queueEventsCreate", () => {
 	it("publishes on postgresTransactionRun's guarded client, visible only after commit", async () => {
 		let seenInside: unknown[] = [];
-		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
-			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsCreate(queue)
-				.publisherCreate<FooEvents>(pgClient)
-				.publish("foo.created", { fooId: "foo_1" });
-			seenInside = await jobs();
-			return ok(undefined);
+		const result = await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
+				await queueEventsCreate(queue)
+					.publisherCreate<FooEvents>(pgClient)
+					.publish("foo.created", { fooId: "foo_1" });
+				seenInside = await jobs();
+				return ok(undefined);
+			},
 		});
 
 		expect(result).toEqual(ok(undefined));
@@ -93,12 +96,15 @@ describe("queueEventsCreate", () => {
 	});
 
 	it("rolls the jobs back with the rows on err", async () => {
-		const result = await postgresTransactionRun(pgPool, async (pgClient) => {
-			await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
-			await queueEventsCreate(queue)
-				.publisherCreate<FooEvents>(pgClient)
-				.publish("foo.created", { fooId: "foo_1" });
-			return err({ type: "FooForbidden" });
+		const result = await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				await pgClient.query("INSERT INTO foo (id) VALUES ('foo_1')");
+				await queueEventsCreate(queue)
+					.publisherCreate<FooEvents>(pgClient)
+					.publish("foo.created", { fooId: "foo_1" });
+				return err({ type: "FooForbidden" });
+			},
 		});
 
 		expect(result.ok).toBe(false);
@@ -112,11 +118,14 @@ describe("queueEventsCreate", () => {
 			pgPool: onePool,
 			role: "publisher",
 		});
-		const result = await postgresTransactionRun(onePool, async (pgClient) => {
-			await queueEventsCreate(oneQueue)
-				.publisherCreate<FooEvents>(pgClient)
-				.publish("foo.created", { fooId: "foo_1" });
-			return ok(undefined);
+		const result = await postgresTransactionRun({
+			pgPool: onePool,
+			work: async (pgClient) => {
+				await queueEventsCreate(oneQueue)
+					.publisherCreate<FooEvents>(pgClient)
+					.publish("foo.created", { fooId: "foo_1" });
+				return ok(undefined);
+			},
 		});
 
 		expect(result).toEqual(ok(undefined));
@@ -125,11 +134,14 @@ describe("queueEventsCreate", () => {
 
 	it("rolls the jobs back on a throw", async () => {
 		await expect(
-			postgresTransactionRun(pgPool, async (pgClient) => {
-				await queueEventsCreate(queue)
-					.publisherCreate<FooEvents>(pgClient)
-					.publish("foo.created", { fooId: "foo_1" });
-				throw new Error("boom");
+			postgresTransactionRun({
+				pgPool,
+				work: async (pgClient) => {
+					await queueEventsCreate(queue)
+						.publisherCreate<FooEvents>(pgClient)
+						.publish("foo.created", { fooId: "foo_1" });
+					throw new Error("boom");
+				},
 			}),
 		).rejects.toThrow("boom");
 		expect(await jobs()).toEqual([]);

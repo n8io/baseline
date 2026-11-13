@@ -87,7 +87,11 @@ export const cacheContract = (
 			await cache.set("first", "First");
 			expect(await cache.get("first")).toBe("First");
 
-			await store().set(`${prefix}-name:second`, "2", 60_000);
+			await store().set({
+				json: "2",
+				key: `${prefix}-name:second`,
+				ttlMs: 60_000,
+			});
 			expect(await cache.get("second")).toBeUndefined();
 		});
 

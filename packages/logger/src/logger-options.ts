@@ -49,6 +49,7 @@ const levelError = 50;
 
 export const loggerOptionsCreate = (level: string): LoggerOptions => ({
 	hooks: {
+		// biome-ignore lint/complexity/useMaxParams: pino calls this hook with three arguments.
 		logMethod(args, method, level) {
 			const [first, second] = args;
 			const err = errFind(first);

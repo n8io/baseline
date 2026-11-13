@@ -34,12 +34,12 @@ describe("queueConsumerCreate", () => {
 		["any Standard Schema", fooCreatedPlain],
 	])("runs the Consumer with the Event parsed by %s", async (_name, schema) => {
 		const run = vi.fn(async (_event: { fooId: string }) => ok(undefined));
-		const consumer = queueConsumerCreate(
-			"audit.foo-created",
-			"foo.created",
+		const consumer = queueConsumerCreate({
+			queueName: "audit.foo-created",
+			eventName: "foo.created",
 			schema,
 			run,
-		);
+		});
 
 		await consumer.run({ fooId: "foo_1", extra: true }, inbox);
 
@@ -53,12 +53,12 @@ describe("queueConsumerCreate", () => {
 		"fails an Event that does not match %s, naming paths and no values",
 		async (_name, schema) => {
 			const run = vi.fn(async () => ok(undefined));
-			const consumer = queueConsumerCreate(
-				"audit.foo-created",
-				"foo.created",
+			const consumer = queueConsumerCreate({
+				queueName: "audit.foo-created",
+				eventName: "foo.created",
 				schema,
 				run,
-			);
+			});
 
 			const failure = await consumer
 				.run({ fooId: 42, secret: "hunter2" }, inbox)
@@ -73,14 +73,14 @@ describe("queueConsumerCreate", () => {
 	);
 
 	it("names nested paths once each, and none for the Event itself", async () => {
-		const consumer = queueConsumerCreate(
-			"audit.foo-created",
-			"foo.created",
-			z.object({
+		const consumer = queueConsumerCreate({
+			queueName: "audit.foo-created",
+			eventName: "foo.created",
+			schema: z.object({
 				items: z.array(z.strictObject({ name: z.string().min(2) })),
 			}),
-			async () => ok(undefined),
-		);
+			run: async () => ok(undefined),
+		});
 
 		await expect(
 			consumer.run({ items: [{ name: "a" }] }, inbox),

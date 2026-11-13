@@ -9,11 +9,15 @@ const actor: Actor = { id: "system", kind: "client", scopes: [] };
 const now = new Date("2026-06-01T00:00:00Z");
 const daysAgo = (days: number) => new Date(now.getTime() - days * 86_400_000);
 
-const fooAt = (
-	name: string,
-	updatedAt: Date,
-	archivedAt: Date | null,
-): Foo => ({
+const fooAt = ({
+	archivedAt,
+	name,
+	updatedAt,
+}: {
+	archivedAt: Date | null;
+	name: string;
+	updatedAt: Date;
+}): Foo => ({
 	archivedAt,
 	createdAt: updatedAt,
 	createdBy: "owner",
@@ -33,11 +37,31 @@ describe("fooStaleArchive", () => {
 
 	it("archives only unarchived foos older than 30 days and returns the count", async () => {
 		const { ports, state } = fooPortsMemoryCreate();
-		const old = fooAt("old", daysAgo(31), null);
-		const older = fooAt("older", daysAgo(90), null);
-		const fresh = fooAt("fresh", daysAgo(29), null);
-		const boundary = fooAt("boundary", daysAgo(30), null);
-		const alreadyArchived = fooAt("done", daysAgo(60), daysAgo(10));
+		const old = fooAt({
+			name: "old",
+			updatedAt: daysAgo(31),
+			archivedAt: null,
+		});
+		const older = fooAt({
+			name: "older",
+			updatedAt: daysAgo(90),
+			archivedAt: null,
+		});
+		const fresh = fooAt({
+			name: "fresh",
+			updatedAt: daysAgo(29),
+			archivedAt: null,
+		});
+		const boundary = fooAt({
+			name: "boundary",
+			updatedAt: daysAgo(30),
+			archivedAt: null,
+		});
+		const alreadyArchived = fooAt({
+			name: "done",
+			updatedAt: daysAgo(60),
+			archivedAt: daysAgo(10),
+		});
 		for (const foo of [old, older, fresh, boundary, alreadyArchived]) {
 			state.foos.set(foo.id, foo);
 		}

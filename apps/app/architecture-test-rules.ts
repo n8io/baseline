@@ -127,29 +127,38 @@ const tableIs = (p: string): boolean =>
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
 
 // One message per offending import: `check` returns the reason, or undefined when allowed.
-const importsCheck = (
-	files: ArchitectureFile[],
-	fileIs: (f: ArchitectureFile) => boolean,
-	check: (
-		imp: ArchitectureImport,
-		f: ArchitectureFile,
-		domain: string | undefined,
-	) => string | undefined,
-): string[] =>
+const importsCheck = ({
+	check,
+	fileIs,
+	files,
+}: {
+	check: (found: {
+		domain: string | undefined;
+		f: ArchitectureFile;
+		imp: ArchitectureImport;
+	}) => string | undefined;
+	fileIs: (f: ArchitectureFile) => boolean;
+	files: ArchitectureFile[];
+}): string[] =>
 	files.filter(fileIs).flatMap((f) =>
 		f.imports.flatMap((imp) => {
-			const reason = check(imp, f, domainOf(f.path));
+			const reason = check({ domain: domainOf(f.path), f, imp });
 			return reason ? [`${f.path} imports ${imp.specifier}: ${reason}`] : [];
 		}),
 	);
 
 // One message per regex match in the files `fileIs` selects.
-const textCheck = (
-	files: ArchitectureFile[],
-	fileIs: (f: ArchitectureFile) => boolean,
-	pattern: RegExp,
-	reason: (match: RegExpExecArray, f: ArchitectureFile) => string | undefined,
-): string[] =>
+const textCheck = ({
+	fileIs,
+	files,
+	pattern,
+	reason,
+}: {
+	fileIs: (f: ArchitectureFile) => boolean;
+	files: ArchitectureFile[];
+	pattern: RegExp;
+	reason: (match: RegExpExecArray, f: ArchitectureFile) => string | undefined;
+}): string[] =>
 	files.filter(fileIs).flatMap((f) =>
 		[...f.source.matchAll(pattern)].flatMap((match) => {
 			const message = reason(match, f);
@@ -197,33 +206,33 @@ const scopeOf = (p: string): string | undefined => {
 
 export const architectureRules: Record<string, ArchitectureRule> = {
 	A1: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => businessIs(f.path) && !testIs(f.path),
-			(imp, _f, domain) => {
+			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
+			check: ({ domain, imp }) => {
 				const parts = sameDomainParts(imp, domain);
 				return parts?.[0] === "api" || parts?.[0] === "spi"
 					? "business code never imports api/ or spi/; declare what it needs as a port in ports.ts and let the composition roots wire the adapter"
 					: undefined;
 			},
-		),
+		}),
 
 	A2: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => layerOf(f.path) === "rules" && !testIs(f.path),
-			(imp, _f, domain) =>
+			fileIs: (f) => layerOf(f.path) === "rules" && !testIs(f.path),
+			check: ({ domain, imp }) =>
 				sameDomainParts(imp, domain)?.[0] === "models" ||
 				(imp.target === "@n8io/baseline-authn" && imp.typeOnly)
 					? undefined
 					: "rules are pure functions over models/ (and the Actor type); move this to a use case in use-cases/",
-		),
+		}),
 
 	A3: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => layerOf(f.path) === "api" && !testIs(f.path),
-			(imp, _f, domain) => {
+			fileIs: (f) => layerOf(f.path) === "api" && !testIs(f.path),
+			check: ({ domain, imp }) => {
 				const parts = sameDomainParts(imp, domain);
 				if (!parts) return undefined;
 				if (parts[0] === "spi") {
@@ -238,13 +247,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: "api/ reaches the domain only through its index.ts, models/ and use-case types";
 			},
-		),
+		}),
 
 	A4: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => layerOf(f.path) === "spi" && !testIs(f.path),
-			(imp, _f, domain) => {
+			fileIs: (f) => layerOf(f.path) === "spi" && !testIs(f.path),
+			check: ({ domain, imp }) => {
 				const parts = sameDomainParts(imp, domain);
 				if (!parts || !domain) return undefined;
 				const allowed =
@@ -256,13 +265,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: `spi/ implements ports: from its domain it imports only ports.ts, models/ and ${domain}-errors.ts`;
 			},
-		),
+		}),
 
 	A5: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => domainOf(f.path) === undefined,
-			(imp) => {
+			fileIs: (f) => domainOf(f.path) === undefined,
+			check: ({ imp }) => {
 				const target = domainOf(imp.target);
 				if (!target) return undefined;
 				const entry = partsOf(imp.target).join("/");
@@ -270,13 +279,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: `outside a domain, import only src/domains/${target}/index.ts, api/index.ts or spi/index.ts; export what you need from one of them`;
 			},
-		),
+		}),
 
 	A6: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => domainOf(f.path) !== undefined,
-			(imp, f, domain) => {
+			fileIs: (f) => domainOf(f.path) !== undefined,
+			check: ({ domain, f, imp }) => {
 				const target = domainOf(imp.target);
 				if (!target || target === domain) return undefined;
 				const consumer =
@@ -285,34 +294,34 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: `domains never import each other; read ${target} through a bridge in src/bridges/, or consume its event in api/${domain}-${target}-<event>-consumer.ts`;
 			},
-		),
+		}),
 
 	A7: (files) => [
-		...importsCheck(
+		...importsCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				layerOf(f.path) === "models" ||
 				f.path ===
 					`src/domains/${domainOf(f.path)}/${domainOf(f.path)}-errors.ts`,
-			(imp) =>
+			check: ({ imp }) =>
 				imp.specifier.startsWith("@hono/")
 					? "models and errors stay free of HTTP; put OpenAPI schemas in api/<domain>-routes.ts"
 					: undefined,
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) => layerOf(f.path) !== "api",
-			/\.openapi\(/g,
-			() =>
+			fileIs: (f) => layerOf(f.path) !== "api",
+			pattern: /\.openapi\(/g,
+			reason: () =>
 				".openapi( appears only in a domain's api/; put OpenAPI schemas and routes in api/<domain>-routes.ts",
-		),
+		}),
 	],
 
 	A8: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => !testIs(f.path),
-			(imp, f) => {
+			fileIs: (f) => !testIs(f.path),
+			check: ({ f, imp }) => {
 				if (imp.specifier.startsWith("@opentelemetry/")) {
 					return "src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span";
 				}
@@ -321,27 +330,27 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in the composition roots"
 					: undefined;
 			},
-		),
+		}),
 
 	A9: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				(f.path.startsWith("src/domains/") || f.path.startsWith("src/ui/")) &&
 				f.path !== "src/ui/entry.server.tsx",
-			(imp) =>
+			check: ({ imp }) =>
 				imp.specifier === "@n8io/baseline-logger"
 					? "domains and the UI never log; return an error or set a span attribute, and log in the composition roots (src/ui/entry.server.tsx for page errors)"
 					: undefined,
-		),
+		}),
 
 	A10: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				(f.path.startsWith("src/ui/") || domainOf(f.path) !== undefined) &&
 				!testIs(f.path),
-			(imp, f) => {
+			check: ({ f, imp }) => {
 				if (f.path.startsWith("src/ui/")) {
 					const target = domainOf(imp.target);
 					return target && partsOf(imp.target).join("/") !== "index.ts"
@@ -352,7 +361,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? "domains never import the UI; the UI calls the domain"
 					: undefined;
 			},
-		),
+		}),
 
 	A11: (files) => {
 		const bridges = files.filter(
@@ -390,66 +399,69 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			);
 			return [...entryMisses, ...countMiss, ...callMisses];
 		});
-		const domainImports = importsCheck(
+		const domainImports = importsCheck({
 			files,
-			(f) => domainOf(f.path) !== undefined,
-			(imp) =>
+			fileIs: (f) => domainOf(f.path) !== undefined,
+			check: ({ imp }) =>
 				imp.target.startsWith("src/bridges/")
 					? "no domain imports a bridge; the composition roots pass the bridge in as the domain's read port"
 					: undefined,
-		);
+		});
 		return [...messages, ...domainImports];
 	},
 
 	A12: (files) => [
-		...textCheck(
+		...textCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				domainOf(f.path) !== undefined &&
 				partsOf(f.path).join("/") === "ports.ts",
-			/\bclose\s*\??\s*[(:<]/g,
-			() =>
+			pattern: /\bclose\s*\??\s*[(:<]/g,
+			reason: () =>
 				"no port declares close; the composition roots open and close connections",
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) => domainOf(f.path) !== undefined && !testIs(f.path),
-			/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
-			(m) =>
+			fileIs: (f) => domainOf(f.path) !== undefined && !testIs(f.path),
+			pattern:
+				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
+			reason: (m) =>
 				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <domain>PortsCreate`,
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) => domainOf(f.path) !== undefined && !testIs(f.path),
-			/\bcacheStoreRedisCreate\(/g,
-			() =>
+			fileIs: (f) => domainOf(f.path) !== undefined && !testIs(f.path),
+			pattern: /\bcacheStoreRedisCreate\(/g,
+			reason: () =>
 				"cacheStoreRedisCreate( picks the cache's backend; src/cache-store-open.ts does that, and a Domain builds its cache on connections.cacheStore",
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				!testIs(f.path) &&
 				!/^src\/(connections|redis|[a-z-]+-open)\.ts$/.test(f.path),
-			/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|pulsarCreate|queueCreate)\(/g,
-			(m) =>
+			pattern:
+				/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|pulsarCreate|queueCreate)\(/g,
+			reason: (m) =>
 				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts, src/redis.ts and the src/*-open.ts files do that`,
-		),
+		}),
 	],
 
 	A13: (files) => [
-		...textCheck(
+		...textCheck({
 			files,
-			(f) => !tableIs(f.path) && !testIs(f.path),
-			/\bpgSchema\(|\bpgTable\(|\.table\(\s*["'`]/g,
-			() => "tables live only in src/domains/<domain>/spi/<domain>-table.ts",
-		),
-		...textCheck(
+			fileIs: (f) => !tableIs(f.path) && !testIs(f.path),
+			pattern: /\bpgSchema\(|\bpgTable\(|\.table\(\s*["'`]/g,
+			reason: () =>
+				"tables live only in src/domains/<domain>/spi/<domain>-table.ts",
+		}),
+		...textCheck({
 			files,
-			(f) => tableIs(f.path),
-			/\bpgTable\b/g,
-			(_m, f) =>
+			fileIs: (f) => tableIs(f.path),
+			pattern: /\bpgTable\b/g,
+			reason: (_m, f) =>
 				`no bare pgTable; define tables with pgSchema("${snake(domainOf(f.path) ?? "")}").table(...)`,
-		),
+		}),
 		...files
 			.filter(
 				(f) => tableIs(f.path) && !f.source.includes("// glossary-rename:"),
@@ -464,16 +476,16 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 							`${f.path}: tables use pgSchema("${schema}"), named after the domain folder; mark a deliberate rename with // glossary-rename: <why>`,
 						];
 			}),
-		...importsCheck(
+		...importsCheck({
 			files,
-			() => true,
-			(imp, _f, domain) => {
+			fileIs: () => true,
+			check: ({ domain, imp }) => {
 				const owner = tableIs(imp.target) ? domainOf(imp.target) : undefined;
 				return owner && owner !== domain
 					? `another domain's table is private to ${owner}; read ${owner} through a bridge`
 					: undefined;
 			},
-		),
+		}),
 	],
 
 	A14: (files) => {
@@ -509,13 +521,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	},
 
 	A15: (files) =>
-		textCheck(
+		textCheck({
 			files,
-			(f) => layerOf(f.path) === "spi",
-			/\bsql\.raw\b/g,
-			() =>
+			fileIs: (f) => layerOf(f.path) === "spi",
+			pattern: /\bsql\.raw\b/g,
+			reason: () =>
 				"sql.raw is banned in spi/; build queries with Drizzle or the sql`` template, which binds parameters",
-		),
+		}),
 
 	A16: (files) =>
 		files
@@ -553,15 +565,15 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			}),
 
 	A17: (files) =>
-		textCheck(
+		textCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				f.path === "src/ui/routes.ts" ||
 				(layerOf(f.path) === "api" &&
 					!testIs(f.path) &&
 					/-(routes|live)\.ts$/.test(f.path)),
-			/(["'`])([^"'`\n]*\/[^"'`\n]*)\1/g,
-			(m) => {
+			pattern: /(["'`])([^"'`\n]*\/[^"'`\n]*)\1/g,
+			reason: (m) => {
 				const names = [
 					...(m[2] ?? "").matchAll(
 						/:([A-Za-z_]\w*)|(?<!\$)\{([A-Za-z_]\w*)\}/g,
@@ -573,7 +585,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? `path parameter ${names.join(", ")} in "${m[2]}" must end in Id (:<thing>Id)`
 					: undefined;
 			},
-		),
+		}),
 
 	A18: (files) => {
 		const domains = domainsOf(files);
@@ -610,31 +622,32 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	},
 
 	A19: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) =>
+			fileIs: (f) =>
 				domainOf(f.path) !== undefined &&
 				layerOf(f.path) !== "spi" &&
 				!testIs(f.path),
-			(imp) =>
+			check: ({ imp }) =>
 				/^src\/domains\/[^/]+\/spi\/.*\.memory\.ts$/.test(imp.target)
 					? "only *.test.ts files (and spi/) import memory adapters; production code gets ports from <domain>PortsCreate in spi/index.ts"
 					: undefined,
-		),
+		}),
 
 	A20: (files) =>
-		textCheck(
+		textCheck({
 			files,
-			(f) => domainOf(f.path) !== undefined,
-			/@ts-(expect-error|ignore)\b/g,
-			(m) => `@ts-${m[1]} is banned in src/domains/; fix the type instead`,
-		),
+			fileIs: (f) => domainOf(f.path) !== undefined,
+			pattern: /@ts-(expect-error|ignore)\b/g,
+			reason: (m) =>
+				`@ts-${m[1]} is banned in src/domains/; fix the type instead`,
+		}),
 
 	A21: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => businessIs(f.path) && !testIs(f.path),
-			(imp, f) => {
+			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
+			check: ({ f, imp }) => {
 				const pkg = /^@n8io\/baseline-[^/]+/.exec(imp.specifier)?.[0];
 				if (!pkg) return undefined;
 				if (pkg === "@n8io/baseline-result" || pkg === "@n8io/baseline-id") {
@@ -656,13 +669,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in use-cases/ and `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
 			},
-		),
+		}),
 
 	A22: (files) => [
-		...importsCheck(
+		...importsCheck({
 			files,
-			(f) => !testIs(f.path),
-			(imp, f) => {
+			fileIs: (f) => !testIs(f.path),
+			check: ({ f, imp }) => {
 				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
 					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root or src/connections.ts";
 				}
@@ -679,53 +692,53 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? "only the composition roots, src/authn.ts, src/connections.ts and src/events-open.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) => !testIs(f.path),
-			/\bprocess\.env\b/g,
-			() =>
+			fileIs: (f) => !testIs(f.path),
+			pattern: /\bprocess\.env\b/g,
+			reason: () =>
 				"process.env is read only through ENV from #env (declare the item in .env.schema)",
-		),
+		}),
 	],
 
 	A23: (files) => [
-		...textCheck(
+		...textCheck({
 			files,
-			() => true,
-			exportedVerbFirst,
-			([, name = "", verb = "", rest = ""]) =>
+			fileIs: () => true,
+			pattern: exportedVerbFirst,
+			reason: ([, name = "", verb = "", rest = ""]) =>
 				exemptIs(name)
 					? undefined
 					: `${name} starts with a verb; name it generic to specific, scope then subject then action: ${rest.charAt(0).toLowerCase()}${rest.slice(1)}${verb.charAt(0).toUpperCase()}${verb.slice(1)}`,
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			() => true,
-			exportedUntypedFunction,
-			([, constName, functionName]) => {
+			fileIs: () => true,
+			pattern: exportedUntypedFunction,
+			reason: ([, constName, functionName]) => {
 				const name = constName ?? functionName ?? "";
 				return !exemptIs(name) && thingWords.test(name)
 					? `${name} builds and returns a thing; a factory ends in Create: ${name}Create`
 					: undefined;
 			},
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			() => true,
-			exportedPredicate,
-			([, constName, functionName]) => {
+			fileIs: () => true,
+			pattern: exportedPredicate,
+			reason: ([, constName, functionName]) => {
 				const name = constName ?? functionName ?? "";
 				return !exemptIs(name) && !/(Is|Has|Can)$/.test(name)
 					? `${name} returns a boolean; a predicate ends in Is, Has or Can (barDeleteCan, barStaleIs)`
 					: undefined;
 			},
-		),
-		...textCheck(
+		}),
+		...textCheck({
 			files,
-			(f) => !testIs(f.path) && scopeOf(f.path) !== undefined,
-			exportedFunction,
-			([, constName, functionName], f) => {
+			fileIs: (f) => !testIs(f.path) && scopeOf(f.path) !== undefined,
+			pattern: exportedFunction,
+			reason: ([, constName, functionName], f) => {
 				const name = constName ?? functionName ?? "";
 				const scope = scopeOf(f.path) ?? "";
 				return exemptIs(name) ||
@@ -734,16 +747,16 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? undefined
 					: `${name} is exported from ${scope}; start every exported function with its package or Domain name: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 			},
-		),
+		}),
 	],
 
 	A24: (files) =>
-		importsCheck(
+		importsCheck({
 			files,
-			(f) => !testIs(f.path) && !/(^|\/)test\//.test(f.path),
-			(imp) =>
+			fileIs: (f) => !testIs(f.path) && !/(^|\/)test\//.test(f.path),
+			check: ({ imp }) =>
 				/^@n8io\/baseline-[^/]+\/testing$/.test(imp.specifier)
 					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
 					: undefined,
-		),
+		}),
 };

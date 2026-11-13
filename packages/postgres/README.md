@@ -10,7 +10,7 @@ pnpm add @n8io/baseline-postgres
 
 - `postgresPoolCreate({ databaseUrl, max?, connectTimeoutMs?, vendor? })`: the process's one pool (10 connections, 3 s connect timeout). `vendor` takes pg's own pool settings, such as `ssl` or `idleTimeoutMillis`, and passes them through. The named options win: `vendor` throws on the keys they set, on `host`, `port`, `database`, `user` and `password` (pg lets the URL win, so put them in `databaseUrl`), and on `ssl` when the URL carries an `ssl*` parameter. It is outside the contract: nothing in it is tested here, and moving off pg deletes it.
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
-- `postgresTransactionRun(pgPool, work, { timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
+- `postgresTransactionRun({ pgPool, work, timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresMigrate({ databaseUrl, migrationsFolder, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
@@ -34,12 +34,15 @@ export const fooTable = pgTable("foo", {
 
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
 
-const result = await postgresTransactionRun(pgPool, async (pgClient) => {
-	const rows = await drizzle({ client: pgClient })
-		.insert(fooTable)
-		.values(foo)
-		.returning();
-	return rows[0] ? ok(rows[0]) : err({ type: "FooNotCreated" as const });
+const result = await postgresTransactionRun({
+	pgPool,
+	work: async (pgClient) => {
+		const rows = await drizzle({ client: pgClient })
+			.insert(fooTable)
+			.values(foo)
+			.returning();
+		return rows[0] ? ok(rows[0]) : err({ type: "FooNotCreated" as const });
+	},
 });
 ```
 

@@ -71,7 +71,11 @@ const cookieMiddleware =
 		if (c.req.path === "/auth" || c.req.path.startsWith("/auth/")) {
 			return next();
 		}
-		const token = await authnCookieGet(c, authn.cookieKey, "access");
+		const token = await authnCookieGet({
+			c,
+			key: authn.cookieKey,
+			name: "access",
+		});
 		if (token === undefined) return next();
 		const verified =
 			token === "invalid"

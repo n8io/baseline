@@ -16,9 +16,10 @@ describe("server readiness", { timeout: 60_000 }, () => {
 			databaseUrl: "memory://",
 			env: { LOG_LEVEL: "info" },
 		});
-		await productionServerWaitFor("the ready log", () =>
-			server.stdout().includes(readyLog),
-		);
+		await productionServerWaitFor({
+			what: "the ready log",
+			check: () => server.stdout().includes(readyLog),
+		});
 		expect(server.stdout()).toContain(readyLog);
 		expect(server.stderr()).not.toContain("DeprecationWarning");
 	});
@@ -36,9 +37,12 @@ describe("server readiness", { timeout: 60_000 }, () => {
 				env: { LOG_LEVEL: "info", PORT: String(address.port) },
 			});
 			const statuses = new Set<number | undefined>();
-			await productionServerWaitFor("the exit", async () => {
-				statuses.add(await httpStatus(server.healthPort, "/readyz"));
-				return server.child.exitCode !== null;
+			await productionServerWaitFor({
+				what: "the exit",
+				check: async () => {
+					statuses.add(await httpStatus(server.healthPort, "/readyz"));
+					return server.child.exitCode !== null;
+				},
 			});
 
 			expect(await server.exited).toBe(1);
