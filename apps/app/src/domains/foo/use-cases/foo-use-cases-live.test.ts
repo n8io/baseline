@@ -1,6 +1,8 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
+import { liveHubOpen } from "../../../live-hub-open.ts";
+import type { RedisClient } from "../../../redis.ts";
 import type { FooPorts } from "../ports.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooUseCasesCreate } from "./foo-use-cases.ts";
@@ -51,5 +53,31 @@ describe("foo live updates", () => {
 		await useCases.fooDelete(owner, { fooId: idCreate("foo") });
 
 		expect(sent).toEqual([]);
+	});
+
+	it("still reports the change when the hub cannot send", async () => {
+		const publish = async (): Promise<never> => {
+			throw new Error("Redis is down");
+		};
+		const liveHub = liveHubOpen({
+			redis: { publish } as unknown as RedisClient,
+			steps: [],
+		});
+		const { ports } = fooPortsMemoryCreate();
+		const useCases = fooUseCasesCreate({
+			...ports,
+			fooLiveUpdates: { send: (update) => liveHub.send("foo", update) },
+		});
+		const created = await useCases.fooCreate(owner, { name: "alpha" });
+		if (!created.ok) throw created.error;
+		const foo = created.value;
+
+		expect(
+			await useCases.fooUpdate(owner, { fooId: foo.id, name: "gamma" }),
+		).toMatchObject({ ok: true, value: { name: "gamma" } });
+		expect(await useCases.fooDelete(owner, { fooId: foo.id })).toEqual({
+			ok: true,
+			value: undefined,
+		});
 	});
 });
