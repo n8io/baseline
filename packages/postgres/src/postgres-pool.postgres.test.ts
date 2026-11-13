@@ -34,7 +34,9 @@ describe("postgresPoolCreate", () => {
 			connectionString: "postgresql://localhost/db",
 			connectionTimeoutMillis: 3_000,
 			keepAlive: true,
+			keepAliveInitialDelayMillis: 10_000,
 			max: 10,
+			query_timeout: 15_000,
 		});
 		expect(pgPoolSmall.options.max).toBe(2);
 	});
@@ -60,6 +62,7 @@ describe("postgresPoolCreate", () => {
 		["host", "databaseUrl"],
 		["max", "max"],
 		["password", "databaseUrl"],
+		["query_timeout", "queryTimeoutMs"],
 	])("refuses vendor.%s, which %s sets", (key, option) => {
 		expect(() =>
 			postgresPoolCreate({
@@ -84,6 +87,43 @@ describe("postgresPoolCreate", () => {
 				"vendor.ssl is not allowed with sslmode in databaseUrl: pg lets the URL win; set TLS in one place",
 			),
 		);
+	});
+
+	it.each([0, -1, 1.5, Number.NaN])("refuses queryTimeoutMs %s", (value) => {
+		expect(() =>
+			postgresPoolCreate({
+				databaseUrl: "postgres://localhost/db",
+				queryTimeoutMs: value,
+			}),
+		).toThrow(
+			new TypeError("queryTimeoutMs must be a positive integer or null"),
+		);
+	});
+
+	it("rejects a query longer than queryTimeoutMs and still serves the next one", async () => {
+		await using pgPool = postgresPoolCreate({
+			databaseUrl: await postgresTestDatabaseCreate(),
+			max: 1,
+			queryTimeoutMs: 200,
+		});
+
+		await expect(pgPool.query("SELECT pg_sleep(5)")).rejects.toThrow(
+			"Query read timeout",
+		);
+		const started = Date.now();
+		const { rows } = await pgPool.query<{ one: number }>("SELECT 1 AS one");
+
+		expect(rows).toEqual([{ one: 1 }]);
+		expect(Date.now() - started).toBeLessThan(2_000);
+	});
+
+	it("sets no query timeout when queryTimeoutMs is null", async () => {
+		await using pgPool = postgresPoolCreate({
+			databaseUrl: "postgres://localhost/db",
+			queryTimeoutMs: null,
+		});
+
+		expect(pgPool.options.query_timeout).toBeUndefined();
 	});
 
 	it("logs idle client errors instead of crashing the process", async () => {

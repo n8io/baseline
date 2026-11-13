@@ -12,6 +12,16 @@ import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis.ts";
 
+// The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
+// process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
+export const databaseOpen = (role: "publisher" | "worker") =>
+	ENV.DATABASE_URL === "memory://"
+		? ("memory" as const)
+		: postgresPoolCreate({
+				databaseUrl: ENV.DATABASE_URL,
+				max: ENV.DATABASE_POOL_MAX ?? (role === "worker" ? 5 : 10),
+			});
+
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
 // is an intake, since it brings work in; elsewhere the live hub is, since it streams out.
 export const connectionsOpen = async ({
@@ -24,10 +34,7 @@ export const connectionsOpen = async ({
 			"The worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
-	const database =
-		ENV.DATABASE_URL === "memory://"
-			? ("memory" as const)
-			: postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+	const database = databaseOpen(role);
 	const intakes: ShutdownStep[] = [];
 	const resources: ShutdownStep[] = [];
 	// piece-start: error-tracking
