@@ -4,9 +4,7 @@ export const appOrigin: string = "https://app.test";
 export const secret: string = Buffer.alloc(32, 7).toString("base64url");
 
 // The template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
-export const authnTestActorFromClaims = (
-	claims: Record<string, unknown>,
-): Actor => ({
+export const authnTestActorFromClaims = (claims: AuthnClaims): Actor => ({
 	id: String(claims.sub),
 	kind: claims.gty === "client-credentials" ? "client" : "user",
 	scopes:
