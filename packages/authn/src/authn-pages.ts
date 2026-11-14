@@ -1,3 +1,5 @@
+import type { AuthnMemoryUser } from "./authn.ts";
+
 const escapeHtml = (text: string): string =>
 	text
 		.replaceAll("&", "&amp;")
@@ -9,22 +11,28 @@ const escapeHtml = (text: string): string =>
 const page = (title: string, body: string): string =>
 	`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body>${body}</body></html>`;
 
-const devButton = ({
-	label,
+const userButton = ({
 	returnTo,
-	who,
+	user,
 }: {
-	label: string;
 	returnTo: string;
-	who: "admin" | "user";
-}): string =>
-	`<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${who}"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><button type="submit">${label}</button></form>`;
+	user: AuthnMemoryUser;
+}): string => {
+	const scopes = user.scopes.length === 0 ? "no scopes" : user.scopes.join(" ");
+	return `<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${escapeHtml(user.id)}"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><button type="submit">${escapeHtml(user.name)}</button> <small>${escapeHtml(scopes)}</small></form>`;
+};
 
-/** The memory issuer's sign-in page: pick "Dev user" (no scopes) or "Dev admin". */
-export const authnMemorySignInPage = (returnTo: string): string =>
+/** The memory issuer's sign-in page: one button per `memoryUsers` entry. */
+export const authnMemorySignInPage = ({
+	returnTo,
+	users,
+}: {
+	returnTo: string;
+	users: AuthnMemoryUser[];
+}): string =>
 	page(
 		"Sign in (local)",
-		`<h1>Sign in</h1><p>Local issuer: no password, development and test only.</p>${devButton({ who: "user", label: "Dev user", returnTo })}${devButton({ who: "admin", label: "Dev admin", returnTo })}`,
+		`<h1>Sign in</h1><p>Local issuer: no password, development and test only.</p>${users.map((user) => userButton({ returnTo, user })).join("")}`,
 	);
 
 /** Shown when the provider refuses or the sign-in flow cannot be checked; never echoes the reason. */

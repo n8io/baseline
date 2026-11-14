@@ -4,4 +4,4 @@
 import { authnTestSignIn } from "@n8io/baseline-authn/testing";
 
 export const barSeed = (url: string, secret: string) =>
-	authnTestSignIn({ secret, url, who: "user" });
+	authnTestSignIn({ secret, url, who: "dev-user" });

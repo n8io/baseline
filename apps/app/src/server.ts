@@ -83,9 +83,16 @@ if (connections.events !== "memory") {
 const authn = await authnCreate({
 	...authnProviderOptionsCreate(ENV),
 	actorFromClaims,
-	memoryAdminScopes: [
-		...fooScopes,
-		// domain-create: scopes
+	memoryUsers: [
+		{ id: "dev-user", name: "Dev user", scopes: [] },
+		{
+			id: "dev-admin",
+			name: "Dev admin",
+			scopes: [
+				...fooScopes,
+				// domain-create: scopes
+			],
+		},
 	],
 	memoryIssuerAllowed: envLocal,
 });

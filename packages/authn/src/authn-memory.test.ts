@@ -8,7 +8,7 @@ import {
 } from "./authn-test-helpers.ts";
 import { authnMemoryTokenCreate } from "./index.ts";
 
-const signIn = async (who: "admin" | "user", returnTo = "/foos") => {
+const signIn = async (who: string, returnTo = "/foos") => {
 	const { app, authn } = await authnTestAppCreate();
 	const jar = authnTestCookieJarCreate();
 	const res = await app.request(`${appOrigin}/auth/sign-in`, {
@@ -54,8 +54,8 @@ describe("memory issuer sign-in", () => {
 		expect(await res.text()).not.toContain("<script>");
 	});
 
-	it("signs in Dev admin with memoryAdminScopes through the verifier and actorFromClaims", async () => {
-		const { page, res } = await signIn("admin");
+	it("signs in a memoryUsers entry with its scopes through the verifier and actorFromClaims", async () => {
+		const { page, res } = await signIn("dev-admin");
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
@@ -69,7 +69,7 @@ describe("memory issuer sign-in", () => {
 	});
 
 	it("signs in Dev user with no scopes", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 
 		expect(
 			(await authnTestPageBodyRead(await page("/foos"))).actor,
@@ -81,7 +81,7 @@ describe("memory issuer sign-in", () => {
 	});
 
 	it("never redirects to another site after sign-in", async () => {
-		const { res } = await signIn("user", "//evil.example/");
+		const { res } = await signIn("dev-user", "//evil.example/");
 
 		expect(res.headers.get("Location")).toBe("/");
 	});
@@ -99,7 +99,7 @@ describe("memory issuer sign-in", () => {
 
 describe("cookies", () => {
 	it("sets the access cookie on / and the refresh cookie on /auth, both HttpOnly, Secure and SameSite=Lax", async () => {
-		const { res } = await signIn("user");
+		const { res } = await signIn("dev-user");
 		const access = authnSetCookieLine(res, "__Host-authn");
 		const refresh = authnSetCookieLine(res, "__Secure-authn-refresh");
 
@@ -114,7 +114,7 @@ describe("cookies", () => {
 	});
 
 	it("encrypts the token, so the cookie never holds the JWT", async () => {
-		const { authn, jar } = await signIn("user");
+		const { authn, jar } = await signIn("dev-user");
 		const token = await authnMemoryTokenCreate({
 			actor: { id: "dev-user", kind: "user", scopes: [] },
 			authn,
@@ -125,7 +125,7 @@ describe("cookies", () => {
 	});
 
 	it("rejects a refresh cookie moved into the access cookie", async () => {
-		const { app, jar } = await signIn("user");
+		const { app, jar } = await signIn("dev-user");
 		const res = await app.request(`${appOrigin}/foos`, {
 			headers: { Cookie: `__Host-authn=${jar.get("__Secure-authn-refresh")}` },
 		});
@@ -161,7 +161,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("treats a cookie from another AUTHN_SECRET as invalid", async () => {
-		const { jar } = await signIn("user");
+		const { jar } = await signIn("dev-user");
 		const { app } = await authnTestAppCreate({
 			...(await import("./authn-test-helpers.ts")).memoryOptions,
 			secret: Buffer.alloc(32, 9).toString("base64url"),
@@ -187,7 +187,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("redirects a page GET with an expiring token to /auth/refresh", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 		vi.useFakeTimers({
 			now: Date.now() + 15 * 60_000 - 5_000,
 			toFake: ["Date"],
@@ -201,7 +201,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("redirects a page GET with an expired token to /auth/refresh", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 		vi.useFakeTimers({ now: Date.now() + 60 * 60_000, toFake: ["Date"] });
 
 		expect((await page("/foos")).headers.get("Location")).toBe(
@@ -210,7 +210,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("sends a post with an expired token to sign-in", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 		vi.useFakeTimers({ now: Date.now() + 60 * 60_000, toFake: ["Date"] });
 		const res = await page("/foos", { method: "POST" });
 
@@ -220,7 +220,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("never reads the cookie on the API", async () => {
-		const { app, jar } = await signIn("user");
+		const { app, jar } = await signIn("dev-user");
 		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
 			headers: { Cookie: jar.header() },
 		});
@@ -231,7 +231,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 
 describe("/auth/refresh", () => {
 	it("refreshes both cookies and redirects back to returnTo", async () => {
-		const { jar, page } = await signIn("admin");
+		const { jar, page } = await signIn("dev-admin");
 		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
 		const res = await page("/auth/refresh?returnTo=%2Ffoos");
 		jar.store(res);
@@ -246,7 +246,7 @@ describe("/auth/refresh", () => {
 	});
 
 	it("answers the client's fetch with the new expiry", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 		const res = await page("/auth/refresh");
 
 		expect(res.status).toBe(200);
@@ -270,7 +270,7 @@ describe("/auth/refresh", () => {
 	});
 
 	it("never redirects to another site", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 
 		expect(
 			(
@@ -282,7 +282,7 @@ describe("/auth/refresh", () => {
 
 describe("/auth/sign-out", () => {
 	it("clears both cookies and redirects home on POST", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 		const res = await page("/auth/sign-out", { method: "POST" });
 
 		expect(res.status).toBe(302);
@@ -296,7 +296,7 @@ describe("/auth/sign-out", () => {
 	});
 
 	it("is POST only", async () => {
-		const { page } = await signIn("user");
+		const { page } = await signIn("dev-user");
 
 		expect((await page("/auth/sign-out")).status).toBe(404);
 	});

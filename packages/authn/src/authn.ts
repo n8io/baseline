@@ -1,9 +1,6 @@
 import {
-	createLocalJWKSet,
 	createRemoteJWKSet,
 	errors,
-	exportJWK,
-	generateKeyPair,
 	type JWTPayload,
 	type JWTVerifyGetKey,
 	jwtVerify,
@@ -12,17 +9,23 @@ import {
 import { type Configuration, discovery } from "openid-client";
 import type { Actor } from "./actor.ts";
 import { actorSchema } from "./actor-schema.ts";
-import { authnCookieKey } from "./authn-cookie.ts";
+import { authnCookieKey, authnSecretKeyDerive } from "./authn-cookie.ts";
 
 /** The claims of a verified access token, as the provider sent them. */
 export type AuthnClaims = Record<string, unknown>;
+
+/** A person the memory issuer's sign-in page offers. */
+export type AuthnMemoryUser = { id: string; name: string; scopes: string[] };
+
+/** A machine client the memory issuer's `POST /auth/token` signs tokens for. */
+export type AuthnMemoryClient = { id: string; scopes: string[] };
 
 export type AuthnOptions = {
 	issuerUrl: string;
 	clientId: string;
 	clientSecret: string;
 	audience: string;
-	/** Base64url, at least 32 bytes; encrypts every authn cookie. */
+	/** Base64url, at least 32 bytes; encrypts every authn cookie and keys the memory issuer. */
 	secret: string;
 	/** Extra authorization request params, such as `{ audience }` for Auth0. */
 	authorizeParams?: Record<string, string>;
@@ -30,8 +33,10 @@ export type AuthnOptions = {
 	audienceClaim?: "aud" | "client_id";
 	/** Maps the verified access token's claims to the Actor; a throw means "not an actor". */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
-	/** Scopes of the memory issuer's "Dev admin". */
-	memoryAdminScopes?: string[];
+	/** The people the memory issuer's sign-in page offers; when unset or empty, one `dev-user` without scopes. */
+	memoryUsers?: AuthnMemoryUser[] | null;
+	/** The machine clients the memory issuer's `POST /auth/token` serves; default none. */
+	memoryClients?: AuthnMemoryClient[] | null;
 	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
 	memoryIssuerAllowed?: boolean;
 };
@@ -48,7 +53,9 @@ export type AuthnTokens = {
 
 export type AuthnMemoryIssuer = {
 	kind: "memory";
-	devActors: { admin: Actor; user: Actor };
+	accessTtlSeconds: number;
+	clients: AuthnMemoryClient[];
+	users: AuthnMemoryUser[];
 	tokensCreate: (actor: Actor) => Promise<AuthnTokens>;
 	tokensRefresh: (refreshToken: string) => Promise<AuthnTokens | undefined>;
 };
@@ -89,7 +96,8 @@ const authnFromState = (state: AuthnState): Authn => {
 };
 
 const memoryIssuerUrl = "memory://";
-const memoryAccessTtl = "15m";
+const memoryAccessTtlSeconds = 15 * 60;
+const memoryAlgorithm = "HS256";
 const memoryRefreshTtl = "30d";
 const memoryRefreshAudience = "baseline-authn-memory-refresh";
 
@@ -137,10 +145,12 @@ const actorFrom = (
 
 const verifyCreate =
 	({
+		algorithms,
 		issuer,
 		jwks,
 		options,
 	}: {
+		algorithms?: string[];
 		issuer: string;
 		jwks: JWTVerifyGetKey;
 		options: AuthnOptions;
@@ -149,6 +159,7 @@ const verifyCreate =
 		let payload: JWTPayload;
 		try {
 			({ payload } = await jwtVerify(accessToken, jwks, {
+				...(algorithms === undefined ? {} : { algorithms }),
 				issuer,
 				requiredClaims: ["exp"],
 				...(options.audienceClaim === "client_id"
@@ -183,13 +194,38 @@ const memoryClaims = (options: AuthnOptions, actor: Actor): JWTPayload => ({
 	...(actor.kind === "client" ? { gty: "client-credentials" } : {}),
 });
 
-const memoryIssuerCreate = async (
+const memoryUsersDefault: AuthnMemoryUser[] = [
+	{ id: "dev-user", name: "Dev user", scopes: [] },
+];
+
+const idsUniqueCheck = (
+	field: "memoryClients" | "memoryUsers",
+	entries: { id: string }[],
+): void => {
+	const ids = entries.map((entry) => entry.id);
+	const repeated = ids.find((id, index) => ids.indexOf(id) !== index);
+	if (repeated !== undefined) {
+		throw new TypeError(
+			`authnCreate: ${field} lists the id "${repeated}" twice`,
+		);
+	}
+};
+
+// HS256 with a key derived from `secret`, so every Server that shares the secret verifies the
+// tokens of every other: a token signed at one pod, or fetched by a script, works at the next.
+const memoryIssuerCreate = (
 	options: AuthnOptions,
-): Promise<{ issuer: AuthnMemoryIssuer; jwks: JWTVerifyGetKey }> => {
-	const { privateKey, publicKey } = await generateKeyPair("ES256");
-	const kid = "memory";
-	const jwks = createLocalJWKSet({
-		keys: [{ ...(await exportJWK(publicKey)), alg: "ES256", kid }],
+): { issuer: AuthnMemoryIssuer; key: Uint8Array } => {
+	const users =
+		options.memoryUsers == null || options.memoryUsers.length === 0
+			? memoryUsersDefault
+			: options.memoryUsers;
+	const clients = options.memoryClients ?? [];
+	idsUniqueCheck("memoryUsers", users);
+	idsUniqueCheck("memoryClients", clients);
+	const key = authnSecretKeyDerive({
+		info: "baseline-authn-memory-issuer",
+		secret: options.secret,
 	});
 	const sign = ({
 		audience,
@@ -203,13 +239,13 @@ const memoryIssuerCreate = async (
 		ttl: string;
 	}): Promise<string> =>
 		new SignJWT(claims)
-			.setProtectedHeader({ alg: "ES256", kid })
+			.setProtectedHeader({ alg: memoryAlgorithm })
 			.setIssuer(memoryIssuerUrl)
 			.setSubject(subject)
 			.setAudience(audience)
 			.setIssuedAt()
 			.setExpirationTime(ttl)
-			.sign(privateKey);
+			.sign(key);
 	const tokensFromClaims = async (
 		claims: JWTPayload,
 		subject: string,
@@ -218,10 +254,12 @@ const memoryIssuerCreate = async (
 			claims,
 			subject,
 			audience: options.audience,
-			ttl: memoryAccessTtl,
+			ttl: `${memoryAccessTtlSeconds}s`,
 		}),
+		// Only `sub`: refresh re-reads the user, and without `client_id` or `scope` a refresh token
+		// never passes as an access token, even with `audienceClaim: "client_id"`.
 		refreshToken: await sign({
-			claims,
+			claims: {},
 			subject,
 			audience: memoryRefreshAudience,
 			ttl: memoryRefreshTtl,
@@ -229,33 +267,37 @@ const memoryIssuerCreate = async (
 	});
 	return {
 		issuer: {
-			devActors: {
-				admin: {
-					id: "dev-admin",
-					kind: "user",
-					scopes: options.memoryAdminScopes ?? [],
-				},
-				user: { id: "dev-user", kind: "user", scopes: [] },
-			},
+			accessTtlSeconds: memoryAccessTtlSeconds,
+			clients,
 			kind: "memory",
 			tokensCreate: (actor) =>
 				tokensFromClaims(memoryClaims(options, actor), actor.id),
 			tokensRefresh: async (refreshToken) => {
 				try {
-					const { payload } = await jwtVerify(refreshToken, jwks, {
+					const { payload } = await jwtVerify(refreshToken, key, {
+						algorithms: [memoryAlgorithm],
 						audience: memoryRefreshAudience,
 						issuer: memoryIssuerUrl,
 					});
-					const { aud, exp, iat, iss, sub, ...claims } = payload;
-					return sub === undefined
+					// Re-read the user, so a changed or removed entry takes effect at the next refresh.
+					const user = users.find((entry) => entry.id === payload.sub);
+					return user === undefined
 						? undefined
-						: await tokensFromClaims(claims, sub);
+						: await tokensFromClaims(
+								memoryClaims(options, {
+									id: user.id,
+									kind: "user",
+									scopes: user.scopes,
+								}),
+								user.id,
+							);
 				} catch {
 					return undefined;
 				}
 			},
+			users,
 		},
-		jwks,
+		key,
 	};
 };
 
@@ -289,19 +331,24 @@ const oidcIssuerCreate = async (
 /**
  * Discovers the provider (or starts the memory issuer for `memory://`) and returns what the
  * routes, middleware and `authnMemoryTokenCreate` need. Throws on a secret under 32 bytes, a
- * URL scheme other than https:// or memory://, memory:// without `memoryIssuerAllowed`, or an
- * unreachable provider.
+ * URL scheme other than https:// or memory://, memory:// without `memoryIssuerAllowed`, an id
+ * listed twice in `memoryUsers` or `memoryClients`, or an unreachable provider.
  */
 export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 	issuerUrlCheck(options);
 	const cookieKey = authnCookieKey(options.secret);
 	if (options.issuerUrl === memoryIssuerUrl) {
-		const { issuer, jwks } = await memoryIssuerCreate(options);
+		const { issuer, key } = memoryIssuerCreate(options);
 		return authnFromState({
 			clientId: options.clientId,
 			cookieKey,
 			issuer,
-			verify: verifyCreate({ options, jwks, issuer: memoryIssuerUrl }),
+			verify: verifyCreate({
+				algorithms: [memoryAlgorithm],
+				issuer: memoryIssuerUrl,
+				jwks: async () => key,
+				options,
+			}),
 		});
 	}
 	const { issuer, issuerId, jwks } = await oidcIssuerCreate(options);

@@ -47,21 +47,22 @@ describe("the main entry", () => {
 });
 
 describe("the testing entry", () => {
-	it("reaches only the sign-in helper and the cookie code, so no test runner and no server", () => {
+	it("reaches the helpers and authn itself, but no test runner and no route or page code", () => {
 		const imports = reachableImports("./testing.ts");
 
 		expect([...imports.keys()].sort()).toStrictEqual([
+			"./actor-schema.ts",
+			"./actor.ts",
 			"./authn-cookie.ts",
+			"./authn-test-bearer.ts",
 			"./authn-test-sign-in.ts",
+			"./authn.ts",
 			"./testing.ts",
 		]);
-		expect([...new Set([...imports.values()].flat())].sort()).toStrictEqual([
-			"./authn-cookie.ts",
-			"./authn-test-sign-in.ts",
-			"hono",
-			"hono/cookie",
-			"jose",
-			"node:crypto",
-		]);
+		expect(
+			[...new Set([...imports.values()].flat())].filter((specifier) =>
+				specifier.startsWith("vitest"),
+			),
+		).toStrictEqual([]);
 	});
 });

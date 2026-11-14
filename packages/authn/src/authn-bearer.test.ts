@@ -1,7 +1,7 @@
 import { trace } from "@opentelemetry/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
-import { appOrigin } from "./authn-test-helpers.ts";
+import { appOrigin, memoryOptions } from "./authn-test-helpers.ts";
 import { type Actor, authnMemoryTokenCreate } from "./index.ts";
 
 const machine: Actor = {
@@ -89,8 +89,11 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 		expect(res.headers.get("Location")).toBeNull();
 	});
 
-	it("answers 401 AuthnInvalid for a token from another memory issuer", async () => {
-		const other = await authnTestAppCreate();
+	it("answers 401 AuthnInvalid for a token from a memory issuer with another secret", async () => {
+		const other = await authnTestAppCreate({
+			...memoryOptions,
+			secret: Buffer.alloc(32, 9).toString("base64url"),
+		});
 		const token = await authnMemoryTokenCreate({
 			actor: machine,
 			authn: other.authn,

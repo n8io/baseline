@@ -26,7 +26,7 @@ afterAll(async () => {
 
 const formPost = (path: string, headers: Record<string, string>) =>
 	fetch(`${server.url}${path}`, {
-		body: new URLSearchParams({ who: "admin" }),
+		body: new URLSearchParams({ who: "dev-admin" }),
 		headers: { cookie: session.cookie, ...headers },
 		method: "POST",
 		redirect: "manual",

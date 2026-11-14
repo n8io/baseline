@@ -11,7 +11,7 @@ type AuthnEnv = {
 
 export const authnProviderOptionsCreate = (
 	env: AuthnEnv,
-): Omit<AuthnOptions, "actorFromClaims" | "memoryAdminScopes"> => ({
+): Omit<AuthnOptions, "actorFromClaims" | "memoryUsers"> => ({
 	audience: env.AUTHN_AUDIENCE,
 	// "client_id" for Cognito without a resource binding.
 	audienceClaim: "aud",
