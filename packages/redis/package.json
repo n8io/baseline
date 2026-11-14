@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-redis",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "The one Redis connection a baseline app shares: it fails fast at startup and reconnects for good after.",
 	"type": "module",
 	"license": "MIT",
