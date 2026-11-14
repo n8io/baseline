@@ -126,7 +126,6 @@ const uiEdit = (directory: string) => {
 	});
 	manifestEdit(directory, (manifest) => {
 		manifest.scripts.build = "vite build";
-		manifest.scripts.check = "varlock codegen && biome check . && tsc --noEmit";
 		manifest.scripts.dev = manifest.scripts.dev?.replace(
 			"node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev",
 			"node --watch --import ./src/preload.ts src/server.ts",
@@ -249,6 +248,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"@types/react-dom",
 			"class-variance-authority",
 			"cn",
+			"lucide-react",
 			"radix-ui",
 			"react",
 			"react-dom",

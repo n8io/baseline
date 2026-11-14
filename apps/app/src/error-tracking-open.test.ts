@@ -11,6 +11,21 @@ vi.mock("@n8io/baseline-error-tracking", () => ({
 	errorTrackingSentryCreate: () => errorTracking,
 }));
 
+// The logger writes JSON lines to process.stdout; the errors this file logs on purpose would
+// otherwise show up as error-level lines in a green run. Returns what the logger wrote.
+const stdoutCapture = (): string[] => {
+	const lines: string[] = [];
+	const { write } = process.stdout;
+	process.stdout.write = ((chunk: string | Uint8Array) => {
+		lines.push(String(chunk));
+		return true;
+	}) as typeof process.stdout.write;
+	onTestFinished(() => {
+		process.stdout.write = write;
+	});
+	return lines;
+};
+
 describe("errorTrackingOpen", () => {
 	it("reports nothing, with nothing to close, when there is no DSN", () => {
 		const steps: ShutdownStep[] = [];
@@ -20,6 +35,7 @@ describe("errorTrackingOpen", () => {
 
 	it("reports each error the logger logs until shutdown, then closes", async () => {
 		const steps: ShutdownStep[] = [];
+		const written = stdoutCapture();
 		// .env.test sets LOG_LEVEL silent, and a level that is off reaches no listener.
 		const level = logger.level;
 		const writable = logger as { level: string };
@@ -43,5 +59,6 @@ describe("errorTrackingOpen", () => {
 
 		expect(errorTracking.close).toHaveBeenCalledOnce();
 		expect(errorTracking.report).toHaveBeenCalledOnce();
+		expect(written.join("")).toContain("Queue error");
 	});
 });

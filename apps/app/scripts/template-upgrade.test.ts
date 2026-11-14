@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
+	secretKeep,
 	templateUpgradeRun,
 	type UpgradeTools,
 	workspaceExcludesDedupe,
@@ -201,5 +202,20 @@ describe("workspaceExcludesDedupe", () => {
 		expect(workspaceExcludesDedupe(`${template}${other}`)).toBe(
 			`${template}${other}`,
 		);
+	});
+});
+
+describe("secretKeep", () => {
+	it("puts the Project's AUTHN_SECRET into a rendered .env.development only", () => {
+		const files = [
+			{ path: ".env.development", text: "A=1\nAUTHN_SECRET=template\nB=2\n" },
+			{ path: ".env.test", text: "AUTHN_SECRET=template\n" },
+		];
+
+		expect(secretKeep({ files, project: "A=1\nAUTHN_SECRET=mine\n" })).toEqual([
+			{ path: ".env.development", text: "A=1\nAUTHN_SECRET=mine\nB=2\n" },
+			{ path: ".env.test", text: "AUTHN_SECRET=template\n" },
+		]);
+		expect(secretKeep({ files, project: "A=1\n" })).toEqual(files);
 	});
 });

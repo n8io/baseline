@@ -116,7 +116,8 @@ const templateMerge = ({
 		run({
 			command: "git",
 			args: ["cherry-pick", "--no-commit", next],
-			options: { cwd: repository },
+			// A conflict is reported below; git's own "could not apply" hints would repeat it.
+			options: { cwd: repository, quiet: true },
 		});
 	} catch (error) {
 		// A conflict exits non-zero and leaves unmerged paths; anything else is a real failure.
@@ -183,6 +184,24 @@ export const workspaceExcludesDedupe = (workspace: string): string => {
 	return workspace.replace(pnpmList, "");
 };
 
+// app-create gives each Project its own AUTHN_SECRET. Both renders carry the Project's, so a change
+// to a neighbouring line of .env.development merges instead of conflicting with it.
+export const secretKeep = ({
+	files,
+	project,
+}: {
+	files: TemplateFile[];
+	project: string;
+}): TemplateFile[] => {
+	const secret = /^AUTHN_SECRET=.*$/m.exec(project)?.[0];
+	if (secret === undefined) return files;
+	return files.map((file) =>
+		file.path === ".env.development"
+			? { ...file, text: file.text.replace(/^AUTHN_SECRET=.*$/m, () => secret) }
+			: file,
+	);
+};
+
 export const templateUpgrade = async ({
 	appDirectory,
 	to,
@@ -207,10 +226,18 @@ export const templateUpgrade = async ({
 	// The project's lockfile is its own after app-create: its next install moves only what changed.
 	const merged = (files: TemplateFile[]) =>
 		files.filter((f) => f.path !== "pnpm-lock.yaml");
+	const envPath = join(appDirectory, ".env.development");
+	const project = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
 	const { conflicts } = templateMerge({
 		repository: appDirectory,
-		from: await releaseRender(merged(fromFiles), answers),
-		to: await releaseRender(merged(toFiles), answers),
+		from: secretKeep({
+			files: await releaseRender(merged(fromFiles), answers),
+			project,
+		}),
+		to: secretKeep({
+			files: await releaseRender(merged(toFiles), answers),
+			project,
+		}),
 		tools,
 		labels: { from: template.release, to },
 	});

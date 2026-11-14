@@ -8,6 +8,12 @@
 		"enabled": true,
 		"useIgnoreFile": true
 	},
+	"overrides": [
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"linter": { "rules": { "complexity": { "useMaxParams": "off" } } }
+		}
+	],
 	"linter": {
 		"rules": {
 			"preset": "recommended",

@@ -27,7 +27,6 @@ class DrizzleQueryError extends Error {
 	params: unknown[];
 	query: string;
 
-	// biome-ignore lint/complexity/useMaxParams: the same arguments as drizzle-orm's own class.
 	constructor(query: string, params: unknown[], cause: unknown) {
 		super(`Failed query: ${query}\nparams: ${params.join(",")}`, { cause });
 		this.params = params;

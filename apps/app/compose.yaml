@@ -1,6 +1,7 @@
 # Local services: `pnpm dev` runs them; by hand, `varlock run -- docker compose -p app up -d`.
 # Every compose command passes `-p` (the Project's name): without it a second Project's stack replaces this one.
-# `--profile telemetry` adds a local trace and log viewer (Grafana on http://localhost:3001).
+# `--profile telemetry` adds a local trace and log viewer (Grafana on http://localhost:3001); to send it
+# traces and logs, set OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 in .env.development.local.
 # `--profile image` runs the production image's entries against these services.
 name: app
 

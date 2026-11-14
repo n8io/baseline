@@ -31,7 +31,8 @@ export type DomainNames = { kebab: string; plural: string };
 
 const templateRepository = "n8io/baseline";
 
-// Runs a command and returns its stdout; `inherit` shows its output instead.
+// Runs a command and returns its stdout; `inherit` shows its output instead, `quiet` keeps its
+// stderr out of the terminal (a failure's error still carries it).
 export const run = ({
 	args,
 	command,
@@ -44,6 +45,7 @@ export const run = ({
 		env?: NodeJS.ProcessEnv;
 		inherit?: boolean;
 		input?: string;
+		quiet?: boolean;
 	};
 }): string =>
 	execFileSync(command, args, {
@@ -52,7 +54,9 @@ export const run = ({
 		env: options.env ?? process.env,
 		input: options.input,
 		maxBuffer: 256 * 1024 * 1024,
-		stdio: options.inherit ? "inherit" : ["pipe", "pipe", "inherit"],
+		stdio: options.inherit
+			? "inherit"
+			: ["pipe", "pipe", options.quiet ? "pipe" : "inherit"],
 	}) ?? "";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +72,8 @@ export const fooLineIs = (line: string): boolean => {
 
 type Mode = "code" | "string" | "comment";
 
-const codeFileIs = (path: string): boolean => /\.(ts|tsx|js|mjs)$/.test(path);
+export const codeFileIs = (path: string): boolean =>
+	/\.(ts|tsx|js|mjs)$/.test(path);
 
 const regexCanStart = /[(,=:[!&|?{};+\-*%~^]/;
 const regexKeywords =
@@ -76,7 +81,7 @@ const regexKeywords =
 
 // A small lexer: the mode of every character, so renames and bracket counts can tell
 // code from strings and comments. JSX text reads as code; fooProseIs handles it.
-const modesRead = (text: string, path: string): Mode[] => {
+export const modesRead = (text: string, path: string): Mode[] => {
 	const modes: Mode[] = new Array(text.length);
 	if (!codeFileIs(path)) return modes.fill("comment");
 	const templateDepths: number[] = [];

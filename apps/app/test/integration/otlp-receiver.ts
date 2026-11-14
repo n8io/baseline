@@ -122,7 +122,7 @@ export const otlpReceiverStart = async (): Promise<OtlpReceiver> => {
 	};
 };
 
-/** OTLP export settings for a child process, with short batch delays. */
+/** OTLP export settings for a child process, with short batch delays. A shell's OTEL_SDK_DISABLED must not switch the SDK off. */
 export const otlpEnv = (receiver: OtlpReceiver): Record<string, string> => ({
 	OTEL_BLRP_SCHEDULE_DELAY: "100",
 	OTEL_BSP_SCHEDULE_DELAY: "100",
@@ -130,6 +130,7 @@ export const otlpEnv = (receiver: OtlpReceiver): Record<string, string> => ({
 	OTEL_LOGS_EXPORTER: "otlp",
 	OTEL_METRIC_EXPORT_INTERVAL: "1000",
 	OTEL_METRICS_EXPORTER: "otlp",
+	OTEL_SDK_DISABLED: "false",
 	OTEL_TRACES_EXPORTER: "otlp",
 });
 
