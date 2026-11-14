@@ -6,7 +6,7 @@ A Package's named options keep working when the vendor behind it changes. Everyt
 
 ## You build it
 
-Where the vendor hands out an object to talk to it, your file builds that object and passes it to the Package, so every setting is open to you. Redis works this way: `cacheStoreRedisCreate({ redisClient })` and `liveHubRedisCreate({ redisClient })` take any connected node-redis client. `src/redis-open.ts` gets one from `redisClientCreate`; for a topology it does not open (Sentinel, Cluster), call node-redis there yourself. The queue takes the Postgres pool the same way.
+Where the vendor hands out an object to talk to it, your file builds that object and passes it to the Package, so every setting is open to you. The queue takes the Postgres pool this way, and `cacheStoreRedisCreate({ redisClient })` and `liveHubRedisCreate({ redisClient })` take any connected node-redis client. `src/redis-open.ts` gets that client from `redisClientCreate`, whose `vendor` option (below) covers most settings; only for what it does not open (Sentinel, Cluster) do you `pnpm add redis` and build the client there yourself.
 
 ## The `vendor` option
 

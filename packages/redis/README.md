@@ -8,11 +8,11 @@ pnpm add @n8io/baseline-redis
 
 ## Exports
 
-- `redisClientCreate({ url, vendor? })`: resolves with a connected node-redis client. The connect gives up after 3 s and never retries, so startup fails while Redis is unreachable. Once connected, a dropped connection reconnects every min(retries × 100 ms, 2 s), for as long as it takes. A command waits at most 1 s to be sent. Errors are logged at error, never with the URL, which may carry a password.
+- `redisClientCreate({ url, vendor? })`: resolves with a connected node-redis client. The connect, handshake included, gives up after 3 s and never retries, so startup fails while Redis is unreachable or not answering. Once connected, a dropped connection reconnects every min(retries × 100 ms, 2 s), for as long as it takes. A command waits at most 1 s to be sent. Errors are logged at error, never with the URL, which may carry a password.
 - `RedisClient`: what it resolves with, a node-redis client. Close it with `close()`; `await using` calls `close()` when its block ends.
-- `RedisClientVendorOptions`: `vendor`, node-redis's own client settings (`socket.ca`, `name`, `keyPrefix`), outside the contract. A key the URL or this Package sets (`username`, `password`, `database`, `commandOptions`, `socket.connectTimeout`, `socket.reconnectStrategy`) throws.
+- `RedisClientVendorOptions`: `vendor`, node-redis's own client settings (`socket.ca`, `name`, `keyPrefix`), outside the contract. A key the URL or this Package sets throws: `username`, `password`, `database`, `commandOptions`, `socket.host`, `socket.port`, `socket.path`, `socket.tls`, `socket.connectTimeout` and `socket.reconnectStrategy`, and `credentialsProvider` when the URL carries a user or password.
 
-`url` is `redis://` or `rediss://` (TLS), with any user, password and database in it. One URL fits a highly available Redis whose endpoint follows the primary: a managed one, or a proxy in front of Sentinel. For Sentinel or Cluster addressed directly, build the client with node-redis's `createSentinel` or `createCluster` yourself and pass it to the cache and live adapters, which take any connected node-redis client.
+`url` is `redis://` or `rediss://` (TLS), with any user, password and database in it. One URL fits a highly available Redis whose endpoint follows the primary: a managed one, or a proxy in front of Sentinel. For Sentinel or Cluster addressed directly, `pnpm add redis` and build the client with node-redis's `createSentinel` or `createCluster` yourself, with your own `error` listener, and pass it to the cache and live adapters, which take any connected node-redis client. Nothing tests that path.
 
 ## Example
 

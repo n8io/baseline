@@ -21,12 +21,18 @@ const redisVendorOwnedKeys = {
 } as const;
 const redisVendorOwnedSocketKeys = {
 	connectTimeout: "this Package (3 s)",
+	host: "url",
+	path: "url",
+	port: "url",
 	reconnectStrategy: "this Package (fail at startup, then retry for good)",
+	tls: "url (rediss:// for TLS)",
 } as const;
 
+const redisConnectTimeoutMs = 3_000;
+
 /**
- * node-redis's own client settings, passed through as they are: `socket.tls` and `socket.ca`, `name`,
- * `keyPrefix` and the like. Outside this Package's contract: nothing here is tested, and moving off
+ * node-redis's own client settings, passed through as they are: `socket.ca`, `name`, `keyPrefix`
+ * and the like. Outside this Package's contract: nothing here is tested, and moving off
  * node-redis deletes it. The keys the URL and this Package set are refused, and the ones that would
  * change the client's type are left out.
  */
@@ -40,6 +46,7 @@ export type RedisClientVendorOptions = Omit<
 	| "typeMapping"
 >;
 
+/** What `redisClientCreate` takes; not node-redis's own `RedisClientOptions`, which `vendor` carries. */
 export type RedisClientOptions = {
 	/** redis:// or rediss:// (TLS). It may carry a user, a password and a database number. */
 	url: string;
@@ -48,7 +55,19 @@ export type RedisClientOptions = {
 };
 
 // Throws on a vendor setting that the URL or this Package already decides.
-const redisVendorAssert = (vendor: RedisClientVendorOptions): void => {
+const redisVendorAssert = ({
+	url,
+	vendor,
+}: {
+	url: string;
+	vendor: RedisClientVendorOptions;
+}): void => {
+	const { password, username } = new URL(url);
+	if ("credentialsProvider" in vendor && (password || username)) {
+		throw new TypeError(
+			"vendor.credentialsProvider is not allowed with a user or password in url: node-redis lets the URL win; set credentials in one place",
+		);
+	}
 	const owned: [object, string, Record<string, string>][] = [
 		[vendor, "vendor", redisVendorOwnedKeys],
 		[vendor.socket ?? {}, "vendor.socket", redisVendorOwnedSocketKeys],
@@ -76,7 +95,7 @@ export const redisClientCreate = async ({
 	vendor,
 }: RedisClientOptions): Promise<RedisClient> => {
 	const settings = vendor ?? {};
-	redisVendorAssert(settings);
+	redisVendorAssert({ url, vendor: settings });
 	let connected = false;
 	const redisClient = createClient({
 		...settings,
@@ -84,7 +103,7 @@ export const redisClientCreate = async ({
 		commandOptions: { timeout: 1_000 },
 		socket: {
 			...settings.socket,
-			connectTimeout: 3_000,
+			connectTimeout: redisConnectTimeoutMs,
 			reconnectStrategy: (retries: number) =>
 				connected ? Math.min(retries * 100, 2_000) : false,
 		},
@@ -95,7 +114,30 @@ export const redisClientCreate = async ({
 	redisClient.on("error", (err: unknown) => {
 		logger.error({ err }, "Redis client error");
 	});
-	await redisClient.connect();
+	// connectTimeout bounds only the TCP connect; this also bounds a server that accepts and never
+	// answers the handshake.
+	let timer: NodeJS.Timeout | undefined;
+	try {
+		await Promise.race([
+			redisClient.connect(),
+			new Promise<never>((_, reject) => {
+				timer = setTimeout(() => {
+					reject(
+						new DOMException(
+							`Redis not ready within ${redisConnectTimeoutMs} ms`,
+							"TimeoutError",
+						),
+					);
+				}, redisConnectTimeoutMs);
+			}),
+		]);
+	} catch (err) {
+		// A refused connect has closed the client already.
+		if (redisClient.isOpen) redisClient.destroy();
+		throw err;
+	} finally {
+		clearTimeout(timer);
+	}
 	connected = true;
 	return Object.assign(redisClient, {
 		[Symbol.asyncDispose]: () => redisClient.close(),

@@ -85,7 +85,7 @@ await liveHub.close();
 
 ## Needs
 
-- Peers: `@opentelemetry/api`, for the counter (it does nothing until your app registers a meter provider); `redis` unless you only use `liveHubMemoryCreate`; `react` and `react-router` only for `@n8io/baseline-live/client`. A service that only sends or streams updates installs neither.
+- Peers: `@opentelemetry/api`, for the counter (it does nothing until your app registers a meter provider); `redis` only for its types, as this Package never imports it (`@n8io/baseline-redis` brings it); `react` and `react-router` only for `@n8io/baseline-live/client`. A service that only sends or streams updates installs neither.
 - `liveHubRedisCreate` takes any connected node-redis client, such as one from `redisClientCreate` in `@n8io/baseline-redis`.
 
 ## Tests
