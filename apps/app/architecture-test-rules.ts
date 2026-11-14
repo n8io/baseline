@@ -439,11 +439,11 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			files,
 			fileIs: (f) =>
 				!testIs(f.path) &&
-				!/^src\/(connections|redis|[a-z-]+-open)\.ts$/.test(f.path),
+				!/^src\/(connections|[a-z-]+-open)\.ts$/.test(f.path),
 			pattern:
-				/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|queueCreate)\(/g,
+				/\b(analyticsMixpanelCreate|cacheStoreRedisCreate|errorTrackingSentryCreate|liveHubRedisCreate|postgresPoolCreate|queueCreate|redisClientCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts, src/redis.ts and the src/*-open.ts files do that`,
+				`${m[1]}( picks a vendor and takes its settings; only src/connections.ts and the src/*-open.ts files do that`,
 		}),
 	],
 

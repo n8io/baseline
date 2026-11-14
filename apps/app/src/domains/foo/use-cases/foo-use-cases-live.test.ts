@@ -1,8 +1,8 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
+import type { RedisClient } from "@n8io/baseline-redis";
 import { describe, expect, it } from "vitest";
 import { liveHubOpen } from "../../../live-hub-open.ts";
-import type { RedisClient } from "../../../redis.ts";
 import type { FooPorts } from "../ports.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooUseCasesCreate } from "./foo-use-cases.ts";

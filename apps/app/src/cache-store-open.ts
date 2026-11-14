@@ -5,7 +5,7 @@ import {
 	cacheStoreMemoryCreate,
 	cacheStoreRedisCreate,
 } from "@n8io/baseline-cache";
-import type { RedisClient } from "./redis.ts";
+import type { RedisClient } from "@n8io/baseline-redis";
 
 export const cacheStoreOpen = ({
 	redis,

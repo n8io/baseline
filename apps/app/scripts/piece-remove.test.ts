@@ -46,9 +46,9 @@ const manifest = {
 		"@n8io/baseline-cache": "^1.0.0",
 		"@n8io/baseline-live": "^1.0.0",
 		"@n8io/baseline-queue": "^1.0.0",
+		"@n8io/baseline-redis": "^1.0.0",
 		react: "^19.0.0",
 		"react-router": "^7.0.0",
-		redis: "^5.0.0",
 	},
 	imports: { "#env": "./src/env.ts", "#ui/*": "./src/ui/*" },
 	scripts: {
@@ -96,7 +96,7 @@ const projectFiles: Record<string, string> = {
 	"src/domains/invoice/spi/invoice-transaction.postgres.test.ts": "events\n",
 	"src/domains/invoice/spi/invoice-transaction.postgres.ts": "transaction\n",
 	"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts": "test\n",
-	"src/redis.ts": "redis\n",
+	"src/redis-open.ts": "redis\n",
 	"src/server.ts": [
 		'import { Hono } from "hono";',
 		"",
@@ -272,7 +272,7 @@ describe("pieceFilesRemove", () => {
 		expect(read(directory, "compose.yaml")).toBe(
 			"services:\n  postgres:\n    image: postgres\n",
 		);
-		expect(existsSync(join(directory, "src/redis.ts"))).toBe(false);
+		expect(existsSync(join(directory, "src/redis-open.ts"))).toBe(false);
 	});
 
 	it("drops analytics, its test and MIXPANEL_TOKEN with the analytics piece", () => {

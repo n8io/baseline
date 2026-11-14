@@ -92,9 +92,9 @@ An Event that fails five times stays failed and blocks its Event key; other keys
 
 ## Redis high availability
 
-`src/redis.ts` opens one connection to one URL with `createClient`. That fits an endpoint that follows the primary: a managed highly available Redis, or a proxy in front of Sentinel. Use `rediss://` for TLS. After a drop it reconnects by itself, every 100 ms at first, slowing to every 2 s, and never gives up.
+`src/redis-open.ts` opens one connection to one URL with `redisClientCreate` from `@n8io/baseline-redis`. That fits an endpoint that follows the primary: a managed highly available Redis, or a proxy in front of Sentinel. Use `rediss://` for TLS. After a drop it reconnects by itself, every 100 ms at first, slowing to every 2 s, and never gives up.
 
-Sentinel or Cluster addressed directly needs `createSentinel` or `createCluster` in that one file. The cache and live updates take either client, but nothing tests that path.
+Sentinel or Cluster addressed directly needs node-redis's `createSentinel` or `createCluster` in that one file instead, with your own `error` listener. The cache and live updates take either client, but nothing tests that path.
 
 ## Alerts
 

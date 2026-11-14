@@ -2,11 +2,11 @@
 
 Read when a Project needs a setting only the vendor behind a Package has: TLS for Postgres, a Mixpanel region, a Sentry sample rate.
 
-A Package's named options keep working when the vendor behind it changes. Everything else reaches the vendor in one of two ways, and only from `src/connections.ts`, `src/redis.ts`, the `src/*-open.ts` files and `src/migrate.ts`.
+A Package's named options keep working when the vendor behind it changes. Everything else reaches the vendor in one of two ways, and only from `src/connections.ts`, the `src/*-open.ts` files and `src/migrate.ts`.
 
 ## You build it
 
-Where the vendor hands out an object to talk to it, your file builds that object and passes it to the Package, so every setting is open to you. Redis works this way: `src/redis.ts` calls node-redis's `createClient`, and `cacheStoreRedisCreate({ redisClient })` and `liveHubRedisCreate({ redisClient })` take the result. The queue takes the Postgres pool the same way.
+Where the vendor hands out an object to talk to it, your file builds that object and passes it to the Package, so every setting is open to you. Redis works this way: `cacheStoreRedisCreate({ redisClient })` and `liveHubRedisCreate({ redisClient })` take any connected node-redis client. `src/redis-open.ts` gets one from `redisClientCreate`; for a topology it does not open (Sentinel, Cluster), call node-redis there yourself. The queue takes the Postgres pool the same way.
 
 ## The `vendor` option
 
@@ -27,6 +27,7 @@ postgresPoolCreate({
 | `queueCreate`                     | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
 | `analyticsMixpanelCreate`         | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
 | `errorTrackingSentryCreate`       | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
+| `redisClientCreate`               | node-redis's client settings (`socket.ca`)      | `src/redis-open.ts`          |
 
 Rules:
 

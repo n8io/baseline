@@ -5,8 +5,8 @@ import {
 	liveHubMemoryCreate,
 	liveHubRedisCreate,
 } from "@n8io/baseline-live";
+import type { RedisClient } from "@n8io/baseline-redis";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
-import type { RedisClient } from "./redis.ts";
 
 // `steps` closes the hub at shutdown, before what is already in it.
 export const liveHubOpen = ({

@@ -1,0 +1,43 @@
+{
+	"name": "@n8io/baseline-redis",
+	"version": "0.0.0",
+	"description": "The one Redis connection a baseline app shares: it fails fast at startup and reconnects for good after.",
+	"type": "module",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n8io/baseline.git",
+		"directory": "packages/redis"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			}
+		},
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
+		"prepack": "tsdown",
+		"test": "vitest run",
+		"test:unit": "vitest run --project unit --passWithNoTests"
+	},
+	"dependencies": {
+		"@n8io/baseline-logger": "workspace:^",
+		"redis": "^6.3.1"
+	}
+}

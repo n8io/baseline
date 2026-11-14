@@ -234,6 +234,9 @@ importers:
       '@n8io/baseline-queue':
         specifier: workspace:^
         version: link:../../packages/queue
+      '@n8io/baseline-redis':
+        specifier: workspace:^
+        version: link:../../packages/redis
       '@n8io/baseline-result':
         specifier: workspace:^
         version: link:../../packages/result
@@ -285,9 +288,6 @@ importers:
       react-router-hono-server:
         specifier: 4.1.7
         version: 4.1.7(@react-router/dev@8.5.1(react-router@8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(supports-color@7.2.0)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1)))(hono@4.13.16)(react-dom@19.3.1(react@19.3.1))(react-router@8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1))
-      redis:
-        specifier: ^6.3.1
-        version: 6.3.1(@opentelemetry/api@1.10.0)
       varlock:
         specifier: ^1.24.0
         version: 1.24.0
@@ -531,6 +531,15 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+
+  packages/redis:
+    dependencies:
+      '@n8io/baseline-logger':
+        specifier: workspace:^
+        version: link:../logger
+      redis:
+        specifier: ^6.3.1
+        version: 6.3.1(@opentelemetry/api@1.10.0)
 
   packages/result: {}
 

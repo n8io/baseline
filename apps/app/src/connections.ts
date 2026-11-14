@@ -10,7 +10,7 @@ import { cacheStoreOpen } from "./cache-store-open.ts";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
-import { redisOpen } from "./redis.ts";
+import { redisOpen } from "./redis-open.ts";
 
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
 // process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.

@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
 
 ## How to remove a piece
 
@@ -47,7 +47,7 @@ Add the cache back: `git revert` the "Remove cache" commit. For each Domain crea
 
 `pnpm piece-remove redis`
 
-The Redis connection (`src/redis.ts`), `CACHE_URL` in every env file and Redis in `compose.yaml`. The cache and live updates both run on it, so remove them first; the command refuses while either is installed.
+The Redis connection (`@n8io/baseline-redis`, `src/redis-open.ts`), `CACHE_URL` in every env file and Redis in `compose.yaml`. The cache and live updates both run on it, so remove them first; the command refuses while either is installed.
 
 Add Redis back: `git revert` the "Remove redis" commit, before you add back the cache or live updates.
 
