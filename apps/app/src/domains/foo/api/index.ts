@@ -1,3 +1,4 @@
+// biome-ignore-all assist/source/organizeImports: piece markers keep each piece's exports together
 // The domain's inbound adapters, for the composition roots.
 // piece-start: live
 export { fooLiveRoutesCreate } from "./foo-live.ts";

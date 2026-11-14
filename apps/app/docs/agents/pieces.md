@@ -7,9 +7,26 @@ A piece's code sits mostly in whole files: `src/connections.ts` opens each piece
 ## How to remove a piece
 
 1. Start clean: `git status` shows nothing to commit. The command refuses otherwise.
-2. Run `pnpm piece-remove <piece>` from the Project root, with the piece named under its heading below. It deletes the piece's files and blocks, edits the files that cannot hold markers, removes its packages and the unused imports, and never commits. It refuses an order that cannot work and says what to remove first.
-3. Run `pnpm check`, `pnpm test` and `pnpm build`. All three must pass.
+2. Run `pnpm piece-remove <piece>` from the Project root, with the piece named under its heading below. It deletes the piece's files and blocks (and a test file left with no test), edits the files that cannot hold markers, removes its packages and the unused imports, runs `pnpm check`, and never commits. It refuses an order that cannot work and says what to remove first.
+3. Run `pnpm test` and `pnpm build`. Both must pass.
 4. Commit as "Remove <piece>", alone, so the commit can be reverted later.
+
+## If it fails
+
+When `pnpm check` fails after the removal, the command undoes it (the tree is as you left it, packages reinstalled), lists the files the check names, and exits 1. Those files use the piece outside its markers. Wrap each piece's code in its own `// piece-start: <piece>` and `// piece-end: <piece>` lines, as the Template does, and run the command again. If you cannot, or this Project keeps the piece, list it in `piecesKept`.
+
+Rules for code that belongs to a piece, so the removal stays clean:
+
+- Put it in a whole file named for the piece (`<domain>-use-cases-<piece>.test.ts`, `spi/<domain>-<piece>.ts`) where you can, and in blocks only where it shares a file.
+- A variable, parameter or import used only inside a block must be declared inside it, or it is unused once the block goes.
+- Blocks of different pieces may nest; they may not cross. Biome sorts imports and exports and can pull a block apart: a file with blocks in its exports starts with `// biome-ignore-all assist/source/organizeImports: <why>`. `structure.test.ts` fails on a start without its end, and on blocks that cross.
+- A page that uses live updates carries them in `live` blocks (see the `*-detail.tsx` pages in `src/ui/routes/`), so removing `live` leaves the page.
+
+## Keeping every piece removable
+
+`pnpm piece-check [piece...]` removes each installed piece on a throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates; `queue` is skipped, with a note, while a Consumer exists.
+
+A Project that will never remove a piece lists it in `.template.json`: `"piecesKept": ["live", "cache"]`. `piece-check` skips it, and new code needs no markers for it. Decide that once, on purpose; the Template's own pieces stay removable.
 
 A `pnpm template-upgrade` can bring a removed piece's lines back where the Template changed them. Commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
 
@@ -37,17 +54,17 @@ Add live updates back: `git revert` the "Remove live" commit. For each Domain cr
 
 `pnpm piece-remove cache`
 
-The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`spi/<domain>-cache.ts`, `spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
-While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `spi/<domain>-cache.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
+While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `spi/index.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cache.ts`, `spi/*-cache.test.ts` and `spi/*-cached.ts` files and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
+Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cached.ts` file and its test and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
 
 ## Redis
 
 `pnpm piece-remove redis`
 
-The Redis connection (`@n8io/baseline-redis`, `src/redis-open.ts`), `CACHE_URL` in every env file and Redis in `compose.yaml`. The cache and live updates both run on it, so remove them first; the command refuses while either is installed.
+The Redis connection (`@n8io/baseline-redis`, `src/redis-open.ts`), `CACHE_URL` and `REDIS_HOST_PORT` in the env files, and Redis in `compose.yaml`. The cache and live updates both run on it, so remove them first; the command refuses while either is installed.
 
 Add Redis back: `git revert` the "Remove redis" commit, before you add back the cache or live updates.
 

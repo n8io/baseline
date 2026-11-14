@@ -1,14 +1,18 @@
 // pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
 // redis, queue, analytics or error-tracking). It deletes the piece's files and its `piece-start:` to `piece-end:`
-// blocks, removes its packages and the imports nothing uses any more, and never commits.
-// docs/agents/pieces.md says what each piece is and how to take one back. Running it again after
-// a template-upgrade takes out the lines the upgrade brought back.
+// blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
+// commits. When the check fails it undoes the removal and lists the files that use the piece outside
+// its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
+// again after a template-upgrade takes out the lines the upgrade brought back.
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pieceBlocksRemove, piecesRemovedFind } from "./domain-create.ts";
 import { run } from "./template-render.ts";
 
 type PieceRemoval = {
+	// Pieces that must go first, when installed.
+	after?: string[];
 	// The packages it removes; the first one is how domain-create and this script tell it is gone.
 	packages: string[];
 	// Paths from the Project root, deleted when present.
@@ -55,7 +59,7 @@ const manifestEdit = (directory: string, edit: (m: Manifest) => void) =>
 		},
 	});
 
-const packagesInstalled = (directory: string): Set<string> => {
+export const packagesInstalled = (directory: string): Set<string> => {
 	const manifest = JSON.parse(
 		readFileSync(join(directory, "package.json"), "utf8"),
 	) as Manifest;
@@ -143,6 +147,9 @@ const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
 // The SCHEDULE_* overrides and the marker domain-create adds them at.
 const scheduleLines =
 	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m;
+// REDIS_HOST_PORT, its decorator, and the unit tests' CACHE_URL.
+const redisHostPortLines =
+	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;
 const workerDev =
 	/\(HEALTH_PORT=9001 node --watch --import \.\/src\/preload\.ts src\/worker\.ts & ([^)]*)\)/;
 
@@ -219,6 +226,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			/(\/api\/[^/]*-schedule(\.test)?\.ts|\/spi\/[^/]*-transaction\.postgres\.test\.ts|-queue\.test\.ts)$/,
 	},
 	redis: {
+		after: ["cache", "live"],
 		edit: (directory) => {
 			for (const env of ["schema", "development", "production", "test"]) {
 				textEdit({
@@ -227,6 +235,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 					edit: (text) => text.replace(cacheUrlLines, ""),
 				});
 			}
+			textEdit({
+				directory,
+				path: ".env.schema",
+				edit: (text) => text.replace(redisHostPortLines, ""),
+			});
 		},
 		packages: ["@n8io/baseline-redis"],
 		paths: ["src/redis-open.ts"],
@@ -271,6 +284,48 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	},
 };
 
+const markerLine = /^[ \t]*(?:\/\/|#) piece-(start|end): ([a-z-]+)$/;
+
+// What is wrong with the piece markers in a file's text: a start without its end, an end without
+// its start, a block of a piece inside a block of the same piece, or blocks that cross each other.
+// Blocks of different pieces may nest; they may not interleave.
+export const pieceMarkersProblems = (text: string): string[] => {
+	const problems: string[] = [];
+	const open: { line: number; piece: string }[] = [];
+	for (const [index, content] of text.split("\n").entries()) {
+		const found = markerLine.exec(content);
+		const edge = found?.[1];
+		const piece = found?.[2];
+		if (edge === undefined || piece === undefined) continue;
+		const line = index + 1;
+		if (edge === "start") {
+			if (open.some((o) => o.piece === piece)) {
+				problems.push(
+					`line ${line}: piece-start: ${piece} inside another ${piece} block`,
+				);
+			}
+			open.push({ line, piece });
+			continue;
+		}
+		const at = open.findLastIndex((o) => o.piece === piece);
+		if (at === -1) {
+			problems.push(`line ${line}: piece-end: ${piece} has no piece-start`);
+		} else if (at !== open.length - 1) {
+			const inner = open[open.length - 1]?.piece;
+			problems.push(
+				`line ${line}: piece-end: ${piece} closes it while ${inner} is still open (blocks cross)`,
+			);
+			open.splice(at, 1);
+		} else {
+			open.pop();
+		}
+	}
+	for (const o of open) {
+		problems.push(`line ${o.line}: piece-start: ${o.piece} has no piece-end`);
+	}
+	return problems;
+};
+
 const usage = `usage: pnpm piece-remove <${Object.keys(pieceRemovals).join("|")}>`;
 
 // Why the piece cannot be removed from this Project now, or undefined when it can.
@@ -291,10 +346,26 @@ export const pieceRemoveRefusal = (
 	return removal.refusal?.(directory);
 };
 
+// A test file that lost every test with its blocks has nothing left to run.
+const testCall = /(?<![.\w])(?:it|test)(?:\.\w+)*[(`]/;
+const testsLeft = (text: string) =>
+	testCall.test(text.replace(/^\s*\/\/.*$/gm, ""));
+
 // Deletes the piece's files and blocks and edits what carries no markers. Leaves packages alone.
 export const pieceFilesRemove = (directory: string, piece: string) => {
 	const removal = pieceRemovals[piece];
 	if (removal === undefined) throw new Error(usage);
+	for (const path of trackedFiles(directory)) {
+		if (path.endsWith(".md")) continue;
+		const problems = pieceMarkersProblems(
+			readFileSync(join(directory, path), "utf8"),
+		);
+		if (problems.length > 0) {
+			throw new Error(
+				`piece markers in ${path} do not balance: ${problems.join("; ")}`,
+			);
+		}
+	}
 	for (const path of removal.paths) {
 		rmSync(join(directory, path), { force: true, recursive: true });
 	}
@@ -306,12 +377,15 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 	const start = `piece-start: ${piece}`;
 	for (const path of trackedFiles(directory)) {
 		if (path.endsWith(".md")) continue;
-		textEdit({
-			directory,
-			path,
-			edit: (text) =>
-				text.includes(start) ? pieceBlocksRemove(text, piece) : text,
-		});
+		const file = join(directory, path);
+		const text = readFileSync(file, "utf8");
+		if (!text.includes(start)) continue;
+		const edited = pieceBlocksRemove(text, piece);
+		if (/\.test\.tsx?$/.test(path) && !testsLeft(edited)) {
+			rmSync(file);
+		} else if (edited !== text) {
+			writeFileSync(file, edited);
+		}
 	}
 	removal.edit?.(directory);
 	const left = trackedFiles(directory).filter(
@@ -326,31 +400,94 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 	}
 };
 
-export const pieceRemove = (directory: string, piece: string) => {
-	pieceFilesRemove(directory, piece);
-	const pnpm = (args: string[]) =>
-		run({ command: "pnpm", args, options: { cwd: directory, inherit: true } });
-	const installed = packagesInstalled(directory);
-	const packages = pieceRemovals[piece]?.packages.filter((p) =>
-		installed.has(p),
-	);
-	if (packages !== undefined && packages.length > 0) {
-		pnpm(["remove", ...packages]);
+// What a failed removal tells the person.
+export type PieceRemoveFailure = {
+	// Files the failing check names: the code that uses the piece outside its markers.
+	files: string[];
+	output: string;
+};
+
+const filePath =
+	/(?:^|[\s'"(])(?:\.\/)?((?:src|test|scripts)\/[\w./@$-]+?\.tsx?)(?![\w]|\.\w)/gm;
+
+export const filesNamedIn = (output: string): string[] => [
+	...new Set([...output.matchAll(filePath)].map((m) => m[1] ?? "")),
+];
+
+export const toolRun = (directory: string, args: string[]) => {
+	const result = spawnSync("pnpm", args, {
+		cwd: directory,
+		encoding: "utf8",
+		env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+		maxBuffer: 64 * 1024 * 1024,
+	});
+	return {
+		ok: result.status === 0,
+		output: `${result.stdout}${result.stderr}`.trim(),
+	};
+};
+
+// Puts the tree back as `git status` found it clean: the removal is all or nothing.
+const removalUndo = (directory: string): boolean => {
+	// :/ is the whole repository: pnpm remove can rewrite a lockfile above the app.
+	for (const args of [
+		["restore", "--staged", "--worktree", ":/"],
+		["clean", "-fd", ":/"],
+	]) {
+		run({ command: "git", args, options: { cwd: directory } });
 	}
-	if (piece === "ui" && !installed.has("@hono/node-server")) {
-		pnpm(["add", "@hono/node-server@^2.1.5"]);
+	return toolRun(directory, ["install"]).ok;
+};
+
+// Removes the piece, then requires `pnpm check` to pass. On a failure it undoes the removal and
+// returns what failed; on success it leaves the removal in the tree, uncommitted.
+export const pieceRemove = (
+	directory: string,
+	piece: string,
+): PieceRemoveFailure | undefined => {
+	const failure = (output: string): PieceRemoveFailure => {
+		const restored = removalUndo(directory);
+		return {
+			files: filesNamedIn(output),
+			output: restored
+				? output
+				: `${output}\n\npnpm install failed after the undo: run it again.`,
+		};
+	};
+	try {
+		pieceFilesRemove(directory, piece);
+		const pnpm = (args: string[]) =>
+			run({
+				command: "pnpm",
+				args,
+				options: { cwd: directory, inherit: true },
+			});
+		const installed = packagesInstalled(directory);
+		const packages = pieceRemovals[piece]?.packages.filter((p) =>
+			installed.has(p),
+		);
+		if (packages !== undefined && packages.length > 0) {
+			pnpm(["remove", ...packages]);
+		}
+		if (piece === "ui" && !installed.has("@hono/node-server")) {
+			pnpm(["add", "@hono/node-server@^2.1.5"]);
+		}
+		// Removing an unused import is an unsafe fix in Biome, so it runs on its own.
+		toolRun(directory, [
+			"exec",
+			"biome",
+			"lint",
+			"--write",
+			"--unsafe",
+			"--only=correctness/noUnusedImports",
+			".",
+		]);
+		toolRun(directory, ["exec", "biome", "check", "--write", "."]);
+	} catch (error) {
+		return failure((error as Error).message);
 	}
-	// Removing an unused import is an unsafe fix in Biome, so it runs on its own.
-	pnpm([
-		"exec",
-		"biome",
-		"lint",
-		"--write",
-		"--unsafe",
-		"--only=correctness/noUnusedImports",
-		".",
-	]);
-	pnpm(["exec", "biome", "check", "--write", "."]);
+	const checked = toolRun(directory, ["check"]);
+	return checked.ok ? undefined : failure(checked.output);
 };
 
 const main = () => {
@@ -361,11 +498,26 @@ const main = () => {
 		console.error(`piece-remove: ${refusal}`);
 		process.exit(1);
 	}
-	pieceRemove(directory, piece);
+	const failed = pieceRemove(directory, piece);
+	if (failed !== undefined) {
+		const lines = [
+			`piece-remove: removing ${piece} failed, so the removal is undone and the tree is as you left it.`,
+		];
+		if (failed.files.length > 0) {
+			lines.push(
+				`These files use ${piece} outside its piece markers, or fail for another reason:`,
+				...failed.files.map((f) => `  ${f}`),
+				`Wrap the code that uses ${piece} in \`// piece-start: ${piece}\` and \`// piece-end: ${piece}\` lines (docs/agents/pieces.md), then run pnpm piece-remove ${piece} again.`,
+			);
+		}
+		lines.push("", ...failed.output.split("\n").slice(-40));
+		console.error(lines.join("\n"));
+		process.exit(1);
+	}
 	console.log(
 		[
-			`Removed ${piece}. Next:`,
-			"  pnpm check && pnpm test && pnpm build",
+			`Removed ${piece}; pnpm check passes. Next:`,
+			"  pnpm test && pnpm build",
 			`  git add -A && git commit -m "Remove ${piece}"`,
 			"Commit it alone, so git revert can bring the piece back.",
 		].join("\n"),

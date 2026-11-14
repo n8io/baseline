@@ -151,6 +151,20 @@ jobs:
           done
           exit $status
 
+  # Each installed piece is removed on a throwaway worktree; check and unit tests must pass without it.
+  # A Project that keeps a piece lists it in .template.json `piecesKept`.
+  pieces:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm piece-check
+
   oasdiff:
     runs-on: ubuntu-latest
     timeout-minutes: 10

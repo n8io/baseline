@@ -2,6 +2,7 @@
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
 // - each of ui, live, cache, queue, analytics and error-tracking removed alone passes check, unit tests and
 //   build, and git revert of its commit gives back the starting tree;
+// - `pnpm piece-check`, the check the Project's `pieces` job runs, passes on the render;
 // - redis alone is refused, because the cache and live updates run on it;
 // - all seven removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
@@ -26,6 +27,7 @@ import {
 } from "../../scripts/app-create.ts";
 import {
 	checkoutExport,
+	checkoutPackagesTrack,
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
@@ -236,7 +238,10 @@ const main = async () => {
 	lockfileTemplateRequire(directory, files);
 	domainAdd({ directory, files, names: customer });
 	pnpmRun(directory, ["check"]);
+	checkoutPackagesTrack(directory);
 	gitCommitAll(directory, "Create api-only with customer");
+	console.log("pnpm piece-check");
+	pnpmRun(directory, ["piece-check"]);
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
 	for (const piece of [

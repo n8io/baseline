@@ -271,6 +271,12 @@ export const templateUpgradeRun = async ({
 }): Promise<number> => {
 	let result: { conflicts: string[]; changelog: string };
 	try {
+		if (templateJsonRead(appDirectory).release === to) {
+			console.log(
+				`template-upgrade: already on release ${to}; nothing to upgrade`,
+			);
+			return 0;
+		}
 		result = await templateUpgrade({ appDirectory, to, tools });
 	} catch (error) {
 		console.error(`template-upgrade: ${(error as Error).message}`);

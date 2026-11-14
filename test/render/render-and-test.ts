@@ -28,6 +28,7 @@ import {
 } from "../../scripts/app-create.ts";
 import {
 	checkoutExport,
+	checkoutPackagesTrack,
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
@@ -153,6 +154,7 @@ const main = async () => {
 	pnpmRun(directory, ["codegen"]);
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);
+	checkoutPackagesTrack(directory);
 	gitCommitAll(directory, "Upgrade, add invoice-line and customer");
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));
 };

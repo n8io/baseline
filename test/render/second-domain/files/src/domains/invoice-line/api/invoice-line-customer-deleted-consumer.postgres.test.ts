@@ -41,14 +41,22 @@ describe("the customer.deleted consumer on Postgres", () => {
 	const portsCreate = () =>
 		invoiceLinePortsCreate(
 			{
+				// piece-start: analytics
 				analytics: analyticsLoggerCreate(),
+				// piece-end: analytics
+				// piece-start: cache
 				cacheStore: cacheStoreMemoryCreate(),
+				// piece-end: cache
 				database: pgPool,
 				events: queueEventsCreate(queue),
 				intakes: [],
+				// piece-start: live
 				liveHub: liveHubMemoryCreate(),
+				// piece-end: live
 				queue,
+				// piece-start: redis
 				redis: "memory",
+				// piece-end: redis
 				resources: [],
 			},
 			{

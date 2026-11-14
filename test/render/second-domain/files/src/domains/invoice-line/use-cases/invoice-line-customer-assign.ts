@@ -18,18 +18,7 @@ import { invoiceLineUpdateCan } from "../rules/invoice-line-update-can.ts";
 // A customer deleted between the read and the commit is accepted: the customer.deleted
 // Consumer clears it.
 export const invoiceLineCustomerAssign =
-	({
-		invoiceLineTransaction,
-		invoiceLineCache,
-		invoiceLineClock,
-		invoiceLineCustomerReader,
-	}: Pick<
-		InvoiceLinePorts,
-		| "invoiceLineTransaction"
-		| "invoiceLineCache"
-		| "invoiceLineClock"
-		| "invoiceLineCustomerReader"
-	>) =>
+	(ports: InvoiceLinePorts) =>
 	async (
 		actor: Actor,
 		input: InvoiceLineCustomerAssignInput,
@@ -44,10 +33,10 @@ export const invoiceLineCustomerAssign =
 		telemetrySpanAttributesSet({
 			"baseline.invoice_line.id": input.invoiceLineId,
 		});
-		if (!(await invoiceLineCustomerReader.get(input.customerId))) {
+		if (!(await ports.invoiceLineCustomerReader.get(input.customerId))) {
 			return err(new InvoiceLineNotFoundError(input.invoiceLineId));
 		}
-		const result = await invoiceLineTransaction<
+		const result = await ports.invoiceLineTransaction<
 			InvoiceLine,
 			| InvoiceLineNotFoundError
 			| InvoiceLineNameTakenError
@@ -64,9 +53,11 @@ export const invoiceLineCustomerAssign =
 			return invoiceLineRepository.update({
 				...invoiceLine,
 				customerId: input.customerId,
-				updatedAt: invoiceLineClock.now(),
+				updatedAt: ports.invoiceLineClock.now(),
 			});
 		});
-		if (result.ok) await invoiceLineCache.delete(input.invoiceLineId);
+		// piece-start: cache
+		if (result.ok) await ports.invoiceLineCache.delete(input.invoiceLineId);
+		// piece-end: cache
 		return result;
 	};
