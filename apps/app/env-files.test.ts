@@ -112,4 +112,30 @@ describe("env files", () => {
 			.map((line) => line.split("=")[0]);
 		expect(notReferences).toEqual([]);
 	});
+
+	// CACHE_URL and REDIS_HOST_PORT go with the Redis piece.
+	it("build the development URLs from the host ports", () => {
+		const development = parseEnv(fileRead(".env.development"));
+		const schema = parseEnv(fileRead(".env.schema"));
+		expect(development.DATABASE_URL).toMatch(/:\$\{POSTGRES_HOST_PORT\}\//);
+		if (development.CACHE_URL !== undefined) {
+			expect(development.CACHE_URL).toMatch(/:\$\{REDIS_HOST_PORT\}$/);
+		}
+		for (const item of [
+			"HEALTH_HOST_PORT",
+			"POSTGRES_HOST_PORT",
+			"SERVER_HOST_PORT",
+			...(development.CACHE_URL === undefined ? [] : ["REDIS_HOST_PORT"]),
+		]) {
+			expect(schema[item]).toMatch(/^\d+$/);
+		}
+	});
+
+	// A shell that exports real URLs must not send unit tests to a real Postgres or Redis.
+	it("runs the unit tests on memory adapters whatever the shell exports", () => {
+		expect([process.env.DATABASE_URL, process.env.CACHE_URL]).toEqual([
+			"memory://",
+			"memory://",
+		]);
+	});
 });

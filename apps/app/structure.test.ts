@@ -346,3 +346,39 @@ describe("agent docs", () => {
 		).toEqual([]);
 	});
 });
+
+// Every `docker compose` command names its project with `-p`, so two Projects on one machine never
+// replace each other's containers, and runs under `varlock run` so it sees the Project's host ports.
+describe("docker compose commands", () => {
+	const manifest = JSON.parse(
+		readFileSync(new URL("package.json", appRoot), "utf8"),
+	) as { name: string; scripts: Record<string, string> };
+	const composeCommands = (text: string): string[] =>
+		[...text.matchAll(/docker compose [^&|)`"\n]*/g)].map((m) => m[0]);
+
+	it("hold in package.json scripts, docs/agents/deploy.md and compose.yaml", () => {
+		const texts = [
+			...Object.values(manifest.scripts),
+			readFileSync(new URL("docs/agents/deploy.md", appRoot), "utf8"),
+			readFileSync(new URL("compose.yaml", appRoot), "utf8"),
+		];
+		const bad = texts
+			.flatMap(composeCommands)
+			.filter((command) => !/^docker compose -p \S+/.test(command));
+		expect(bad).toEqual([]);
+	});
+
+	it("run under varlock in package.json scripts", () => {
+		const bad = Object.entries(manifest.scripts).filter(
+			([, script]) =>
+				script.includes("docker compose") &&
+				!script.includes("varlock run -- docker compose"),
+		);
+		expect(bad).toEqual([]);
+	});
+
+	it("name the same project in compose.yaml", () => {
+		const compose = readFileSync(new URL("compose.yaml", appRoot), "utf8");
+		expect(/^name: (.+)$/m.exec(compose)?.[1]).toBe(manifest.name);
+	});
+});

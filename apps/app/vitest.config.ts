@@ -25,7 +25,12 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					env: { APP_ENV: "test" },
+					// Unit tests run on memory adapters even where the shell exports real URLs.
+					env: {
+						APP_ENV: "test",
+						CACHE_URL: "memory://",
+						DATABASE_URL: "memory://",
+					},
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					// The same slow import in a beforeAll: it took over 10 s on a busy CI runner.
 					hookTimeout: 20_000,
