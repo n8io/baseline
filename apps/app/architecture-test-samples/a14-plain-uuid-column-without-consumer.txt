@@ -1,0 +1,18 @@
+// A14: a plain uuid column named for another domain's id (here proposer_team_id) needs a consumer of "<other domain>.deleted", as data.md tells people to store it
+// expect: src/domains/trade/spi/trade-table.ts: a column holding a team id needs src/domains/trade/api/trade-team-deleted-consumer.ts consuming "team.deleted"
+// @file src/domains/trade/spi/trade-table.ts
+import { index, pgSchema, text, uuid } from "drizzle-orm/pg-core";
+
+export const tradeSchema = pgSchema("trade");
+
+export const trade = tradeSchema.table(
+	"trade",
+	{
+		id: uuid().primaryKey(),
+		proposerTeamId: uuid("proposer_team_id").notNull(),
+		status: text().notNull(),
+	},
+	(t) => [index("trade_proposer_team_id_idx").on(t.proposerTeamId)],
+);
+// @file src/domains/team/index.ts
+export const teamScopes = [];

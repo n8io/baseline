@@ -62,6 +62,8 @@ const pieces = [
 		package: "@n8io/baseline-error-tracking",
 		paths: [],
 	},
+	// Owns no Domain file either (src/redis-open.ts is not a Domain's).
+	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
 	{
 		name: "live",
 		package: "@n8io/baseline-live",

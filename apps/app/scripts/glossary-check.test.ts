@@ -146,6 +146,26 @@ describe("glossary-check", () => {
 			expect(hitsIn("src/a.tsx", text)).toEqual([]);
 		});
 
+		it("reads JSX text, on one line and across lines, and leaves code that looks like it", () => {
+			const text = [
+				"const page = (",
+				"	<section>",
+				"		<p>The client schema</p>",
+				"		<p>",
+				"			Sign in as a client",
+				"		</p>",
+				"		<p>Welcome to main, {name}</p>",
+				"	</section>",
+				");",
+				"const tail = (a: number) => a > 1 && a < 3;",
+				"const kind: Map<string, number> = new Map();",
+				"const main = (client: Array<string>) => client.length > 2 ? 1 : 0;",
+			].join("\n");
+
+			expect(hitsIn("src/a.tsx", text)).toEqual([3, 3, 5, 7]);
+			expect(hitsIn("src/a.ts", text)).toEqual([]);
+		});
+
 		it("reads multi-line comments and template literals line by line", () => {
 			const text = [
 				"/*",

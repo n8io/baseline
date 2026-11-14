@@ -76,7 +76,10 @@ describe("server readiness", { timeout: 60_000 }, () => {
 
 		expect(await server.exited).toBe(1);
 		expect(statuses).not.toContain(200);
-		expect(server.stderr()).toContain("ECONNREFUSED");
+		// One structured fatal line, not a raw pg-pool stack on stderr.
+		expect(server.stdout()).toContain("Boot failed: a connection did not open");
+		expect(server.stdout()).toContain("ECONNREFUSED");
+		expect(server.stderr()).not.toContain("    at ");
 		expect(server.stdout()).not.toContain(readyLog);
 	});
 

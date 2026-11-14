@@ -55,7 +55,12 @@ if (import.meta.env.DEV) await devRun.serverDevClose?.();
 let shutdown: ShutdownHandle | undefined;
 // The startup check: connectionsOpen throws while Postgres is unreachable, so the health port
 // opens only after it and /livez never answers for a Server that cannot start.
-const connections = await connectionsOpen({ role: "publisher" });
+const connections = await connectionsOpen({ role: "publisher" }).catch(
+	(error) => {
+		logger.fatal({ err: error }, "Boot failed: a connection did not open");
+		process.exit(1);
+	},
+);
 const health = healthServerCreate({
 	isAlive: () => true,
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,

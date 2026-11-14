@@ -1,5 +1,6 @@
 // Composition root for consumers and schedules; it never serves pages or the API.
 import { healthServerCreate } from "@n8io/baseline-health";
+import { logger } from "@n8io/baseline-logger";
 import { queueSchedulesStart } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
@@ -12,7 +13,10 @@ import { connectionsOpen } from "./connections.ts";
 import { domainsUseCasesCreate } from "./use-cases.ts";
 
 let shutdown: ShutdownHandle | undefined;
-const connections = await connectionsOpen({ role: "worker" });
+const connections = await connectionsOpen({ role: "worker" }).catch((error) => {
+	logger.fatal({ err: error }, "Boot failed: a connection did not open");
+	process.exit(1);
+});
 const { events, queue } = connections;
 // connectionsOpen refuses a memory database here, so the queue and Events are real.
 if (queue === "memory" || events === "memory") {
