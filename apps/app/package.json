@@ -16,6 +16,7 @@
 		"#ui/*": "./src/ui/*"
 	},
 	"scripts": {
+		"api-check": "node scripts/api-check.ts",
 		"build": "NODE_ENV=production react-router build",
 		"check": "varlock codegen && react-router typegen && biome check . && tsc --noEmit",
 		"ci": "pnpm check && pnpm test && pnpm test:integration",

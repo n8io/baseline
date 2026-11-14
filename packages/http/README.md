@@ -64,6 +64,10 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 	});
 ```
 
+## Extensible error codes
+
+`httpErrorResponsesCreate` documents the problem's `code` as a `string` whose known values are listed in `x-extensible-enum`, not in `enum`. A new error code on a status a route already answers is then a compatible change (oasdiff reports no breaking change), so a client treats an unknown code as the status's general failure. The TypeScript types stay closed: the listed types must be keys of the status table.
+
 ## Needs
 
 Peers: `hono`, `@hono/zod-openapi`, `zod` and `@opentelemetry/api`. No env.
