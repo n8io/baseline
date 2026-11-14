@@ -72,7 +72,7 @@ index 551c8e5..e12079f 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index 87ae69e..9baaadc 100644
+index db6ddce..416fea5 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
 @@ -42,6 +42,14 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
@@ -90,7 +90,7 @@ index 87ae69e..9baaadc 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -99,6 +107,7 @@ export type InvoiceLinePorts = {
+@@ -89,6 +97,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
@@ -98,7 +98,7 @@ index 87ae69e..9baaadc 100644
  	// Every Use case reads the time here, never from new Date().
  	invoiceLineClock: Clock;
  	// piece-start: live
-@@ -113,3 +122,9 @@ export type InvoiceLinePorts = {
+@@ -103,3 +112,9 @@ export type InvoiceLinePorts = {
  	invoiceLineReadRepository: InvoiceLineReadRepository;
  	invoiceLineTransaction: InvoiceLineTransaction;
  };
@@ -136,38 +136,48 @@ index a658531..0d93106 100644
  	});
  });
 diff --git a/src/domains/invoice-line/spi/index.test.ts b/src/domains/invoice-line/spi/index.test.ts
-index 935034b..633ae6e 100644
+index 53c0f97..80a34db 100644
 --- a/src/domains/invoice-line/spi/index.test.ts
 +++ b/src/domains/invoice-line/spi/index.test.ts
-@@ -2,12 +2,16 @@ import { idCreate } from "@n8io/baseline-id";
- import { ok } from "@n8io/baseline-result";
+@@ -3,7 +3,10 @@ import { ok } from "@n8io/baseline-result";
  import { describe, expect, it } from "vitest";
  import { connectionsOpen } from "../../../connections.ts";
+ import type { InvoiceLine } from "../models/invoice-line.ts";
 -import { invoiceLinePortsCreate } from "./index.ts";
 +import {
 +	invoiceLineCustomerReaderMemoryCreate,
 +	invoiceLinePortsCreate,
 +} from "./index.ts";
  
- describe("invoiceLinePortsCreate", () => {
+ const invoiceLineBuild = (): InvoiceLine => ({
+ 	archivedAt: null,
+@@ -18,6 +21,7 @@ describe("invoiceLinePortsCreate", () => {
  	it("builds memory ports for a memory database", async () => {
  		const ports = invoiceLinePortsCreate(
  			await connectionsOpen({ role: "publisher" }),
 +			{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
  		);
- 		const now = new Date();
+ 		const invoiceLine = invoiceLineBuild();
+ 		await ports.invoiceLineTransaction(async ({ invoiceLineRepository }) => {
+@@ -34,6 +38,7 @@ describe("invoiceLinePortsCreate", () => {
+ 	it("caches a invoice line under its id with its dates intact", async () => {
+ 		const { invoiceLineCache } = invoiceLinePortsCreate(
+ 			await connectionsOpen({ role: "publisher" }),
++			{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
+ 		);
  		const invoiceLine = {
+ 			...invoiceLineBuild(),
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 58f3203..59fe763 100644
+index 221c1bc..a62f73f 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
-@@ -2,16 +2,20 @@ import type { Events } from "@n8io/baseline-queue";
+@@ -3,16 +3,20 @@ import type { Events } from "@n8io/baseline-queue";
  import { drizzle } from "drizzle-orm/node-postgres";
  import { clockSystemCreate } from "../../../clock.ts";
  import type { Connections } from "../../../connections.ts";
 -import type { InvoiceLinePorts } from "../ports.ts";
 +import type { InvoiceLinePorts, InvoiceLineReaders } from "../ports.ts";
- import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
+ import { invoiceLineCached } from "./invoice-line-cached.ts";
  import { invoiceLinePortsMemoryCreate } from "./invoice-line-ports.memory.ts";
  import { invoiceLineRepositoryPostgresCreate } from "./invoice-line-repository.postgres.ts";
  import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction.postgres.ts";
@@ -184,8 +194,8 @@ index 58f3203..59fe763 100644
  ): InvoiceLinePorts => {
  	const { database } = connections;
  	// piece-start: queue
-@@ -50,6 +54,7 @@ export const invoiceLinePortsCreate = (
- 		invoiceLineCache: invoiceLineCacheCreate(connections.cacheStore),
+@@ -55,6 +59,7 @@ export const invoiceLinePortsCreate = (
+ 		}),
  		// piece-end: cache
  		invoiceLineClock: clockSystemCreate(),
 +		invoiceLineCustomerReader: readers.invoiceLineCustomerReader,
@@ -193,31 +203,31 @@ index 58f3203..59fe763 100644
  		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index 36fe489..bab11fe 100644
+index de00196..d2c3226 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -2,6 +2,7 @@ import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
+@@ -2,6 +2,7 @@ import { cacheCreate, cacheStoreMemoryCreate } from "@n8io/baseline-cache";
  import { type ClockMemory, clockMemoryCreate } from "../../../clock.ts";
  import type { InvoiceLinePorts } from "../ports.ts";
- import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
+ import { invoiceLineCached } from "./invoice-line-cached.ts";
 +import { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";
  import {
- 	type InvoiceLineMemoryState,
  	invoiceLineMemoryStateCreate,
-@@ -29,6 +30,8 @@ export const invoiceLinePortsMemoryCreate = (): {
- 			invoiceLineCache: invoiceLineCacheCreate(cacheStoreMemoryCreate()),
- 			// piece-end: cache
- 			invoiceLineClock: clock,
-+			// Knows no customer; a test that needs one passes a fake that does.
-+			invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate(),
- 			// piece-start: live
- 			invoiceLineLiveUpdates: { send: async () => undefined },
- 			// piece-end: live
+ 	invoiceLineRepositoryMemoryCreate,
+@@ -46,6 +47,8 @@ export const invoiceLinePortsMemoryCreate = () => {
+ 		}),
+ 		// piece-end: cache
+ 		invoiceLineClock: clock,
++		// Knows no customer; a test that needs one passes a fake that does.
++		invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate(),
+ 		// piece-start: live
+ 		invoiceLineLiveUpdates: {
+ 			send: async (update) => {
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-index 9f63171..63ce495 100644
+index 553875c..ce8b105 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-@@ -69,6 +69,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
+@@ -58,6 +58,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  			}
  			return archived;
  		},
@@ -235,10 +245,10 @@ index 9f63171..63ce495 100644
  			state.invoiceLines.delete(id)
  				? ok(undefined)
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-index 37b3356..54fbdea 100644
+index e2ca429..8a0218f 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-@@ -30,6 +30,7 @@ const invoiceLineFromRow = (
+@@ -23,6 +23,7 @@ const invoiceLineFromRow = (
  	archivedAt: row.archivedAt,
  	createdAt: row.createdAt,
  	createdBy: row.createdBy,
@@ -246,7 +256,7 @@ index 37b3356..54fbdea 100644
  	id: row.id,
  	name: row.name,
  	updatedAt: row.updatedAt,
-@@ -48,6 +49,14 @@ export const invoiceLineRepositoryPostgresCreate = (
+@@ -41,6 +42,14 @@ export const invoiceLineRepositoryPostgresCreate = (
  			.returning({ id: invoiceLine.id });
  		return archived.length;
  	},
@@ -278,6 +288,40 @@ index 756b306..15b9c87 100644
 +		index("invoice_line_customer_id_idx").on(t.customerId),
  	],
  );
+diff --git a/src/domains/invoice-line/use-cases/invoice-line-use-cases-cache.test.ts b/src/domains/invoice-line/use-cases/invoice-line-use-cases-cache.test.ts
+index 6d40696..f173206 100644
+--- a/src/domains/invoice-line/use-cases/invoice-line-use-cases-cache.test.ts
++++ b/src/domains/invoice-line/use-cases/invoice-line-use-cases-cache.test.ts
+@@ -1,7 +1,10 @@
+ import type { Actor } from "@n8io/baseline-authn";
+ import { describe, expect, it } from "vitest";
+ import { connectionsOpen } from "../../../connections.ts";
+-import { invoiceLinePortsCreate } from "../spi/index.ts";
++import {
++	invoiceLineCustomerReaderMemoryCreate,
++	invoiceLinePortsCreate,
++} from "../spi/index.ts";
+ import { invoiceLinePortsMemoryCreate } from "../spi/invoice-line-ports.memory.ts";
+ import { invoiceLineUseCasesCreate } from "./invoice-line-use-cases.ts";
+ 
+@@ -53,10 +56,13 @@ describe("invoice line cache", () => {
+ 		};
+ 		const connections = await connectionsOpen({ role: "publisher" });
+ 		const useCases = invoiceLineUseCasesCreate(
+-			invoiceLinePortsCreate({
+-				...connections,
+-				cacheStore: { delete: down, get: down, set: down },
+-			}),
++			invoiceLinePortsCreate(
++				{
++					...connections,
++					cacheStore: { delete: down, get: down, set: down },
++				},
++				{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
++			),
+ 		);
+ 		const created = await useCases.invoiceLineCreate(actor, { name: "alpha" });
+ 		if (!created.ok) throw created.error;
 diff --git a/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts b/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts
 index 05a645f..9117d03 100644
 --- a/src/domains/invoice-line/use-cases/invoice-line-use-cases.ts
@@ -356,7 +400,7 @@ index db5f1e1..6b3836c 100644
  }
 \ No newline at end of file
 diff --git a/src/server.ts b/src/server.ts
-index c3ec3bb..49fde0b 100644
+index 32eee7d..246998d 100644
 --- a/src/server.ts
 +++ b/src/server.ts
 @@ -34,6 +34,7 @@ import {
