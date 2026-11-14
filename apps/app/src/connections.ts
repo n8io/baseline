@@ -15,9 +15,11 @@ import { redisOpen } from "./redis-open.ts";
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
 // process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
 export const databaseOpen = ({
+	poolMax,
 	role,
 	url,
 }: {
+	poolMax?: number | null;
 	role: "publisher" | "worker";
 	url: string;
 }) =>
@@ -25,7 +27,7 @@ export const databaseOpen = ({
 		? ("memory" as const)
 		: postgresPoolCreate({
 				databaseUrl: url,
-				max: ENV.DATABASE_POOL_MAX ?? (role === "worker" ? 5 : 10),
+				max: poolMax ?? (role === "worker" ? 5 : 10),
 			});
 
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
@@ -46,7 +48,11 @@ export const connectionsOpen = async ({
 			"The worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
-	const database = databaseOpen({ role, url: databaseUrl });
+	const database = databaseOpen({
+		poolMax: ENV.DATABASE_POOL_MAX ?? null,
+		role,
+		url: databaseUrl,
+	});
 	if (database !== "memory") {
 		// The startup check: while Postgres is unreachable this throws, boot fails and the process
 		// never reports ready, so a new pod does not start during an outage. A pod already running

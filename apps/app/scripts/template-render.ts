@@ -437,7 +437,6 @@ const templateFooPaths = [
 	/^src\/ui\/routes\/(foo-[^/]+|home)(\.test)?\.tsx?$/,
 	// Integration tests that drive foo are named foo-*.test.ts.
 	/^test\/integration\/foo-[^/]+\.test\.ts$/,
-	/^src\/server-seed\.test\.ts$/,
 	/^migrations\/[^/]*foo[^/]*\//,
 ];
 

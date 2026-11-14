@@ -270,33 +270,38 @@ export const templateUpgrade = async ({
 // The CLI's steps after parsing; returns the exit code.
 export const templateUpgradeRun = async ({
 	appDirectory,
+	output,
 	pnpm,
 	to,
 	tools,
 }: {
 	appDirectory: string;
+	/** Where the messages go; the console when left out. */
+	output?: {
+		error: (line: string) => void;
+		log: (line: string) => void;
+	} | null;
 	pnpm: (script: string) => void;
 	to: string;
 	tools: UpgradeTools;
 }): Promise<number> => {
+	const { error: logError, log } = output ?? console;
 	let result: { conflicts: string[]; changelog: string };
 	try {
 		if (templateJsonRead(appDirectory).release === to) {
-			console.log(
-				`template-upgrade: already on release ${to}; nothing to upgrade`,
-			);
+			log(`template-upgrade: already on release ${to}; nothing to upgrade`);
 			return 0;
 		}
 		result = await templateUpgrade({ appDirectory, to, tools });
 	} catch (error) {
-		console.error(`template-upgrade: ${(error as Error).message}`);
+		logError(`template-upgrade: ${(error as Error).message}`);
 		return 1;
 	}
-	console.log(
+	log(
 		`Template changes up to ${to} (apply foo changes to your domains by hand):\n\n${result.changelog || "(no changelog entries)"}\n`,
 	);
 	if (result.conflicts.length > 0) {
-		console.error(
+		logError(
 			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run pnpm install, pnpm check and pnpm test.`,
 		);
 		return 1;
@@ -304,12 +309,10 @@ export const templateUpgradeRun = async ({
 	try {
 		for (const script of ["install", "format", "check", "test"]) pnpm(script);
 	} catch {
-		console.error(
-			"template-upgrade: merged, but format, typecheck or tests fail",
-		);
+		logError("template-upgrade: merged, but format, typecheck or tests fail");
 		return 1;
 	}
-	console.log("template-upgrade: merged; review the changes and commit them");
+	log("template-upgrade: merged; review the changes and commit them");
 	return 0;
 };
 

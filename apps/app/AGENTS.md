@@ -33,7 +33,7 @@ When a budget trips, decide again deliberately: make the code faster or set a ne
 
 ## Tests
 
-- A unit test sits beside the file it covers in `src/` or `scripts/`, as `<name>.test.ts` or `<name>-<aspect>.test.ts` (`src/server-wiring.test.ts`).
+- A unit test sits beside the file it covers in `src/` or `scripts/`, as `<name>.test.ts` or `<name>-<aspect>.test.ts` (`src/env-memory.test.ts`).
 - A test that needs Postgres or Redis names it before `.test` (`invoice-repository.postgres.test.ts`) and runs with `pnpm test:integration`.
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
 - A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts` and the like.
