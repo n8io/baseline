@@ -1,4 +1,4 @@
-// A2: rules/ imports only models/ (and the Actor type)
+// A2: rules/ imports only models/, other rules/ and the types of the authn, id and result packages
 // expect: src/domains/bar/rules/bar-open.ts imports ../ports.ts: rules are pure functions over models/
 // @file src/domains/bar/rules/bar-open.ts
 import type { Bar } from "../models/bar.ts";

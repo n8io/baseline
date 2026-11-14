@@ -1,0 +1,20 @@
+// A14: a column built with another domain's id prefix needs a consumer of "<other domain>.deleted", whatever the column is named
+// expect: src/domains/trade/spi/trade-table.ts: a column holding a team id needs src/domains/trade/api/trade-team-deleted-consumer.ts consuming "team.deleted"
+// @file src/domains/trade/spi/trade-table.ts
+import { postgresIdColumnCreate } from "@n8io/baseline-postgres";
+import { index, pgSchema, text, timestamp } from "drizzle-orm/pg-core";
+
+export const tradeSchema = pgSchema("trade");
+
+export const trade = tradeSchema.table(
+	"trade",
+	{
+		id: postgresIdColumnCreate("trade")().primaryKey(),
+		proposerTeamId: postgresIdColumnCreate("team")("proposer_team_id").notNull(),
+		status: text().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+	},
+	(t) => [index("trade_proposer_team_id_idx").on(t.proposerTeamId)],
+);
+// @file src/domains/team/index.ts
+export const teamScopes = [];

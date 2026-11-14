@@ -75,6 +75,8 @@ Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 - One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so keep those to the rule by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
+- A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.
+- A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`), whatever it is named, needs that Domain's `deleted` Consumer (A14). `api/` never calls `.openapi(` on a model it imports; build its own schema (A25).
 
 ### Stop and ask
 

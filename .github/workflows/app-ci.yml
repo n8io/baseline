@@ -141,7 +141,7 @@ jobs:
           for sql in $(git diff --name-only --no-renames --diff-filter=A origin/main...HEAD -- 'migrations/*/migration.sql'); do
             folder=$(dirname "$sql")
             if [ -f "$folder/destructive.md" ]; then continue; fi
-            if grep -inE '\bdrop[[:space:]]+(table|column|schema)\b|\brename\b|\balter[[:space:]]+column\b[^;]*\btype\b|\bset[[:space:]]+not[[:space:]]+null\b' "$sql"; then
+            if grep -inE '\bdrop[[:space:]]+(table|column|schema|index|constraint|type|view|sequence)\b|\brename\b|\balter[[:space:]]+column\b[^;]*\btype\b|\bset[[:space:]]+not[[:space:]]+null\b' "$sql"; then
               echo "::error file=$sql::Destructive SQL needs $folder/destructive.md saying why it is safe now."
               status=1
             fi

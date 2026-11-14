@@ -1,5 +1,5 @@
 // A14: a column named <other domain>_id requires an api/*-consumer.ts consuming "<other domain>.deleted"
-// expect: src/domains/bar/spi/bar-table.ts: a baz_id column needs src/domains/bar/api/bar-baz-deleted-consumer.ts consuming "baz.deleted"
+// expect: src/domains/bar/spi/bar-table.ts: a column holding a baz id needs src/domains/bar/api/bar-baz-deleted-consumer.ts consuming "baz.deleted"
 // @file src/domains/bar/spi/bar-table.ts
 import { pgSchema, text } from "drizzle-orm/pg-core";
 

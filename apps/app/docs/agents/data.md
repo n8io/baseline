@@ -7,6 +7,6 @@ Read when touching a table, a migration or SQL.
 - Change schemas with expand then contract. A rename is an added column in one release and a dropped one in a later release.
 - Run `pnpm codegen` after editing a table file. A PR may only add folders under `migrations/`.
 - On a migration conflict, delete your migration, rebase and run `pnpm codegen` again. Never use `--fix-conflicts` or `--hints`.
-- Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask.
+- Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; the `migrations` CI job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
 - No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
 - Do not use `sql.raw` in `spi/`.
