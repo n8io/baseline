@@ -11,7 +11,6 @@ import {
 } from "react-router";
 import { z } from "zod";
 import {
-	Foo,
 	type FooError,
 	FooUpdateInput,
 	fooDeleteCan,
@@ -51,7 +50,7 @@ const fooErrorThrow = ({ message, type }: FooError): never => {
 };
 
 const fooIdParse = (params: { fooId?: string | undefined }) => {
-	const parsed = Foo.shape.id.safeParse(params.fooId);
+	const parsed = FooUpdateInput.shape.fooId.safeParse(params.fooId);
 	if (!parsed.success) {
 		throw notFound();
 	}
