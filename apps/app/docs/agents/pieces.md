@@ -24,11 +24,11 @@ Rules for code that belongs to a piece, so the removal stays clean:
 
 ## Keeping every piece removable
 
-`pnpm piece-check [piece...]` removes each installed piece on a throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates; `queue` is skipped, with a note, while a Consumer exists.
+`pnpm piece-check [piece...]` first runs `pnpm check` and `pnpm test` on `HEAD` unmodified and stops with "fix the tree first" when they fail, so a broken tree blames no piece. It then removes each installed piece on a throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates; `queue` is skipped, with a note, while a Consumer exists.
 
 A Project that will never remove a piece lists it in `.template.json`: `"piecesKept": ["live", "cache"]`. `piece-check` skips it, and new code needs no markers for it. Decide that once, on purpose; the Template's own pieces stay removable.
 
-A `pnpm template-upgrade` can bring a removed piece's lines back where the Template changed them. Commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
+`pnpm template-upgrade` renders both releases with the pieces this Project removed already removed (found by their missing package in `package.json`), so a removed piece's package, files and lines do not come back. If a piece's lines still conflict, commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
 
 ## How to add a piece back
 

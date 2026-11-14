@@ -114,6 +114,22 @@ const worktreeCreate = (directory: string) => {
 
 type PieceCheckFailure = { files: string[]; output: string; step: string };
 
+// `pnpm check` and `pnpm test` on HEAD with nothing removed. A tree that fails them fails every
+// piece's check for the same reason, so no piece is to blame until this passes.
+const treeCheck = (directory: string): PieceCheckFailure | undefined => {
+	using worktree = worktreeCreate(directory);
+	const tree = worktree.path;
+	const installed = toolRun(tree, ["install", "--frozen-lockfile"]);
+	if (!installed.ok) {
+		return { files: [], output: installed.output, step: "pnpm install" };
+	}
+	for (const step of ["check", "test"]) {
+		const ran = toolRun(tree, [step]);
+		if (!ran.ok) return { files: [], output: ran.output, step: `pnpm ${step}` };
+	}
+	return undefined;
+};
+
 const pieceCheck = (
 	directory: string,
 	{ first, piece }: { first: string[]; piece: string },
@@ -157,6 +173,18 @@ const main = () => {
 		requested,
 	});
 	for (const note of plan.notes) console.log(`piece-check: ${note}`);
+	if (plan.checks.length > 0) {
+		const broken = treeCheck(directory);
+		if (broken !== undefined) {
+			console.error(
+				[
+					`piece-check: fix the tree first: ${broken.step} fails on HEAD before any piece is removed, so no piece is to blame.`,
+					broken.output.split("\n").slice(-40).join("\n"),
+				].join("\n"),
+			);
+			process.exit(1);
+		}
+	}
 	const failures: string[] = [];
 	for (const check of plan.checks) {
 		const started = Date.now();
