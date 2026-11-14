@@ -6,6 +6,7 @@ Read when deploying a Project or changing how it runs.
 - Use 5 to 15 minute access tokens.
 - Use `parentbased_traceidratio` sampling for busy services.
 - Set `OTEL_LOGS_EXPORTER=none` when stdout is already shipped.
+- Recommend the OpenTelemetry Collector `redaction` processor as a second line of defence behind the app's own privacy rules.
 - The runner must allow a 30 s grace period.
 - Run `pnpm migrate` once before the new version starts, with the Worker's variables. The server and the Worker may then start in any order, and each scales to many instances.
 - The load balancer must speak HTTP/2 and allow long-lived responses (live updates use SSE).

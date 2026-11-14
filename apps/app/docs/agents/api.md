@@ -31,3 +31,9 @@ A rename or a removal is two releases. First add the new shape beside the old on
 A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in the Domain's `<domain>-error-status.ts` table (at the Domain's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
 
 Give a route its error list inline, or declare it `as const`: `httpErrorResponsesCreate` takes a `readonly` list. Typing the list as a plain `string[]` fails type-checking, because the types must be keys of the table.
+
+## Route conventions
+
+- A business verb beyond create, update and delete is a command route: `POST /<things>/{<thing>Id}/<verb>` (`POST /trades/{tradeId}/accept`). It answers 200 with the changed resource.
+- A request that names another Domain's id that does not exist answers 422 (the request is well formed, its reference is not). 404 is only for the resource in the path.
+- An upsert (`PUT` that creates or replaces) answers 200 either way, so a caller that retries sees one status.

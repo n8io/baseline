@@ -12,7 +12,7 @@ Read when someone asks how to get a change to a Package, the Template or `app-ci
 ## Steps
 
 1. **Branch and change.** Work on a branch; main takes changes only through pull requests. Run the Verify commands in [AGENTS.md](../../AGENTS.md) on what you touched.
-2. **Changeset.** A change that should ship needs one: `pnpm changeset`, pick each Package it touches, plus `app` for a Template change. Help the person pick patch, minor or major: a change that breaks a Package's exports, or a Template change Projects must adapt to, is major. Dependency update PRs carry none, so they never release.
+2. **Changeset.** A change that should ship needs one: `pnpm exec changeset`, pick each Package it touches, plus `app` for a Template change. Help the person pick patch, minor or major: a change that breaks a Package's exports, or a Template change Projects must adapt to, is major. Dependency update PRs carry none, so they never release.
 3. **Pull request and CI.** `ci.yml` runs `packages` (check, test and build on what changed), `sast`, `integration` (the Template with Foo) and `render`. `render` builds a real Project, the previous release upgraded to this change with `template-upgrade` plus two new Domains, and `render-and-test` runs the whole `app-ci.yml` on it. `glossary-check` only warns. Check: every required check is green.
 4. **Merge.** Squash only, no approval needed once green.
 5. **Version packages PR.** `release.yml` runs on main and opens or updates "🔖 Version packages" with the new versions and changelogs, then starts `ci.yml` on it (its own pushes start no CI). Show the person the version bumps before merging. The bot's own `action_required` runs on that PR do not block it.

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { templateFileRender } from "../apps/app/scripts/template-render.ts";
 
@@ -33,8 +33,34 @@ describe.each(docs)("docs/agents/%s", (doc) => {
 	const text = readFileSync(new URL(`docs/agents/${doc}`, app), "utf8");
 	const quotes = quotesRead(text);
 
+	it("names the quoted file in every ts block", () => {
+		expect(quotes.length).toBeGreaterThan(0);
+		expect(quotes.filter((q) => q.path === undefined)).toEqual([]);
+	});
+
+	it.each(quotes.map((q) => [q.path, q.code]))(
+		"quotes %s as the Template has it",
+		(path, code) => {
+			expect(code.trim()).not.toBe("");
+			const source = readFileSync(new URL(barAsFoo(path ?? ""), app), "utf8");
+			expect(indentsDrop(source)).toContain(indentsDrop(barAsFoo(code)).trim());
+		},
+	);
+});
+
+// The render drops every line that names foo from a Project's copy of a file, so a page that names
+// foo reaches a Project with lines missing. Every agent doc names another Domain instead.
+const agentDocs = [
+	"AGENTS.md",
+	...readdirSync(new URL("docs/agents/", app)).map(
+		(name) => `docs/agents/${name}`,
+	),
+];
+
+describe.each(agentDocs)("%s", (path) => {
+	const text = readFileSync(new URL(path, app), "utf8");
+
 	it("reaches a Project whole: the render drops no line of it", () => {
-		const path = `docs/agents/${doc}`;
 		expect(
 			templateFileRender({ path, text }, { description: "d", name: "n" }),
 		).toEqual({ path, text });
@@ -50,18 +76,4 @@ describe.each(docs)("docs/agents/%s", (doc) => {
 				),
 		).toEqual([]);
 	});
-
-	it("names the quoted file in every ts block", () => {
-		expect(quotes.length).toBeGreaterThan(0);
-		expect(quotes.filter((q) => q.path === undefined)).toEqual([]);
-	});
-
-	it.each(quotes.map((q) => [q.path, q.code]))(
-		"quotes %s as the Template has it",
-		(path, code) => {
-			expect(code.trim()).not.toBe("");
-			const source = readFileSync(new URL(barAsFoo(path ?? ""), app), "utf8");
-			expect(indentsDrop(source)).toContain(indentsDrop(barAsFoo(code)).trim());
-		},
-	);
 });
