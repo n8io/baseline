@@ -9,7 +9,7 @@ pnpm add @n8io/baseline-cache
 ## Exports
 
 - `Cache<T>`: `get(id)`, `set(id, value)` and `delete(id)`.
-- `cacheCreate(store, { prefix, schema, ttlMs?, onStoreError? })`: a cache on a store. Keys are `<prefix>:<id>` and entries expire after `ttlMs` (default 60 s). `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. It keeps working when the store does not: see [When the store is down](#when-the-store-is-down).
+- `cacheCreate(store, { prefix, schema, keyOf?, ttlMs?, onStoreError? })`: a cache on a store. Keys are `<prefix>:<id>` and entries expire after `ttlMs` (default 60 s). `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. With `keyOf: (value) => id` (the result is a `CacheKeyed<T>`: the same, with `set(value)`), for values that carry their own id, `set(value)` takes the value alone (`get(id)` and `delete(id)` are unchanged), so no wrapper is needed. A stored value that fails the schema reads as a miss. It keeps working when the store does not: see [When the store is down](#when-the-store-is-down).
 - `CacheStore`: where entries live, as JSON strings by key with a TTL. Open one per process and build every cache on it; a new backend is one more `CacheStore`.
 - `cacheStoreRedisCreate({ redisClient })`: a store on a connected node-redis client. Each call fails after 1 s without an answer, which the cache on top treats like any other store failure.
 - `cacheStoreMemoryCreate()`: a store in process, for unit tests and `memory://`. Caches on one store share its keys, as on Redis, so give each its own `prefix`.

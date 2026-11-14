@@ -198,4 +198,30 @@ describe("@n8io/baseline-telemetry/register", () => {
 			);
 		expect(lines).toEqual([]);
 	}, 30_000);
+
+	it("exports nothing, and shuts down at once, when no OTLP endpoint is set", async () => {
+		const { code, stdout } = await new Promise<{
+			code: number | null;
+			stdout: string;
+		}>((resolve) => {
+			const child = spawn(
+				process.execPath,
+				[
+					"--import",
+					"./src/telemetry-test-fixtures/preload.ts",
+					"src/telemetry-test-fixtures/shutdown-time.ts",
+				],
+				{ cwd: packageRoot, env: { PATH: process.env.PATH ?? "" } },
+			);
+			let out = "";
+			child.stdout.on("data", (chunk: Buffer) => {
+				out += chunk.toString();
+			});
+			child.on("close", (exit) => resolve({ code: exit, stdout: out }));
+		});
+		const lines = stdout.trim().split("\n");
+		expect(code).toBe(0);
+		expect(lines.at(-1)).toMatch(/^\d+$/);
+		expect(Number(lines.at(-1))).toBeLessThan(500);
+	}, 30_000);
 });

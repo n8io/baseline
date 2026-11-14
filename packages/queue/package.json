@@ -17,7 +17,8 @@
 		"README.md"
 	],
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./testing": "./src/testing.ts"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -25,6 +26,10 @@
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
+			},
+			"./testing": {
+				"types": "./dist/testing.d.ts",
+				"default": "./dist/testing.js"
 			}
 		},
 		"registry": "https://registry.npmjs.org"

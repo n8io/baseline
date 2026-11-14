@@ -168,7 +168,21 @@ export const queueCreate = async (options: {
 	boss.on("warning", (warning) => {
 		logger.warn({ queueWarning: warning.data }, warning.message);
 	});
-	await boss.start();
+	try {
+		await boss.start();
+	} catch (error) {
+		// pg-boss's own message names no fix.
+		if (
+			error instanceof Error &&
+			error.message === "pg-boss is not installed"
+		) {
+			throw new Error(
+				"the queue schema is missing in this database: run queueMigrate (pnpm migrate)",
+				{ cause: error },
+			);
+		}
+		throw error;
+	}
 	try {
 		const queue = await queueStarted(boss, worker);
 		queueConcurrencies.set(queue, concurrency);
