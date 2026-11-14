@@ -16,7 +16,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (3 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis up (`pnpm dev` starts them)
 - full CI-equivalent: `pnpm run ci` (`pnpm ci` is pnpm's own clean install)
-- dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker (health on 9001, restarts on change). `pnpm dev:reset` wipes their data
+- dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker (health on the port the script sets, restarts on change). `pnpm dev:reset` wipes their data
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `spi/*-table.ts` file)
 - new domain: `pnpm domain-create`

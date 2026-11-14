@@ -151,7 +151,7 @@ const scheduleLines =
 const redisHostPortLines =
 	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;
 const workerDev =
-	/\(HEALTH_PORT=9001 node --watch --import \.\/src\/preload\.ts src\/worker\.ts & ([^)]*)\)/;
+	/\(HEALTH_PORT=\d+ node --watch --import \.\/src\/preload\.ts src\/worker\.ts & ([^)]*)\)/;
 
 export const pieceRemovals: Record<string, PieceRemoval> = {
 	analytics: {

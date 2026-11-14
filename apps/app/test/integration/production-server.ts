@@ -7,43 +7,17 @@ import {
 	type OutgoingHttpHeaders,
 	request,
 } from "node:http";
-import { connect, createServer as netServerCreate } from "node:net";
+import { connect } from "node:net";
 import { join, resolve } from "node:path";
 import { inject } from "vitest";
+import { integrationPortClaimerCreate } from "./integration-port-claimer.ts";
 
 // The preload every entry runs; the image sets it in NODE_OPTIONS. Absolute, for a `directory`.
 const preloadFlags = ["--import", resolve("src/preload.ts")];
 
 const serverEntry = "build/server/index.js";
 
-// Ports come from a block this Vitest worker owns, below the kernel's ephemeral range (32768 and
-// up on Linux, 49152 on macOS). A listen(0) port is free only until the probe closes it: the child
-// binds it seconds later, and any other process's listen(0) can get it first. Then the server's
-// listen fails with EADDRINUSE and it exits 1.
-const portBlockSize = 100;
-const portBlockStart =
-	20_000 + Number(process.env.VITEST_POOL_ID ?? 0) * portBlockSize;
-let portNext = 0;
-
-// The next port of this worker's block that nothing listens on, e.g. a child an earlier file leaked.
-const portClaim = async (): Promise<number> => {
-	for (let tries = 0; tries < portBlockSize; tries++) {
-		const port = portBlockStart + (portNext++ % portBlockSize);
-		const probe = netServerCreate().listen(port);
-		// once() rejects when the probe emits "error" (EADDRINUSE) first.
-		const free = await once(probe, "listening").then(
-			() => true,
-			() => false,
-		);
-		if (free) {
-			await new Promise((resolve) => probe.close(resolve));
-			return port;
-		}
-	}
-	throw new Error(
-		`no free port in ${portBlockStart}-${portBlockStart + portBlockSize - 1}`,
-	);
-};
+const ports = integrationPortClaimerCreate();
 
 const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
@@ -99,7 +73,7 @@ const appProcessSpawn = async ({
 	extraEnv: Record<string, string>;
 	options: AppProcessOptions;
 }): Promise<AppProcess> => {
-	const healthPort = await portClaim();
+	const healthPort = await ports.claim();
 	const child = spawn(process.execPath, [...preloadFlags, entry], {
 		...(directory === undefined ? {} : { cwd: directory }),
 		env: {
@@ -340,7 +314,7 @@ export const productionServerStart = async (
 	options: AppProcessOptions,
 ): Promise<ProductionServer> => {
 	serverEntryCheck(options.directory);
-	const port = await portClaim();
+	const port = await ports.claim();
 	const app = await appProcessStart({
 		entry: serverEntry,
 		options,
