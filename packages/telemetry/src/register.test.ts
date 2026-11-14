@@ -69,7 +69,12 @@ const receiverStart = async (): Promise<{
 const fixtureRun = (
 	env: Record<string, string>,
 	fixture = "src/telemetry-test-fixtures/server.ts",
-): Promise<{ code: number | null; stderr: string; stdout: string }> =>
+): Promise<{
+	code: number | null;
+	lingerMillis: number;
+	stderr: string;
+	stdout: string;
+}> =>
 	new Promise((resolve) => {
 		const child = spawn(
 			process.execPath,
@@ -88,13 +93,22 @@ const fixtureRun = (
 		);
 		let stderr = "";
 		let stdout = "";
+		let lastOutputAt = performance.now();
 		child.stdout.on("data", (chunk: Buffer) => {
 			stdout += chunk.toString();
+			lastOutputAt = performance.now();
 		});
 		child.stderr.on("data", (chunk: Buffer) => {
 			stderr += chunk.toString();
 		});
-		child.on("close", (code) => resolve({ code, stderr, stdout }));
+		child.on("close", (code) =>
+			resolve({
+				code,
+				lingerMillis: performance.now() - lastOutputAt,
+				stderr,
+				stdout,
+			}),
+		);
 	});
 
 const attribute = (span: OtlpSpan, key: string): string | undefined =>
@@ -242,16 +256,15 @@ describe("@n8io/baseline-telemetry/register", () => {
 		const { port } = closed.address() as AddressInfo;
 		await new Promise((resolve) => closed.close(resolve));
 		const endpoint = `http://127.0.0.1:${port}`;
-		const startedAt = performance.now();
-		const { code, stderr, stdout } = await fixtureRun(
+		const { code, lingerMillis, stderr, stdout } = await fixtureRun(
 			{ OTEL_EXPORTER_OTLP_ENDPOINT: endpoint, OTEL_LOGS_EXPORTER: "otlp" },
 			"src/telemetry-test-fixtures/shutdown-time.ts",
 		);
 		const [elapsed] = stdout.split("\n").filter((line) => /^\d+$/.test(line));
 		expect(code).toBe(0);
 		expect(Number(elapsed)).toBeLessThan(1_500);
-		// The script exits with it: no retry timer outlives the shutdown.
-		expect(performance.now() - startedAt).toBeLessThan(4_000);
+		// The script exits with it: no retry timer outlives the shutdown (they hold it about 8 s).
+		expect(lingerMillis).toBeLessThan(3_000);
 		expect(stderr.match(/Telemetry: the final export to/g)).toHaveLength(1);
 		expect(stderr).toContain(endpoint);
 	}, 30_000);
