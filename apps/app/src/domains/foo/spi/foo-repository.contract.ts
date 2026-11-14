@@ -27,7 +27,7 @@ const fooBuild = (overrides: Partial<Foo> = {}): Foo => {
 	};
 };
 
-// Runs against every FooRepository adapter: memory in unit tests, Postgres in integration.
+// Runs against every FooRepository adapter: memory in unit tests, Postgres in the Postgres tests.
 // `create` gives each test empty ports.
 export const fooRepositoryContract = (
 	create: () => Promise<FooRepositoryContractPorts>,

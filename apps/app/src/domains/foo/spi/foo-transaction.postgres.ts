@@ -61,7 +61,7 @@ export const fooTransactionPostgresCreate = (
 			},
 		});
 		// piece-start: queue
-		// The transaction has committed: a transport outside it sends its Events now.
+		// The transaction has committed: the queue outside it sends its Events now.
 		if (result.ok) await fooEvents?.committed();
 		// piece-end: queue
 		return result;

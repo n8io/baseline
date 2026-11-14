@@ -64,7 +64,34 @@ const glossarySkipIs = (file: string): boolean =>
 
 // Every line of a code file with everything but prose blanked: only comments and string literals
 // stay (a string that is a `kind:` value does not), so identifiers, keys and JSX element names never
-// match. JSX text reads as code to the lexer, so it is not checked. Lexed once per file.
+// match. The lexer reads JSX text as code, so a .tsx file also keeps what sits between a tag's `>` and
+// the next `<` or `{` (jsxTextIs; text after a `{...}` is not read). Lexed once per file.
+// A tag's `>` follows a name, a quote or a `}`; text then runs to the next `<` or `{`. Operators
+// (`=>`, `>=`), generics followed by a call or an assignment, and code with `;` `=` `|` `(` `)` do not match.
+const jsxTextPattern =
+	/(?<=[\w"'}\]])>([^<>{};=|&()]*[A-Za-z][^<>{};=|&()]*)(?=[<{])/g;
+
+const codeIs = (mode: string | undefined): boolean =>
+	mode === undefined || mode === "code";
+
+const jsxTextIs = ({
+	modes,
+	text,
+}: {
+	modes: ReturnType<typeof modesRead>;
+	text: string;
+}): boolean[] => {
+	const is = new Array<boolean>(text.length).fill(false);
+	for (const m of text.matchAll(jsxTextPattern)) {
+		const from = m.index + 1;
+		const to = from + (m[1]?.length ?? 0);
+		// Only code counts: a `>` inside a string or comment starts no tag.
+		if (!codeIs(modes[m.index])) continue;
+		for (let k = from; k < to; k++) is[k] = codeIs(modes[k]);
+	}
+	return is;
+};
+
 export const glossaryProseLines = ({
 	file,
 	text,
@@ -84,11 +111,15 @@ export const glossaryProseLines = ({
 		}
 		return value;
 	};
+	const jsx = file.endsWith(".tsx")
+		? jsxTextIs({ modes, text })
+		: new Array<boolean>(text.length).fill(false);
 	let prose = "";
 	for (let i = 0; i < text.length; i++) {
 		const mode = modes[i];
 		const keep =
 			text[i] === "\n" ||
+			jsx[i] === true ||
 			mode === "comment" ||
 			(mode === "string" && !kindValueIs(i));
 		prose += keep ? (text[i] ?? " ") : " ";

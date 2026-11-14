@@ -538,16 +538,35 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						c.path.startsWith(`src/domains/${domain}/api/`) &&
 						c.path.endsWith("-consumer.ts"),
 				);
+				// A column helper hoisted into a sibling spi file still builds the column, so the
+				// files the table imports from its own folder are read with it.
+				const folder = f.path.slice(0, f.path.lastIndexOf("/") + 1);
+				const imported = [
+					...f.source.matchAll(/from\s+["'`]\.\/([^"'`]+?)(?:\.ts)?["'`]/g),
+				]
+					.map((m) => files.find((c) => c.path === `${folder}${m[1]}.ts`))
+					.map((c) => c?.source ?? "");
+				const source = [f.source, ...imported].join("\n");
 				// Another domain's id is a column built with that domain's id prefix, whatever it is
-				// named (proposer_team_id); a column that is just named <other>_id counts too.
-				return domains
-					.filter(
-						(other) =>
+				// named (proposer_team_id); a plain uuid("proposer_team_id") or a column named
+				// <other>_id counts too.
+				const held = domains
+					.filter((other) => {
+						const camelOther = camel(other);
+						const capital = `${camelOther.charAt(0).toUpperCase()}${camelOther.slice(1)}`;
+						return (
 							other !== domain &&
 							new RegExp(
-								`postgresIdColumnCreate(?:<[^>]*>)?\\(\\s*["'\`](?:${other}|${snake(other)}|${camel(other)})["'\`]\\s*,?\\s*\\)|["'\`]${snake(other)}_id["'\`]|\\b${camel(other)}Id\\s*:`,
-							).test(f.source),
-					)
+								`postgresIdColumnCreate(?:<[^>]*>)?\\(\\s*["'\`](?:${other}|${snake(other)}|${camelOther})["'\`]\\s*,?\\s*\\)|["'\`](?:[a-z0-9_]*_)?${snake(other)}_id["'\`]|(?:\\b${camelOther}|[a-z0-9]${capital})Id\\s*:`,
+							).test(source)
+						);
+					})
+					// work-order's column also reads as an order id: only the longest name counts.
+					.filter(
+						(other, _i, matched) =>
+							!matched.some((longer) => longer.endsWith(`-${other}`)),
+					);
+				return held
 					.filter(
 						(other) =>
 							!consumers.some((c) =>
