@@ -1,6 +1,6 @@
 # @n8io/baseline-postgres
 
-Postgres on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team): one pool, Result-aware transactions, migrations under a lock, and columns that store prefixed ids as `uuid`.
+Postgres on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team): one pool, Result-aware transactions, migrations under a lock, columns that store prefixed ids as `uuid`, keyset paging, advisory locks, and a helper that forces the interleaving a race test needs.
 
 ```sh
 pnpm add @n8io/baseline-postgres
@@ -12,8 +12,12 @@ pnpm add @n8io/baseline-postgres
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
 - `postgresTransactionRun({ pgPool, work, timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresMigrate({ databaseUrl, migrationsFolder, lockWaitMs?, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. A run waits up to `lockWaitMs` (default 60 s) for the lock, then fails with an error that names it. The lock belongs to the session, so `databaseUrl` must reach Postgres itself: through a connection pooler such as PgBouncer the run refuses before it changes anything. Queries here have no time limit. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
+- `@n8io/baseline-postgres/testing`: `postgresTestInterleave` for race tests (below). Import it from tests only.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
+- `postgresUniqueViolationRead(error)`: the first unique violation in the `cause` chain as `{ constraint, columns, values }`, or `undefined`. `columns` and `values` come from Postgres's detail (`Key (league_id, name)=(7, Eagles)`), so a value is text as Postgres printed it. Postgres quotes nothing there, so when a key of two or more columns holds a value with `", "` in it, both lists are empty rather than misaligned; an expression key such as `lower(name)` comes back as Postgres printed it, and one with `", "` inside may not split cleanly. Read `constraint` when you need certainty.
+- `postgresKeysetCreate({ after?, descending, idColumn, kind, sortColumn })`: keyset paging on `(sortColumn, idColumn)`. Returns `{ where, orderBy }` for a Drizzle `select`; `where` is `undefined` on the first page. `after` is the last row of the previous page, `{ id, value }`, with `id` written through `idColumn` (a prefixed id works). `kind` says how the sort compares: `text` by byte order (`COLLATE "C"`, the same in every locale, so give the column a `COLLATE "C"` index); `number` as the column's own type, so its index is used (for `integer`, `real` and `double precision` columns; a `numeric` or `bigint` column reads as a string or a bigint and is not supported); `date` as an instant, with `value` an ISO string with an offset (`toISOString()`). The sort column must be `NOT NULL`, because a NULL never compares, and a `date` column must hold no more than milliseconds (`timestamp({ precision: 3, withTimezone: true })`, or written only from a JS `Date`): a cursor made from a `Date` drops the microseconds a `now()` default stores, and pages would repeat or skip rows. A `value` of the wrong type for `kind`, or a date that is not an ISO instant, throws a `TypeError`: decode and check a cursor before you pass it.
+- `postgresAdvisoryLockTake(db, key)`: waits for and takes a transaction-scoped advisory lock on the string `key`; Postgres drops it at COMMIT or ROLLBACK. Use it to serialize work that has no row to lock, such as counting a League's Teams before inserting one. `db` is anything with Drizzle's `execute` (`PostgresExecutor`). Call it inside `postgresTransactionRun`: outside a transaction the lock ends with the statement.
 
 ## Example
 
@@ -45,6 +49,82 @@ const result = await postgresTransactionRun({
 	},
 });
 ```
+
+## Keyset paging
+
+```ts
+import { postgresKeysetCreate } from "@n8io/baseline-postgres";
+
+const keyset = postgresKeysetCreate({
+	after: cursor ? { id: cursor.id, value: cursor.value } : null,
+	descending: true,
+	idColumn: fooTable.id,
+	kind: "date",
+	sortColumn: fooTable.createdAt,
+});
+const rows = await db
+	.select()
+	.from(fooTable)
+	.where(and(isNull(fooTable.archivedAt), keyset.where))
+	.orderBy(...keyset.orderBy)
+	.limit(limit + 1);
+const page = rows.slice(0, limit);
+const last = page.at(-1);
+const nextCursor =
+	rows.length > limit && last
+		? { id: last.id, value: last.createdAt.toISOString() }
+		: null;
+```
+
+## Advisory locks
+
+```ts
+import { postgresAdvisoryLockTake } from "@n8io/baseline-postgres";
+
+// In a transaction: two Team creates in one League count one after the other.
+await postgresAdvisoryLockTake(db, `team-count:${leagueId}`);
+const [counted] = await db
+	.select({ total: count() })
+	.from(teamTable)
+	.where(eq(teamTable.leagueId, leagueId));
+```
+
+## Race tests
+
+`@n8io/baseline-postgres/testing` exports `postgresTestInterleave({ first, second, pgPool, timeoutMs? })`, for tests only. `first(pause)` runs until it awaits `pause()`, typically right after it read and locked what it will write. Then `second()` starts, and `first` resumes once `second` waits on a lock (`pg_stat_activity`) or has finished. It returns `{ first, second, secondWaited }`; `secondWaited` is false when no lock made `second` wait. It fails when `first` never pauses, or when `second` neither waits nor finishes within `timeoutMs` (default 5 s). A connection that already waited on a lock before `second` started does not count; any other one in the same database does, so keep other work off that database while it runs. It needs three connections from `pgPool` at once: `first`'s, `second`'s, and one to watch `pg_stat_activity`.
+
+```ts
+import { postgresTestInterleave } from "@n8io/baseline-postgres/testing";
+
+// Reads a count, then writes it back plus one: a read-modify-write Use case.
+const increment = (pause?: () => Promise<void>) =>
+	postgresTransactionRun({
+		pgPool,
+		work: async (pgClient) => {
+			const db = drizzle({ client: pgClient });
+			const [row] = await db
+				.select()
+				.from(counterTable)
+				.where(eq(counterTable.id, id))
+				.for("update"); // remove it and the test below must fail
+			await pause?.();
+			await db
+				.update(counterTable)
+				.set({ n: (row?.n ?? 0) + 1 })
+				.where(eq(counterTable.id, id));
+			return ok(undefined);
+		},
+	});
+
+const result = await postgresTestInterleave({
+	first: (pause) => increment(pause),
+	pgPool,
+	second: () => increment(),
+});
+expect(result.secondWaited).toBe(true);
+```
+
+A race test must fail with the lock removed. Before you trust one, take the lock out (`FOR UPDATE`, the advisory lock), see the test go red for the right reason, and put it back. A plain `Promise.all` of two writes usually passes either way, because one finishes before the other starts.
 
 ## Needs
 
