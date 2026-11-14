@@ -1,6 +1,6 @@
-# Events, Bridges and Aggregates
+# Events and Aggregates
 
-Read when adding a Consumer, an Event, a Bridge or a repository.
+Read when adding a Consumer, an Event or a repository. A Domain that reads another through a Bridge: [bridges.md](bridges.md).
 
 ## Consumer with the inbox
 
@@ -60,38 +60,6 @@ During a rollout, workers of the old release and the new one run side by side fo
 3. **Narrow.** One release later, stop accepting the old shape.
 
 Never rename an Event or remove a required field in one release. A new Event with a new name needs no steps: no old Consumer is subscribed to it.
-
-## Bridge
-
-A Bridge fills a Port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains. Wire it at `// domain-create: bridges`.
-
-```ts
-// billing/ports.ts
-export type BillingCustomerReader = {
-	get(
-		id: Id<"customer">,
-	): Promise<{ email: string; taxRegion: string } | undefined>;
-};
-
-// src/bridges/billing-customer.ts (the only file that knows both Domains)
-const billingCustomerBridgeActor: Actor = {
-	id: "billing-customer-bridge",
-	kind: "client",
-	scopes: [],
-};
-export const billingCustomerReaderCreate = (
-	customer: CustomerUseCases,
-): BillingCustomerReader => ({
-	get: async (id) => {
-		const r = await customer.customerGet(billingCustomerBridgeActor, {
-			customerId: id,
-		});
-		return r.ok
-			? { email: r.value.email, taxRegion: r.value.taxRegion }
-			: undefined;
-	},
-});
-```
 
 ## Aggregate
 

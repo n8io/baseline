@@ -53,6 +53,18 @@ export const cacheContract = (
 			expect(await cache.get(foo.id)).toBeUndefined();
 		});
 
+		test("with keyOf, set takes the value alone and get and delete take the id", async () => {
+			const cache = cacheCreate(store(), {
+				keyOf: (value: Foo) => value.id,
+				prefix: `${prefix}-keyed`,
+				schema: Foo,
+			});
+			await cache.set(foo);
+			expect(await cache.get(foo.id)).toEqual(foo);
+			await cache.delete(foo.id);
+			expect(await cache.get(foo.id)).toBeUndefined();
+		});
+
 		test("prefixes keep caches apart", async () => {
 			const fooCache = cacheCreate(store(), {
 				prefix: `${prefix}-a`,

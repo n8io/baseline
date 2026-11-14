@@ -1,4 +1,13 @@
+export {
+	type PostgresExecutor,
+	postgresAdvisoryLockTake,
+} from "./postgres-advisory-lock-take.ts";
 export { postgresIdColumnCreate } from "./postgres-id-column.ts";
+export {
+	type PostgresKeysetKind,
+	type PostgresKeysetOptions,
+	postgresKeysetCreate,
+} from "./postgres-keyset.ts";
 export {
 	type PostgresMigrateVendorOptions,
 	postgresMigrate,
@@ -11,4 +20,8 @@ export {
 	postgresPoolCreate,
 } from "./postgres-pool.ts";
 export { postgresTransactionRun } from "./postgres-transaction-run.ts";
-export { postgresUniqueViolationIs } from "./postgres-unique-violation-is.ts";
+export {
+	type PostgresUniqueViolation,
+	postgresUniqueViolationIs,
+	postgresUniqueViolationRead,
+} from "./postgres-unique-violation.ts";

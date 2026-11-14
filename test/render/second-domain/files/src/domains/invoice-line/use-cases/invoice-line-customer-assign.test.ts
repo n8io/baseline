@@ -6,6 +6,7 @@ import {
 	InvoiceLineForbiddenError,
 	InvoiceLineNotFoundError,
 } from "../invoice-line-errors.ts";
+import { invoiceLineCustomerReaderMemoryCreate } from "../spi/index.ts";
 import { invoiceLinePortsMemoryCreate } from "../spi/invoice-line-ports.memory.ts";
 import { invoiceLineCreate } from "./invoice-line-create.ts";
 import { invoiceLineCustomerAssign } from "./invoice-line-customer-assign.ts";
@@ -19,10 +20,9 @@ const setup = async () => {
 	const memory = invoiceLinePortsMemoryCreate();
 	const ports = {
 		...memory.ports,
-		invoiceLineCustomerReader: {
-			get: async (id: string) =>
-				id === customerId ? { name: "Acme" } : undefined,
-		},
+		invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate([
+			{ id: customerId, name: "Acme" },
+		]),
 	};
 	const created = await invoiceLineCreate(ports)(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;

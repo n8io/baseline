@@ -21,7 +21,7 @@ export const httpErrorResponsesCreate = <
 	T extends keyof Table & string,
 >(
 	table: Table,
-	types: T[],
+	types: readonly T[],
 ): HttpErrorResponses<Table[T]> => {
 	const byStatus = new Map<ContentfulStatusCode, [string, ...string[]]>();
 	for (const type of types) {

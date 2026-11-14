@@ -10,6 +10,11 @@ export type Cache<T> = {
 	set(id: string, value: T): Promise<void>;
 };
 
+// A cache that knows each value's id: `set` takes the value alone.
+export type CacheKeyed<T> = Omit<Cache<T>, "set"> & {
+	set(value: T): Promise<void>;
+};
+
 // Where entries live: raw JSON strings by key, each with a TTL. A composition root picks one
 // (cacheStoreRedisCreate, cacheStoreMemoryCreate) and every cache is built on it.
 export type CacheStore = {
@@ -21,11 +26,17 @@ export type CacheStore = {
 export type CacheOptions<T> = {
 	// What a store error or timeout does. "miss" (the default) keeps the caller serving: a failed
 	// get is a miss, and a failed set or delete is logged and counted. "throw" rejects the call.
+	keyOf?: undefined;
 	onStoreError?: "miss" | "throw";
 	prefix: string;
 	// Any Standard Schema (https://standardschema.dev): a Zod, Valibot or ArkType schema as it is.
 	schema: StandardSchemaV1<unknown, T>;
 	ttlMs?: number;
+};
+
+export type CacheKeyedOptions<T> = Omit<CacheOptions<T>, "keyOf"> & {
+	// The id a value is stored under, for caches whose values carry their own id.
+	keyOf: (value: T) => string;
 };
 
 const cacheTtlMsDefault = 60_000;
@@ -56,14 +67,36 @@ const cacheJsonParse = (json: string): unknown => {
 // A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
 // validated by the schema on read. An entry that fails it (an older deploy may have
 // written it) counts as a miss. So does a store that fails, unless `onStoreError` is "throw".
-export const cacheCreate = <T>(
+export function cacheCreate<T>(
+	store: CacheStore,
+	options: CacheKeyedOptions<T>,
+): CacheKeyed<T>;
+export function cacheCreate<T>(
+	store: CacheStore,
+	options: CacheOptions<T>,
+): Cache<T>;
+export function cacheCreate<T>(
+	store: CacheStore,
+	options: CacheOptions<T> | CacheKeyedOptions<T>,
+): Cache<T> | CacheKeyed<T> {
+	const cache = cacheByIdCreate(store, options);
+	const { keyOf } = options;
+	if (keyOf === undefined) return cache;
+	return {
+		delete: cache.delete,
+		get: cache.get,
+		set: (value: T) => cache.set(keyOf(value), value),
+	};
+}
+
+const cacheByIdCreate = <T>(
 	store: CacheStore,
 	{
 		onStoreError = "miss",
 		prefix,
 		schema,
 		ttlMs = cacheTtlMsDefault,
-	}: CacheOptions<T>,
+	}: Omit<CacheOptions<T>, "keyOf">,
 ): Cache<T> => {
 	const key = (id: string): string => `${prefix}:${id}`;
 	// Ids whose set or delete failed, with when the entry the store may still hold has expired.

@@ -5,15 +5,11 @@ import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
 } from "@n8io/baseline-shutdown";
-import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
+import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { fooScheduleCreate } from "#domains/foo/api/index.ts";
-import { fooUseCasesCreate } from "#domains/foo/index.ts";
-import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { ENV } from "#env";
 import { connectionsOpen } from "./connections.ts";
+import { domainsUseCasesCreate } from "./use-cases.ts";
 
 let shutdown: ShutdownHandle | undefined;
 const connections = await connectionsOpen({ role: "worker" });
@@ -31,11 +27,9 @@ const health = healthServerCreate({
 	port: ENV.HEALTH_PORT,
 });
 
-const fooUseCases = telemetryUseCasesTrace(
-	fooUseCasesCreate(fooPortsCreate(connections)),
-);
-// domain-create: use-cases
-// domain-create: bridges
+// domain-create: domains-start
+const useCases = domainsUseCasesCreate(connections);
+// domain-create: domains-end
 
 await events.consumersStart([
 	// domain-create: consumers
@@ -45,7 +39,7 @@ await queueSchedulesStart({
 	env: ENV,
 	queue,
 	schedules: [
-		fooScheduleCreate(fooUseCases),
+		fooScheduleCreate(useCases.fooUseCases),
 		// domain-create: schedules
 	],
 });

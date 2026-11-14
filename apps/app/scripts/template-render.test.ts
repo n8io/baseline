@@ -115,6 +115,11 @@ describe("fooBlocksFind", () => {
 			"\t`UPDATE foo.foo",
 			"\t SET archived = true`,",
 			");",
+			"const baz = 2;", // 16
+			"app.route(", // 17: every argument names foo, so the call goes too
+			'\t"/live/foo",',
+			"\tfooLiveRoutesCreate(useCases.fooUseCases, liveHub),",
+			");",
 		].join("\n");
 
 		expect(fooBlocksFind(text, "src/server.ts")).toEqual([
@@ -122,6 +127,7 @@ describe("fooBlocksFind", () => {
 			[5, 7],
 			[9, 9],
 			[12, 15],
+			[17, 20],
 		]);
 	});
 
@@ -371,6 +377,8 @@ describe.runIf(template)("the template's own files", () => {
 			"src/server.ts",
 			"src/ui/context.ts",
 			"src/ui/routes.ts",
+			"src/use-cases.ts",
+			"src/worker.ts",
 		]);
 		for (const { path, text } of paired) {
 			const rendered = templateFileRender({ path, text }, answers)?.text ?? "";

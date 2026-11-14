@@ -75,6 +75,8 @@ Copy the `foo` Domain in `src/domains/foo/` with `pnpm domain-create`.
 - One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so keep those to the rule by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
+- A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.
+- A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`), whatever it is named, needs that Domain's `deleted` Consumer (A14). `api/` never calls `.openapi(` on a model it imports; build its own schema (A25).
 
 ### Stop and ask
 
@@ -136,12 +138,14 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 These docs load only when the task needs them. Read the one that matches before you start.
 
-- Adding a Consumer, an Event, a Bridge or a repository: [docs/agents/events-and-bridges.md](docs/agents/events-and-bridges.md)
+- Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
+- A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running a Project on Kubernetes or on more than one instance (probes, pool sizing, PgBouncer, secrets, rollouts, outages): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
+- Changing a request, a response, a query parameter or an error under `/api/v1` (what oasdiff allows, `pnpm api-check`): [docs/agents/api.md](docs/agents/api.md)
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)

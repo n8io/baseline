@@ -23,10 +23,7 @@ import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
 } from "@n8io/baseline-shutdown";
-import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
+import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { bodyLimit } from "hono/body-limit";
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
@@ -35,12 +32,12 @@ import {
 	fooLiveRoutesCreate,
 	fooRoutesCreate,
 } from "#domains/foo/api/index.ts";
-import { fooScopes, fooUseCasesCreate } from "#domains/foo/index.ts";
-import { fooPortsCreate } from "#domains/foo/spi/index.ts";
+import { fooScopes } from "#domains/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
 import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
+import { domainsUseCasesCreate } from "./use-cases.ts";
 
 // piece-start: ui
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is
@@ -68,17 +65,9 @@ if (import.meta.env.DEV) {
 }
 // piece-end: ui
 // domain-create: domains-start
-const fooUseCases = telemetryUseCasesTrace(
-	fooUseCasesCreate(fooPortsCreate(connections)),
-);
-// domain-create: use-cases
-// domain-create: bridges
-
+const useCases = domainsUseCasesCreate(connections);
 if (ENV.APP_ENV === "development" && connections.database === "memory") {
-	await seedsRun({
-		fooUseCases,
-		// domain-create: seed-context
-	});
+	await seedsRun(useCases);
 }
 // domain-create: domains-end
 
@@ -123,10 +112,13 @@ app.use(
 	}),
 );
 app.route("/auth", authnRoutesCreate(authn));
-app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));
+app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
 // domain-create: routes
 // piece-start: live
-app.route("/live/foo", fooLiveRoutesCreate(fooUseCases, connections.liveHub));
+app.route(
+	"/live/foo",
+	fooLiveRoutesCreate(useCases.fooUseCases, connections.liveHub),
+);
 // domain-create: live
 // piece-end: live
 app.doc31("/api/v1/openapi.json", {
@@ -177,10 +169,7 @@ export default await createHonoServer({
 		uiLoadContextCreate(
 			c,
 			// domain-create: domains-start
-			{
-				fooUseCases,
-				// domain-create: context
-			},
+			useCases,
 			// domain-create: domains-end
 		),
 	listeningListener: serverListening,
