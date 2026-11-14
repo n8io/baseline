@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { actorFromClaims, authnProviderOptionsCreate } from "./authn.ts";
+import {
+	actorFromClaims,
+	authnMemoryClientsCreate,
+	authnMemoryUsersCreate,
+	authnProviderOptionsCreate,
+} from "./authn.ts";
 
 describe("actorFromClaims", () => {
 	it("reads a user from sub and space-separated scope", () => {
@@ -65,5 +70,19 @@ describe("authnProviderOptionsCreate", () => {
 			issuerUrl: "https://issuer.example.com",
 			secret: "key",
 		});
+	});
+});
+
+describe("the dev users and client", () => {
+	it("gives the admin and the client every scope and the user none", () => {
+		const scopes = ["bar:read", "bar:update"];
+
+		expect(authnMemoryUsersCreate(scopes)).toEqual([
+			{ id: "dev-user", name: "Dev user", scopes: [] },
+			{ id: "dev-admin", name: "Dev admin", scopes },
+		]);
+		expect(authnMemoryClientsCreate(scopes)).toEqual([
+			{ id: "dev-client", scopes },
+		]);
 	});
 });

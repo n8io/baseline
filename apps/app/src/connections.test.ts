@@ -11,12 +11,10 @@ const databaseOpenWith = async (env: { DATABASE_POOL_MAX?: number }) => {
 	const { ENV } =
 		await vi.importActual<typeof import("varlock/env")>("varlock/env");
 	vi.resetModules();
-	vi.doMock("varlock/env", () => ({
-		ENV: { ...ENV, ...env, DATABASE_URL: "postgres://localhost/app" },
-	}));
+	vi.doMock("varlock/env", () => ({ ENV: { ...ENV, ...env } }));
 	const { databaseOpen } = await import("./connections.ts");
 	return async (role: "publisher" | "worker") => {
-		const database = databaseOpen(role);
+		const database = databaseOpen({ role, url: "postgres://localhost/app" });
 		if (database === "memory") throw new Error("expected a pool");
 		await using pgPool = database;
 		return pgPool.options.max;
@@ -35,6 +33,25 @@ describe("connectionsOpen", () => {
 		await expect(connectionsOpen({ role: "worker" })).rejects.toThrow(
 			"The worker needs a real database",
 		);
+	});
+
+	it("opens the database named in urls instead of DATABASE_URL, and fails while it is unreachable", async () => {
+		// Nothing listens on port 1; DATABASE_URL is memory:// here, so only urls can cause this.
+		await expect(
+			connectionsOpen({
+				role: "publisher",
+				urls: { database: "postgres://baseline:baseline@127.0.0.1:1/baseline" },
+			}),
+		).rejects.toThrow("ECONNREFUSED");
+	});
+
+	it("keeps DATABASE_URL for a field urls leaves out", async () => {
+		const connections = await connectionsOpen({
+			role: "publisher",
+			urls: { cache: null },
+		});
+
+		expect(connections.database).toBe("memory");
 	});
 });
 

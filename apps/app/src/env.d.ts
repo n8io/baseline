@@ -23,6 +23,14 @@ export type CoercedEnvSchema = {
   HEALTH_PORT: number;
   
   /**
+   * **SHUTDOWN_DRAIN_DELAY_MS**  
+   * Milliseconds the Server keeps serving after SIGTERM while it answers /readyz 503, so a load balancer  
+   * stops sending it traffic first; without it 5000. 0 in development and test.  
+   * ![icon](data:image/svg+xml;utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cpath%20fill%3D%22%23808080%22%20d%3D%22M26%2012h-4v2h4v2h-3v2h3v2h-4v2h4a2.003%202.003%200%200%200%202-2v-6a2%202%200%200%200-2-2m-7%2010h-6v-4a2%202%200%200%201%202-2h2v-2h-4v-2h4a2%202%200%200%201%202%202v2a2%202%200%200%201-2%202h-2v2h4ZM8%2020v-8H6v1H4v2h2v5H4v2h6v-2z%22%2F%3E%3C%2Fsvg%3E)   
+   */
+  SHUTDOWN_DRAIN_DELAY_MS?: number;
+  
+  /**
    * **POSTGRES_HOST_PORT**  
    * The host ports compose.yaml publishes. Two Projects on one machine need different ones: a Project made  
    * from this Template gets its own, from its name, in 20000 to 29999.  
@@ -163,11 +171,11 @@ export type CoercedEnvSchema = {
   
 };
 
-type _CoercedEnvSchema_db28553d = CoercedEnvSchema;
+type _CoercedEnvSchema_cd5700ad = CoercedEnvSchema;
 
 declare module 'varlock/env' {
-  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_db28553d> {}
-  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_db28553d, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_FOO_STALE_ARCHIVE'>> {}
+  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_cd5700ad> {}
+  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_cd5700ad, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'SHUTDOWN_DRAIN_DELAY_MS' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'SCHEDULE_FOO_STALE_ARCHIVE'>> {}
 }
 
 
@@ -177,17 +185,17 @@ export type EnvSchemaAsStrings = {
       : (NonNullable<CoercedEnvSchema[Property]> extends boolean ? ('true' | 'false') : string)
 };
 
-type _EnvSchemaAsStrings_db28553d = EnvSchemaAsStrings;
+type _EnvSchemaAsStrings_cd5700ad = EnvSchemaAsStrings;
 declare global {
 
   // add types for global import.meta.env
-  interface ImportMetaEnv extends _EnvSchemaAsStrings_db28553d {}
+  interface ImportMetaEnv extends _EnvSchemaAsStrings_cd5700ad {}
   interface ImportMeta {
     readonly env: ImportMetaEnv;
   }
 
   // add types for global process.env
   namespace NodeJS {
-    interface ProcessEnv extends _EnvSchemaAsStrings_db28553d {}
+    interface ProcessEnv extends _EnvSchemaAsStrings_cd5700ad {}
   }
 }

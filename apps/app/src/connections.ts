@@ -14,27 +14,39 @@ import { redisOpen } from "./redis-open.ts";
 
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
 // process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
-export const databaseOpen = (role: "publisher" | "worker") =>
-	ENV.DATABASE_URL === "memory://"
+export const databaseOpen = ({
+	role,
+	url,
+}: {
+	role: "publisher" | "worker";
+	url: string;
+}) =>
+	url === "memory://"
 		? ("memory" as const)
 		: postgresPoolCreate({
-				databaseUrl: ENV.DATABASE_URL,
+				databaseUrl: url,
 				max: ENV.DATABASE_POOL_MAX ?? (role === "worker" ? 5 : 10),
 			});
 
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
 // is an intake, since it brings work in; elsewhere the live hub is, since it streams out.
+// `urls` is for a test that needs a real database (or cache) whatever the variables say: it replaces
+// DATABASE_URL and CACHE_URL, and a field left out keeps the variable's value. A real database makes
+// the queue and Events real too.
 export const connectionsOpen = async ({
 	role,
+	urls,
 }: {
 	role: "publisher" | "worker";
+	urls?: { cache?: string | null; database?: string | null } | null;
 }) => {
-	if (role === "worker" && ENV.DATABASE_URL === "memory://") {
+	const databaseUrl = urls?.database ?? ENV.DATABASE_URL;
+	if (role === "worker" && databaseUrl === "memory://") {
 		throw new Error(
 			"The worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
-	const database = databaseOpen(role);
+	const database = databaseOpen({ role, url: databaseUrl });
 	if (database !== "memory") {
 		// The startup check: while Postgres is unreachable this throws, boot fails and the process
 		// never reports ready, so a new pod does not start during an outage. A pod already running
@@ -55,7 +67,10 @@ export const connectionsOpen = async ({
 		resources.push({ close: () => database.end(), name: "database" });
 	}
 	// piece-start: redis
-	const redis = await redisOpen({ steps: resources, url: ENV.CACHE_URL });
+	const redis = await redisOpen({
+		steps: resources,
+		url: urls?.cache ?? ENV.CACHE_URL,
+	});
 	// piece-end: redis
 	return {
 		// piece-start: analytics
