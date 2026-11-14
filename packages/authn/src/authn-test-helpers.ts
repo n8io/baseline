@@ -19,7 +19,15 @@ export const memoryOptions: AuthnOptions = {
 	clientId: "dev",
 	clientSecret: "dev",
 	issuerUrl: "memory://",
-	memoryAdminScopes: ["foo:delete", "foo:update"],
+	memoryClients: [{ id: "feed", scopes: ["foo:read", "foo:update"] }],
+	memoryUsers: [
+		{ id: "dev-user", name: "Dev user", scopes: [] },
+		{
+			id: "dev-admin",
+			name: "Dev admin",
+			scopes: ["foo:delete", "foo:update"],
+		},
+	],
 	memoryIssuerAllowed: true,
 	secret,
 };

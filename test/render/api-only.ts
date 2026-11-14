@@ -110,7 +110,7 @@ const apiGuardsRequire = async (url: string, openapi: Response) => {
 		guardFail("let an anonymous post in", anonymous);
 	const signIn = (origin: string) =>
 		fetch(`${url}/auth/sign-in`, {
-			body: new URLSearchParams({ who: "user" }),
+			body: new URLSearchParams({ who: "dev-user" }),
 			headers: { origin },
 			method: "POST",
 			redirect: "manual",

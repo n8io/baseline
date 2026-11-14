@@ -18,7 +18,7 @@ describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 		// The memory issuer's sign-in form needs no domain. Declared after the server, so it is
 		// dropped before server.stop, which would otherwise wait for it until its deadline.
 		using slow = await slowRequestStart(server.port, {
-			body: new URLSearchParams({ who: "admin" }).toString(),
+			body: new URLSearchParams({ who: "dev-admin" }).toString(),
 			headers: {
 				"content-type": "application/x-www-form-urlencoded",
 				origin: server.url,

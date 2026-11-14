@@ -26,7 +26,7 @@ describe("authnTestSignIn", () => {
 		const signedIn = await authnTestSignIn({
 			secret,
 			url: appOrigin,
-			who: "admin",
+			who: "dev-admin",
 		});
 
 		expect(requests.map((request) => request.headers.get("origin"))).toEqual([
@@ -56,7 +56,7 @@ describe("authnTestSignIn", () => {
 		const { authorization } = await authnTestSignIn({
 			secret,
 			url: appOrigin,
-			who: "user",
+			who: "dev-user",
 		});
 
 		const api = await app.request(`${appOrigin}/api/v1/me`, {
@@ -69,7 +69,7 @@ describe("authnTestSignIn", () => {
 		vi.stubGlobal("fetch", async () => new Response(null, { status: 403 }));
 
 		await expect(
-			authnTestSignIn({ secret, url: appOrigin, who: "user" }),
+			authnTestSignIn({ secret, url: appOrigin, who: "dev-user" }),
 		).rejects.toThrow("sign-in failed: 403");
 	});
 
@@ -80,7 +80,7 @@ describe("authnTestSignIn", () => {
 			authnTestSignIn({
 				secret: Buffer.alloc(32, 9).toString("base64url"),
 				url: appOrigin,
-				who: "user",
+				who: "dev-user",
 			}),
 		).rejects.toThrow("the access cookie did not open with this secret");
 	});

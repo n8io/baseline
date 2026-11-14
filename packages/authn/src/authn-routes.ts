@@ -20,6 +20,7 @@ import {
 import { z } from "zod";
 import {
 	type Authn,
+	type AuthnMemoryIssuer,
 	type AuthnOidcIssuer,
 	type AuthnState,
 	type AuthnTokens,
@@ -305,10 +306,94 @@ const signOut = async (c: Context, authn: AuthnState): Promise<Response> => {
 
 const MemorySignIn = z.object({
 	returnTo: z.string().optional(),
-	who: z.enum(["admin", "user"]),
+	who: z.string(),
 });
 
-/** `/sign-in`, `/callback`, `/refresh` and `/sign-out`; mount with `app.route("/auth", authnRoutesCreate(authn))`. */
+const memorySignIn = async ({
+	authn,
+	c,
+	issuer,
+}: {
+	authn: AuthnState;
+	c: Context;
+	issuer: AuthnMemoryIssuer;
+}): Promise<Response> => {
+	const form = MemorySignIn.safeParse(await c.req.parseBody());
+	const user =
+		form.data && issuer.users.find((entry) => entry.id === form.data.who);
+	if (form.data === undefined || user === undefined) return c.body(null, 400);
+	const tokens = await issuer.tokensCreate({
+		id: user.id,
+		kind: "user",
+		scopes: user.scopes,
+	});
+	if ((await tokensStore({ c, authn, tokens })) === undefined) {
+		throw new TypeError(
+			"authn: actorFromClaims rejected a memory issuer token",
+		);
+	}
+	return c.redirect(authnReturnToSafe(form.data.returnTo), 302);
+};
+
+const TokenRequest = z.object({
+	client_id: z.string(),
+	grant_type: z.string(),
+	scope: z.string().optional(),
+});
+
+const tokenError = (
+	c: Context,
+	error:
+		| "invalid_client"
+		| "invalid_request"
+		| "invalid_scope"
+		| "unsupported_grant_type",
+): Response => c.json({ error }, error === "invalid_client" ? 401 : 400);
+
+/**
+ * `POST /auth/token`, the memory issuer's client-credentials grant: a form with
+ * `grant_type=client_credentials`, `client_id` and an optional space-separated `scope`, which must
+ * be a subset of the client's (default all of them). No client secret: development and test only.
+ */
+const memoryToken = async ({
+	c,
+	issuer,
+}: {
+	c: Context;
+	issuer: AuthnMemoryIssuer;
+}): Promise<Response> => {
+	const form = TokenRequest.safeParse(await c.req.parseBody());
+	if (form.data === undefined) return tokenError(c, "invalid_request");
+	if (form.data.grant_type !== "client_credentials") {
+		return tokenError(c, "unsupported_grant_type");
+	}
+	const client = issuer.clients.find(
+		(entry) => entry.id === form.data.client_id,
+	);
+	if (client === undefined) return tokenError(c, "invalid_client");
+	const scopes =
+		form.data.scope === undefined
+			? client.scopes
+			: form.data.scope.split(" ").filter(Boolean);
+	if (!scopes.every((scope) => client.scopes.includes(scope))) {
+		return tokenError(c, "invalid_scope");
+	}
+	const { accessToken } = await issuer.tokensCreate({
+		id: client.id,
+		kind: "client",
+		scopes,
+	});
+	return c.json({
+		access_token: accessToken,
+		expires_in: issuer.accessTtlSeconds,
+		token_type: "Bearer",
+	});
+};
+
+/**
+ * `/sign-in`, `/callback`, `/refresh` and `/sign-out`, plus `POST /token` on the memory issuer;
+ * mount with `app.route("/auth", authnRoutesCreate(authn))`.
+ */
 export const authnRoutesCreate = (authn: Authn): Hono => {
 	const routes = new Hono();
 	const state = authnState(authn);
@@ -319,23 +404,19 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 	});
 	routes.get("/sign-in", (c) =>
 		issuer.kind === "memory"
-			? c.html(authnMemorySignInPage(returnToQuery(c)))
+			? c.html(
+					authnMemorySignInPage({
+						returnTo: returnToQuery(c),
+						users: issuer.users,
+					}),
+				)
 			: signInStart({ c, authn: state, issuer, returnTo: returnToQuery(c) }),
 	);
 	routes.get("/refresh", (c) => refresh(c, state));
 	routes.post("/sign-out", (c) => signOut(c, state));
 	if (issuer.kind === "memory") {
-		routes.post("/sign-in", async (c) => {
-			const form = MemorySignIn.safeParse(await c.req.parseBody());
-			if (!form.success) return c.body(null, 400);
-			const tokens = await issuer.tokensCreate(issuer.devActors[form.data.who]);
-			if ((await tokensStore({ c, authn: state, tokens })) === undefined) {
-				throw new TypeError(
-					"authn: actorFromClaims rejected a memory issuer token",
-				);
-			}
-			return c.redirect(authnReturnToSafe(form.data.returnTo), 302);
-		});
+		routes.post("/sign-in", (c) => memorySignIn({ c, authn: state, issuer }));
+		routes.post("/token", (c) => memoryToken({ c, issuer }));
 	} else {
 		const { config } = issuer;
 		routes.get("/callback", (c) => callback({ c, authn: state, config }));

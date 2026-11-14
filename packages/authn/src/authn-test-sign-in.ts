@@ -11,13 +11,14 @@ export type AuthnTestSignedIn = {
 	authorization: string;
 	/** `Cookie` header value for pages and live streams. */
 	cookie: string;
-	/** The access token inside the cookie, signed by that server's memory issuer. */
+	/** The access token inside the cookie, signed by the memory issuer with a key from `secret`. */
 	token: string;
 };
 
 /**
- * Signs in at a served app through the memory issuer's form (`issuerUrl` `memory://`). `secret`
- * is the server's `secret`, which opens the access cookie. Each server signs its own tokens.
+ * Signs in at a served app through the memory issuer's form (`issuerUrl` `memory://`) as the
+ * `memoryUsers` entry whose id is `who`. `secret` is the server's `secret`, which opens the access
+ * cookie; every server with that secret accepts the token.
  */
 export const authnTestSignIn = async ({
 	secret,
@@ -26,7 +27,7 @@ export const authnTestSignIn = async ({
 }: {
 	secret: string;
 	url: string;
-	who: "admin" | "user";
+	who: string;
 }): Promise<AuthnTestSignedIn> => {
 	const res = await fetch(`${url}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),

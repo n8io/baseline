@@ -71,6 +71,19 @@ const signIn = async (app: Hono) => {
 };
 
 describe("OIDC sign-in", () => {
+	it("has no client-credentials endpoint: the provider issues machine tokens", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await app.request(`${appOrigin}/auth/token`, {
+			body: new URLSearchParams({
+				client_id: "feed",
+				grant_type: "client_credentials",
+			}),
+			method: "POST",
+		});
+
+		expect(res.status).toBe(404);
+	});
+
 	it("redirects to the provider with PKCE, state, nonce and offline_access", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, res } = await signInStart(app);

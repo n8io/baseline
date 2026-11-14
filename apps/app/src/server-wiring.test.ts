@@ -161,7 +161,7 @@ describe("server wiring", () => {
 			"refuses a cross-site form post to %s and sets no cookie",
 			async (path) => {
 				const res = await app.request(path, {
-					body: new URLSearchParams({ who: "admin" }),
+					body: new URLSearchParams({ who: "dev-admin" }),
 					headers: evil,
 					method: "POST",
 				});
@@ -172,7 +172,7 @@ describe("server wiring", () => {
 
 		it("sets the session cookie as __Host-: Secure, HttpOnly, SameSite=Lax, Path=/ and no Domain", async () => {
 			const res = await app.request("/auth/sign-in", {
-				body: new URLSearchParams({ who: "user" }),
+				body: new URLSearchParams({ who: "dev-user" }),
 				headers: { Origin: "http://localhost" },
 				method: "POST",
 			});
@@ -305,7 +305,7 @@ describe("server wiring", () => {
 	describe("foo live updates", () => {
 		const cookieSignIn = async () => {
 			const res = await app.request("/auth/sign-in", {
-				body: new URLSearchParams({ who: "user" }),
+				body: new URLSearchParams({ who: "dev-user" }),
 				headers: { Origin: "http://localhost" },
 				method: "POST",
 			});
