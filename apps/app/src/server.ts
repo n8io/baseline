@@ -27,7 +27,12 @@ import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { bodyLimit } from "hono/body-limit";
 import { except } from "hono/combine";
 import { createHonoServer } from "react-router-hono-server/node";
-import { actorFromClaims, authnProviderOptionsCreate } from "#authn";
+import {
+	actorFromClaims,
+	authnMemoryClientsCreate,
+	authnMemoryUsersCreate,
+	authnProviderOptionsCreate,
+} from "#authn";
 import {
 	fooLiveRoutesCreate,
 	fooRoutesCreate,
@@ -47,12 +52,14 @@ if (import.meta.env.DEV) await devRun.serverDevClose?.();
 // piece-end: ui
 
 let shutdown: ShutdownHandle | undefined;
+// The startup check: connectionsOpen throws while Postgres is unreachable, so the health port
+// opens only after it and /livez never answers for a Server that cannot start.
+const connections = await connectionsOpen({ role: "publisher" });
 const health = healthServerCreate({
 	isAlive: () => true,
 	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
 	port: ENV.HEALTH_PORT,
 });
-const connections = await connectionsOpen({ role: "publisher" });
 // piece-start: ui
 if (import.meta.env.DEV) {
 	// Shutdown order: intakes, then resources, health last.
@@ -80,20 +87,16 @@ if (connections.events !== "memory") {
 }
 // piece-end: queue
 
+// Every scope the Template's Domains define; the dev admin and the dev client hold all of them.
+const scopes: string[] = [
+	...fooScopes,
+	// domain-create: scopes
+];
 const authn = await authnCreate({
 	...authnProviderOptionsCreate(ENV),
 	actorFromClaims,
-	memoryUsers: [
-		{ id: "dev-user", name: "Dev user", scopes: [] },
-		{
-			id: "dev-admin",
-			name: "Dev admin",
-			scopes: [
-				...fooScopes,
-				// domain-create: scopes
-			],
-		},
-	],
+	memoryClients: authnMemoryClientsCreate(scopes),
+	memoryUsers: authnMemoryUsersCreate(scopes),
 	memoryIssuerAllowed: envLocal,
 });
 
@@ -140,7 +143,7 @@ app.all("/api/*", httpNotFoundHandle);
 const serverServe = (server: Server) => {
 	httpServerKeepAlive(server);
 	shutdown = shutdownHandleCreate({
-		drainDelayMs: envLocal ? 0 : 5_000,
+		drainDelayMs: ENV.SHUTDOWN_DRAIN_DELAY_MS ?? 5_000,
 		intakes: [
 			{ close: () => httpServerClose(server), name: "http" },
 			...connections.intakes,

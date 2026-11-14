@@ -1,5 +1,11 @@
 // The one provider-specific file: switching providers edits this file and the AUTHN_* env vars.
-import type { Actor, AuthnClaims, AuthnOptions } from "@n8io/baseline-authn";
+import type {
+	Actor,
+	AuthnClaims,
+	AuthnMemoryClient,
+	AuthnMemoryUser,
+	AuthnOptions,
+} from "@n8io/baseline-authn";
 
 type AuthnEnv = {
 	AUTHN_AUDIENCE: string;
@@ -22,6 +28,20 @@ export const authnProviderOptionsCreate = (
 	issuerUrl: env.AUTHN_ISSUER_URL,
 	secret: env.AUTHN_SECRET,
 });
+
+/**
+ * The users the memory issuer's sign-in page offers, in development and test only. Add one user per
+ * role, each holding that role's scopes, so every role can be tried in the browser.
+ */
+export const authnMemoryUsersCreate = (scopes: string[]): AuthnMemoryUser[] => [
+	{ id: "dev-user", name: "Dev user", scopes: [] },
+	{ id: "dev-admin", name: "Dev admin", scopes },
+];
+
+/** The machine clients scripts fetch a token for: `authnMemoryTokenFetch({ clientId: "dev-client", url })`. */
+export const authnMemoryClientsCreate = (
+	scopes: string[],
+): AuthnMemoryClient[] => [{ id: "dev-client", scopes }];
 
 const scopesFromClaim = (value: unknown): string[] => {
 	if (typeof value === "string") return value.split(" ").filter(Boolean);
