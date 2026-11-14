@@ -3,19 +3,12 @@
 
 import type { Actor } from "@n8io/baseline-authn";
 import { logger } from "@n8io/baseline-logger";
-import {
-	telemetryShutdown,
-	telemetryUseCasesTrace,
-} from "@n8io/baseline-telemetry";
+import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { fooSeed } from "#domains/foo/api/index.ts";
-import {
-	type FooUseCases,
-	fooScopes,
-	fooUseCasesCreate,
-} from "#domains/foo/index.ts";
-import { fooPortsCreate } from "#domains/foo/spi/index.ts";
+import { fooScopes } from "#domains/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { connectionsOpen } from "./connections.ts";
+import { type DomainsUseCases, domainsUseCasesCreate } from "./use-cases.ts";
 
 // domain-create: domains-start
 const devSeedActor: Actor = {
@@ -27,10 +20,7 @@ const devSeedActor: Actor = {
 	],
 };
 
-export const seedsRun = async (useCases: {
-	fooUseCases: FooUseCases;
-	// domain-create: seed-types
-}) => {
+export const seedsRun = async (useCases: DomainsUseCases) => {
 	await fooSeed(useCases.fooUseCases, devSeedActor);
 	// domain-create: seeds
 };
@@ -49,15 +39,7 @@ if (import.meta.main) {
 	}
 	const connections = await connectionsOpen({ role: "publisher" });
 	// domain-create: domains-start
-	const fooUseCases = telemetryUseCasesTrace(
-		fooUseCasesCreate(fooPortsCreate(connections)),
-	);
-	// domain-create: use-cases
-
-	await seedsRun({
-		fooUseCases,
-		// domain-create: seed-context
-	});
+	await seedsRun(domainsUseCasesCreate(connections));
 	// domain-create: domains-end
 	logger.info("seeds done");
 

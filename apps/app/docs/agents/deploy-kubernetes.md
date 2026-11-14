@@ -71,7 +71,7 @@ Set `terminationGracePeriodSeconds: 30`. The process ends itself within 25 s of 
 Old and new pods run side by side for minutes. Use `maxUnavailable: 0` on the Server.
 
 - **Tables** change by expand, then contract ([data.md](data.md)).
-- **Event shapes** change in three releases: widen, switch, narrow ([events-and-bridges.md](events-and-bridges.md)).
+- **Event shapes** change in three releases: widen, switch, narrow ([events.md](events.md)).
 - **UI assets.** A page can get its `/assets/` files from a pod of the other version. The app answers such a miss with an uncached 404 and the page reloads itself once, which fixes most page views, not all. To close the window choose one: serve `/assets/` from shared storage or a CDN that keeps the previous build's files beside the new ones (upload `build/client/assets` before the rollout, keep old files a day), or cookie-based session affinity at the ingress, so one browser stays on one version.
 - **Rollback.** A release that moved Events to ordered queues (`@n8io/baseline-queue` 8) rolls out with no manual step, but do not roll back across it after a week: by then migrate has removed the old queues and the old release's publishes would be lost silently.
 

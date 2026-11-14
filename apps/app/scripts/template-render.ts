@@ -380,6 +380,13 @@ export const fooBlocksFind = (
 					end++;
 				} else if (
 					/[([{]\s*$/.test(lines[before] ?? "") &&
+					fooLineIs(lines[end + 1] ?? "")
+				) {
+					// The next argument names foo too: it may be all the bracket holds, and then
+					// the statement around it goes (app.route("/live/foo", fooLive...(...))).
+					end++;
+				} else if (
+					/[([{]\s*$/.test(lines[before] ?? "") &&
 					/^\s*[)\]}]/.test(lines[end + 1] ?? "")
 				) {
 					// The block is all a bracket holds: the statement around it goes too.

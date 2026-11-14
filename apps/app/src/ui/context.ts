@@ -10,6 +10,7 @@ import {
 	RouterContextProvider,
 } from "react-router";
 import type { FooUseCases } from "#domains/foo/index.ts";
+import type { DomainsUseCases } from "../use-cases.ts";
 
 // The request's CSP nonce, for every inline script the server renders.
 export const cspNonceContext: RouterContext<string | undefined> = createContext<
@@ -22,10 +23,7 @@ export const fooUseCasesContext: RouterContext<FooUseCases> =
 export const uiLoadContextCreate = (
 	c: Context,
 	// domain-create: domains-start
-	useCases: {
-		fooUseCases: FooUseCases;
-		// domain-create: context-types
-	},
+	useCases: DomainsUseCases,
 	// domain-create: domains-end
 ): RouterContextProvider =>
 	new RouterContextProvider(

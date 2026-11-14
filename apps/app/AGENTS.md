@@ -136,7 +136,8 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 These docs load only when the task needs them. Read the one that matches before you start.
 
-- Adding a Consumer, an Event, a Bridge or a repository: [docs/agents/events-and-bridges.md](docs/agents/events-and-bridges.md)
+- Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
+- A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)

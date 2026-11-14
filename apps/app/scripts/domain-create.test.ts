@@ -169,6 +169,7 @@ describe("domainsPairsFill", () => {
 		).toEqual([
 			'import { a } from "./a.ts";',
 			'import { type B } from "./a.ts";',
+			"",
 			"// domain-create: domains-start",
 			"const c = a();",
 			"// domain-create: domains-end",
@@ -247,17 +248,24 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		);
 	});
 
-	it("wires the use cases, routes and schedule in each composition root", () => {
+	it("builds the use cases in src/use-cases.ts and hands them to each composition root", () => {
+		expect(file("src/use-cases.ts")).toMatch(
+			/telemetryUseCasesTrace\(\s*invoiceLineUseCasesCreate\(invoiceLinePortsCreate\(connections\)\),\s*\);\n\t\/\/ domain-create: use-cases\n/,
+		);
+		expect(file("src/use-cases.ts")).toContain(
+			"invoiceLineUseCases,\n\t\t// domain-create: use-cases-returned",
+		);
 		expect(file("src/server.ts")).toContain(
-			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(invoiceLineUseCases));\n// domain-create: routes',
+			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(useCases.invoiceLineUseCases));\n// domain-create: routes',
 		);
 		for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
-			expect(file(root)).toMatch(
-				/telemetryUseCasesTrace\(\s*invoiceLineUseCasesCreate\(invoiceLinePortsCreate\(connections\)\),/,
-			);
+			expect(file(root)).not.toContain("PortsCreate(");
 		}
 		expect(file("src/worker.ts")).toContain(
-			"invoiceLineScheduleCreate(invoiceLineUseCases),\n\t\t// domain-create: schedules",
+			"invoiceLineScheduleCreate(useCases.invoiceLineUseCases),\n\t\t// domain-create: schedules",
+		);
+		expect(file("src/ui/context.ts")).toContain(
+			"[invoiceLineUseCasesContext, useCases.invoiceLineUseCases],",
 		);
 		expect(file("src/ui/routes.ts")).toContain(
 			'route("invoice-lines/:invoiceLineId", "routes/invoice-line-detail.tsx"),',
@@ -305,7 +313,9 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			),
 		).toEqual([]);
 		const server = created.find((f) => f.path === "src/server.ts")?.text;
-		expect(server).toContain("invoiceLineRoutesCreate(invoiceLineUseCases)");
+		expect(server).toContain(
+			"invoiceLineRoutesCreate(useCases.invoiceLineUseCases)",
+		);
 		// The import stays for domain-create's unused-imports pass to remove.
 		expect(server).not.toContain("invoiceLineLiveRoutesCreate(");
 	});

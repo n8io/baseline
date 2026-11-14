@@ -219,7 +219,9 @@ export const domainsPairsFill = ({
 				)
 				.map((name) => `import ${type}{ ${name} } from ${from};`),
 		);
-	lines.splice(importEnd(lines) + 1, 0, ...missing);
+	// A file whose imports all went (src/use-cases.ts) gets them back above a blank line.
+	const noImports = importEnd(lines) === -1 && missing.length > 0;
+	lines.splice(importEnd(lines) + 1, 0, ...missing, ...(noImports ? [""] : []));
 	return lines.join("\n");
 };
 

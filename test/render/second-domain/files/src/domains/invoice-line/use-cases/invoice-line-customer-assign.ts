@@ -15,6 +15,8 @@ import { invoiceLineUpdateCan } from "../rules/invoice-line-update-can.ts";
 
 // Bills an invoice line to a customer the customer domain knows, read through the bridge
 // before the transaction opens. An unknown customer answers not found, like the invoice line.
+// A customer deleted between the read and the commit is accepted: the customer.deleted
+// Consumer clears it.
 export const invoiceLineCustomerAssign =
 	({
 		invoiceLineTransaction,
