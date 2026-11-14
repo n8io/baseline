@@ -24,17 +24,17 @@ flowchart LR
 ## Quick start
 
 > [!NOTE]
-> You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in, which `app-create` uses to create the project's repo.
+> You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in, which `app-create` uses to create the project's repo (`--no-github` skips it).
 
-**1. Create a project.** This renders the latest `app@` release, adds your first Domain, and creates a private GitHub repo with a CI ruleset.
+**1. Create a project.** This renders the latest `app@` release with no Domain yet, creates a private GitHub repo with a CI ruleset, and runs CI once on main.
 
 ```sh
 git clone https://github.com/n8io/baseline && cd baseline
 fnm use && pnpm install
-node scripts/app-create.ts
+pnpm app-create
 ```
 
-It asks five questions. You can pass them as flags instead: `--name --description --domain --plural --definition [--owner]`.
+It asks two questions. You can pass them as flags instead: `--name --description [--owner]`. [`docs/agents/project-create.md`](docs/agents/project-create.md) walks through it, including `--no-github` and `--github-only`.
 
 **2. Run it.**
 

@@ -1,7 +1,8 @@
 // node test/render/render-and-test.ts <directory>: builds the project CI's render-and-test job
 // hands to app-ci.yml. origin/main is the previous release rendered as app-create renders it,
-// with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade, then
-// adds Domains with this checkout's domain-create: customer with --bare first, invoice-line with
+// with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade and
+// checks, tests and builds it with no Domain, as app-create leaves a new Project. Then it adds
+// Domains with this checkout's domain-create: customer with --bare first, invoice-line with
 // --bare --reads customer, one --bare Domain per part, so each part passes app-ci alone and fills
 // the wiring the first Domain left empty, and vendor with every part. Then
 // the second-domain fixture: a customer_id column on invoice lines and the consumer that clears it
@@ -157,6 +158,9 @@ const main = async () => {
 	// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
+	// app-create makes no Domain, so a Project's first commit is this tree.
+	console.log("HEAD with no Domain: check, test and build");
+	for (const script of ["check", "test", "build"]) pnpmRun(directory, [script]);
 
 	for (const { kebab, parts, plural, reads } of domains) {
 		const names = { kebab, plural };

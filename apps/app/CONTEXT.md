@@ -104,5 +104,5 @@ _Avoid_: fixture, sample data
 ## Language
 
 **Foo**:
-The template's example domain: a named record that shows every pattern a domain uses. `app-create` replaces it with the project's first domain.
+The template's example domain: a named record that shows every pattern a domain uses. A project never contains it: it starts with no domain, and `domain-create` copies foo under each new domain's name.
 _Avoid_: widget, example, sample

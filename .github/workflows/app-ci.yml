@@ -123,6 +123,8 @@ jobs:
       - name: Migrations match the tables
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
+          # A Project with no Domain yet has no table, and drizzle-kit generate refuses an empty schema.
+          if ! compgen -G "src/domains/*/spi/*-table.ts" >/dev/null; then exit 0; fi
           pnpm exec drizzle-kit generate
           if [ -n "$(git status --porcelain -- migrations)" ]; then
             git status --porcelain -- migrations
