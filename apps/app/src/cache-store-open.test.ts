@@ -1,6 +1,6 @@
+import type { RedisClient } from "@n8io/baseline-redis";
 import { describe, expect, it, vi } from "vitest";
 import { cacheStoreOpen } from "./cache-store-open.ts";
-import type { RedisClient } from "./redis.ts";
 
 describe("cacheStoreOpen", () => {
 	it("keeps entries in memory for memory://", async () => {

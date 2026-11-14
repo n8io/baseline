@@ -229,8 +229,8 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				});
 			}
 		},
-		packages: ["redis"],
-		paths: ["src/redis.ts", "src/redis.redis.test.ts"],
+		packages: ["@n8io/baseline-redis"],
+		paths: ["src/redis-open.ts"],
 		refusal: (directory) => {
 			const removed = piecesRemovedFind(directory);
 			return removed.includes("cache") && removed.includes("live")
