@@ -39,6 +39,7 @@ export const fooRepositoryMemoryCreate = (state: {
 	};
 
 	return {
+		// domain-create-start: schedule
 		archiveStale: async (before, now) => {
 			let archived = 0;
 			for (const foo of state.foos.values()) {
@@ -49,6 +50,7 @@ export const fooRepositoryMemoryCreate = (state: {
 			}
 			return archived;
 		},
+		// domain-create-end: schedule
 		delete: async (id) =>
 			state.foos.delete(id) ? ok(undefined) : err(new FooNotFoundError(id)),
 		findById,

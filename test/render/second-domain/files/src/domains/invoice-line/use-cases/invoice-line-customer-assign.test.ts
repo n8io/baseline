@@ -10,7 +10,6 @@ import { invoiceLineCustomerReaderMemoryCreate } from "../spi/index.ts";
 import { invoiceLinePortsMemoryCreate } from "../spi/invoice-line-ports.memory.ts";
 import { invoiceLineCreate } from "./invoice-line-create.ts";
 import { invoiceLineCustomerAssign } from "./invoice-line-customer-assign.ts";
-import { invoiceLineGet } from "./invoice-line-get.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
@@ -32,10 +31,6 @@ const setup = async () => {
 describe("invoiceLineCustomerAssign", () => {
 	it("bills the invoice line to a known customer", async () => {
 		const { ports, state, invoiceLine } = await setup();
-		// piece-start: cache
-		const get = invoiceLineGet(ports);
-		await get(owner, { invoiceLineId: invoiceLine.id });
-		// piece-end: cache
 
 		const result = await invoiceLineCustomerAssign(ports)(owner, {
 			customerId,
@@ -47,12 +42,6 @@ describe("invoiceLineCustomerAssign", () => {
 			value: expect.objectContaining({ customerId, id: invoiceLine.id }),
 		});
 		expect(state.invoiceLines.get(invoiceLine.id)?.customerId).toBe(customerId);
-		// piece-start: cache
-		expect(await get(owner, { invoiceLineId: invoiceLine.id })).toEqual({
-			ok: true,
-			value: expect.objectContaining({ customerId }),
-		});
-		// piece-end: cache
 	});
 
 	it("answers not found for an unknown customer without opening a transaction", async () => {

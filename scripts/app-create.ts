@@ -2,6 +2,7 @@
 // Renders apps/app, writes the project's answers, creates the first domain and its migration,
 // then creates the private GitHub repository, the CI ruleset and Dependabot security updates.
 // Flags skip the questions: --name --description --domain --plural --definition [--owner].
+import "../apps/app/scripts/node-version-require.ts";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";

@@ -31,8 +31,8 @@ export type DomainNames = { kebab: string; plural: string };
 
 const templateRepository = "n8io/baseline";
 
-// Runs a command and returns its stdout; `inherit` shows its output instead, `quiet` keeps its
-// stderr out of the terminal (a failure's error still carries it).
+// Runs a command and returns its stdout. Its stderr is kept out of the terminal: a failure's error
+// carries it, so a run that works prints nothing alarming. `inherit` shows all its output instead.
 export const run = ({
 	args,
 	command,
@@ -45,7 +45,6 @@ export const run = ({
 		env?: NodeJS.ProcessEnv;
 		inherit?: boolean;
 		input?: string;
-		quiet?: boolean;
 	};
 }): string =>
 	execFileSync(command, args, {
@@ -54,9 +53,7 @@ export const run = ({
 		env: options.env ?? process.env,
 		input: options.input,
 		maxBuffer: 256 * 1024 * 1024,
-		stdio: options.inherit
-			? "inherit"
-			: ["pipe", "pipe", options.quiet ? "pipe" : "inherit"],
+		stdio: options.inherit ? "inherit" : "pipe",
 	}) ?? "";
 
 // ---------------------------------------------------------------------------
@@ -177,9 +174,9 @@ export const modesRead = (text: string, path: string): Mode[] => {
 // ---------------------------------------------------------------------------
 // Renaming foo to another domain
 
-const camelFromKebab = (kebab: string): string =>
+export const camelFromKebab = (kebab: string): string =>
 	kebab.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-const pascalFromKebab = (kebab: string): string => {
+export const pascalFromKebab = (kebab: string): string => {
 	const camel = camelFromKebab(kebab);
 	return camel.charAt(0).toUpperCase() + camel.slice(1);
 };
@@ -761,6 +758,8 @@ export const templateFetch = (version: string): TemplateFile[] => {
 	run({
 		command: "git",
 		args: [
+			"-c",
+			"advice.detachedHead=false",
 			"clone",
 			"--quiet",
 			"--filter=blob:none",

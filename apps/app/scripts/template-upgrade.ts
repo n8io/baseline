@@ -116,8 +116,8 @@ const templateMerge = ({
 		run({
 			command: "git",
 			args: ["cherry-pick", "--no-commit", next],
-			// A conflict is reported below; git's own "could not apply" hints would repeat it.
-			options: { cwd: repository, quiet: true },
+			// A conflict is reported below; run keeps git's own "could not apply" hints quiet.
+			options: { cwd: repository },
 		});
 	} catch (error) {
 		// A conflict exits non-zero and leaves unmerged paths; anything else is a real failure.

@@ -1,14 +1,19 @@
 // node test/render/render-and-test.ts <directory>: builds the project CI's render-and-test job
 // hands to app-ci.yml. origin/main is the previous release rendered as app-create renders it,
 // with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade, then
-// adds invoice-line and customer with this checkout's domain-create, and the second-domain
-// fixture: a customer_id column on invoice lines, the consumer that clears it when a customer is
-// deleted, and the bridge that reads customers. HEAD installs this checkout's packages/*.
+// adds Domains with this checkout's domain-create: customer with --bare first, invoice-line with
+// --bare --reads customer, one --bare Domain per part, so each part passes app-ci alone and fills
+// the wiring the first Domain left empty, and vendor with every part. Then
+// the second-domain fixture: a customer_id column on invoice lines and the consumer that clears it
+// when a customer is deleted. HEAD installs this checkout's packages/*.
 import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+	type DomainPart,
 	domainFilesCreate,
+	domainFilesFormat,
 	domainNameRefusal,
+	domainReadsRefusal,
 } from "../../apps/app/scripts/domain-create.ts";
 import {
 	filesWrite,
@@ -40,17 +45,51 @@ const answers = {
 	name: "render-test",
 	release: "",
 };
-// customer first: invoice-line's ports take the bridge built from customer's use cases.
-const domains = [
+// customer first: invoice-line reads it through a Bridge. `parts` null is a domain-create
+// without --bare.
+const domains: {
+	definition: string;
+	kebab: string;
+	parts: DomainPart[] | null;
+	plural: string;
+	reads: string[];
+}[] = [
 	{
 		definition: "Someone invoice lines are billed to.",
 		kebab: "customer",
+		parts: [],
 		plural: "customers",
+		reads: [],
 	},
 	{
 		definition: "One charge on an invoice, which may name its customer.",
 		kebab: "invoice-line",
+		parts: [],
 		plural: "invoice-lines",
+		reads: ["customer"],
+	},
+	...(
+		[
+			["analytics", "badge"],
+			["cache", "basket"],
+			["live", "ticket"],
+			["pages", "shipment"],
+			["schedule", "payment"],
+			["seed", "refund"],
+		] as const
+	).map(([part, kebab]) => ({
+		definition: `A Domain made with domain-create --bare --${part}.`,
+		kebab,
+		parts: [part],
+		plural: `${kebab}s`,
+		reads: [],
+	})),
+	{
+		definition: "Someone who sells to the shop.",
+		kebab: "vendor",
+		parts: null,
+		plural: "vendors",
+		reads: [],
 	},
 ];
 
@@ -119,27 +158,29 @@ const main = async () => {
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
 
-	for (const names of domains) {
-		const refusal = domainNameRefusal(names, directory);
+	for (const { kebab, parts, plural, reads } of domains) {
+		const names = { kebab, plural };
+		const refusal =
+			domainNameRefusal(names, directory) ??
+			domainReadsRefusal({ appDirectory: directory, names, reads });
 		if (refusal !== undefined) throw new Error(refusal);
 		const created = domainFilesCreate({
 			templateFull: files,
 			appDirectory: directory,
 			names,
+			parts,
+			reads,
 		});
 		filesWrite(directory, created);
-		pnpmRun(directory, [
-			"exec",
-			"biome",
-			"check",
-			"--write",
-			...created.map((f) => f.path),
-		]);
+		domainFilesFormat({
+			appDirectory: directory,
+			paths: created.map((f) => f.path),
+		});
 	}
 	if (process.env.RENDER_AND_TEST_STOP === "fixture") {
 		// To change the fixture: edit this tree, then copy its new files to second-domain/files
 		// and save `git diff` as second-domain/wiring.patch.
-		gitCommitAll(directory, "Add customer and invoice-line");
+		gitCommitAll(directory, "Add the Domains");
 		return;
 	}
 	cpSync(join(fixture, "files"), directory, { recursive: true });
@@ -155,7 +196,7 @@ const main = async () => {
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);
 	checkoutPackagesTrack(directory);
-	gitCommitAll(directory, "Upgrade, add invoice-line and customer");
+	gitCommitAll(directory, "Upgrade and add the Domains");
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));
 };
 

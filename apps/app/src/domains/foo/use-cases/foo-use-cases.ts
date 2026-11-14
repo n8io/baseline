@@ -11,7 +11,9 @@ export const fooUseCasesCreate = (ports: FooPorts) => ({
 	fooDelete: fooDelete(ports),
 	fooGet: fooGet(ports),
 	fooList: fooList(ports),
+	// domain-create-start: schedule
 	fooStaleArchive: fooStaleArchive(ports),
+	// domain-create-end: schedule
 	fooUpdate: fooUpdate(ports),
 });
 

@@ -4,7 +4,11 @@
 export { fooLiveRoutesCreate } from "./foo-live.ts";
 // piece-end: live
 export { fooRoutesCreate } from "./foo-routes.ts";
+// domain-create-start: schedule
 // piece-start: queue
 export { fooSchedule, fooScheduleCreate } from "./foo-schedule.ts";
 // piece-end: queue
+// domain-create-end: schedule
+// domain-create-start: seed
 export { fooSeed } from "./foo-seed.ts";
+// domain-create-end: seed

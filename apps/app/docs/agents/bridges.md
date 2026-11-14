@@ -4,7 +4,7 @@ Read when one Domain reads another (a Bridge), or when a Domain waits on what an
 
 ## Bridge
 
-A Bridge fills a reader port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains: a write is an Event. The code below is from baseline's render test, where invoice lines read a customer's name; a test there fails when this page and that code differ.
+A Bridge fills a reader port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains: a write is an Event. `pnpm domain-create <name> --reads <target>` writes everything below (the reader port, the readers argument, the memory fake, the Bridge and its test, and the wiring); you then change what the reader returns. The code is what it writes in baseline's render test, where invoice lines read a customer's name; a test fails when this page and that code differ.
 
 The reading Domain declares the reader in `ports.ts`, adds it to its ports, and names the ports Bridges fill:
 
@@ -64,10 +64,10 @@ Wire it once, in `domainsUseCasesCreate` in `src/use-cases.ts`. The Server, the 
 
 ```ts
 // src/use-cases.ts
-// After customer: its Bridge reads customer's Use cases.
 const invoiceLineUseCases = telemetryUseCasesTrace(
 	invoiceLineUseCasesCreate(
 		invoiceLinePortsCreate(connections, {
+			// Built after customer: this Bridge reads its Use cases.
 			invoiceLineCustomerReader:
 				invoiceLineCustomerReaderCreate(customerUseCases),
 		}),
@@ -79,23 +79,23 @@ The reading Domain's tests use a memory fake of the reader, `<domain><Target>Rea
 
 ```ts
 // src/domains/invoice-line/spi/invoice-line-customer-reader.memory.ts
-// The customer reader's fake for tests: it knows only the customers it is given.
+// The customer reader's fake for tests: it knows only the entries it is given.
 export const invoiceLineCustomerReaderMemoryCreate = (
-	customers: { id: Id<"customer">; name: string }[] = [],
+	entries: { id: Id<"customer">; name: string }[] = [],
 ): InvoiceLineCustomerReader => ({
 	get: async (id) => {
-		const customer = customers.find((c) => c.id === id);
-		return customer === undefined ? undefined : { name: customer.name };
+		const entry = entries.find((e) => e.id === id);
+		return entry === undefined ? undefined : { name: entry.name };
 	},
 });
 ```
 
-The Bridge's own test runs it on the target Domain's memory ports, never on a mock:
+The Bridge's own test runs it on the target Domain's Use cases over memory ports, never on a mock:
 
 ```ts
 // src/bridges/invoice-line-customer-reader.test.ts
 it("reads a customer's name through customerGet", async () => {
-	const customer = customerUseCasesCreate(customerPortsCreate(connections));
+	const customer = domainsUseCasesCreate(connections).customerUseCases;
 	const created = await customer.customerCreate(owner, { name: "Acme" });
 	if (!created.ok) throw created.error;
 
