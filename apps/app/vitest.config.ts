@@ -31,7 +31,10 @@ export default defineConfig({
 						CACHE_URL: "memory://",
 						DATABASE_URL: "memory://",
 					},
-					exclude: ["src/**/*.{postgres,redis}.test.ts"],
+					exclude: [
+						"src/**/*.{postgres,redis}.test.ts",
+						"src/domains/**/*.test.ts",
+					],
 					// The same slow import in a beforeAll: it took over 10 s on a busy CI runner.
 					hookTimeout: 20_000,
 					include: ["*.test.ts", "scripts/*.test.ts", "src/**/*.test.ts"],
@@ -39,6 +42,26 @@ export default defineConfig({
 					// Loads .env.schema and .env.test into process.env in every worker.
 					setupFiles: ["varlock/auto-load"],
 					// Some tests import server.ts or spawn node; CI runs them beside every package's tests.
+					testTimeout: 20_000,
+				},
+			},
+			{
+				extends: true,
+				test: {
+					env: {
+						APP_ENV: "test",
+						CACHE_URL: "memory://",
+						DATABASE_URL: "memory://",
+					},
+					exclude: ["src/**/*.{postgres,redis}.test.ts"],
+					hookTimeout: 20_000,
+					include: ["src/domains/**/*.test.ts"],
+					// Domain tests run on memory adapters and share no module state, so one module graph
+					// per worker is safe. Isolating each file cost ~96 s on a CI runner (six Domains),
+					// past the unit job's 2 min budget; without it they take a few seconds.
+					isolate: false,
+					name: "unit-domains",
+					setupFiles: ["varlock/auto-load"],
 					testTimeout: 20_000,
 				},
 			},

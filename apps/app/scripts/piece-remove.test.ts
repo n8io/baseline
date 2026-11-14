@@ -53,7 +53,7 @@ const manifest = {
 	imports: { "#env": "./src/env.ts", "#ui/*": "./src/ui/*" },
 	scripts: {
 		build: "react-router build",
-		check: "varlock codegen && react-router typegen && biome check .",
+		check: "node scripts/check.ts",
 		dev: "docker compose up -d --wait && (HEALTH_PORT=9001 node --watch --import ./src/preload.ts src/worker.ts & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
 	},
 };

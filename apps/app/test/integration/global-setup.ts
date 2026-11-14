@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { parseEnv } from "node:util";
 import pg from "pg";
 import type { TestProject } from "vitest/node";
@@ -32,11 +32,39 @@ const urlCreate = (
 	fallback: () => string,
 ): string => (value !== undefined && value !== "" ? value : fallback());
 
+// The Server runs from build/, so a src/ file saved after the last build means a test would run old code.
+// A missing build is production-server.ts's message. The Worker, migrate and seed run from src/, and
+// test files and helpers are not part of the build.
+const buildStaleGuard = (): void => {
+	let built: number;
+	try {
+		built = statSync("build/server/index.js").mtimeMs;
+	} catch {
+		return;
+	}
+	const newer = readdirSync("src", { encoding: "utf8", recursive: true })
+		.filter(
+			(path) =>
+				!/(^|\/)(worker|migrate|seed)\.ts$|(^|\/)env\.d\.ts$|test/.test(path),
+		)
+		.find(
+			(path) =>
+				statSync(`src/${path}`).isFile() &&
+				statSync(`src/${path}`).mtimeMs > built,
+		);
+	if (newer !== undefined) {
+		throw new Error(
+			`build/ is older than src/${newer}: run pnpm build (pnpm test:integration does it first)`,
+		);
+	}
+};
+
 // Runs src/migrate.ts once against a fresh template database (integration-template.ts); each test
 // file copies it (integrationDatabaseCreate). One Postgres and one Redis per run.
 export default async function integrationGlobalSetup(
 	project: TestProject,
 ): Promise<void> {
+	buildStaleGuard();
 	const databaseUrl = urlCreate(
 		process.env.INTEGRATION_DATABASE_URL,
 		() =>
