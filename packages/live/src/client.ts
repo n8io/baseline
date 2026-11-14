@@ -14,7 +14,8 @@ const eventSourceCreate: LiveEventSourceCreate = (url) =>
 
 export type LiveUpdatesOptions = {
 	channel: string;
-	id: string;
+	/** `null` opens no stream, for a page that has no id to follow yet. */
+	id: string | null;
 	/** Where the server mounts the streams. Defaults to `/live`. */
 	pathPrefix?: string;
 };

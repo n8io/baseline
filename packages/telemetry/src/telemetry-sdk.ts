@@ -44,12 +44,22 @@ const envList = (name: string): string[] =>
 		.map((item) => item.trim())
 		.filter((item) => item !== "");
 
-const exportersNamed = (name: string): string[] => {
-	const names = envList(name);
+// With no OTEL_<SIGNAL>_EXPORTER, a signal exports OTLP only where an endpoint is set for it
+// (OTEL_EXPORTER_OTLP_ENDPOINT, or the signal's own). Otherwise nothing listens, and a process
+// would wait at exit for the default localhost:4318 to refuse.
+const exportersNamed = (signal: "LOGS" | "METRICS" | "TRACES"): string[] => {
+	const names = envList(`OTEL_${signal}_EXPORTER`);
 	if (names.includes("none")) {
 		return [];
 	}
-	return names.length === 0 ? ["otlp"] : names;
+	if (names.length > 0) {
+		return names;
+	}
+	const endpointSet = [
+		"OTEL_EXPORTER_OTLP_ENDPOINT",
+		`OTEL_EXPORTER_OTLP_${signal}_ENDPOINT`,
+	].some((name) => (process.env[name] ?? "").trim() !== "");
+	return endpointSet ? ["otlp"] : [];
 };
 
 // OTLP goes over http/protobuf only, the OTel default.
@@ -95,7 +105,7 @@ const batchOptions = (prefix: "BLRP" | "BSP"): BatchOptions => {
 };
 
 const spanProcessorsFromEnv = (): SpanProcessor[] =>
-	exportersNamed("OTEL_TRACES_EXPORTER").flatMap((name): SpanProcessor[] => {
+	exportersNamed("TRACES").flatMap((name): SpanProcessor[] => {
 		if (name === "console") {
 			return [new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() })];
 		}
@@ -111,7 +121,7 @@ const spanProcessorsFromEnv = (): SpanProcessor[] =>
 	});
 
 const logRecordProcessorsFromEnv = (): LogRecordProcessor[] =>
-	exportersNamed("OTEL_LOGS_EXPORTER").flatMap((name): LogRecordProcessor[] => {
+	exportersNamed("LOGS").flatMap((name): LogRecordProcessor[] => {
 		if (name === "console") {
 			return [
 				new SimpleLogRecordProcessor({
@@ -146,7 +156,7 @@ const metricReaderOptions = (): {
 
 // Metric attributes are set by code, never from input or error text.
 const metricReadersFromEnv = (): IMetricReader[] =>
-	exportersNamed("OTEL_METRICS_EXPORTER").flatMap((name): IMetricReader[] => {
+	exportersNamed("METRICS").flatMap((name): IMetricReader[] => {
 		if (name !== "console" && name !== "otlp") {
 			return [];
 		}
@@ -206,7 +216,22 @@ export const telemetryStart = (): void => {
 					],
 				}),
 	});
-	sdk.start();
+	// NodeSDK builds its own OTLP log exporter from the environment when it is given no log
+	// processor; a signal with no exporter must not get one. Traces and metrics are given empty
+	// lists, which it keeps.
+	const logsExporter = process.env.OTEL_LOGS_EXPORTER;
+	if (logRecordProcessors.length === 0) {
+		process.env.OTEL_LOGS_EXPORTER = "none";
+	}
+	try {
+		sdk.start();
+	} finally {
+		if (logsExporter === undefined) {
+			delete process.env.OTEL_LOGS_EXPORTER;
+		} else {
+			process.env.OTEL_LOGS_EXPORTER = logsExporter;
+		}
+	}
 };
 
 // Flushes and stops every signal; last in the shutdown resources. A failed

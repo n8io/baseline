@@ -13,7 +13,7 @@ pnpm add @n8io/baseline-live
 - `liveHubMemoryCreate()`: a hub in one process, for unit tests and `memory://`.
 - `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It sends `ready` once subscribed, and again when the hub may have lost updates. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.
 - `@n8io/baseline-live/testing`: `liveTestSseRead({ response })`, which reads a live stream in a test. See [Testing](#testing).
-- `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix })`, a React hook that revalidates the page on each update, on every reconnect and on every `ready`. It opens `<pathPrefix>/<channel>/<id>`; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.
+- `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix })`, a React hook that revalidates the page on each update, on every reconnect and on every `ready`. It opens `<pathPrefix>/<channel>/<id>`; an `id` of `null` opens no stream, so a page can follow an id it does not have yet; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.
 
 ## Example
 
