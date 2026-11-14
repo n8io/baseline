@@ -8,6 +8,7 @@
 	},
 	"packageManager": "pnpm@12.17.0",
 	"scripts": {
+		"app-create": "node --import ./apps/app/scripts/node-version-require.ts scripts/app-create.ts",
 		"check": "biome check . && tsc --noEmit",
 		"format": "biome format --write .",
 		"test": "vitest run",
