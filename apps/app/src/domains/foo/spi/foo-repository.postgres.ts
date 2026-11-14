@@ -1,16 +1,9 @@
-import { idToUuid } from "@n8io/baseline-id";
-import { postgresUniqueViolationIs } from "@n8io/baseline-postgres";
-import { err, ok } from "@n8io/baseline-result";
 import {
-	and,
-	count,
-	eq,
-	isNotNull,
-	isNull,
-	lt,
-	type SQL,
-	sql,
-} from "drizzle-orm";
+	postgresKeysetCreate,
+	postgresUniqueViolationIs,
+} from "@n8io/baseline-postgres";
+import { err, ok } from "@n8io/baseline-result";
+import { and, count, eq, isNotNull, isNull, lt } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { cursorDecode, cursorEncode } from "../../../cursor.ts";
 import { FooNameTakenError, FooNotFoundError } from "../foo-errors.ts";
@@ -74,27 +67,27 @@ export const fooRepositoryPostgresCreate = (
 	},
 	list: async (input) => {
 		const field = input.sort.replace("-", "") as "createdAt" | "name";
-		const descending = input.sort.startsWith("-");
+		const kind = field === "name" ? "text" : "date";
 		const archived = input.archived
 			? isNotNull(foo.archivedAt)
 			: isNull(foo.archivedAt);
-		const sortColumn =
-			field === "name" ? sql`${foo.name} COLLATE "C"` : sql`${foo.createdAt}`;
-		const direction = descending ? sql`DESC` : sql`ASC`;
-		const after = input.cursor ? cursorDecode(input.cursor, "foo") : undefined;
-		const keyset: SQL | undefined = after
-			? sql`(${sortColumn}, ${foo.id}) ${descending ? sql`<` : sql`>`} (${
-					field === "name"
-						? sql`${after.k} COLLATE "C"`
-						: sql`${after.k}::timestamptz`
-				}, ${idToUuid(after.id)}::uuid)`
-			: undefined;
+		// A cursor from another sort reads as none: the first page.
+		const after = input.cursor
+			? cursorDecode({ cursor: input.cursor, kind, prefix: "foo" })
+			: null;
+		const keyset = postgresKeysetCreate({
+			after,
+			descending: input.sort.startsWith("-"),
+			idColumn: foo.id,
+			kind,
+			sortColumn: field === "name" ? foo.name : foo.createdAt,
+		});
 
 		const rows = await db
 			.select()
 			.from(foo)
-			.where(and(archived, keyset))
-			.orderBy(sql`${sortColumn} ${direction}`, sql`${foo.id} ${direction}`)
+			.where(and(archived, keyset.where))
+			.orderBy(...keyset.orderBy)
 			.limit(input.limit + 1);
 		const page = rows.slice(0, input.limit).map(fooFromRow);
 		const last = page.at(-1);
@@ -102,7 +95,8 @@ export const fooRepositoryPostgresCreate = (
 			rows.length > input.limit && last
 				? cursorEncode({
 						id: last.id,
-						k: field === "name" ? last.name : last.createdAt.toISOString(),
+						kind,
+						value: field === "name" ? last.name : last.createdAt.toISOString(),
 					})
 				: null;
 		if (!input.count) return { items: page, nextCursor };

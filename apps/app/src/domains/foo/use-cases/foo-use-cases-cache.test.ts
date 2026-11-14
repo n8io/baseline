@@ -1,7 +1,8 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
-import { fooCacheCreate } from "../spi/foo-cache.ts";
+import { connectionsOpen } from "../../../connections.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
+import { fooPortsCreate } from "../spi/index.ts";
 import { fooUseCasesCreate } from "./foo-use-cases.ts";
 
 // The read-through in fooGet and the clears after a change; the cache piece owns this file.
@@ -43,11 +44,13 @@ describe("foo cache", () => {
 		const down = async (): Promise<never> => {
 			throw new Error("Store is down");
 		};
-		const { ports } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate({
-			...ports,
-			fooCache: fooCacheCreate({ delete: down, get: down, set: down }),
-		});
+		const connections = await connectionsOpen({ role: "publisher" });
+		const useCases = fooUseCasesCreate(
+			fooPortsCreate({
+				...connections,
+				cacheStore: { delete: down, get: down, set: down },
+			}),
+		);
 		const created = await useCases.fooCreate(actor, { name: "alpha" });
 		if (!created.ok) throw created.error;
 		const foo = created.value;

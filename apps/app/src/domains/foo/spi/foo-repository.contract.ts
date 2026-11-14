@@ -238,6 +238,37 @@ export const fooRepositoryContract = (
 			expect(seen).toEqual(["Alpha", "Bravo", "Charlie", "Delta", "Echo"]);
 		});
 
+		it("reads a cursor from another sort, or a mangled one, as the first page", async () => {
+			const ports = await create();
+			await seed(ports);
+			const page = (sort: "createdAt" | "-name", cursor?: string) =>
+				ports.fooReadRepository.list(
+					FooListInput.parse({ cursor, limit: 2, sort }),
+				);
+			const byName = await page("-name");
+			const byDate = await page("createdAt");
+			const mangled = Buffer.from(
+				JSON.stringify({ id: byDate.items[0]?.id, kind: "date", value: "x" }),
+			).toString("base64url");
+			expect(byName.nextCursor).not.toBeNull();
+			expect(byDate.nextCursor).not.toBeNull();
+
+			// A name is no instant, but an instant is a fine name, and ahead of "-name" order: both
+			// directions matter.
+			expect(
+				names((await page("createdAt", byName.nextCursor ?? "")).items),
+			).toEqual(names(byDate.items));
+			expect(
+				names((await page("-name", byDate.nextCursor ?? "")).items),
+			).toEqual(names(byName.items));
+			expect(names((await page("createdAt", mangled)).items)).toEqual(
+				names(byDate.items),
+			);
+			expect(names((await page("createdAt", "nonsense")).items)).toEqual(
+				names(byDate.items),
+			);
+		});
+
 		it("sorts descending and counts on request", async () => {
 			const ports = await create();
 			await seed(ports);
