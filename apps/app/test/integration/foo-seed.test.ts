@@ -48,4 +48,23 @@ describe("src/seed.ts on Postgres", { timeout: 60_000 }, () => {
 			"Gamma",
 		]);
 	});
+
+	it("tops up a half-seeded database", async () => {
+		await using database = await integrationDatabaseCreate();
+		expect(await seedRun(database.databaseUrl)).toBe(0);
+		const pgClient = new pg.Client({ connectionString: database.databaseUrl });
+		await pgClient.connect();
+		try {
+			await pgClient.query("DELETE FROM foo.foo WHERE name = 'Beta'");
+		} finally {
+			await pgClient.end();
+		}
+
+		expect(await seedRun(database.databaseUrl)).toBe(0);
+		expect(await fooNames(database.databaseUrl)).toEqual([
+			"Alpha",
+			"Beta",
+			"Gamma",
+		]);
+	});
 });

@@ -138,7 +138,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 These docs load only when the task needs them. Read the one that matches before you start.
 
-- Adding a role or a scope, a dev user, a machine-only Use case, or a script that calls the API: [docs/agents/authn.md](docs/agents/authn.md)
+- Adding a role or a scope, a dev user, or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
 - Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
@@ -152,4 +152,5 @@ These docs load only when the task needs them. Read the one that matches before 
 - Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
+- Adding a script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Adding or removing a piece of the stack (UI pages, live updates, the cache, Redis, the queue and the Worker, analytics, error tracking) with `pnpm piece-remove`: [docs/agents/pieces.md](docs/agents/pieces.md)

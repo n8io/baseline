@@ -20,6 +20,8 @@ const devSeedActor: Actor = {
 	],
 };
 
+// A seed ensures its rows and returns them all, so a later seed can take the ids it needs:
+// `const things = await thingSeed(...)`, then `await partSeed(..., { things })`.
 export const seedsRun = async (useCases: DomainsUseCases) => {
 	await fooSeed(useCases.fooUseCases, devSeedActor);
 	// domain-create: seeds
