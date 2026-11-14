@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { domainsPairsFill } from "./domain-create.ts";
 import {
@@ -8,6 +8,7 @@ import {
 	fooLineIs,
 	fooPathRename,
 	fooRename,
+	hostPortsCreate,
 	linesRemove,
 	lockfileRender,
 	templateFileRender,
@@ -218,6 +219,51 @@ describe("templateFileRender", () => {
 			name: "invoicing",
 			private: true,
 		});
+	});
+});
+
+describe("hostPortsCreate and the files it renders into", () => {
+	const schema =
+		"HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nREDIS_HOST_PORT=6379\nSERVER_HOST_PORT=3000\nHEALTH_HOST_PORT=9000\n";
+	const compose =
+		"name: app\nservices:\n  # varlock run -- docker compose -p app up\n";
+
+	it("gives each name four ports in a row in 20000 to 29999, the same ones every time", () => {
+		const ports = hostPortsCreate("invoicing");
+		const values = Object.values(ports);
+
+		expect(hostPortsCreate("invoicing")).toEqual(ports);
+		expect(values.every((port) => port >= 20_000 && port < 30_000)).toBe(true);
+		expect(values.map((port) => port - (values[0] ?? 0))).toEqual([0, 1, 2, 3]);
+		expect(hostPortsCreate("fantasy-golf")).not.toEqual(ports);
+	});
+
+	it("writes a Project's ports, compose project and -p into its files", () => {
+		const ports = hostPortsCreate("invoicing");
+		const render = (path: string, text: string) =>
+			templateFileRender({ path, text }, answers)?.text;
+
+		expect(render(".env.schema", schema)).toBe(
+			`HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nREDIS_HOST_PORT=${ports.REDIS_HOST_PORT}\nSERVER_HOST_PORT=${ports.SERVER_HOST_PORT}\nHEALTH_HOST_PORT=${ports.HEALTH_HOST_PORT}\n`,
+		);
+		expect(render("compose.yaml", compose)).toBe(
+			"name: invoicing\nservices:\n  # varlock run -- docker compose -p invoicing up\n",
+		);
+		expect(
+			JSON.parse(
+				render(
+					"package.json",
+					'{"name":"app","scripts":{"dev":"varlock run -- docker compose -p app up"}}',
+				) ?? "",
+			).scripts.dev,
+		).toBe("varlock run -- docker compose -p invoicing up");
+	});
+
+	it.runIf(template)("keeps the Template's own ports and name", () => {
+		const read = (name: string) => readFileSync(new URL(name, appRoot), "utf8");
+
+		expect(read(".env.schema")).toContain("POSTGRES_HOST_PORT=5432\n");
+		expect(read("compose.yaml")).toContain("name: app\n");
 	});
 });
 

@@ -104,6 +104,9 @@ jobs:
       - *node
       - *install
       - run: pnpm test:integration
+        env:
+          INTEGRATION_CACHE_URL: redis://localhost:6379
+          INTEGRATION_DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
 
   migrations:
     runs-on: ubuntu-latest

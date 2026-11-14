@@ -4,6 +4,7 @@
 // regex literals, JSX text and prose, where a plain replace or a marker would rename the wrong text
 // or miss it. render-and-test renders and tests a project on every PR, so it covers the scanner.
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
 	existsSync,
 	mkdirSync,
@@ -491,6 +492,35 @@ const contextRender = (text: string, answers: TemplateAnswers): string => {
 	return lines.join("\n").replace(/\n+$/, "\n");
 };
 
+// The host ports a Project's compose.yaml publishes, from its name: four in a row at a multiple of
+// ten from 20000 to 29999, below the range the OS hands out to outgoing connections. The Template
+// keeps 5432, 6379, 3000 and 9000. Two names can land on the same block (one in a thousand): set the
+// four *_HOST_PORT variables in .env.development.local then.
+export const hostPortsCreate = (name: string): Record<string, number> => {
+	const block =
+		createHash("sha256").update(name).digest().readUInt32BE(0) % 1000;
+	const first = 20_000 + block * 10;
+	return {
+		POSTGRES_HOST_PORT: first,
+		REDIS_HOST_PORT: first + 1,
+		SERVER_HOST_PORT: first + 2,
+		HEALTH_HOST_PORT: first + 3,
+	};
+};
+
+// The Template's own name ("app") in the compose project name and in every `docker compose -p`.
+const composeProjectRender = (text: string, name: string): string =>
+	text
+		.replace(/^name: app$/m, `name: ${name}`)
+		.replaceAll("-p app ", `-p ${name} `);
+
+const hostPortsRender = (text: string, name: string): string =>
+	Object.entries(hostPortsCreate(name)).reduce(
+		(rendered, [item, port]) =>
+			rendered.replace(new RegExp(`^${item}=\\d+$`, "m"), `${item}=${port}`),
+		text,
+	);
+
 export const templateFileRender = (
 	file: TemplateFile,
 	answers: TemplateAnswers,
@@ -510,10 +540,22 @@ export const templateFileRender = (
 		manifest.name = answers.name;
 		// The version is the project's own, never the template's.
 		delete manifest.version;
-		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
+		return {
+			path,
+			text: composeProjectRender(
+				`${JSON.stringify(manifest, null, "\t")}\n`,
+				answers.name,
+			),
+		};
 	}
-	if (!fooLineIs(text)) return file;
-	const emptied = domainsPairsEmpty(text, path);
+	const rendered =
+		path === ".env.schema"
+			? hostPortsRender(text, answers.name)
+			: path === "compose.yaml"
+				? composeProjectRender(text, answers.name)
+				: text;
+	if (!fooLineIs(rendered)) return { path, text: rendered };
+	const emptied = domainsPairsEmpty(rendered, path);
 	return { path, text: linesRemove(emptied, fooBlocksFind(emptied, path)) };
 };
 

@@ -13,3 +13,8 @@ Read when deploying a Project or changing how it runs.
 - A TLS-terminating proxy must set `x-forwarded-proto: https`, or browsers without `Sec-Fetch-Site` get 403 on form posts.
 - The load balancer or edge rate-limits requests; the app does not.
 - More than one instance, or Kubernetes (probes, pool sizing, PgBouncer, rollouts, outages): [deploy-kubernetes.md](deploy-kubernetes.md).
+
+## Running locally next to another Project
+
+- `compose.yaml` publishes Postgres, Redis, the Server and the health port on `POSTGRES_HOST_PORT`, `REDIS_HOST_PORT`, `SERVER_HOST_PORT` and `HEALTH_HOST_PORT`. `.env.schema` holds this Project's own values (derived from its name, 20000 to 29999); change them there on a clash. Every compose command runs as `varlock run -- docker compose -p <project>`, so use `pnpm dev`, `pnpm dev:reset` (stops the stack and deletes its volumes) or that form, never bare `docker compose`.
+- `IMAGE_REGISTRY` prefixes the image names (`mirror.gcr.io/library/` when Docker Hub rate-limits). Integration tests use `INTEGRATION_DATABASE_URL` and `INTEGRATION_CACHE_URL` and touch no other Postgres: their template database is `<project>_template`, dropped only when it carries this Project's comment.
