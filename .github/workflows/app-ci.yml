@@ -167,22 +167,9 @@ jobs:
           curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
           echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
-      - name: OpenAPI documents from main and this change
-        run: |
-          # Builds the server in $1, boots it with memory adapters on port $2, saves the document to $3.
-          openapi() {
-            (cd "$1" && pnpm build)
-            (cd "$1" && APP_ENV=test DATABASE_URL=memory:// CACHE_URL=memory:// PORT=$2 HEALTH_PORT=$(($2 + 6000)) \
-              node --import varlock/auto-load build/server/index.js) &
-            curl -fsS --retry 30 --retry-connrefused --retry-delay 1 -o "$3" "http://localhost:$2/api/v1/openapi.json"
-          }
-          openapi . 3000 "$RUNNER_TEMP/revision.json"
-          git worktree add --detach "$RUNNER_TEMP/main" origin/main
-          (cd "$RUNNER_TEMP/main" && pnpm install --frozen-lockfile)
-          openapi "$RUNNER_TEMP/main" 3001 "$RUNNER_TEMP/base.json"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: No breaking change inside /api/v1
-        run: |
-          "$RUNNER_TEMP/oasdiff" breaking "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/revision.json" --fail-on ERR
+        run: pnpm api-check
 
   glossary-check:
     runs-on: ubuntu-latest

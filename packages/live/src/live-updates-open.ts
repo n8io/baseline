@@ -9,6 +9,7 @@ export type LiveEventSourceCreate = (url: string) => LiveEventSource;
 // and every (re)connect, since updates sent while it was down are not resent.
 // The server sends `ready` once each connection is subscribed, and again when it may have
 // lost updates itself.
+// A null `id` opens no stream and returns a close that does nothing.
 // Returns the close. EventSource reconnects after the server's `retry:`.
 export const liveUpdatesOpen = ({
 	channel,
@@ -19,10 +20,11 @@ export const liveUpdatesOpen = ({
 }: {
 	channel: string;
 	eventSourceCreate: LiveEventSourceCreate;
-	id: string;
+	id: string | null;
 	onChange: () => void;
 	pathPrefix?: string;
 }): (() => void) => {
+	if (id === null) return () => undefined;
 	const source = eventSourceCreate(
 		`${pathPrefix}/${encodeURIComponent(channel)}/${encodeURIComponent(id)}`,
 	);

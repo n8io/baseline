@@ -60,7 +60,9 @@ export const httpProblemSchemaCreate = (
 	z.object({
 		status: z.number().int(),
 		title: z.string(),
-		code: z.enum(codes),
+		// `x-extensible-enum`, not `enum`: oasdiff treats a new value as a compatible change, so a
+		// route can answer a new error code on a status it already declares.
+		code: z.string().openapi({ "x-extensible-enum": codes }),
 		traceId: z.string().optional(),
 		errors: z
 			.array(z.object({ pointer: z.string(), detail: z.string() }))

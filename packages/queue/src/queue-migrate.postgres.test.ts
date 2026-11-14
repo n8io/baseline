@@ -58,8 +58,11 @@ describe("queueMigrate", () => {
 		await expect(queueMigrate({ databaseUrl })).resolves.toBeUndefined();
 	});
 
-	it("start() with migrate: false throws when pg-boss is not installed", async () => {
-		await expect(start()).rejects.toThrow("pg-boss is not installed");
+	it("start() with migrate: false throws, naming queueMigrate, when pg-boss is not installed", async () => {
+		await expect(start()).rejects.toMatchObject({
+			cause: { message: "pg-boss is not installed" },
+			message: expect.stringContaining("run queueMigrate"),
+		});
 	});
 
 	it("start() with migrate: false throws when a migration is pending", async () => {
