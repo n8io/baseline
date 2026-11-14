@@ -219,9 +219,10 @@ describe("@n8io/baseline-telemetry/register", () => {
 			});
 			child.on("close", (exit) => resolve({ code: exit, stdout: out }));
 		});
-		const lines = stdout.trim().split("\n");
+		// The logger may write its record after the fixture prints the time.
+		const [elapsed] = stdout.split("\n").filter((line) => /^\d+$/.test(line));
 		expect(code).toBe(0);
-		expect(lines.at(-1)).toMatch(/^\d+$/);
-		expect(Number(lines.at(-1))).toBeLessThan(500);
+		expect(elapsed).toBeDefined();
+		expect(Number(elapsed)).toBeLessThan(500);
 	}, 30_000);
 });
