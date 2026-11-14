@@ -9,3 +9,4 @@ Three small checks the DX fixes left open, and two rough edges.
 - `app-ci.yml` runs `shellcheck` on every `*.sh` in the `check` job.
 - A Server or Worker that cannot open a connection at boot logs one structured fatal line and exits 1, instead of a raw `pg-pool` stack.
 - Running one `*.postgres.test.ts` no longer asks for `pnpm build`: the stale-build check moved to the integration helper that starts the Server.
+- `pnpm domain-create` counts `redis` as a removable piece, so a Project without `@n8io/baseline-redis` gets no Redis lines in a new Domain.

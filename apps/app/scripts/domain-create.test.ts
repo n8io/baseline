@@ -21,6 +21,7 @@ import {
 	domainTerm,
 	nextStepsText,
 	pieceBlocksRemove,
+	piecesRemovedFind,
 	templateWithoutPieces,
 	wiringInsert,
 } from "./domain-create.ts";
@@ -586,6 +587,16 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		expect(domainReadsApply({ files: template, reads: [] })).toBe(template);
 	});
 
+	it("counts redis as removed once its package is gone", () => {
+		using folder = appCreate("**Invoice line**:\nA line.\n");
+		writeFileSync(
+			join(folder.path, "package.json"),
+			JSON.stringify({ dependencies: { "@n8io/baseline-cache": "1" } }),
+		);
+		expect(piecesRemovedFind(folder.path)).toContain("redis");
+		expect(piecesRemovedFind(folder.path)).not.toContain("cache");
+	});
+
 	it("leaves out the pieces a Project removed, which have no package left", () => {
 		using folder = appCreate("**Invoice line**:\nA line.\n");
 		const app = folder.path;
@@ -597,6 +608,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 				"error-tracking",
 				"live",
 				"queue",
+				"redis",
 				"ui",
 			]),
 		);
@@ -621,7 +633,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		).toEqual([]);
 		expect(
 			created.filter((f) =>
-				/piece-(start|end): (analytics|cache|error-tracking|live|queue|ui)|SCHEDULE_|Analytics/.test(
+				/piece-(start|end): (analytics|cache|error-tracking|live|queue|redis|ui)|SCHEDULE_|Analytics/.test(
 					f.text,
 				),
 			),
