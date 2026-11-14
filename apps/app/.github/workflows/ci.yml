@@ -8,11 +8,11 @@ permissions:
 
 jobs:
   ci:
-    uses: n8io/baseline/.github/workflows/app-ci.yml@v7
+    uses: n8io/baseline/.github/workflows/app-ci.yml@v8
 
   automerge:
     needs: ci
-    uses: n8io/baseline/.github/workflows/dependabot-automerge.yml@v7
+    uses: n8io/baseline/.github/workflows/dependabot-automerge.yml@v8
     permissions:
       contents: write
       pull-requests: write

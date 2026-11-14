@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-live",
-	"version": "7.1.0",
+	"version": "7.2.0",
 	"description": "SSE live updates over Redis pub/sub every baseline app's pages listen to.",
 	"type": "module",
 	"license": "MIT",
