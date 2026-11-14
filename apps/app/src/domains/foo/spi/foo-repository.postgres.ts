@@ -26,6 +26,7 @@ const fooFromRow = (row: typeof foo.$inferSelect): Foo => ({
 export const fooRepositoryPostgresCreate = (
 	db: FooDatabase,
 ): FooRepository => ({
+	// domain-create-start: schedule
 	archiveStale: async (before, now) => {
 		const archived = await db
 			.update(foo)
@@ -34,6 +35,7 @@ export const fooRepositoryPostgresCreate = (
 			.returning({ id: foo.id });
 		return archived.length;
 	},
+	// domain-create-end: schedule
 	delete: async (id) => {
 		const deleted = await db
 			.delete(foo)

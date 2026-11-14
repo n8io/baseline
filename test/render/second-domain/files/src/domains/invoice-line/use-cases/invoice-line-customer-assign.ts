@@ -56,8 +56,5 @@ export const invoiceLineCustomerAssign =
 				updatedAt: ports.invoiceLineClock.now(),
 			});
 		});
-		// piece-start: cache
-		if (result.ok) await ports.invoiceLineCache.delete(input.invoiceLineId);
-		// piece-end: cache
 		return result;
 	};

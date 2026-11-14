@@ -80,8 +80,9 @@ const fooStaleCreate = async (ports: FooPorts, name: string): Promise<Foo> => {
 };
 
 // These force the interleaving with postgresTestInterleave. Remove `.for("update")` from
-// findByIdForUpdate in spi/foo-repository.postgres.ts and both must fail.
+// findByIdForUpdate in spi/foo-repository.postgres.ts and each must fail.
 describe("Foo writes on Postgres under concurrency", () => {
+	// domain-create-start: schedule
 	it("is not undone by a stale archive that runs between its read and its write", async () => {
 		const ports = portsCreate();
 		const foo = await fooStaleCreate(ports, "Stale then renamed");
@@ -109,6 +110,7 @@ describe("Foo writes on Postgres under concurrency", () => {
 			updatedAt: now,
 		});
 	});
+	// domain-create-end: schedule
 
 	it("answers FooNotFoundError when a delete holds the row first", async () => {
 		const ports = portsCreate();

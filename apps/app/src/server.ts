@@ -73,6 +73,8 @@ if (import.meta.env.DEV) {
 // piece-end: ui
 // domain-create: domains-start
 const useCases = domainsUseCasesCreate(connections);
+// domain-create: domains-end
+// domain-create: domains-start
 if (ENV.APP_ENV === "development" && connections.database === "memory") {
 	await seedsRun(useCases);
 }

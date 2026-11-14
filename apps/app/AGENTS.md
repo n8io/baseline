@@ -139,6 +139,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 These docs load only when the task needs them. Read the one that matches before you start.
 
 - Adding a role or a scope, a dev user, or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
+- Adding a Domain with `pnpm domain-create` (glossary entry first, `--bare`, parts, `--reads`): [docs/agents/domain-create.md](docs/agents/domain-create.md)
 - Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
