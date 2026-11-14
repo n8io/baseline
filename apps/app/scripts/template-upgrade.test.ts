@@ -173,13 +173,12 @@ describe("templateUpgradeRun", () => {
 		writeFileSync(join(app, "src/a.ts"), 'import a from "a";\nold\n');
 		git(app, "add", ".");
 		git(app, "commit", "--quiet", "-m", "project");
-		vi.spyOn(console, "log").mockImplementation(() => {});
 
 		expect(
 			await templateUpgradeRun({
 				appDirectory: app,
 				to: "2.1.0",
-				pnpm: vi.fn(),
+				...runCapture(),
 				tools: { fetch: (v) => pieces[v] ?? [], finish: () => {} },
 			}),
 		).toBe(0);
