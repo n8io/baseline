@@ -12,7 +12,7 @@ pnpm add @n8io/baseline-telemetry import-in-the-middle
 - `telemetryUseCasesTrace(useCases)`: wraps each use case in a span named after it and records `baseline.use_case.duration`. An `err` result sets `error.type` but leaves the status unset; a throw sets status Error.
 - `@n8io/baseline-telemetry/span`: `telemetrySpanAttributesSet(attributes)` sets facts about the work (an id, a count) on the active span, so callers need no OpenTelemetry import, and the entry loads only the OpenTelemetry API, not the SDK. `telemetrySpanRun(name, work)` runs `work` in a child span and returns its result; a throw sets status Error and `error.type`, and is rethrown.
 - `telemetryRouterInstrumentation`, `TelemetryRouterInstrumentation`: the React Router server `instrumentations` entry. It names the HTTP span after the route pattern and adds a span per loader and action.
-- `telemetryShutdown()`: flushes and stops every signal. List it last in the shutdown resources.
+- `telemetryShutdown()`: flushes and stops every signal. List it last in the shutdown resources. It waits at most one exporter timeout (1 s by default) for the final export, never throws, and prints one warning naming the endpoint if the export failed or timed out, so a script does not hang at exit when no collector listens.
 
 ## Example
 
@@ -40,4 +40,4 @@ const fooUseCases = telemetryUseCasesTrace(
 ## Needs
 
 - Peer: `@opentelemetry/api`. Add `import-in-the-middle` for the loader hook the preload file registers; it must resolve to the same copy `@opentelemetry/instrumentation` uses, so give it a caret range.
-- Env: the standard `OTEL_*` variables, such as `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT`. Every signal, metrics included, exports OTLP over http/protobuf only; another `OTEL_EXPORTER_OTLP_*_PROTOCOL` is ignored with a warning. `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` take `otlp`, `console` or `none`. With none of them set, a signal exports OTLP only if `OTEL_EXPORTER_OTLP_ENDPOINT` (or the signal's own `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`) is set, and otherwise exports nothing, so a script does not wait at exit for a collector that is not there.
+- Env: the standard `OTEL_*` variables, such as `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT`. Every signal, metrics included, exports OTLP over http/protobuf only; another `OTEL_EXPORTER_OTLP_*_PROTOCOL` is ignored with a warning. `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` and `OTEL_LOGS_EXPORTER` take `otlp`, `console` or `none`. With none of them set, a signal exports OTLP only if `OTEL_EXPORTER_OTLP_ENDPOINT` (or the signal's own `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`) is set, and otherwise exports nothing, so a script does not wait at exit for a collector that is not there. An OTLP exporter gives up after 1 s (not the OpenTelemetry default of 10 s) unless `OTEL_EXPORTER_OTLP_TIMEOUT`, or the signal's own `OTEL_EXPORTER_OTLP_<SIGNAL>_TIMEOUT`, is set, in milliseconds.
