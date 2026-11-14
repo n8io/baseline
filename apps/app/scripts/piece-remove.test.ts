@@ -10,8 +10,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+	filesNamedIn,
 	pieceFilesRemove,
+	pieceMarkersProblems,
 	pieceRemovals,
+	pieceRemove,
 	pieceRemoveRefusal,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
@@ -374,7 +377,176 @@ describe("pieceFilesRemove", () => {
 		});
 		const directory = folder.path;
 		expect(() => pieceFilesRemove(directory, "cache")).toThrow(
-			"piece-start: cache has no matching piece-end in src/env.ts",
+			"piece markers in src/env.ts do not balance: line 1: piece-start: cache has no piece-end",
 		);
+	});
+
+	it("deletes a test file whose tests were all in the piece's blocks", () => {
+		using folder = projectCreate({
+			"test/integration/both.test.ts": [
+				'import { it } from "vitest";',
+				block({ body: 'it("sends", () => {});', piece: "analytics" }),
+				block({ body: 'it("reports", () => {});', piece: "error-tracking" }),
+				"",
+			].join("\n"),
+			"test/integration/some.test.ts": [
+				block({ body: 'it("sends", () => {});', piece: "analytics" }),
+				'it("stays", () => {});',
+				"",
+			].join("\n"),
+		});
+		const directory = folder.path;
+		pieceFilesRemove(directory, "analytics");
+		expect(existsSync(join(directory, "test/integration/both.test.ts"))).toBe(
+			true,
+		);
+		pieceFilesRemove(directory, "error-tracking");
+		expect(existsSync(join(directory, "test/integration/both.test.ts"))).toBe(
+			false,
+		);
+		expect(read(directory, "test/integration/some.test.ts")).toBe(
+			'it("stays", () => {});\n',
+		);
+	});
+
+	it("does not count a regex .test( call or a comment as a test", () => {
+		using folder = projectCreate({
+			"test/integration/helper.test.ts": [
+				block({ body: 'it("sends", () => {});', piece: "analytics" }),
+				'// it("commented")',
+				"export const ok = (text: string) => /a/.test(text);",
+				"",
+			].join("\n"),
+		});
+		const directory = folder.path;
+		pieceFilesRemove(directory, "analytics");
+		expect(existsSync(join(directory, "test/integration/helper.test.ts"))).toBe(
+			false,
+		);
+	});
+
+	it("drops REDIS_HOST_PORT with redis", () => {
+		using folder = projectCreate({
+			".env.schema":
+				"# @type=port @sensitive=false\nREDIS_HOST_PORT=6379\nPORT=3000\n",
+		});
+		const directory = folder.path;
+		pieceFilesRemove(directory, "redis");
+		expect(read(directory, ".env.schema")).toBe("PORT=3000\n");
+	});
+});
+
+describe("pieceMarkersProblems", () => {
+	const lines = (...found: string[]) => `${found.join("\n")}\n`;
+	const start = (piece: string) => marker({ edge: "start", piece });
+	const end = (piece: string) => marker({ edge: "end", piece });
+
+	it("accepts blocks that follow each other and blocks of other pieces nested inside", () => {
+		expect(
+			pieceMarkersProblems(
+				lines(
+					start("queue"),
+					start("redis"),
+					end("redis"),
+					end("queue"),
+					start("redis"),
+					end("redis"),
+				),
+			),
+		).toEqual([]);
+	});
+
+	it("names a start without an end and an end without a start", () => {
+		expect(pieceMarkersProblems(lines(start("live"), "code"))).toEqual([
+			"line 1: piece-start: live has no piece-end",
+		]);
+		expect(pieceMarkersProblems(lines("code", end("live")))).toEqual([
+			"line 2: piece-end: live has no piece-start",
+		]);
+	});
+
+	it("names blocks that cross, as Biome sorting makes them", () => {
+		expect(
+			pieceMarkersProblems(
+				lines(start("live"), start("queue"), end("live"), end("queue")),
+			),
+		).toEqual([
+			"line 3: piece-end: live closes it while queue is still open (blocks cross)",
+		]);
+	});
+
+	it("names a block inside a block of the same piece", () => {
+		expect(
+			pieceMarkersProblems(
+				lines(start("live"), start("live"), end("live"), end("live")),
+			),
+		).toEqual(["line 2: piece-start: live inside another live block"]);
+	});
+});
+
+describe("pieceRemove", () => {
+	it("filesNamedIn reads the paths Biome and tsc name once each", () => {
+		expect(
+			filesNamedIn(
+				"src/a.ts(3,1): error TS2304\n./src/domains/x/y.tsx:4:2 lint/foo\nsrc/a.ts:9:1 again",
+			),
+		).toEqual(["src/a.ts", "src/domains/x/y.tsx"]);
+	});
+
+	it("undoes a removal whose check fails and names the file that used the piece outside its markers", () => {
+		using folder = projectCreate({
+			".gitignore": ".react-router/\nnode_modules/\n",
+			"check.mjs": [
+				'import { existsSync, readFileSync } from "node:fs";',
+				'const file = "src/uses-live.ts";',
+				'if (!existsSync("src/live-hub-open.ts") && readFileSync(file, "utf8").includes("liveHub")) {',
+				'\tconsole.log(file + "(1,1): error TS2304: Cannot find name liveHub");',
+				"\tprocess.exit(1);",
+				"}",
+				"",
+			].join("\n"),
+			"package.json": `${JSON.stringify({ name: "fixture", scripts: { check: "node check.mjs" } }, null, "\t")}\n`,
+			"src/live-hub-open.ts": "live\n",
+			"src/uses-live.ts": "export const x = liveHub;\n",
+		});
+		const directory = folder.path;
+		run({ command: "pnpm", args: ["install"], options: { cwd: directory } });
+		run({
+			command: "git",
+			args: ["add", "-A"],
+			options: { cwd: directory },
+		});
+		run({
+			command: "git",
+			args: [
+				"-c",
+				"user.name=t",
+				"-c",
+				"user.email=t@t",
+				"commit",
+				"-qm",
+				"Lock",
+			],
+			options: { cwd: directory },
+		});
+		const failed = pieceRemove(directory, "live");
+		expect(failed?.files).toEqual(["src/uses-live.ts"]);
+		expect(
+			run({
+				command: "git",
+				args: ["status", "--porcelain"],
+				options: { cwd: directory },
+			}),
+		).toBe("");
+		expect(existsSync(join(directory, "src/live-hub-open.ts"))).toBe(true);
+	});
+
+	it("keeps the removal when the check passes", () => {
+		using folder = projectCreate({
+			"package.json": `${JSON.stringify({ name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+		});
+		const directory = folder.path;
+		expect(pieceRemove(directory, "live")).toBeUndefined();
+		expect(existsSync(join(directory, "src/live-hub-open.ts"))).toBe(false);
 	});
 });

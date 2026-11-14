@@ -4,6 +4,7 @@ import {
 	agentDocsViolations,
 	agentDocsViolationsRead,
 } from "./agent-docs-test-rules.ts";
+import { pieceMarkersProblems } from "./scripts/piece-remove.ts";
 
 const appRoot = new URL("./", import.meta.url);
 
@@ -385,5 +386,63 @@ describe("docker compose commands", () => {
 	it("name the same project in compose.yaml", () => {
 		const compose = readFileSync(new URL("compose.yaml", appRoot), "utf8");
 		expect(/^name: (.+)$/m.exec(compose)?.[1]).toBe(manifest.name);
+	});
+});
+
+// piece-remove cuts from a piece's start line to its end line, so a start without its end, or two
+// blocks that cross (Biome's import and export sorting can do that), deletes the wrong code.
+describe("piece markers", () => {
+	const skipped = new Set([".git", ".react-router", "build", "node_modules"]);
+	const textFilesList = (dir: URL, prefix = ""): string[] =>
+		readdirSync(dir, { withFileTypes: true })
+			.filter((entry) => !skipped.has(entry.name))
+			.flatMap((entry) =>
+				entry.isDirectory()
+					? textFilesList(
+							new URL(`${entry.name}/`, dir),
+							`${prefix}${entry.name}/`,
+						)
+					: entry.name.endsWith(".md") || entry.name === "pnpm-lock.yaml"
+						? []
+						: [`${prefix}${entry.name}`],
+			);
+	const mark = (edge: "end" | "start", piece: string) =>
+		`// piece-${edge}: ${piece}`;
+
+	it("balance in every file of the app", () => {
+		const bad = textFilesList(appRoot).flatMap((path) =>
+			pieceMarkersProblems(readFileSync(new URL(path, appRoot), "utf8")).map(
+				(problem) => `${path}: ${problem}`,
+			),
+		);
+		expect(bad).toEqual([]);
+	});
+
+	it("pass blocks that nest and blocks that follow each other", () => {
+		const text = [
+			mark("start", "queue"),
+			mark("start", "redis"),
+			mark("end", "redis"),
+			mark("end", "queue"),
+			mark("start", "live"),
+			mark("end", "live"),
+		].join("\n");
+		expect(pieceMarkersProblems(text)).toEqual([]);
+	});
+
+	it.each([
+		["a block with no end", [mark("start", "live"), "code"]],
+		["an end with no start", ["code", mark("end", "live")]],
+		[
+			"blocks that cross",
+			[
+				mark("start", "live"),
+				mark("start", "queue"),
+				mark("end", "live"),
+				mark("end", "queue"),
+			],
+		],
+	])("fail on %s", (_name, lines) => {
+		expect(pieceMarkersProblems(lines.join("\n"))).not.toEqual([]);
 	});
 });

@@ -103,6 +103,22 @@ describe("templateUpgradeRun", () => {
 		expect(log.mock.calls.flat().join("\n")).toContain("- Four is 4.");
 	});
 
+	it("exits before the checks when the project is already on the target release", async () => {
+		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		const app = folder.path;
+		const pnpm = vi.fn();
+		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		expect(
+			await templateUpgradeRun({ appDirectory: app, to: "1.0.0", tools, pnpm }),
+		).toBe(0);
+		expect(log.mock.calls.flat().join("\n")).toContain(
+			"already on release 1.0.0; nothing to upgrade",
+		);
+		expect(pnpm).not.toHaveBeenCalled();
+		expect(git(app, "status", "--porcelain")).toBe("");
+	});
+
 	it("leaves conflict markers and exits 1 when both sides changed the same line", async () => {
 		using folder = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
 		const app = folder.path;

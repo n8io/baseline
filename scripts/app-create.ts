@@ -32,6 +32,7 @@ export const requiredJobs = [
 	"integration",
 	"migrations",
 	"oasdiff",
+	"pieces",
 	"image",
 	"sast",
 ] as const;
