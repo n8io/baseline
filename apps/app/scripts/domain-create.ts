@@ -318,7 +318,7 @@ const pairsMatch = ({
 
 // Whether a domain with these parts fills an empty pair in this file that an earlier domain left
 // empty (the first domain with pages fills the UI's).
-export const pairsFillWanted = ({
+export const pairsEmptyFillableHas = ({
 	partsLeftOut,
 	path,
 	project,
@@ -874,7 +874,7 @@ export const domainFilesCreate = ({
 				names,
 				pairsFill:
 					firstDomain ||
-					pairsFillWanted({
+					pairsEmptyFillableHas({
 						partsLeftOut,
 						path: file.path,
 						project,
