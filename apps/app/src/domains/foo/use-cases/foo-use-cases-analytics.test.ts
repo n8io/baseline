@@ -1,26 +1,17 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
-import type { FooPorts } from "../ports.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooUseCasesCreate } from "./foo-use-cases.ts";
 
 // The analytics events the use cases track after commit; the analytics piece owns this file.
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 
-type FooAnalyticsEvent = Parameters<FooPorts["fooAnalytics"]["track"]>[0];
-
 const setup = () => {
 	const { ports, state } = fooPortsMemoryCreate();
-	const tracked: (FooAnalyticsEvent & { committed: boolean })[] = [];
-	const useCases = fooUseCasesCreate({
-		...ports,
-		fooAnalytics: {
-			// Records whether the foo was already committed when the event was tracked.
-			track: (event) =>
-				tracked.push({ ...event, committed: state.foos.has(event.fooId) }),
-		},
-	});
-	return { tracked, useCases };
+	return {
+		tracked: state.analyticsTracked,
+		useCases: fooUseCasesCreate(ports),
+	};
 };
 
 describe("foo analytics", () => {

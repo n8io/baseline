@@ -3,7 +3,6 @@ import { idCreate } from "@n8io/baseline-id";
 import type { RedisClient } from "@n8io/baseline-redis";
 import { describe, expect, it } from "vitest";
 import { liveHubOpen } from "../../../live-hub-open.ts";
-import type { FooPorts } from "../ports.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooUseCasesCreate } from "./foo-use-cases.ts";
 
@@ -11,19 +10,10 @@ import { fooUseCasesCreate } from "./foo-use-cases.ts";
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
 
-type FooLiveUpdate = Parameters<FooPorts["fooLiveUpdates"]["send"]>[0];
-
 const setup = async () => {
-	const { ports } = fooPortsMemoryCreate();
-	const sent: FooLiveUpdate[] = [];
-	const useCases = fooUseCasesCreate({
-		...ports,
-		fooLiveUpdates: {
-			send: async (update) => {
-				sent.push(update);
-			},
-		},
-	});
+	const { ports, state } = fooPortsMemoryCreate();
+	const sent = state.liveUpdatesSent;
+	const useCases = fooUseCasesCreate(ports);
 	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
 	await useCases.fooCreate(owner, { name: "beta" });
