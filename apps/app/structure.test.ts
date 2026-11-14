@@ -32,7 +32,12 @@ const structureViolations = (paths: string[], context: string): string[] => {
 	}
 	for (const [name, files] of byDomain) {
 		const base = `src/domains/${name}`;
-		const allowed = new Set(["index.ts", "ports.ts", `${name}-errors.ts`]);
+		const allowed = new Set([
+			"index.ts",
+			"ports.ts",
+			`${name}-errors.ts`,
+			`${name}-error-status.ts`,
+		]);
 		const folders = ["models", "use-cases", "rules", "api", "spi"];
 		termCheck(name);
 		for (const file of ["index.ts", "ports.ts"]) {
@@ -56,7 +61,7 @@ const structureViolations = (paths: string[], context: string): string[] => {
 			const top = file.split("/")[0] ?? "";
 			if (!allowed.has(file) && !folders.includes(top)) {
 				problems.push(
-					`${base}/${file}: a domain root holds only index.ts, ports.ts and ${name}-errors.ts; put models in models/, rules in rules/, use cases in use-cases/, inbound adapters in api/, outbound adapters in spi/`,
+					`${base}/${file}: a domain root holds only index.ts, ports.ts, ${name}-errors.ts and ${name}-error-status.ts; put models in models/, rules in rules/, use cases in use-cases/, inbound adapters in api/, outbound adapters in spi/`,
 				);
 			}
 		}
@@ -172,7 +177,7 @@ describe("domain structure", () => {
 		},
 		{
 			message:
-				"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts and bar-errors.ts",
+				"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts, bar-errors.ts and bar-error-status.ts",
 			paths: [...barBase, "src/domains/bar/helper.ts"],
 			name: "a stray root file",
 		},

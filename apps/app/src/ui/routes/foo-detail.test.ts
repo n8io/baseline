@@ -63,6 +63,27 @@ describe("foo detail loader", () => {
 		expect(result.foo.name).toBe("alpha");
 	});
 
+	it("lets the owner update and delete", async () => {
+		const { context, foo } = await setup();
+		const result = await loader(getArgs(context, foo.id));
+		expect(result.can).toEqual({ delete: true, update: true });
+	});
+
+	it("hides update and delete from an actor the Rules refuse", async () => {
+		const { context, foo } = await setup(stranger);
+		const result = await loader(getArgs(context, foo.id));
+		expect(result.can).toEqual({ delete: false, update: false });
+	});
+
+	it("shows only the control a scope allows", async () => {
+		const { context, foo } = await setup({
+			...stranger,
+			scopes: ["foo:update"],
+		});
+		const result = await loader(getArgs(context, foo.id));
+		expect(result.can).toEqual({ delete: false, update: true });
+	});
+
 	it("throws 404 for a malformed id", async () => {
 		const { context } = await setup();
 		const error = await thrown(() => loader(getArgs(context, "nope")));

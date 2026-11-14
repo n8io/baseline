@@ -10,7 +10,14 @@ import {
 	useNavigation,
 } from "react-router";
 import { z } from "zod";
-import { Foo, FooUpdateInput } from "#domains/foo/index.ts";
+import {
+	Foo,
+	type FooError,
+	FooUpdateInput,
+	fooDeleteCan,
+	fooErrorStatus,
+	fooUpdateCan,
+} from "#domains/foo/index.ts";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -34,7 +41,14 @@ import { fooUseCasesContext } from "#ui/context.ts";
 import type { Route } from "./+types/foo-detail.ts";
 
 const notFound = () =>
-	data({ type: "FooNotFound", message: "Foo not found" }, { status: 404 });
+	data(
+		{ type: "FooNotFound", message: "Foo not found" },
+		{ status: fooErrorStatus.FooNotFound },
+	);
+
+const fooErrorThrow = ({ message, type }: FooError): never => {
+	throw data({ type, message }, { status: fooErrorStatus[type] });
+};
 
 const fooIdParse = (params: { fooId?: string | undefined }) => {
 	const parsed = Foo.shape.id.safeParse(params.fooId);
@@ -51,12 +65,13 @@ export const loader = async (args: Route.LoaderArgs) => {
 		.get(fooUseCasesContext)
 		.fooGet(actor, { fooId });
 	if (!result.ok) {
-		throw data(
-			{ type: result.error.type, message: result.error.message },
-			{ status: 404 },
-		);
+		return fooErrorThrow(result.error);
 	}
-	return { foo: result.value };
+	const foo = result.value;
+	return {
+		can: { delete: fooDeleteCan(foo, actor), update: fooUpdateCan(foo, actor) },
+		foo,
+	};
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -79,25 +94,20 @@ export const action = async (args: Route.ActionArgs) => {
 		if (result.ok) {
 			return { ok: true as const };
 		}
-		const { message, type } = result.error;
 		if (result.error.type === "FooNameTaken") {
-			return data({ errors: { name: [message] }, values }, { status: 409 });
+			return data(
+				{ errors: { name: [result.error.message] }, values },
+				{ status: fooErrorStatus.FooNameTaken },
+			);
 		}
-		if (result.error.type === "FooForbidden") {
-			throw data({ type, message }, { status: 403 });
-		}
-		throw data({ type, message }, { status: 404 });
+		return fooErrorThrow(result.error);
 	}
 	if (intent === "delete") {
 		const result = await useCases.fooDelete(actor, { fooId });
 		if (result.ok) {
 			return redirect("/foos");
 		}
-		const { message, type } = result.error;
-		if (result.error.type === "FooForbidden") {
-			throw data({ type, message }, { status: 403 });
-		}
-		throw data({ type, message }, { status: 404 });
+		return fooErrorThrow(result.error);
 	}
 	throw data(
 		{ type: "ValidationFailed", message: "Unknown intent" },
@@ -106,7 +116,7 @@ export const action = async (args: Route.ActionArgs) => {
 };
 
 const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
-	const { foo } = loaderData;
+	const { can, foo } = loaderData;
 	// piece-start: live
 	useLiveUpdates({ channel: "foo", id: foo.id });
 	// piece-end: live
@@ -135,69 +145,75 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 					</p>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					<Form method="post" className="space-y-3">
-						<input name="intent" type="hidden" value="update" />
-						<div className="space-y-2">
-							<Label htmlFor="name">Name</Label>
-							<Input
-								aria-describedby={nameErrors ? "name-error" : undefined}
-								aria-invalid={nameErrors ? true : undefined}
-								defaultValue={values?.name ?? foo.name}
-								id="name"
-								key={values?.name ?? foo.name}
-								name="name"
-								required
-							/>
-							{nameErrors ? (
-								<p className="text-sm text-destructive" id="name-error">
-									{nameErrors.join(" ")}
-								</p>
-							) : null}
-						</div>
-						<Button disabled={pendingIntent !== undefined} type="submit">
-							{pendingIntent === "update" ? "Saving…" : "Save"}
-						</Button>
-					</Form>
-					<Form id="foo-delete" method="post">
-						<Button
-							disabled={pendingIntent !== undefined}
-							name="intent"
-							onClick={(event) => {
-								event.preventDefault();
-								setOpen(true);
-							}}
-							type="submit"
-							value="delete"
-							variant="destructive"
-						>
-							{pendingIntent === "delete" ? "Deleting…" : "Delete"}
-						</Button>
-					</Form>
-				</CardContent>
-			</Card>
-			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete this foo?</AlertDialogTitle>
-						<AlertDialogDescription>
-							This permanently deletes {foo.name}.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction asChild>
+					{can.update ? (
+						<Form method="post" className="space-y-3">
+							<input name="intent" type="hidden" value="update" />
+							<div className="space-y-2">
+								<Label htmlFor="name">Name</Label>
+								<Input
+									aria-describedby={nameErrors ? "name-error" : undefined}
+									aria-invalid={nameErrors ? true : undefined}
+									defaultValue={values?.name ?? foo.name}
+									id="name"
+									key={values?.name ?? foo.name}
+									name="name"
+									required
+								/>
+								{nameErrors ? (
+									<p className="text-sm text-destructive" id="name-error">
+										{nameErrors.join(" ")}
+									</p>
+								) : null}
+							</div>
+							<Button disabled={pendingIntent !== undefined} type="submit">
+								{pendingIntent === "update" ? "Saving…" : "Save"}
+							</Button>
+						</Form>
+					) : null}
+					{can.delete ? (
+						<Form id="foo-delete" method="post">
 							<Button
-								form="foo-delete"
+								disabled={pendingIntent !== undefined}
 								name="intent"
+								onClick={(event) => {
+									event.preventDefault();
+									setOpen(true);
+								}}
 								type="submit"
 								value="delete"
+								variant="destructive"
 							>
-								Delete
+								{pendingIntent === "delete" ? "Deleting…" : "Delete"}
 							</Button>
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+						</Form>
+					) : null}
+				</CardContent>
+			</Card>
+			{can.delete ? (
+				<AlertDialog open={open} onOpenChange={setOpen}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Delete this foo?</AlertDialogTitle>
+							<AlertDialogDescription>
+								This permanently deletes {foo.name}.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction asChild>
+								<Button
+									form="foo-delete"
+									name="intent"
+									type="submit"
+									value="delete"
+								>
+									Delete
+								</Button>
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			) : null}
 		</main>
 	);
 };
@@ -205,13 +221,16 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 export default FooDetail;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	const status = isRouteErrorResponse(error) ? error.status : undefined;
+	// Branch on the error's type, not fooErrorStatus: a value import from the Domain would ship its code to the browser.
+	const type = isRouteErrorResponse(error)
+		? (error.data as { type?: FooError["type"] } | null)?.type
+		: undefined;
 	return (
 		<main className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
 			<h1 className="text-2xl font-semibold">
-				{status === 404
+				{type === "FooNotFound"
 					? "This foo does not exist."
-					: status === 403
+					: type === "FooForbidden"
 						? "You can't change this foo."
 						: "Something went wrong."}
 			</h1>

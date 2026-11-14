@@ -1,13 +1,22 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { authnActorRequire } from "@n8io/baseline-authn";
 import {
+	type HttpErrorStatus,
 	httpErrorBodyCreate,
 	httpErrorResponsesCreate,
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
-import { Foo, FooListInput, type FooUseCases } from "../index.ts";
-import { fooErrorStatus } from "./foo-error-status.ts";
+import {
+	Foo,
+	type FooError,
+	FooListInput,
+	type FooUseCases,
+	fooErrorStatus,
+} from "../index.ts";
+
+// The route table is the API's view of the Domain's statuses; it fails type-checking if the two disagree.
+fooErrorStatus satisfies HttpErrorStatus<FooError>;
 
 // The API's own schemas: models carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const FooResponse = z
