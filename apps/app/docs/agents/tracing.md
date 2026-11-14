@@ -35,6 +35,22 @@ Never start a span:
 
 Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
 
+Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<domain>` the Domain the Use case is in, in snake_case. A fact such as a cache hit becomes a count (`baseline.foo.cache_hit_count`) or goes on the Use case's `err`:
+
+- `baseline.<domain>.id`, its own id.
+- `baseline.<domain>.<thing>_id`, another Domain's id or any other id (`baseline.trade.team_id`, `baseline.trade.proposer_team_id`).
+- `baseline.<domain>.<thing>_count`, a count (`baseline.foo.row_count`).
+
+Names, emails and other personal data never go on a span.
+
+One Event hop makes these spans. `<queue>` is the Consumer's queue name with `.ordered` added (`bar.foo-deleted.ordered`; the name is `<consumer domain>.<event entity>-<event verb>`):
+
+1. `send <queue>`, one per subscribed Consumer, in the trace of the Use case that published the Event (a request, or the Schedule's tick).
+2. `process <queue>`, written by the Worker, and `complete <queue>` or `fail <queue>` when it settles the job. A Worker fetch has no span of its own.
+3. The Use case the Consumer calls, named as the Use case (`barFooDeletedHandle`). When one fetch brings several jobs, `process` is in its own trace with links, and each Use case span hangs off its `send`.
+
+Search for `process <queue>` to find the Consumer's run.
+
 ```ts
 const rows = await telemetrySpanRun("fooImport parse", () => {
 	const rows = fooImportRowsParse(input.file);

@@ -204,6 +204,42 @@ const scopeOf = (p: string): string | undefined => {
 	return scope ? camel(scope) : undefined;
 };
 
+// The packages whose types a Rule may name: the Actor, an id and a Result.
+const ruleTypePackages = new Set([
+	"@n8io/baseline-authn",
+	"@n8io/baseline-id",
+	"@n8io/baseline-result",
+]);
+
+// The names a file imports as values from its own domain's models/ or entry.
+const sharedSchemaNames = (f: ArchitectureFile): string[] => {
+	const domain = domainOf(f.path);
+	const names: string[] = [];
+	for (const m of f.source.matchAll(
+		/^import\s+\{([^}]*)\}\s*from\s*["']([^"']+)["']/gm,
+	)) {
+		const parts = sameDomainParts(
+			{
+				specifier: m[2] ?? "",
+				target: importTarget(f.path, m[2] ?? ""),
+				typeOnly: false,
+			},
+			domain,
+		);
+		if (parts && (parts[0] === "models" || parts.join("/") === "index.ts")) {
+			for (const part of (m[1] ?? "").split(",")) {
+				if (/^\s*type\s/.test(part)) continue;
+				const name = part
+					.trim()
+					.split(/\s+as\s+/)
+					.pop();
+				if (name) names.push(name);
+			}
+		}
+	}
+	return names;
+};
+
 export const architectureRules: Record<string, ArchitectureRule> = {
 	A1: (files) =>
 		importsCheck({
@@ -223,9 +259,10 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) === "rules" && !testIs(f.path),
 			check: ({ domain, imp }) =>
 				sameDomainParts(imp, domain)?.[0] === "models" ||
-				(imp.target === "@n8io/baseline-authn" && imp.typeOnly)
+				sameDomainParts(imp, domain)?.[0] === "rules" ||
+				(ruleTypePackages.has(imp.target) && imp.typeOnly)
 					? undefined
-					: "rules are pure functions over models/ (and the Actor type); move this to a use case in use-cases/",
+					: "rules are pure functions over models/, other rules/ of the same domain and the types of the authn, id and result packages; move this to a use case in use-cases/",
 		}),
 
 	A3: (files) =>
@@ -499,12 +536,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						c.path.startsWith(`src/domains/${domain}/api/`) &&
 						c.path.endsWith("-consumer.ts"),
 				);
+				// Another domain's id is a column built with that domain's id prefix, whatever it is
+				// named (proposer_team_id); a column that is just named <other>_id counts too.
 				return domains
 					.filter(
 						(other) =>
 							other !== domain &&
 							new RegExp(
-								`["'\`]${snake(other)}_id["'\`]|\\b${camel(other)}Id\\s*:`,
+								`postgresIdColumnCreate(?:<[^>]*>)?\\(\\s*["'\`](?:${other}|${snake(other)}|${camel(other)})["'\`]\\s*,?\\s*\\)|["'\`]${snake(other)}_id["'\`]|\\b${camel(other)}Id\\s*:`,
 							).test(f.source),
 					)
 					.filter(
@@ -515,7 +554,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					)
 					.map(
 						(other) =>
-							`${f.path}: a ${snake(other)}_id column needs src/domains/${domain}/api/${domain}-${other}-deleted-consumer.ts consuming "${other}.deleted", so rows never point at a deleted ${other}`,
+							`${f.path}: a column holding a ${other} id needs src/domains/${domain}/api/${domain}-${other}-deleted-consumer.ts consuming "${other}.deleted", so rows never point at a deleted ${other}`,
 					);
 			});
 	},
@@ -757,4 +796,22 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
 					: undefined,
 		}),
+
+	// A7 keeps OpenAPI out of models/. A model is plain Zod, so `.openapi` is missing on it until
+	// @hono/zod-openapi has loaded: a call on one works or throws with test order.
+	A25: (files) =>
+		files
+			.filter((f) => layerOf(f.path) === "api" && !testIs(f.path))
+			.flatMap((f) => {
+				const names = sharedSchemaNames(f);
+				if (names.length === 0) return [];
+				const pattern = new RegExp(
+					`\\b(${names.join("|")})\\b(?:\\s*\\.\\s*shape\\s*\\.\\s*\\w+)?\\s*\\.\\s*openapi\\(`,
+					"g",
+				);
+				return [...f.source.matchAll(pattern)].map(
+					(m) =>
+						`${f.path}: ${m[1]}.openapi( is called on a schema imported from models/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
+				);
+			}),
 };

@@ -81,6 +81,42 @@ describe("architecture", () => {
 		expect(architectureRules[sample?.rule ?? ""]?.(fixed)).toEqual([]);
 	});
 
+	// The passing side of each rule that A2, A14 and A25 loosened or added.
+	it("A2 lets a rule import a sibling rule and the id and result types", async () => {
+		const rule = await architectureFileCreate(
+			"src/domains/bar/rules/bar-open.ts",
+			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { barClosedIs } from "./bar-closed.ts";\n',
+		);
+		expect(architectureRules.A2?.([rule])).toEqual([]);
+		const value = await architectureFileCreate(
+			"src/domains/bar/rules/bar-open.ts",
+			'import { ok } from "@n8io/baseline-result";\n',
+		);
+		expect(architectureRules.A2?.([value])).toHaveLength(1);
+	});
+
+	it("A14 passes once the other domain's deleted Event has a Consumer", async () => {
+		const sample = samples.find(
+			(s) => s.name === "a14-prefix-column-without-consumer.txt",
+		);
+		expect(sample).toBeDefined();
+		const consumer = await architectureFileCreate(
+			"src/domains/trade/api/trade-team-deleted-consumer.ts",
+			'export const x = "team.deleted";\n',
+		);
+		expect(
+			architectureRules.A14?.([...(sample?.files ?? []), consumer]),
+		).toEqual([]);
+	});
+
+	it("A25 lets api/ build its own schema from a model's shape", async () => {
+		const route = await architectureFileCreate(
+			"src/domains/bar/api/bar-routes.ts",
+			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../models/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',
+		);
+		expect(architectureRules.A25?.([route])).toEqual([]);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(
