@@ -1,11 +1,10 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
-import { fooUseCasesCreate } from "#domains/foo/index.ts";
-import { fooPortsCreate } from "#domains/foo/spi/index.ts";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-detail.tsx";
 import { connectionsOpen } from "../../connections.ts";
+import { domainsUseCasesCreate } from "../../use-cases.ts";
 import { routeArgs, routerContextCreate } from "./router-test-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -14,7 +13,7 @@ const stranger: Actor = { id: "stranger", kind: "user", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = async (actor: Actor | null = owner) => {
-	const useCases = fooUseCasesCreate(fooPortsCreate(connections));
+	const useCases = domainsUseCasesCreate(connections).fooUseCases;
 	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) {
 		throw created.error;

@@ -125,6 +125,8 @@ const snake = (kebab: string): string => kebab.replaceAll("-", "_");
 const tableIs = (p: string): boolean =>
 	/^src\/domains\/[^/]+\/spi\/[^/]+-table\.ts$/.test(p);
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
+// Where Use cases are built: domainsUseCasesCreate, and any composition root that still does.
+const useCasesBuilders = [...roots, "src/use-cases.ts"];
 
 // One message per offending import: `check` returns the reason, or undefined when allowed.
 const importsCheck = ({
@@ -364,7 +366,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				}
 				return imp.specifier === "@n8io/baseline-telemetry/span" &&
 					layerOf(f.path) !== "use-cases"
-					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in the composition roots"
+					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in src/use-cases.ts"
 					: undefined;
 			},
 		}),
@@ -463,7 +465,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <domain>PortsCreate`,
+				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <domain>PortsCreate through src/use-cases.ts`,
 		}),
 		...textCheck({
 			files,
@@ -638,10 +640,10 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			)
 			.map(
 				(d) =>
-					`src/server.ts: never imports src/domains/${d}; build its use cases and mount its routes there`,
+					`src/server.ts: never imports src/domains/${d}; mount its routes there, with its use cases from src/use-cases.ts`,
 			);
 		const unwrapped = files
-			.filter((f) => roots.includes(f.path))
+			.filter((f) => useCasesBuilders.includes(f.path))
 			.flatMap((f) =>
 				domains.flatMap((d) =>
 					[

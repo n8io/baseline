@@ -1,5 +1,5 @@
 diff --git a/src/domains/invoice-line/api/index.ts b/src/domains/invoice-line/api/index.ts
-index ca1d925..dbefcc7 100644
+index b7d560e..bcd00cf 100644
 --- a/src/domains/invoice-line/api/index.ts
 +++ b/src/domains/invoice-line/api/index.ts
 @@ -1,4 +1,5 @@
@@ -8,6 +8,34 @@ index ca1d925..dbefcc7 100644
  // piece-start: live
  export { invoiceLineLiveRoutesCreate } from "./invoice-line-live.ts";
  // piece-end: live
+diff --git a/src/domains/invoice-line/api/invoice-line-live.test.ts b/src/domains/invoice-line/api/invoice-line-live.test.ts
+index d38cd18..be5b81a 100644
+--- a/src/domains/invoice-line/api/invoice-line-live.test.ts
++++ b/src/domains/invoice-line/api/invoice-line-live.test.ts
+@@ -6,7 +6,10 @@ import { liveTestSseRead } from "@n8io/baseline-live/testing";
+ import { afterEach, describe, expect, it } from "vitest";
+ import { connectionsOpen } from "../../../connections.ts";
+ import { invoiceLineUseCasesCreate } from "../index.ts";
+-import { invoiceLinePortsCreate } from "../spi/index.ts";
++import {
++	invoiceLineCustomerReaderMemoryCreate,
++	invoiceLinePortsCreate,
++} from "../spi/index.ts";
+ import { invoiceLineLiveRoutesCreate } from "./invoice-line-live.ts";
+ 
+ const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
+@@ -24,7 +27,10 @@ const setup = (
+ 	const liveHub = liveHubMemoryCreate();
+ 	closers.push(() => liveHub.close());
+ 	const useCases = invoiceLineUseCasesCreate(
+-		invoiceLinePortsCreate({ ...connections, liveHub }),
++		invoiceLinePortsCreate(
++			{ ...connections, liveHub },
++			{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
++		),
+ 	);
+ 	const app = httpRouterCreate();
+ 	app.onError(httpErrorHandle);
 diff --git a/src/domains/invoice-line/models/invoice-line.ts b/src/domains/invoice-line/models/invoice-line.ts
 index 551c8e5..e12079f 100644
 --- a/src/domains/invoice-line/models/invoice-line.ts
@@ -44,10 +72,10 @@ index 551c8e5..e12079f 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index a5b126e..aeb6d41 100644
+index 6afaf80..a96f180 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
-@@ -25,6 +25,13 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
+@@ -25,6 +25,14 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
  	delete(id: Id<"invoice_line">): Promise<void>;
  	// Archives every invoice line with updatedAt < before and archivedAt null; returns how many.
  	archiveStale(before: Date, now: Date): Promise<number>;
@@ -55,13 +83,14 @@ index a5b126e..aeb6d41 100644
 +	customerClear(customerId: Id<"customer">): Promise<number>;
 +};
 +
-+// What invoice lines read about a customer, filled by src/bridges/invoice-line-customer.ts.
++// What invoice lines read about a customer. The Bridge in
++// src/bridges/invoice-line-customer-reader.ts fills it from the customer Domain.
 +export type InvoiceLineCustomerReader = {
 +	get(id: Id<"customer">): Promise<{ name: string } | undefined>;
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -73,6 +80,7 @@ export type InvoiceLinePorts = {
+@@ -75,6 +83,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
@@ -69,59 +98,123 @@ index a5b126e..aeb6d41 100644
  	// piece-start: live
  	// Best effort and never throws; call it after commit with no catch.
  	invoiceLineLiveUpdates: {
+@@ -87,3 +96,9 @@ export type InvoiceLinePorts = {
+ 	invoiceLineReadRepository: InvoiceLineReadRepository;
+ 	invoiceLineTransaction: InvoiceLineTransaction;
+ };
++
++// The ports Bridges fill: the second argument of invoiceLinePortsCreate.
++export type InvoiceLineReaders = Pick<
++	InvoiceLinePorts,
++	"invoiceLineCustomerReader"
++>;
+diff --git a/src/domains/invoice-line/spi/index-queue.test.ts b/src/domains/invoice-line/spi/index-queue.test.ts
+index a658531..0d93106 100644
+--- a/src/domains/invoice-line/spi/index-queue.test.ts
++++ b/src/domains/invoice-line/spi/index-queue.test.ts
+@@ -1,14 +1,20 @@
+ import type { Events } from "@n8io/baseline-queue";
+ import { describe, expect, it } from "vitest";
+ import { connectionsOpen } from "../../../connections.ts";
+-import { invoiceLinePortsCreate } from "./index.ts";
++import {
++	invoiceLineCustomerReaderMemoryCreate,
++	invoiceLinePortsCreate,
++} from "./index.ts";
+ 
+ // The queue piece owns this file.
+ describe("invoiceLinePortsCreate with the queue", () => {
+ 	it("refuses a memory database with real Events", async () => {
+ 		const connections = await connectionsOpen({ role: "publisher" });
+ 		expect(() =>
+-			invoiceLinePortsCreate({ ...connections, events: {} as Events }),
++			invoiceLinePortsCreate(
++				{ ...connections, events: {} as Events },
++				{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
++			),
+ 		).toThrow("both be real or both memory");
+ 	});
+ });
+diff --git a/src/domains/invoice-line/spi/index.test.ts b/src/domains/invoice-line/spi/index.test.ts
+index 935034b..633ae6e 100644
+--- a/src/domains/invoice-line/spi/index.test.ts
++++ b/src/domains/invoice-line/spi/index.test.ts
+@@ -2,12 +2,16 @@ import { idCreate } from "@n8io/baseline-id";
+ import { ok } from "@n8io/baseline-result";
+ import { describe, expect, it } from "vitest";
+ import { connectionsOpen } from "../../../connections.ts";
+-import { invoiceLinePortsCreate } from "./index.ts";
++import {
++	invoiceLineCustomerReaderMemoryCreate,
++	invoiceLinePortsCreate,
++} from "./index.ts";
+ 
+ describe("invoiceLinePortsCreate", () => {
+ 	it("builds memory ports for a memory database", async () => {
+ 		const ports = invoiceLinePortsCreate(
+ 			await connectionsOpen({ role: "publisher" }),
++			{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() },
+ 		);
+ 		const now = new Date();
+ 		const invoiceLine = {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 91ec995..93916bd 100644
+index 91ec995..7b3ec3d 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
-@@ -1,7 +1,7 @@
+@@ -1,16 +1,20 @@
  import type { Events } from "@n8io/baseline-queue";
  import { drizzle } from "drizzle-orm/node-postgres";
  import type { Connections } from "../../../connections.ts";
 -import type { InvoiceLinePorts } from "../ports.ts";
-+import type { InvoiceLineCustomerReader, InvoiceLinePorts } from "../ports.ts";
++import type { InvoiceLinePorts, InvoiceLineReaders } from "../ports.ts";
  import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
  import { invoiceLinePortsMemoryCreate } from "./invoice-line-ports.memory.ts";
  import { invoiceLineRepositoryPostgresCreate } from "./invoice-line-repository.postgres.ts";
-@@ -10,9 +10,12 @@ import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction
+ import { invoiceLineTransactionPostgresCreate } from "./invoice-line-transaction.postgres.ts";
+ 
++export { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";
++
  // Picks each port's adapter from the connections the composition root opened: a real one, or
- // "memory". Composition roots own every connection.
+-// "memory". Composition roots own every connection.
++// "memory". Composition roots own every connection. The readers come from Bridges, built in
++// src/use-cases.ts.
  export const invoiceLinePortsCreate = (
--	connections: Connections,
-+	connections: Connections & {
-+		// From src/bridges/invoice-line-customer.ts; without it no customer is found.
-+		customerReader?: InvoiceLineCustomerReader;
-+	},
+ 	connections: Connections,
++	readers: InvoiceLineReaders,
  ): InvoiceLinePorts => {
--	const { database } = connections;
-+	const { customerReader, database } = connections;
+ 	const { database } = connections;
  	// piece-start: queue
- 	// Events commit with the repository's rows: both real or both memory.
- 	const { events } = connections;
-@@ -48,6 +51,9 @@ export const invoiceLinePortsCreate = (
+@@ -48,6 +52,7 @@ export const invoiceLinePortsCreate = (
  		// piece-start: cache
  		invoiceLineCache: invoiceLineCacheCreate(connections.cacheStore),
  		// piece-end: cache
-+		invoiceLineCustomerReader: customerReader ?? {
-+			get: async () => undefined,
-+		},
++		invoiceLineCustomerReader: readers.invoiceLineCustomerReader,
  		invoiceLineReadRepository: repository.invoiceLineReadRepository,
  		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index b35f8d6..8ab6a53 100644
+index b35f8d6..7c02995 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -24,6 +24,8 @@ export const invoiceLinePortsMemoryCreate = (): {
+@@ -1,6 +1,7 @@
+ import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
+ import type { InvoiceLinePorts } from "../ports.ts";
+ import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
++import { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";
+ import {
+ 	type InvoiceLineMemoryState,
+ 	invoiceLineMemoryStateCreate,
+@@ -24,6 +25,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  			// piece-start: cache
  			invoiceLineCache: invoiceLineCacheCreate(cacheStoreMemoryCreate()),
  			// piece-end: cache
-+			// No customers; tests that assign one pass their own reader.
-+			invoiceLineCustomerReader: { get: async () => undefined },
++			// Knows no customer; a test that needs one passes a fake that does.
++			invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate(),
  			// piece-start: live
  			invoiceLineLiveUpdates: { send: async () => undefined },
  			// piece-end: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-index 89e810a..171c316 100644
+index 2b0f390..2ed2915 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 @@ -59,6 +59,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
@@ -262,111 +355,73 @@ index 43ee204..16c2538 100644
    }
  }
 \ No newline at end of file
-diff --git a/src/seed.ts b/src/seed.ts
-index 0465f85..4be65f8 100644
---- a/src/seed.ts
-+++ b/src/seed.ts
-@@ -7,6 +7,7 @@ import {
- 	telemetryShutdown,
- 	telemetryUseCasesTrace,
- } from "@n8io/baseline-telemetry";
-+import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
- import { customerSeed } from "#domains/customer/api/index.ts";
- import {
- 	type CustomerUseCases,
-@@ -63,7 +64,12 @@ if (import.meta.main) {
- 		customerUseCasesCreate(customerPortsCreate(connections)),
- 	);
- 	const invoiceLineUseCases = telemetryUseCasesTrace(
--		invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
-+		invoiceLineUseCasesCreate(
-+			invoiceLinePortsCreate({
-+				...connections,
-+				customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
-+			}),
-+		),
- 	);
- 	// domain-create: use-cases
- 
 diff --git a/src/server.ts b/src/server.ts
-index c74e0cf..b0bc308 100644
+index c3ec3bb..49fde0b 100644
 --- a/src/server.ts
 +++ b/src/server.ts
-@@ -30,6 +30,7 @@ import { bodyLimit } from "hono/body-limit";
- import { except } from "hono/combine";
- import { createHonoServer } from "react-router-hono-server/node";
- import { actorFromClaims, authnProviderOptionsCreate } from "#authn";
-+import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
- import {
- 	customerLiveRoutesCreate,
- 	customerRoutesCreate,
-@@ -40,6 +41,7 @@ import {
- } from "#domains/customer/index.ts";
- import { customerPortsCreate } from "#domains/customer/spi/index.ts";
+@@ -34,6 +34,7 @@ import {
+ } from "#domains/customer/api/index.ts";
+ import { customerScopes } from "#domains/customer/index.ts";
  import {
 +	invoiceLineCustomerDeletedConsumerCreate,
  	invoiceLineLiveRoutesCreate,
  	invoiceLineRoutesCreate,
  } from "#domains/invoice-line/api/index.ts";
-@@ -83,7 +85,12 @@ const customerUseCases = telemetryUseCasesTrace(
- 	customerUseCasesCreate(customerPortsCreate(connections)),
- );
- const invoiceLineUseCases = telemetryUseCasesTrace(
--	invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
-+	invoiceLineUseCasesCreate(
-+		invoiceLinePortsCreate({
-+			...connections,
-+			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
-+		}),
-+	),
- );
- // domain-create: use-cases
- // domain-create: bridges
-@@ -101,6 +108,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
+@@ -80,6 +81,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
  // Creates queues and subscriptions; consumers run only in the worker.
  if (connections.events !== "memory") {
  	await connections.events.consumersSubscribe([
-+		invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
++		invoiceLineCustomerDeletedConsumerCreate(useCases.invoiceLineUseCases),
  		// domain-create: consumers
  	]);
  }
-diff --git a/src/worker.ts b/src/worker.ts
-index ab97bbb..a5ee2a2 100644
---- a/src/worker.ts
-+++ b/src/worker.ts
-@@ -9,10 +9,14 @@ import {
- 	telemetryShutdown,
- 	telemetryUseCasesTrace,
- } from "@n8io/baseline-telemetry";
-+import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer.ts";
- import { customerScheduleCreate } from "#domains/customer/api/index.ts";
+diff --git a/src/use-cases.ts b/src/use-cases.ts
+index 404be72..940516a 100644
+--- a/src/use-cases.ts
++++ b/src/use-cases.ts
+@@ -1,4 +1,5 @@
+ import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
++import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer-reader.ts";
  import { customerUseCasesCreate } from "#domains/customer/index.ts";
  import { customerPortsCreate } from "#domains/customer/spi/index.ts";
+ import { invoiceLineUseCasesCreate } from "#domains/invoice-line/index.ts";
+@@ -14,8 +15,14 @@ export const domainsUseCasesCreate = (connections: Connections) => {
+ 	const customerUseCases = telemetryUseCasesTrace(
+ 		customerUseCasesCreate(customerPortsCreate(connections)),
+ 	);
++	// After customer: its Bridge reads customer's Use cases.
+ 	const invoiceLineUseCases = telemetryUseCasesTrace(
+-		invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
++		invoiceLineUseCasesCreate(
++			invoiceLinePortsCreate(connections, {
++				invoiceLineCustomerReader:
++					invoiceLineCustomerReaderCreate(customerUseCases),
++			}),
++		),
+ 	);
+ 	// domain-create: use-cases
+ 	return {
+diff --git a/src/worker.ts b/src/worker.ts
+index 73b99c2..2d714f8 100644
+--- a/src/worker.ts
++++ b/src/worker.ts
+@@ -7,7 +7,10 @@ import {
+ } from "@n8io/baseline-shutdown";
+ import { telemetryShutdown } from "@n8io/baseline-telemetry";
+ import { customerScheduleCreate } from "#domains/customer/api/index.ts";
 -import { invoiceLineScheduleCreate } from "#domains/invoice-line/api/index.ts";
 +import {
 +	invoiceLineCustomerDeletedConsumerCreate,
 +	invoiceLineScheduleCreate,
 +} from "#domains/invoice-line/api/index.ts";
- import { invoiceLineUseCasesCreate } from "#domains/invoice-line/index.ts";
- import { invoiceLinePortsCreate } from "#domains/invoice-line/spi/index.ts";
  import { ENV } from "#env";
-@@ -38,12 +42,18 @@ const customerUseCases = telemetryUseCasesTrace(
- 	customerUseCasesCreate(customerPortsCreate(connections)),
- );
- const invoiceLineUseCases = telemetryUseCasesTrace(
--	invoiceLineUseCasesCreate(invoiceLinePortsCreate(connections)),
-+	invoiceLineUseCasesCreate(
-+		invoiceLinePortsCreate({
-+			...connections,
-+			customerReader: invoiceLineCustomerReaderCreate(customerUseCases),
-+		}),
-+	),
- );
- // domain-create: use-cases
- // domain-create: bridges
+ import { connectionsOpen } from "./connections.ts";
+ import { domainsUseCasesCreate } from "./use-cases.ts";
+@@ -33,6 +36,7 @@ const useCases = domainsUseCasesCreate(connections);
+ // domain-create: domains-end
  
  await events.consumersStart([
-+	invoiceLineCustomerDeletedConsumerCreate(invoiceLineUseCases),
++	invoiceLineCustomerDeletedConsumerCreate(useCases.invoiceLineUseCases),
  	// domain-create: consumers
  ]);
  // Starts the Schedules migrate has synced; it changes none of them.

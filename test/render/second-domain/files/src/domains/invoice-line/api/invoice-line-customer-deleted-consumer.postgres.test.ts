@@ -11,7 +11,10 @@ import {
 } from "@n8io/baseline-queue";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
-import { invoiceLinePortsCreate } from "../spi/index.ts";
+import {
+	invoiceLineCustomerReaderMemoryCreate,
+	invoiceLinePortsCreate,
+} from "../spi/index.ts";
 import { invoiceLineUseCasesCreate } from "../use-cases/invoice-line-use-cases.ts";
 import { invoiceLineCustomerDeletedConsumerCreate } from "./invoice-line-customer-deleted-consumer.ts";
 
@@ -34,23 +37,29 @@ afterAll(async () => {
 });
 
 describe("the customer.deleted consumer on Postgres", () => {
+	const customerId = idCreate("customer");
 	const portsCreate = () =>
-		invoiceLinePortsCreate({
-			analytics: analyticsLoggerCreate(),
-			cacheStore: cacheStoreMemoryCreate(),
-			customerReader: { get: async () => ({ name: "Acme" }) },
-			database: pgPool,
-			events: queueEventsCreate(queue),
-			intakes: [],
-			liveHub: liveHubMemoryCreate(),
-			queue,
-			redis: "memory",
-			resources: [],
-		});
+		invoiceLinePortsCreate(
+			{
+				analytics: analyticsLoggerCreate(),
+				cacheStore: cacheStoreMemoryCreate(),
+				database: pgPool,
+				events: queueEventsCreate(queue),
+				intakes: [],
+				liveHub: liveHubMemoryCreate(),
+				queue,
+				redis: "memory",
+				resources: [],
+			},
+			{
+				invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate([
+					{ id: customerId, name: "Acme" },
+				]),
+			},
+		);
 
 	it("clears the customer once and skips a repeat of the same event", async () => {
 		const u = invoiceLineUseCasesCreate(portsCreate());
-		const customerId = idCreate("customer");
 		const billed = async (name: string) => {
 			const created = await u.invoiceLineCreate(owner, { name });
 			if (!created.ok) throw created.error;

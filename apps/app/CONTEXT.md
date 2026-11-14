@@ -1,4 +1,4 @@
-# A starter app with the layout and patterns a project made from baseline uses. Its one Domain, Foo, shows the patterns inside a domain; Consumers and Bridges are shown in `docs/agents/events-and-bridges.md`.
+# A starter app with the layout and patterns a project made from baseline uses. Its one Domain, Foo, shows the patterns inside a domain; Consumers and Bridges are shown in `docs/agents/events.md` and `docs/agents/bridges.md`.
 
 ## Architecture
 
