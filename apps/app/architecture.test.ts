@@ -109,6 +109,26 @@ describe("architecture", () => {
 		).toEqual([]);
 	});
 
+	it("A14 counts only the longest domain name a column matches", async () => {
+		const table = await architectureFileCreate(
+			"src/domains/trade/spi/trade-table.ts",
+			'import { uuid } from "drizzle-orm/pg-core";\nexport const t = { workOrderId: uuid("work_order_id") };\n',
+		);
+		const files = [
+			table,
+			await architectureFileCreate(
+				"src/domains/order/index.ts",
+				"export {};\n",
+			),
+			await architectureFileCreate(
+				"src/domains/work-order/index.ts",
+				"export {};\n",
+			),
+		];
+		expect(architectureRules.A14?.(files)).toHaveLength(1);
+		expect(architectureRules.A14?.(files)[0]).toContain("a work-order id");
+	});
+
 	it("A25 lets api/ build its own schema from a model's shape", async () => {
 		const route = await architectureFileCreate(
 			"src/domains/bar/api/bar-routes.ts",

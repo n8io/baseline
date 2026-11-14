@@ -50,6 +50,9 @@ jobs:
       - run: timeout 30s pnpm check
       - name: src/env.d.ts matches .env.schema
         run: git diff --exit-code src/env.d.ts
+      # ubuntu-latest ships shellcheck. find runs it only when a script exists.
+      - name: Shell scripts pass shellcheck
+        run: find . -name '*.sh' -not -path './node_modules/*' -exec shellcheck {} +
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
   sast:

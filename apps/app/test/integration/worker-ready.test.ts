@@ -23,6 +23,8 @@ describe("worker readiness", { timeout: 60_000 }, () => {
 
 		expect(await worker.exited).toBe(1);
 		expect(statuses).not.toContain(200);
-		expect(worker.stderr()).toContain("ECONNREFUSED");
+		expect(worker.stdout()).toContain("Boot failed: a connection did not open");
+		expect(worker.stdout()).toContain("ECONNREFUSED");
+		expect(worker.stderr()).not.toContain("    at ");
 	});
 });

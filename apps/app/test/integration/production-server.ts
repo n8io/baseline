@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import {
 	type IncomingHttpHeaders,
 	type IncomingMessage,
@@ -317,10 +317,43 @@ export const slowRequestStart = async (
 
 export type ProductionServer = AppProcess & { port: number; url: string };
 
+// The Server runs from build/, so a src/ file saved after the last build means a test would run old code.
+// A missing build is serverEntryCheck's message. Only a test that starts the Server asks, so a
+// repository test never waits on a rebuild. The Worker, migrate and seed run from src/, and test
+// files and helpers are not part of the build. A directory without src/ (a copied build) is skipped.
+const buildStaleGuard = (directory: string): void => {
+	let built: number;
+	try {
+		built = statSync(join(directory, serverEntry)).mtimeMs;
+		statSync(join(directory, "src"));
+	} catch {
+		return;
+	}
+	const newer = readdirSync(join(directory, "src"), {
+		encoding: "utf8",
+		recursive: true,
+	})
+		.filter(
+			(path) =>
+				!/(^|\/)(worker|migrate|seed)\.ts$|(^|\/)env\.d\.ts$|test/.test(path),
+		)
+		.find(
+			(path) =>
+				statSync(join(directory, "src", path)).isFile() &&
+				statSync(join(directory, "src", path)).mtimeMs > built,
+		);
+	if (newer !== undefined) {
+		throw new Error(
+			`build/ is older than src/${newer}: run pnpm build (pnpm test:integration does it first)`,
+		);
+	}
+};
+
 const serverEntryCheck = (directory = ".") => {
 	if (!existsSync(join(directory, serverEntry))) {
 		throw new Error(`${serverEntry} is missing: run pnpm build first`);
 	}
+	buildStaleGuard(directory);
 };
 
 /** Starts the production build on `PORT` without waiting for readiness, for boots that are meant to fail. */
