@@ -73,7 +73,7 @@ useLiveUpdates({ channel: "bar", id: bar.id });
 ## Forms
 
 - Use React Router's `<Form method="post">` with the shadcn `Input`, `Label` and `Button`, so every form posts without JavaScript.
-- A choice in a form that must work without JavaScript is a native `<select name="...">`. Use the shadcn `Select` (`pnpm shadcn add select`) only where the page needs JavaScript anyway.
+- A choice in a form that must work without JavaScript is a native `<select name="...">`. Use the shadcn `Select` (`pnpm exec shadcn add select`) only where the page needs JavaScript anyway.
 - `<input type="datetime-local">` sends `YYYY-MM-DDTHH:mm` with no zone. Read it as UTC: check the pattern, then ``new Date(`${value}:00Z`)``, and let the Domain's input type refuse the Invalid Date. Say "(UTC)" in the label.
 
 ## Page tests

@@ -12,6 +12,7 @@ The glossary is [CONTEXT.md](CONTEXT.md). Use its terms for every name. The next
 
 Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 
+- cloud container setup (Node, pnpm, install, Docker): `bash apps/app/scripts/agent-setup.sh` ([apps/app/docs/agents/agent-setup.md](apps/app/docs/agents/agent-setup.md))
 - setup: `pnpm install`
 - format: `pnpm format`
 - lint + typecheck (root files): `pnpm check`
@@ -19,7 +20,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test in a package: `pnpm test` runs every test; in cache, live, postgres, queue and redis it needs Docker, which only the files named `*.redis.test.ts` or `*.postgres.test.ts` use
 - unit tests with no Docker: `pnpm test:unit` (root runs it in every package that has it, or run it inside one package)
 - glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
-- full CI-equivalent: `pnpm turbo run check test build`
+- full CI-equivalent: `pnpm exec turbo run check test build`
 
 ## Naming
 
@@ -27,7 +28,7 @@ Packages, scripts and tests follow the app's naming rule in [apps/app/AGENTS.md]
 
 ## Function inputs
 
-One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`?: T | null` for optional fields). Biome's `useMaxParams` (max 2) catches functions; it misses `export default function` and type signatures (ports, method types), so keep those to the rule by hand.
+One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`?: T | null` for optional fields). Biome's `useMaxParams` (max 2) catches functions; it misses `export default function` and type signatures (ports, method types), so keep those to the rule by hand. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 
 ## Tests
 

@@ -66,11 +66,86 @@ export const agentDocsViolations = ({
 	return problems;
 };
 
-// Checks the AGENTS.md under `root` and every file in its docs/agents/ folder.
-export const agentDocsViolationsRead = (
-	root: URL,
-	agentsMaxBytes: number,
-): string[] => {
+// pnpm's own commands a doc may name beside the scripts. A binary is run as `pnpm exec <bin>`.
+const pnpmBuiltins = new Set(
+	[
+		"add approve-builds audit ci config create dedupe dlx exec fetch i import init install link",
+		"list ls outdated pack patch prune publish rebuild remove rm self-update store uninstall",
+		"run unlink up update why",
+	]
+		.join(" ")
+		.split(" "),
+);
+
+// The text inside a doc's code: fenced blocks and inline code spans.
+const agentDocCode = (text: string): string[] => {
+	const fence = /^[ \t]*(```|~~~)[^\n]*\n([\s\S]*?)^[ \t]*\1/gm;
+	// A comment line in a fence is prose about the commands, not one.
+	const fenced = [...text.matchAll(fence)].map(([, , body = ""]) =>
+		body
+			.split("\n")
+			.filter((line) => !/^\s*(#|\/\/)/.test(line))
+			.join("\n"),
+	);
+	const prose = text.replace(fence, "");
+	return [
+		...fenced,
+		...[...prose.matchAll(/`([^`\n]+)`/g)].map(([, c = ""]) => c),
+	];
+};
+
+// Every `pnpm <command>` in a doc's code must be a package.json script or one of pnpm's own
+// commands, so a renamed script cannot leave a doc telling an agent to run something that is gone.
+// A binary goes through `pnpm exec`, which is not checked: removing a piece can take its binary
+// (shadcn) while the docs that name it stay.
+export const agentDocsCommandsMissing = ({
+	commands,
+	docs,
+}: {
+	commands: Set<string>;
+	docs: AgentDoc[];
+}): string[] =>
+	docs.flatMap(({ path, text }) => [
+		...new Set(
+			agentDocCode(text)
+				.flatMap((code) => [
+					...code.matchAll(
+						/(?:^|[\s(&|;"])pnpm\s+(?:-\S+(?:\s+(?!-)[^\s-]\S*)?\s+)*(?:run\s+)?([a-z][\w:.-]*)/g,
+					),
+				])
+				.map(([, command = ""]) => command)
+				.filter(
+					(command) => !commands.has(command) && !pnpmBuiltins.has(command),
+				)
+				.map(
+					(command) =>
+						`${path}: names pnpm ${command}, which is no script in package.json and no pnpm command (run a binary with pnpm exec)`,
+				),
+		),
+	]);
+
+// The scripts in `root`'s package.json.
+const scriptsRead = (root: URL): string[] =>
+	Object.keys(
+		(
+			JSON.parse(readFileSync(new URL("package.json", root), "utf8")) as {
+				scripts?: Record<string, string>;
+			}
+		).scripts ?? {},
+	);
+
+// Checks the AGENTS.md under `root` and every file in its docs/agents/ folder. The `pnpm` commands
+// they name must exist in one of `commandRoots` (a walkthrough in the monorepo's root names the
+// Template's commands too).
+export const agentDocsViolationsRead = ({
+	agentsMaxBytes,
+	commandRoots,
+	root,
+}: {
+	agentsMaxBytes: number;
+	commandRoots: URL[];
+	root: URL;
+}): string[] => {
 	const isFile = (path: string) =>
 		statSync(new URL(path, root), { throwIfNoEntry: false })?.isFile() ?? false;
 	const docsDir = new URL("docs/agents/", root);
@@ -84,5 +159,9 @@ export const agentDocsViolationsRead = (
 		path,
 		text: readFileSync(new URL(path, root), "utf8"),
 	}));
-	return agentDocsViolations({ docs, exists: isFile, agentsMaxBytes });
+	const commands = new Set(commandRoots.flatMap(scriptsRead));
+	return [
+		...agentDocsViolations({ docs, exists: isFile, agentsMaxBytes }),
+		...agentDocsCommandsMissing({ commands, docs }),
+	];
 };

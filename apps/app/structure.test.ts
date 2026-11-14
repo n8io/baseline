@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+	agentDocsCommandsMissing,
 	agentDocsViolations,
 	agentDocsViolationsRead,
 } from "./agent-docs-test-rules.ts";
@@ -127,8 +128,8 @@ const filesList = (dir: URL, prefix: string) =>
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
 
-// AGENTS.md loads on every task, so it has a size budget. Today's file leaves a Project about
-// 3 KB for rules of its own.
+// AGENTS.md loads every time an agent starts, so it has a size budget. The Template's file stays under 13,000
+// bytes, so a Project has at least 1 KB for rules of its own.
 const agentsMaxBytes = 14_000;
 
 const context = "**Bar**:\nA thing.\n";
@@ -249,7 +250,13 @@ describe("test placement", () => {
 
 describe("agent docs", () => {
 	it("holds for the real files", () => {
-		expect(agentDocsViolationsRead(appRoot, agentsMaxBytes)).toEqual([]);
+		expect(
+			agentDocsViolationsRead({
+				agentsMaxBytes,
+				commandRoots: [appRoot],
+				root: appRoot,
+			}),
+		).toEqual([]);
 	});
 
 	it("allows an AGENTS.md of exactly the budget", () => {
@@ -350,6 +357,49 @@ describe("agent docs", () => {
 				agentsMaxBytes,
 			}),
 		).toEqual([]);
+	});
+});
+
+describe("agent docs commands", () => {
+	const commands = new Set(["check", "dev", "test:integration"]);
+
+	it("passes scripts and pnpm's own commands, in code only", () => {
+		const text = [
+			"Run `pnpm check`, `pnpm run dev` or `pnpm test:integration <path>`.",
+			"`pnpm install && pnpm exec vitest run` and pnpm from `packageManager`.",
+			"`pnpm outdated`, `pnpm why x`, `pnpm --filter app check`.",
+			"```sh",
+			"# pnpm is pinned in packageManager",
+			"source nvm.sh && pnpm check",
+			"```",
+		].join("\n");
+		expect(
+			agentDocsCommandsMissing({
+				commands,
+				docs: [{ path: "AGENTS.md", text }],
+			}),
+		).toEqual([]);
+	});
+
+	it.each([
+		["an inline span", "Then `pnpm lint`."],
+		["a pnpm run", "Then `pnpm run lint`."],
+		["a binary run without exec", "Then `pnpm lint --fix`."],
+		["a command after options", "Then `pnpm --filter app -r lint`."],
+		["a command after -C", "Then `pnpm -C apps/app lint`."],
+		["quotes in code", 'Then `sh -c "pnpm lint"`.'],
+		["an indented fence", "1. Run:\n   ```sh\n   pnpm lint\n   ```"],
+		["a tilde fence", "~~~sh\npnpm lint\n~~~"],
+		["a fenced block", "```sh\ncd app && pnpm lint\n```"],
+	])("fails on a missing command in %s", (_name, text) => {
+		expect(
+			agentDocsCommandsMissing({
+				commands,
+				docs: [{ path: "docs/agents/x.md", text }],
+			}),
+		).toEqual([
+			"docs/agents/x.md: names pnpm lint, which is no script in package.json and no pnpm command (run a binary with pnpm exec)",
+		]);
 	});
 });
 

@@ -9,7 +9,7 @@ Read when touching a table, a migration or SQL.
 - Split drops and adds into two migrations: add in one, drop (with its `destructive.md`) in a later one.
 - On a migration conflict, delete your migration, rebase and run `pnpm codegen` again. Never use `--fix-conflicts` or `--hints`.
 - Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; the `migrations` CI job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
-- Tables hold UUIDs; code and the API speak prefixed ids (`foo_…`). `postgresIdColumnCreate("foo")` converts at the column; in raw values use `idToUuid` and `idFromUuid` from `@n8io/baseline-id`.
+- Tables hold UUIDs; code and the API speak prefixed ids (`invoice_…`). `postgresIdColumnCreate("invoice")` converts at the column; in raw values use `idToUuid` and `idFromUuid` from `@n8io/baseline-id`.
 - No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
 - Do not use `sql.raw` in `spi/`.
 
@@ -17,12 +17,12 @@ Read when touching a table, a migration or SQL.
 
 A transaction alone does not stop a lost write: two transactions can read the same row, and the later write undoes the earlier one. Under Postgres's READ COMMITTED:
 
-- Read a row you will write back through the repository's `findByIdForUpdate` (Drizzle `.for("update")`) inside the transaction, as `fooUpdate` and `fooDelete` do. A concurrent write then waits until you commit. Lock several rows in id order (`.orderBy(asc(table.id)).for("update")`), so two transactions cannot deadlock.
+- Read a row you will write back through the repository's `findByIdForUpdate` (Drizzle `.for("update")`) inside the transaction, as the update and delete Use cases `pnpm domain-create` writes do. A concurrent write then waits until you commit. Lock several rows in id order (`.orderBy(asc(table.id)).for("update")`), so two transactions cannot deadlock.
 - A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<domain>:<owner id>")` first, then count and insert.
 - Change a counter with one statement (``set({ count: sql`${table.count} + 1` })``), never read, add and write back.
 - A write that finds its row gone (deleted since the read) returns the Domain's NotFound error, never throws: the route answers 404, not 500.
 - Postgres takes at most 65,535 bind parameters per statement: chunk a fan-out insert (rows × columns) under it.
-- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (`foo-update.postgres.test.ts`).
+- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<domain>-update.postgres.test.ts` that `pnpm domain-create` writes).
 
 ## An Aggregate with a child table
 
