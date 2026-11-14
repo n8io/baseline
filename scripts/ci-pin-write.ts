@@ -1,13 +1,12 @@
 // Points the Template's calls into baseline's reusable workflows (`<workflow>.yml@v<major>`)
 // at the Template's own major. `pnpm run version` runs it after `changeset version`, so a
 // Template major and its `v<major>` pin always ship together. test/ci-pin.test.ts checks it.
+// Only the Template's own workflow is listed: the release job pushes the Version packages
+// commit with GITHUB_TOKEN, which may not change a file under the repo's .github/workflows/.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-export const ciPinFiles = [
-	"apps/app/.github/workflows/ci.yml",
-	".github/workflows/app-ci.yml",
-];
+export const ciPinFiles = ["apps/app/.github/workflows/ci.yml"];
 
 const pinPattern =
 	/(n8io\/baseline\/\.github\/workflows\/[\w.-]+\.yml)@v(\d+)/g;
