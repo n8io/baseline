@@ -811,7 +811,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				);
 				return [...f.source.matchAll(pattern)].map(
 					(m) =>
-						`${f.path}: ${m[1]}.openapi( is called on a schema imported from models/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>")) as foo-routes.ts does`,
+						`${f.path}: ${m[1]}.openapi( is called on a schema imported from models/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
 				);
 			}),
 };
