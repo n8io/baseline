@@ -141,6 +141,8 @@ These docs load only when the task needs them. Read the one that matches before 
 - Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
+- Adding, testing or removing a Schedule (files, wiring, `SCHEDULE_*`, due work, running one in a test): [docs/agents/schedules.md](docs/agents/schedules.md)
+- Adding, changing, testing or removing a page (loaders, actions, refused changes, live updates, forms): [docs/agents/ui.md](docs/agents/ui.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running a Project on Kubernetes or on more than one instance (probes, pool sizing, PgBouncer, secrets, rollouts, outages): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)

@@ -1,25 +1,35 @@
+import { idCreate } from "@n8io/baseline-id";
 import { ok } from "@n8io/baseline-result";
-import { describe, expect, it, vi } from "vitest";
-import type { FooUseCases } from "../index.ts";
+import { describe, expect, it } from "vitest";
+import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
+import { fooUseCasesCreate } from "../use-cases/foo-use-cases.ts";
 import { fooSchedule, fooScheduleCreate } from "./foo-schedule.ts";
 
 describe("fooScheduleCreate", () => {
-	it("archives stale foos daily at 03:00 UTC as the foo-schedule actor", async () => {
-		const fooStaleArchive = vi.fn(async () => ok(2));
-		const schedule = fooScheduleCreate({
-			fooStaleArchive,
-		} as unknown as FooUseCases);
-
+	it("runs daily at 03:00 UTC as foo.stale-archive", () => {
 		expect(fooSchedule).toEqual({
 			cron: "0 3 * * *",
 			name: "foo.stale-archive",
 		});
-		expect(schedule).toMatchObject(fooSchedule);
-		await expect(schedule.run()).resolves.toEqual(ok(2));
-		expect(fooStaleArchive).toHaveBeenCalledWith({
-			id: "foo-schedule",
-			kind: "client",
-			scopes: [],
+	});
+
+	it("archives the stale foos when run, and nothing on a repeat", async () => {
+		const { ports, state } = fooPortsMemoryCreate();
+		const longAgo = new Date("2020-01-01T00:00:00Z");
+		const id = idCreate("foo");
+		state.foos.set(id, {
+			archivedAt: null,
+			createdAt: longAgo,
+			createdBy: "owner",
+			id,
+			name: "old",
+			updatedAt: longAgo,
 		});
+		const schedule = fooScheduleCreate(fooUseCasesCreate(ports));
+
+		expect(schedule).toMatchObject(fooSchedule);
+		expect(await schedule.run()).toEqual(ok(1));
+		expect(state.foos.get(id)?.archivedAt).toBeInstanceOf(Date);
+		expect(await schedule.run()).toEqual(ok(0));
 	});
 });
