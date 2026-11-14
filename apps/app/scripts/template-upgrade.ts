@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { piecesGoneFind, piecesRemoveFromTree } from "./piece-remove.ts";
 import {
 	filesWrite,
 	releaseLatest,
@@ -35,18 +36,22 @@ const renderCommit = ({
 	files,
 	message,
 	parent,
+	removed,
 	repository,
 	tools,
 }: {
 	files: TemplateFile[];
 	message: string;
 	parent?: string;
+	// The pieces the Project removed; the render drops them too.
+	removed: string[];
 	repository: string;
 	tools: UpgradeTools;
 }): string => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-"));
 	const tree = join(work.path, "tree");
 	filesWrite(tree, files);
+	piecesRemoveFromTree(tree, removed);
 	tools.finish(tree);
 	const env = { ...process.env, GIT_INDEX_FILE: join(work.path, "index") };
 	const git = (args: string[]) =>
@@ -89,12 +94,14 @@ const conflictsRead = (repository: string): string[] =>
 const templateMerge = ({
 	from,
 	labels,
+	removed,
 	repository,
 	to,
 	tools,
 }: {
 	from: TemplateFile[];
 	labels: { from: string; to: string };
+	removed: string[];
 	repository: string;
 	to: TemplateFile[];
 	tools: UpgradeTools;
@@ -102,12 +109,14 @@ const templateMerge = ({
 	const base = renderCommit({
 		repository,
 		files: from,
+		removed,
 		tools,
 		message: `template ${labels.from}`,
 	});
 	const next = renderCommit({
 		repository,
 		files: to,
+		removed,
 		tools,
 		message: `template ${labels.to}`,
 		parent: base,
@@ -239,6 +248,7 @@ export const templateUpgrade = async ({
 			project,
 		}),
 		tools,
+		removed: piecesGoneFind(appDirectory),
 		labels: { from: template.release, to },
 	});
 	const workspace = join(appDirectory, "pnpm-workspace.yaml");

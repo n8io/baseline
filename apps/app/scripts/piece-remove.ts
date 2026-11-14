@@ -5,8 +5,14 @@
 // its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
 // again after a template-upgrade takes out the lines the upgrade brought back.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+	existsSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { join, relative } from "node:path";
 import { pieceBlocksRemove, piecesRemovedFind } from "./domain-create.ts";
 import { run } from "./template-render.ts";
 
@@ -351,11 +357,26 @@ const testCall = /(?<![.\w])(?:it|test)(?:\.\w+)*[(`]/;
 const testsLeft = (text: string) =>
 	testCall.test(text.replace(/^\s*\/\/.*$/gm, ""));
 
+// Every file under a directory that is not a git checkout, as paths from it.
+export const filesWalk = (directory: string): string[] =>
+	readdirSync(directory, { recursive: true, withFileTypes: true })
+		.filter((e) => e.isFile() && !e.parentPath.includes("node_modules"))
+		.map((e) => relative(directory, join(e.parentPath, e.name)));
+
 // Deletes the piece's files and blocks and edits what carries no markers. Leaves packages alone.
-export const pieceFilesRemove = (directory: string, piece: string) => {
+// `filesList` says which files exist.
+const filesRemove = ({
+	directory,
+	filesList,
+	piece,
+}: {
+	directory: string;
+	filesList: (directory: string) => string[];
+	piece: string;
+}) => {
 	const removal = pieceRemovals[piece];
 	if (removal === undefined) throw new Error(usage);
-	for (const path of trackedFiles(directory)) {
+	for (const path of filesList(directory)) {
 		if (path.endsWith(".md")) continue;
 		const problems = pieceMarkersProblems(
 			readFileSync(join(directory, path), "utf8"),
@@ -369,13 +390,13 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 	for (const path of removal.paths) {
 		rmSync(join(directory, path), { force: true, recursive: true });
 	}
-	for (const path of trackedFiles(directory)) {
+	for (const path of filesList(directory)) {
 		if (removal.srcFiles?.test(path) && path.startsWith("src/")) {
 			rmSync(join(directory, path));
 		}
 	}
 	const start = `piece-start: ${piece}`;
-	for (const path of trackedFiles(directory)) {
+	for (const path of filesList(directory)) {
 		if (path.endsWith(".md")) continue;
 		const file = join(directory, path);
 		const text = readFileSync(file, "utf8");
@@ -388,7 +409,7 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 		}
 	}
 	removal.edit?.(directory);
-	const left = trackedFiles(directory).filter(
+	const left = filesList(directory).filter(
 		(path) =>
 			!path.endsWith(".md") &&
 			new RegExp(`^[ \\t]*(//|#) ${start}$`, "m").test(
@@ -397,6 +418,33 @@ export const pieceFilesRemove = (directory: string, piece: string) => {
 	);
 	if (left.length > 0) {
 		throw new Error(`${start} has no matching piece-end in ${left.join(", ")}`);
+	}
+};
+
+export const pieceFilesRemove = (directory: string, piece: string) =>
+	filesRemove({ directory, filesList: trackedFiles, piece });
+
+// Every piece whose first package is missing from package.json, redis included.
+export const piecesGoneFind = (directory: string): string[] => {
+	const installed = packagesInstalled(directory);
+	return Object.entries(pieceRemovals)
+		.filter(([, removal]) => !installed.has(removal.packages[0] ?? ""))
+		.map(([name]) => name);
+};
+
+// A freshly rendered tree as a Project that removed those pieces would have it: the pieces' files,
+// blocks, env lines and packages, by the same file, block, env and package steps as `pnpm piece-remove`. template-upgrade
+// renders both releases this way, so a removed piece never comes back.
+export const piecesRemoveFromTree = (directory: string, removed: string[]) => {
+	for (const piece of removed) {
+		filesRemove({ directory, filesList: filesWalk, piece });
+		const packages = pieceRemovals[piece]?.packages ?? [];
+		manifestEdit(directory, (manifest) => {
+			for (const name of packages) {
+				delete manifest.dependencies?.[name];
+				delete manifest.devDependencies?.[name];
+			}
+		});
 	}
 };
 

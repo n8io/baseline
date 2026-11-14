@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
 	type DisposableTempDir,
+	existsSync,
 	mkdtempDisposableSync,
 	readFileSync,
 	writeFileSync,
@@ -24,12 +25,27 @@ afterEach(() => {
 const git = (cwd: string, ...args: string[]) =>
 	execFileSync("git", args, { cwd, encoding: "utf8" });
 
-const manifest = '{\n\t"name": "invoicing"\n}\n';
+// A Project that kept every piece.
+const piecePackages = {
+	"@n8io/baseline-analytics": "1.0.0",
+	"@n8io/baseline-cache": "1.0.0",
+	"@n8io/baseline-error-tracking": "1.0.0",
+	"@n8io/baseline-live": "1.0.0",
+	"@n8io/baseline-queue": "1.0.0",
+	"@n8io/baseline-redis": "1.0.0",
+	"react-router": "1.0.0",
+};
+
+const manifest = `${JSON.stringify({ dependencies: piecePackages, name: "invoicing" }, null, "\t")}\n`;
+const releaseManifest = JSON.stringify({
+	dependencies: piecePackages,
+	name: "app",
+});
 const lockfile = "biome: 2.6.5\nzod: 4.6.7\n";
 const releases: Record<string, TemplateFile[]> = {
 	"1.0.0": [
 		{ path: "CONTEXT.md", text: "# Template.\n" },
-		{ path: "package.json", text: '{ "name": "app" }' },
+		{ path: "package.json", text: releaseManifest },
 		{ path: "pnpm-lock.yaml", text: "biome: 2.6.5\n" },
 		{ path: "src/a.ts", text: "one\ntwo\nthree\nfour\nfive\n" },
 	],
@@ -39,7 +55,7 @@ const releases: Record<string, TemplateFile[]> = {
 			text: "# app\n\n## 1.1.0\n\n- Four is 4.\n\n## 1.0.0\n\n- First.\n",
 		},
 		{ path: "CONTEXT.md", text: "# Template.\n" },
-		{ path: "package.json", text: '{ "name": "app" }' },
+		{ path: "package.json", text: releaseManifest },
 		{ path: "pnpm-lock.yaml", text: "biome: 2.6.7\n" },
 		{ path: "src/a.ts", text: "one\ntwo\nthree\n4\nfive\n" },
 		{ path: "src/b.ts", text: "new\n" },
@@ -101,6 +117,68 @@ describe("templateUpgradeRun", () => {
 			"test",
 		]);
 		expect(log.mock.calls.flat().join("\n")).toContain("- Four is 4.");
+	});
+
+	it("brings no removed piece back: not its package, its file or its blocks", async () => {
+		const manifestOf = (analytics: boolean) =>
+			`${JSON.stringify(
+				{
+					dependencies: analytics
+						? piecePackages
+						: {
+								...piecePackages,
+								"@n8io/baseline-analytics": undefined,
+								"@n8io/baseline-redis": undefined,
+							},
+					name: "app",
+				},
+				null,
+				"\t",
+			)}\n`;
+		const blocks = (changed: string) =>
+			`import a from "a";\n// piece-start: analytics\nanalyticsOpen();\n// piece-end: analytics\n${changed}\n`;
+		const release = (changed: string): TemplateFile[] => [
+			{ path: "package.json", text: manifestOf(true) },
+			{ path: "src/analytics-open.ts", text: "export {};\n" },
+			{ path: "src/redis-open.ts", text: "export {};\n" },
+			{ path: "src/a.ts", text: blocks(changed) },
+		];
+		const pieces: Record<string, TemplateFile[]> = {
+			"2.0.0": release("old"),
+			"2.1.0": release("new"),
+		};
+		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+		const app = folder.path;
+		git(app, "init", "--quiet", "--initial-branch=main");
+		git(app, "config", "user.email", "test@example.com");
+		git(app, "config", "user.name", "Test");
+		execFileSync("mkdir", ["-p", join(app, "src")]);
+		writeFileSync(
+			join(app, ".template.json"),
+			'{ "release": "2.0.0", "description": "Invoices." }\n',
+		);
+		writeFileSync(join(app, "package.json"), manifestOf(false));
+		writeFileSync(join(app, "src/a.ts"), 'import a from "a";\nold\n');
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "project");
+		vi.spyOn(console, "log").mockImplementation(() => {});
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "2.1.0",
+				pnpm: vi.fn(),
+				tools: { fetch: (v) => pieces[v] ?? [], finish: () => {} },
+			}),
+		).toBe(0);
+		expect(readFileSync(join(app, "package.json"), "utf8")).toBe(
+			manifestOf(false),
+		);
+		expect(existsSync(join(app, "src/analytics-open.ts"))).toBe(false);
+		expect(existsSync(join(app, "src/redis-open.ts"))).toBe(false);
+		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toBe(
+			'import a from "a";\nnew\n',
+		);
 	});
 
 	it("exits before the checks when the project is already on the target release", async () => {
