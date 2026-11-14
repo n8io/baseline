@@ -1,8 +1,8 @@
 # The CI every project made from baseline calls, as `ci / <job>` checks:
 #   jobs:
 #     ci:
-#       uses: n8io/baseline/.github/workflows/app-ci.yml@v7
-# The pin is the Template's major; `pnpm run version` moves it (scripts/ci-pin-write.ts).
+#       uses: n8io/baseline/.github/workflows/app-ci.yml@v<major>
+# <major> is the Template's major; `pnpm run version` moves the Template's pin (scripts/ci-pin-write.ts).
 # No token needed: the @n8io/baseline-* packages install from npmjs. Callers grant `contents: read`.
 # Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
 # A change that adds a failing check ships in the next major, never inside the current one.

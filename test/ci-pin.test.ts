@@ -20,6 +20,17 @@ describe("the Template's app-ci pin", () => {
 		},
 	);
 
+	it("never edits the repo's own workflows, which the release job's GITHUB_TOKEN may not push", () => {
+		expect(ciPinFiles.filter((file) => file.startsWith(".github/"))).toEqual(
+			[],
+		);
+		const header = readFileSync(
+			join(root, ".github/workflows/app-ci.yml"),
+			"utf8",
+		);
+		expect(ciPinsRead(header)).toEqual([]);
+	});
+
 	it("moves with every Template version (`pnpm run version`)", () => {
 		const { scripts } = JSON.parse(
 			readFileSync(join(root, "package.json"), "utf8"),
