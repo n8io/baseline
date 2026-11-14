@@ -493,10 +493,13 @@ const contextRender = (text: string, answers: TemplateAnswers): string => {
 	return lines.join("\n").replace(/\n+$/, "\n");
 };
 
-// The host ports a Project's compose.yaml publishes, from its name: four in a row at a multiple of
-// ten from 20000 to 29999, below the range the OS hands out to outgoing connections. The Template
-// keeps 5432, 6379, 3000 and 9000. Two names can land on the same block (one in a thousand): set the
-// four *_HOST_PORT variables in .env.development.local then.
+// A Project's own ports, from its name, so two Projects run side by side on one machine: seven in a
+// row at a multiple of ten from 20000 to 29999, below the range the OS hands out to outgoing
+// connections. compose.yaml publishes the four *_HOST_PORT ones (.env.schema); `pnpm dev` serves on
+// PORT and HEALTH_PORT (.env.development) and the Worker's health port (its `dev` script). The
+// Template keeps 5432, 6379, 3000, 9000 and 9001. Two names can land on the same block (one in a
+// thousand): change the four *_HOST_PORT values in .env.schema, PORT and HEALTH_PORT in
+// .env.development and the Worker's HEALTH_PORT in the `dev` script then.
 export const hostPortsCreate = (name: string): Record<string, number> => {
 	const block =
 		createHash("sha256").update(name).digest().readUInt32BE(0) % 1000;
@@ -506,6 +509,9 @@ export const hostPortsCreate = (name: string): Record<string, number> => {
 		REDIS_HOST_PORT: first + 1,
 		SERVER_HOST_PORT: first + 2,
 		HEALTH_HOST_PORT: first + 3,
+		PORT: first + 4,
+		HEALTH_PORT: first + 5,
+		WORKER_HEALTH_PORT: first + 6,
 	};
 };
 
@@ -515,11 +521,35 @@ const composeProjectRender = (text: string, name: string): string =>
 		.replace(/^name: app$/m, `name: ${name}`)
 		.replaceAll("-p app ", `-p ${name} `);
 
-const hostPortsRender = (text: string, name: string): string =>
-	Object.entries(hostPortsCreate(name)).reduce(
-		(rendered, [item, port]) =>
-			rendered.replace(new RegExp(`^${item}=\\d+$`, "m"), `${item}=${port}`),
-		text,
+// Which of hostPortsCreate's ports each env file sets; .env.schema keeps the production PORT and
+// HEALTH_PORT.
+const hostPortItems: Record<string, string[]> = {
+	".env.development": ["PORT", "HEALTH_PORT"],
+	".env.schema": [
+		"POSTGRES_HOST_PORT",
+		"REDIS_HOST_PORT",
+		"SERVER_HOST_PORT",
+		"HEALTH_HOST_PORT",
+	],
+};
+
+const hostPortsRender = (file: TemplateFile, name: string): string => {
+	const ports = hostPortsCreate(name);
+	return (hostPortItems[file.path] ?? []).reduce(
+		(rendered, item) =>
+			rendered.replace(
+				new RegExp(`^${item}=\\d+$`, "m"),
+				`${item}=${ports[item]}`,
+			),
+		file.text,
+	);
+};
+
+// The dev Worker's HEALTH_PORT, which the `dev` script sets in front of it.
+const workerHealthPortRender = (text: string, name: string): string =>
+	text.replace(
+		/HEALTH_PORT=9001 /,
+		`HEALTH_PORT=${hostPortsCreate(name).WORKER_HEALTH_PORT} `,
 	);
 
 export const templateFileRender = (
@@ -543,18 +573,20 @@ export const templateFileRender = (
 		delete manifest.version;
 		return {
 			path,
-			text: composeProjectRender(
-				`${JSON.stringify(manifest, null, "\t")}\n`,
+			text: workerHealthPortRender(
+				composeProjectRender(
+					`${JSON.stringify(manifest, null, "\t")}\n`,
+					answers.name,
+				),
 				answers.name,
 			),
 		};
 	}
-	const rendered =
-		path === ".env.schema"
-			? hostPortsRender(text, answers.name)
-			: path === "compose.yaml"
-				? composeProjectRender(text, answers.name)
-				: text;
+	const rendered = Object.hasOwn(hostPortItems, path)
+		? hostPortsRender(file, answers.name)
+		: path === "compose.yaml"
+			? composeProjectRender(text, answers.name)
+			: text;
 	if (!fooLineIs(rendered)) return { path, text: rendered };
 	const emptied = domainsPairsEmpty(rendered, path);
 	return { path, text: linesRemove(emptied, fooBlocksFind(emptied, path)) };
