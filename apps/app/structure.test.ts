@@ -222,7 +222,7 @@ describe("test placement", () => {
 				"src/env.ts",
 				"src/env.test.ts",
 				"src/server.ts",
-				"src/server-wiring.test.ts",
+				"src/server-open.test.ts",
 				"src/domains/bar/spi/bar-repository.postgres.ts",
 				"src/domains/bar/spi/bar-repository.postgres.test.ts",
 				"scripts/glossary-check.ts",

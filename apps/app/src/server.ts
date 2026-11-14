@@ -40,6 +40,7 @@ import {
 import { fooScopes } from "#domains/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
+import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
 import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
 import { domainsUseCasesCreate } from "./use-cases.ts";
@@ -62,13 +63,7 @@ const health = healthServerCreate({
 });
 // piece-start: ui
 if (import.meta.env.DEV) {
-	// Shutdown order: intakes, then resources, health last.
-	devRun.serverDevClose = async () => {
-		for (const step of [...connections.intakes, ...connections.resources]) {
-			await step.close();
-		}
-		await health.close();
-	};
+	devRun.serverDevClose = serverDevCloseCreate({ connections, health });
 }
 // piece-end: ui
 // domain-create: domains-start

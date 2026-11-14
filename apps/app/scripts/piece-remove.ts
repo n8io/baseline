@@ -276,7 +276,6 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"public",
 			"components.json",
 			"react-router.config.ts",
-			"src/server-hmr.test.ts",
 			"test/integration/csp-nonce.ts",
 			"test/integration/rollout-build.ts",
 			"test/integration/rollout.test.ts",

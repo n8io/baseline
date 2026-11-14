@@ -1,20 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-afterEach(() => {
-	vi.doUnmock("varlock/env");
-	vi.resetModules();
-});
-
-const envImport = (env: Record<string, string>) => {
-	vi.resetModules();
-	vi.doMock("varlock/env", () => ({ ENV: env }));
-	return import("./env.ts");
-};
-
-const memoryEnv = {
-	AUTHN_ISSUER_URL: "memory://",
-	DATABASE_URL: "memory://",
-};
+import { describe, expect, it } from "vitest";
+import { envMemoryRefused } from "./env.ts";
 
 describe("varlock setup file", () => {
 	it("loads .env.test into process.env and ENV in this worker", async () => {
@@ -26,30 +11,30 @@ describe("varlock setup file", () => {
 	});
 });
 
-describe("src/env.ts", () => {
-	it.each(["development", "test"])("allows memory:// in %s", async (appEnv) => {
-		const { envLocal } = await envImport({ ...memoryEnv, APP_ENV: appEnv });
-		expect(envLocal).toBe(true);
+describe("envMemoryRefused", () => {
+	const memory = {
+		AUTHN_ISSUER_URL: "memory://",
+		DATABASE_URL: "memory://",
+	};
+
+	it.each(["development", "test"])("allows memory:// in %s", (APP_ENV) => {
+		expect(envMemoryRefused({ ...memory, APP_ENV })).toEqual([]);
 	});
 
-	it("refuses memory:// in production, naming each item", async () => {
-		await expect(
-			envImport({
+	it("refuses memory:// in production, naming each item", () => {
+		expect(envMemoryRefused({ ...memory, APP_ENV: "production" })).toEqual([
+			"DATABASE_URL",
+			"AUTHN_ISSUER_URL",
+		]);
+	});
+
+	it("accepts real URLs in production", () => {
+		expect(
+			envMemoryRefused({
 				APP_ENV: "production",
-				AUTHN_ISSUER_URL: "memory://",
-				DATABASE_URL: "memory://",
+				AUTHN_ISSUER_URL: "https://issuer.example.com",
+				DATABASE_URL: "postgres://db.example.com/app",
 			}),
-		).rejects.toThrow(
-			"memory:// is allowed only in development and test: DATABASE_URL, AUTHN_ISSUER_URL",
-		);
-	});
-
-	it("accepts real URLs in production", async () => {
-		const { envLocal } = await envImport({
-			APP_ENV: "production",
-			AUTHN_ISSUER_URL: "https://issuer.example.com",
-			DATABASE_URL: "postgres://db.example.com/app",
-		});
-		expect(envLocal).toBe(false);
+		).toEqual([]);
 	});
 });

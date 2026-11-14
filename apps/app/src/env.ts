@@ -1,9 +1,11 @@
 import { ENV } from "varlock/env";
 
 // development and test may use memory adapters and committed values; production never does.
-export const envLocal = ENV.APP_ENV === "development" || ENV.APP_ENV === "test";
+const appEnvLocalIs = (appEnv: string | undefined): boolean =>
+	appEnv === "development" || appEnv === "test";
+export const envLocal = appEnvLocalIs(ENV.APP_ENV);
 
-// The one rule varlock can't express: memory:// only where envLocal is true.
+// The one rule varlock can't express: memory:// only where APP_ENV is development or test.
 const memoryNames = [
 	"DATABASE_URL",
 	// piece-start: redis
@@ -11,9 +13,16 @@ const memoryNames = [
 	// piece-end: redis
 	"AUTHN_ISSUER_URL",
 ] as const;
-const memoryRefused = envLocal
-	? []
-	: memoryNames.filter((name) => ENV[name] === "memory://");
+
+// The names that hold memory:// where that is refused.
+export const envMemoryRefused = (
+	env: Partial<Record<(typeof memoryNames)[number] | "APP_ENV", string>>,
+): string[] =>
+	appEnvLocalIs(env.APP_ENV)
+		? []
+		: memoryNames.filter((name) => env[name] === "memory://");
+
+const memoryRefused = envMemoryRefused(ENV);
 if (memoryRefused.length > 0) {
 	throw new Error(
 		`memory:// is allowed only in development and test: ${memoryRefused.join(", ")}`,

@@ -89,7 +89,7 @@ const guardFail = (what: string, res: Response) => {
 	);
 };
 
-// The guards src/server-wiring.test.ts proves on app.request, once more through
+// The guards test/integration/server-wiring.test.ts proves on the production build, once more through
 // @hono/node-server: the CSP and secure headers, 401 before a route reads the body, httpCsrf
 // on sign-in, and the __Host- session cookie.
 const apiGuardsRequire = async (url: string, openapi: Response) => {

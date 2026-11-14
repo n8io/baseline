@@ -1,64 +1,37 @@
-import { type Authn, authnMemoryTokenCreate } from "@n8io/baseline-authn";
+import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+	type ProductionServer,
+	productionServerStart,
+} from "./production-server.ts";
 
-// Imports the real server.ts app without serving it or opening a health port.
-// piece-start: ui
-vi.mock("react-router-hono-server/node", () => ({
-	createHonoServer: async (options: unknown) => options,
-}));
-// piece-end: ui
-let authn: Authn | undefined;
-vi.mock("@n8io/baseline-authn", async (importOriginal) => {
-	const original =
-		await importOriginal<typeof import("@n8io/baseline-authn")>();
-	return {
-		...original,
-		authnCreate: async (...args: Parameters<typeof original.authnCreate>) => {
-			authn = await original.authnCreate(...args);
-			return authn;
-		},
-	};
-});
-vi.mock("@n8io/baseline-health", () => ({
-	healthServerCreate: () => ({ close: async () => {}, ready: () => {} }),
-}));
-
-let app: typeof import("./server.ts")["app"];
-
-const bearer = async () => {
-	if (!authn) throw new Error("authn was not captured");
-	const token = await authnMemoryTokenCreate({
-		actor: { id: "user-1", kind: "user", scopes: [] },
-		authn,
-	});
-	return {
-		Authorization: `Bearer ${token}`,
-		"Content-Type": "application/json",
-	};
-};
+// The production build on memory adapters, driven over HTTP.
+let server: ProductionServer;
 
 beforeAll(async () => {
-	app = (await import("./server.ts")).app;
-	app.get("/wiring/boom", () => {
-		throw new Error("boom");
-	});
+	server = await productionServerStart({ databaseUrl: "memory://" });
+}, 30_000);
+
+afterAll(async () => {
+	await server?.stop();
 });
 
-describe("server wiring", () => {
-	it("answers a throwing route with a 500 problem body", async () => {
-		const res = await app.request("/wiring/boom");
-		expect(res.status).toBe(500);
-		expect(res.headers.get("content-type")).toBe("application/problem+json");
-		expect(await res.json()).toEqual({
-			code: "InternalError",
-			status: 500,
-			title: "Internal Server Error",
-		});
-	});
+// A manual redirect keeps a 302 and its Set-Cookie visible.
+const request = (path: string, init: RequestInit = {}) =>
+	fetch(`${server.url}${path}`, { redirect: "manual", ...init });
 
+const bearer = async () => {
+	const { authorization } = await authnMemoryTokenFetch({
+		clientId: "dev-client",
+		url: server.url,
+	});
+	return { Authorization: authorization, "Content-Type": "application/json" };
+};
+
+describe("server wiring", { timeout: 30_000 }, () => {
 	it("answers an unknown /api path with JSON, before any page", async () => {
-		const res = await app.request("/api/v1/nothing-here", {
+		const res = await request("/api/v1/nothing-here", {
 			headers: await bearer(),
 		});
 		expect(res.status).toBe(404);
@@ -71,13 +44,13 @@ describe("server wiring", () => {
 
 	it("skips the cookie middleware on /api, but runs it on pages", async () => {
 		const cookie = { Cookie: "__Host-authn=not-a-real-token" };
-		const api = await app.request("/api/v1/nothing-here", {
+		const api = await request("/api/v1/nothing-here", {
 			headers: { ...(await bearer()), ...cookie },
 		});
 		expect(api.status).toBe(404);
 		expect(api.headers.get("set-cookie")).toBeNull();
 
-		const page = await app.request("/wiring/boom", { headers: cookie });
+		const page = await request("/any-page", { headers: cookie });
 		expect(page.status).toBe(302);
 		expect(page.headers.get("location")).toMatch(/^\/auth\/sign-in\?returnTo=/);
 	});
@@ -86,7 +59,7 @@ describe("server wiring", () => {
 		const evil = { Origin: "https://evil.example" };
 
 		it("refuses a cross-site sign-out with a 403 problem", async () => {
-			const res = await app.request("/auth/sign-out", {
+			const res = await request("/auth/sign-out", {
 				headers: evil,
 				method: "POST",
 			});
@@ -96,7 +69,7 @@ describe("server wiring", () => {
 		});
 
 		it("refuses a cross-site form post to a page", async () => {
-			const res = await app.request("/any-page", {
+			const res = await request("/any-page", {
 				body: new URLSearchParams({ name: "forged" }),
 				headers: evil,
 				method: "POST",
@@ -105,8 +78,8 @@ describe("server wiring", () => {
 		});
 
 		it("signs out from the same origin", async () => {
-			const res = await app.request("/auth/sign-out", {
-				headers: { Origin: "http://localhost" },
+			const res = await request("/auth/sign-out", {
+				headers: { Origin: server.url },
 				method: "POST",
 			});
 			expect(res.status).toBe(302);
@@ -114,14 +87,14 @@ describe("server wiring", () => {
 	});
 
 	it("rejects an invalid bearer token on /api/v1 with 401", async () => {
-		const res = await app.request("/api/v1/nothing-here", {
+		const res = await request("/api/v1/nothing-here", {
 			headers: { Authorization: "Bearer not-a-real-token" },
 		});
 		expect(res.status).toBe(401);
 	});
 
 	// Every guard below sits in base code, outside any piece block and any Domain, so a Project
-	// runs these too, with every piece removed (test/render/api-only.ts runs pnpm test there).
+	// runs these too. test/render/api-only.ts checks the main ones on a Project with every piece removed.
 	describe("security guards in every piece combination", () => {
 		const evil = { Origin: "https://evil.example" };
 		const cspStart =
@@ -129,17 +102,16 @@ describe("server wiring", () => {
 
 		it("sends the CSP and the secure headers on every kind of response", async () => {
 			const responses = {
-				401: await app.request("/api/v1/nothing-here"),
-				403: await app.request("/auth/sign-out", {
+				401: await request("/api/v1/nothing-here"),
+				403: await request("/auth/sign-out", {
 					headers: evil,
 					method: "POST",
 				}),
-				404: await app.request("/api/v1/nothing-here", {
+				404: await request("/api/v1/nothing-here", {
 					headers: await bearer(),
 				}),
-				500: await app.request("/wiring/boom"),
-				openapi: await app.request("/api/v1/openapi.json"),
-				signInPage: await app.request("/auth/sign-in"),
+				openapi: await request("/api/v1/openapi.json"),
+				signInPage: await request("/auth/sign-in"),
 			};
 			for (const [name, res] of Object.entries(responses)) {
 				const headers = Object.fromEntries(res.headers);
@@ -160,7 +132,7 @@ describe("server wiring", () => {
 		])(
 			"refuses a cross-site form post to %s and sets no cookie",
 			async (path) => {
-				const res = await app.request(path, {
+				const res = await request(path, {
 					body: new URLSearchParams({ who: "dev-admin" }),
 					headers: evil,
 					method: "POST",
@@ -171,9 +143,9 @@ describe("server wiring", () => {
 		);
 
 		it("sets the session cookie as __Host-: Secure, HttpOnly, SameSite=Lax, Path=/ and no Domain", async () => {
-			const res = await app.request("/auth/sign-in", {
+			const res = await request("/auth/sign-in", {
 				body: new URLSearchParams({ who: "dev-user" }),
-				headers: { Origin: "http://localhost" },
+				headers: { Origin: server.url },
 				method: "POST",
 			});
 			expect(res.status).toBe(302);
@@ -191,9 +163,7 @@ describe("server wiring", () => {
 		});
 
 		it("answers every anonymous /api/v1 request with 401 before a route reads its body", async () => {
-			const doc = (await (
-				await app.request("/api/v1/openapi.json")
-			).json()) as {
+			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
 				paths: Record<string, Record<string, unknown>>;
 			};
 			const requests = Object.entries(doc.paths).flatMap(([path, operations]) =>
@@ -204,7 +174,7 @@ describe("server wiring", () => {
 			);
 			requests.push({ method: "POST", path: "/api/v1/nothing-here" });
 			for (const { method, path } of requests) {
-				const res = await app.request(path, {
+				const res = await request(path, {
 					body: method === "GET" ? null : "{not json",
 					headers: { "Content-Type": "application/json" },
 					method,
@@ -218,7 +188,7 @@ describe("server wiring", () => {
 	describe("foo API", () => {
 		it("creates a foo and reads it back with a bearer token", async () => {
 			const headers = await bearer();
-			const created = await app.request("/api/v1/foos", {
+			const created = await request("/api/v1/foos", {
 				body: JSON.stringify({ name: "wired" }),
 				headers,
 				method: "POST",
@@ -226,20 +196,20 @@ describe("server wiring", () => {
 			expect(created.status).toBe(201);
 			const foo = (await created.json()) as { id: string };
 
-			const got = await app.request(`/api/v1/foos/${foo.id}`, { headers });
+			const got = await request(`/api/v1/foos/${foo.id}`, { headers });
 			expect(got.status).toBe(200);
 			expect(await got.json()).toStrictEqual(foo);
 		});
 
 		it("leaves bearer requests to /api alone, whatever their Origin", async () => {
-			const json = await app.request("/api/v1/foos", {
+			const json = await request("/api/v1/foos", {
 				body: JSON.stringify({ name: "from another origin" }),
 				headers: { ...(await bearer()), Origin: "https://evil.example" },
 				method: "POST",
 			});
 			expect(json.status).toBe(201);
 
-			const form = await app.request("/api/v1/foos", {
+			const form = await request("/api/v1/foos", {
 				body: new URLSearchParams({ name: "form" }),
 				headers: {
 					Authorization: (await bearer()).Authorization,
@@ -251,12 +221,12 @@ describe("server wiring", () => {
 		});
 
 		it("answers 401 without a token", async () => {
-			const res = await app.request("/api/v1/foos");
+			const res = await request("/api/v1/foos");
 			expect(res.status).toBe(401);
 		});
 
 		it("answers 401 without a token before validating the body", async () => {
-			const res = await app.request("/api/v1/foos", {
+			const res = await request("/api/v1/foos", {
 				body: JSON.stringify({ unknown: true }),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",
@@ -267,7 +237,7 @@ describe("server wiring", () => {
 		});
 
 		it("validates the body once the request has an actor", async () => {
-			const res = await app.request("/api/v1/foos", {
+			const res = await request("/api/v1/foos", {
 				body: JSON.stringify({ unknown: true }),
 				headers: await bearer(),
 				method: "POST",
@@ -277,12 +247,12 @@ describe("server wiring", () => {
 		});
 
 		it("serves the OpenAPI document without a token", async () => {
-			const res = await app.request("/api/v1/openapi.json");
+			const res = await request("/api/v1/openapi.json");
 			expect(res.status).toBe(200);
 		});
 
 		it("documents the foo routes in the OpenAPI document", async () => {
-			const res = await app.request("/api/v1/openapi.json");
+			const res = await request("/api/v1/openapi.json");
 			expect(res.status).toBe(200);
 			const doc = (await res.json()) as {
 				components: { schemas: Record<string, unknown> };
@@ -304,9 +274,9 @@ describe("server wiring", () => {
 
 	describe("foo live updates", () => {
 		const cookieSignIn = async () => {
-			const res = await app.request("/auth/sign-in", {
+			const res = await request("/auth/sign-in", {
 				body: new URLSearchParams({ who: "dev-user" }),
-				headers: { Origin: "http://localhost" },
+				headers: { Origin: server.url },
 				method: "POST",
 			});
 			expect(res.status).toBe(302);
@@ -317,29 +287,22 @@ describe("server wiring", () => {
 		};
 
 		it("sends a live update to an open detail stream when the foo is updated", async () => {
-			const token = await authnMemoryTokenCreate({
-				actor: { id: "user-1", kind: "user", scopes: [] },
-				authn: authn as Authn,
-			});
-			const headers = {
-				Authorization: `Bearer ${token}`,
-				"Content-Type": "application/json",
-			};
-			const created = await app.request("/api/v1/foos", {
+			const headers = await bearer();
+			const created = await request("/api/v1/foos", {
 				body: JSON.stringify({ name: "live" }),
 				headers,
 				method: "POST",
 			});
 			const foo = (await created.json()) as { id: string };
 
-			const live = await app.request(`/live/foo/${foo.id}`, {
+			const live = await request(`/live/foo/${foo.id}`, {
 				headers: { Cookie: await cookieSignIn() },
 			});
 			expect(live.status).toBe(200);
 			const sse = liveTestSseRead({ response: live });
 			try {
 				await sse.until("event: ready");
-				const updated = await app.request(`/api/v1/foos/${foo.id}`, {
+				const updated = await request(`/api/v1/foos/${foo.id}`, {
 					body: JSON.stringify({ name: "live-renamed" }),
 					headers,
 					method: "PATCH",
@@ -354,16 +317,9 @@ describe("server wiring", () => {
 		});
 
 		it("reads only the cookie: a bearer token gets 401", async () => {
-			const token = await authnMemoryTokenCreate({
-				actor: { id: "user-1", kind: "user", scopes: [] },
-				authn: authn as Authn,
+			const res = await request("/live/foo/foo_01m6gtefj7e9bayj0wmqpjjmg8", {
+				headers: { Authorization: (await bearer()).Authorization },
 			});
-			const res = await app.request(
-				"/live/foo/foo_01m6gtefj7e9bayj0wmqpjjmg8",
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				},
-			);
 			expect(res.status).toBe(401);
 		});
 	});

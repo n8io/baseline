@@ -215,7 +215,6 @@ describe("templateFileRender", () => {
 			"src/ui/routes/foo-list.test.ts",
 			"src/ui/routes/home.tsx",
 			"src/ui/routes/home.test.ts",
-			"src/server-seed.test.ts",
 			"test/integration/foo-live.test.ts",
 			"migrations/20261103125512_foo_create/migration.sql",
 			"CHANGELOG.md",

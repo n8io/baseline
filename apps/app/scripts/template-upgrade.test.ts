@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
@@ -17,9 +17,22 @@ import {
 	workspaceExcludesDedupe,
 } from "./template-upgrade.ts";
 
-afterEach(() => {
-	vi.restoreAllMocks();
-});
+// What the run says and which package scripts it runs, in place of the console and pnpm.
+const runCapture = () => {
+	const errors: string[] = [];
+	const logs: string[] = [];
+	const scripts: string[] = [];
+	return {
+		errors,
+		logs,
+		output: {
+			error: (line: string) => errors.push(line),
+			log: (line: string) => logs.push(line),
+		},
+		pnpm: (script: string) => scripts.push(script),
+		scripts,
+	};
+};
 
 const git = (cwd: string, ...args: string[]) =>
 	execFileSync("git", args, { cwd, encoding: "utf8" });
@@ -78,11 +91,15 @@ describe("templateUpgradeRun", () => {
 	it("merges the template's change into the project's own edits, without committing", async () => {
 		using folder = projectCreate("ONE\ntwo\nthree\nfour\nfive\n");
 		const app = folder.path;
-		const pnpm = vi.fn();
-		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+		const run = runCapture();
 
 		expect(
-			await templateUpgradeRun({ appDirectory: app, to: "1.1.0", tools, pnpm }),
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				tools,
+				...run,
+			}),
 		).toBe(0);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toBe(
 			"ONE\ntwo\nthree\n4\nfive\n",
@@ -94,54 +111,53 @@ describe("templateUpgradeRun", () => {
 			JSON.parse(readFileSync(join(app, ".template.json"), "utf8")).release,
 		).toBe("1.1.0");
 		expect(git(app, "rev-list", "--count", "HEAD").trim()).toBe("1");
-		expect(pnpm.mock.calls.map(([s]) => s)).toEqual([
-			"install",
-			"format",
-			"check",
-			"test",
-		]);
-		expect(log.mock.calls.flat().join("\n")).toContain("- Four is 4.");
+		expect(run.scripts).toEqual(["install", "format", "check", "test"]);
+		expect(run.logs.join("\n")).toContain("- Four is 4.");
 	});
 
 	it("exits before the checks when the project is already on the target release", async () => {
 		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
 		const app = folder.path;
-		const pnpm = vi.fn();
-		const log = vi.spyOn(console, "log").mockImplementation(() => {});
+		const run = runCapture();
 
 		expect(
-			await templateUpgradeRun({ appDirectory: app, to: "1.0.0", tools, pnpm }),
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.0.0",
+				tools,
+				...run,
+			}),
 		).toBe(0);
-		expect(log.mock.calls.flat().join("\n")).toContain(
+		expect(run.logs.join("\n")).toContain(
 			"already on release 1.0.0; nothing to upgrade",
 		);
-		expect(pnpm).not.toHaveBeenCalled();
+		expect(run.scripts).toEqual([]);
 		expect(git(app, "status", "--porcelain")).toBe("");
 	});
 
 	it("leaves conflict markers and exits 1 when both sides changed the same line", async () => {
 		using folder = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
 		const app = folder.path;
-		const pnpm = vi.fn();
-		vi.spyOn(console, "log").mockImplementation(() => {});
-		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const run = runCapture();
 
 		expect(
-			await templateUpgradeRun({ appDirectory: app, to: "1.1.0", tools, pnpm }),
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				tools,
+				...run,
+			}),
 		).toBe(1);
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toMatch(
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
-		expect(error.mock.calls.flat().join("\n")).toContain(
-			"conflicts in src/a.ts",
-		);
-		expect(pnpm).not.toHaveBeenCalled();
+		expect(run.errors.join("\n")).toContain("conflicts in src/a.ts");
+		expect(run.scripts).toEqual([]);
 	});
 
 	it("renders a release with that release's own render code", async () => {
 		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
 		const app = folder.path;
-		vi.spyOn(console, "log").mockImplementation(() => {});
 		const own = {
 			path: "scripts/template-render.ts",
 			text: 'export const templateFilesRender = (files) => [...files.filter((f) => f.path !== "scripts/template-render.ts"), { path: "src/own.ts", text: "own\\n" }];\n',
@@ -159,7 +175,7 @@ describe("templateUpgradeRun", () => {
 				appDirectory: app,
 				to: "1.2.0",
 				tools: withOwn,
-				pnpm: vi.fn(),
+				...runCapture(),
 			}),
 		).toBe(0);
 		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("own\n");
@@ -169,19 +185,17 @@ describe("templateUpgradeRun", () => {
 		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
 		const app = folder.path;
 		writeFileSync(join(app, "src/a.ts"), "dirty\n");
-		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const run = runCapture();
 
 		expect(
 			await templateUpgradeRun({
 				appDirectory: app,
 				to: "1.1.0",
 				tools,
-				pnpm: vi.fn(),
+				...run,
 			}),
 		).toBe(1);
-		expect(error.mock.calls.flat().join("\n")).toContain(
-			"working tree has changes",
-		);
+		expect(run.errors.join("\n")).toContain("working tree has changes");
 	});
 });
 
