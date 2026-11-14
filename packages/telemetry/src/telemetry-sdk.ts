@@ -134,7 +134,7 @@ const exportSuccess = 0;
 
 let exportFailed = false;
 
-// Notes a failed export, so telemetryShutdown can say so; the exporters drop failures quietly.
+// Notes a failed export, so telemetryShutdown can say so; the exporters report failures to no one.
 const exportWatch = <
 	T extends {
 		export(
@@ -325,7 +325,7 @@ export const telemetryShutdown = async (): Promise<void> => {
 	);
 	if (!shutDown || exportFailed) {
 		process.emitWarning(
-			`Telemetry: the final export to ${endpointRead()} failed or timed out; unsent telemetry was dropped.`,
+			`Telemetry: the final export to ${endpointRead()} failed or timed out; unsent telemetry was lost.`,
 		);
 	}
 };
