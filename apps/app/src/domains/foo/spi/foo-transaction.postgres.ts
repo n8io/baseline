@@ -26,7 +26,7 @@ export const fooTransactionPostgresCreate = (
 	(async <T, E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
 		// piece-start: queue
-		inbox?: Inbox,
+		inbox?: Inbox | null,
 		// piece-end: queue
 	) => {
 		// piece-start: queue

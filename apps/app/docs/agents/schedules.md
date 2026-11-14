@@ -57,10 +57,13 @@ It handles everything due as of now, not a fixed batch: one run must catch up on
 ```ts
 // src/domains/bar/use-cases/bar-stale-archive.ts
 export const barStaleArchive =
-	({ barTransaction }: Pick<BarPorts, "barTransaction">) =>
+	({
+		barClock,
+		barTransaction,
+	}: Pick<BarPorts, "barClock" | "barTransaction">) =>
 	(_actor: Actor): Promise<Result<number, never>> =>
 		barTransaction(async ({ barRepository }) => {
-			const now = new Date();
+			const now = barClock.now();
 			return ok(await barRepository.archiveStale(barStaleBefore(now), now));
 		});
 ```

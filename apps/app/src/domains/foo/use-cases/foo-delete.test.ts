@@ -52,6 +52,25 @@ describe("fooDelete", () => {
 		expect(state.foos.has(foo.id)).toBe(false);
 	});
 
+	it("deletes and publishes once when deleted twice (memory transactions run one at a time)", async () => {
+		const { ports, state, foo } = await setup();
+		const results = await Promise.all([
+			fooDelete(ports)(owner, { fooId: foo.id }),
+			fooDelete(ports)(owner, { fooId: foo.id }),
+		]);
+
+		expect(results).toEqual([
+			{ ok: true, value: undefined },
+			err(new FooNotFoundError(foo.id)),
+		]);
+		expect(state.foos.has(foo.id)).toBe(false);
+		// piece-start: queue
+		expect(
+			state.published.filter((event) => event.name === "foo.deleted"),
+		).toEqual([{ data: { fooId: foo.id }, key: foo.id, name: "foo.deleted" }]);
+		// piece-end: queue
+	});
+
 	it("returns FooNotFoundError for an unknown id", async () => {
 		const { ports } = await setup();
 		const result = await fooDelete(ports)(owner, { fooId: idCreate("foo") });

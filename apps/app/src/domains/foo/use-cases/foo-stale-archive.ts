@@ -6,9 +6,12 @@ import { fooStaleBefore } from "../rules/foo-stale-is.ts";
 // The schedule's use case: archives every foo that is stale as of now and returns how many.
 // `actor` is unused but required, so every caller states who is asking.
 export const fooStaleArchive =
-	({ fooTransaction }: Pick<FooPorts, "fooTransaction">) =>
+	({
+		fooClock,
+		fooTransaction,
+	}: Pick<FooPorts, "fooClock" | "fooTransaction">) =>
 	(_actor: Actor): Promise<Result<number, never>> =>
 		fooTransaction(async ({ fooRepository }) => {
-			const now = new Date();
+			const now = fooClock.now();
 			return ok(await fooRepository.archiveStale(fooStaleBefore(now), now));
 		});

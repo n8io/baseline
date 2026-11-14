@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { cursorDecode, cursorEncode } from "../../../cursor.ts";
-import { FooNameTakenError } from "../foo-errors.ts";
+import { FooNameTakenError, FooNotFoundError } from "../foo-errors.ts";
 import type { Foo } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
 import { foo } from "./foo-table.ts";
@@ -42,10 +42,22 @@ export const fooRepositoryPostgresCreate = (
 		return archived.length;
 	},
 	delete: async (id) => {
-		await db.delete(foo).where(eq(foo.id, id));
+		const deleted = await db
+			.delete(foo)
+			.where(eq(foo.id, id))
+			.returning({ id: foo.id });
+		return deleted.length > 0 ? ok(undefined) : err(new FooNotFoundError(id));
 	},
 	findById: async (id) => {
 		const [row] = await db.select().from(foo).where(eq(foo.id, id));
+		return row && fooFromRow(row);
+	},
+	findByIdForUpdate: async (id) => {
+		const [row] = await db
+			.select()
+			.from(foo)
+			.where(eq(foo.id, id))
+			.for("update");
 		return row && fooFromRow(row);
 	},
 	insert: async (value) => {
@@ -107,7 +119,8 @@ export const fooRepositoryPostgresCreate = (
 				.set(value)
 				.where(eq(foo.id, value.id))
 				.returning();
-			if (!row) throw new Error(`Foo ${value.id} to update does not exist`);
+			// Deleted since it was read.
+			if (!row) return err(new FooNotFoundError(value.id));
 			return ok(fooFromRow(row));
 		} catch (error) {
 			if (postgresUniqueViolationIs(error, "foo_name_key")) {

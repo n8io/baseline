@@ -19,12 +19,14 @@ export const fooTransactionMemoryCreate = (
 	const run = async <E>(
 		work: (ports: FooTransactionPorts) => Promise<Result<unknown, E>>,
 		// piece-start: queue
-		inbox?: Inbox,
+		inbox?: Inbox | null,
 		// piece-end: queue
 	): Promise<Result<unknown, E>> => {
 		// piece-start: queue
 		// An inbox seen before skips the work and returns ok; events reach state.published on commit.
-		const inboxKey = inbox && JSON.stringify([inbox.consumer, inbox.eventId]);
+		const inboxKey = inbox
+			? JSON.stringify([inbox.consumer, inbox.eventId])
+			: undefined;
 		if (inboxKey !== undefined && state.inbox.has(inboxKey)) {
 			return ok(undefined);
 		}

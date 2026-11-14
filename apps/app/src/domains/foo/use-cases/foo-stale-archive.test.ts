@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Foo } from "../models/foo.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooStaleArchive } from "./foo-stale-archive.ts";
@@ -27,16 +27,9 @@ const fooAt = ({
 });
 
 describe("fooStaleArchive", () => {
-	beforeEach(() => {
-		vi.useFakeTimers();
-		vi.setSystemTime(now);
-	});
-	afterEach(() => {
-		vi.useRealTimers();
-	});
-
 	it("archives only unarchived foos older than 30 days and returns the count", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
+		const { clock, ports, state } = fooPortsMemoryCreate();
+		clock.set(now);
 		const old = fooAt({
 			name: "old",
 			updatedAt: daysAgo(31),

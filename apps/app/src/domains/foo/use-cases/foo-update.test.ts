@@ -9,6 +9,7 @@ import {
 } from "../foo-errors.ts";
 import { fooPortsMemoryCreate } from "../spi/foo-ports.memory.ts";
 import { fooCreate } from "./foo-create.ts";
+import { fooDelete } from "./foo-delete.ts";
 import { fooGet } from "./foo-get.ts";
 import { fooUpdate } from "./foo-update.ts";
 
@@ -41,6 +42,37 @@ describe("fooUpdate", () => {
 			ok: true,
 			value: expect.objectContaining({ name: "beta" }),
 		});
+	});
+
+	it("stamps updatedAt from the clock", async () => {
+		const { clock, ports, foo } = await setup();
+		clock.advance(60_000);
+
+		const result = await fooUpdate(ports)(owner, {
+			fooId: foo.id,
+			name: "beta",
+		});
+
+		expect(result).toEqual({
+			ok: true,
+			value: {
+				...foo,
+				name: "beta",
+				updatedAt: new Date(foo.createdAt.getTime() + 60_000),
+			},
+		});
+	});
+
+	it("answers FooNotFoundError after a delete (memory transactions run one at a time)", async () => {
+		const { ports, foo } = await setup();
+
+		const [deleted, updated] = await Promise.all([
+			fooDelete(ports)(owner, { fooId: foo.id }),
+			fooUpdate(ports)(owner, { fooId: foo.id, name: "beta" }),
+		]);
+
+		expect(deleted.ok).toBe(true);
+		expect(updated).toEqual(err(new FooNotFoundError(foo.id)));
 	});
 
 	it("forbids a stranger and changes nothing", async () => {

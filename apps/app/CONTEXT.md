@@ -34,6 +34,10 @@ _Avoid_: Contract, gateway
 The port that saves and loads one aggregate. Each aggregate root has exactly one, named after it; a supporting model is saved through its root's repository.
 _Avoid_: DAO, data mapper
 
+**Clock**:
+The port a domain reads the current time from (`<domain>Clock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
+_Avoid_: Time provider, now function
+
 **SPI**:
 The layer of adapters that implement ports with real technology. It holds no business rules. Domain code depends on ports, never on the SPI.
 _Avoid_: Infrastructure, providers, drivers

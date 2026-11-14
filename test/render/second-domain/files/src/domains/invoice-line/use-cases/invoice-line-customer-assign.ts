@@ -21,10 +21,14 @@ export const invoiceLineCustomerAssign =
 	({
 		invoiceLineTransaction,
 		invoiceLineCache,
+		invoiceLineClock,
 		invoiceLineCustomerReader,
 	}: Pick<
 		InvoiceLinePorts,
-		"invoiceLineTransaction" | "invoiceLineCache" | "invoiceLineCustomerReader"
+		| "invoiceLineTransaction"
+		| "invoiceLineCache"
+		| "invoiceLineClock"
+		| "invoiceLineCustomerReader"
 	>) =>
 	async (
 		actor: Actor,
@@ -49,7 +53,7 @@ export const invoiceLineCustomerAssign =
 			| InvoiceLineNameTakenError
 			| InvoiceLineForbiddenError
 		>(async ({ invoiceLineRepository }) => {
-			const invoiceLine = await invoiceLineRepository.findById(
+			const invoiceLine = await invoiceLineRepository.findByIdForUpdate(
 				input.invoiceLineId,
 			);
 			if (!invoiceLine)
@@ -60,7 +64,7 @@ export const invoiceLineCustomerAssign =
 			return invoiceLineRepository.update({
 				...invoiceLine,
 				customerId: input.customerId,
-				updatedAt: new Date(),
+				updatedAt: invoiceLineClock.now(),
 			});
 		});
 		if (result.ok) await invoiceLineCache.delete(input.invoiceLineId);

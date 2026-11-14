@@ -23,7 +23,8 @@ export const fooUpdate =
 			Foo,
 			FooNotFoundError | FooNameTakenError | FooForbiddenError
 		>(async ({ fooRepository }) => {
-			const foo = await fooRepository.findById(input.fooId);
+			// Locks the row: a concurrent write waits until this commits instead of being undone.
+			const foo = await fooRepository.findByIdForUpdate(input.fooId);
 			if (!foo) return err(new FooNotFoundError(input.fooId));
 			if (!fooUpdateCan(foo, actor)) {
 				return err(new FooForbiddenError(input.fooId));
@@ -31,7 +32,7 @@ export const fooUpdate =
 			return fooRepository.update({
 				...foo,
 				name: input.name,
-				updatedAt: new Date(),
+				updatedAt: ports.fooClock.now(),
 			});
 		});
 		// After commit, outside the callback.

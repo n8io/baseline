@@ -117,6 +117,14 @@ describe("architecture", () => {
 		expect(architectureRules.A25?.([route])).toEqual([]);
 	});
 
+	it("A26 lets a Use case build a Date from a value", async () => {
+		const useCase = await architectureFileCreate(
+			"src/domains/bar/use-cases/bar-close.ts",
+			"export const barClose = (ports: { barClock: { now(): Date } }) => ({\n\tclosedAt: ports.barClock.now(),\n\tdueAt: new Date(ports.barClock.now().getTime() + 1),\n});\n",
+		);
+		expect(architectureRules.A26?.([useCase])).toEqual([]);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(

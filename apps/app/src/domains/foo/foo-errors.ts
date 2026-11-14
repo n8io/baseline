@@ -19,12 +19,13 @@ export class FooNameTakenError extends Error {
 	}
 }
 
+// No fooId when the Actor may not create a foo at all.
 export class FooForbiddenError extends Error {
 	readonly type = "FooForbidden";
-	readonly fooId: Id<"foo">;
-	constructor(fooId: Id<"foo">) {
-		super(`Not allowed to change foo ${fooId}`);
-		this.fooId = fooId;
+	readonly fooId: Id<"foo"> | null;
+	constructor(fooId?: Id<"foo"> | null) {
+		super(fooId ? `Not allowed to change foo ${fooId}` : "Not allowed");
+		this.fooId = fooId ?? null;
 	}
 }
 

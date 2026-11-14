@@ -816,4 +816,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						`${f.path}: ${m[1]}.openapi( is called on a schema imported from models/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
 				);
 			}),
+
+	// The time comes from the Clock port, so a test sets it instead of faking timers.
+	A26: (files) =>
+		textCheck({
+			files,
+			fileIs: (f) => layerOf(f.path) === "use-cases" && !testIs(f.path),
+			pattern: /\bnew Date\(\s*\)|\bDate\.now\(\s*\)/g,
+			reason: (m) =>
+				`${m[0]} reads the system time in a Use case; read <domain>Clock.now() from the ports, so a test sets the time`,
+		}),
 };
