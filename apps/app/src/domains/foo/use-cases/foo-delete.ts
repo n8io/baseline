@@ -17,12 +17,16 @@ export const fooDelete =
 			void,
 			FooNotFoundError | FooForbiddenError
 		>(async (transaction) => {
-			const foo = await transaction.fooRepository.findById(input.fooId);
+			// Locks the row, so a concurrent delete waits and then finds nothing.
+			const foo = await transaction.fooRepository.findByIdForUpdate(
+				input.fooId,
+			);
 			if (!foo) return err(new FooNotFoundError(input.fooId));
 			if (!fooDeleteCan(foo, actor)) {
 				return err(new FooForbiddenError(input.fooId));
 			}
-			await transaction.fooRepository.delete(foo.id);
+			const deleted = await transaction.fooRepository.delete(foo.id);
+			if (!deleted.ok) return deleted;
 			// piece-start: queue
 			await transaction.fooEvents.publish({
 				data: { fooId: foo.id },

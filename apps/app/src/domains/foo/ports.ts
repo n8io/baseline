@@ -1,7 +1,8 @@
 import type { Id } from "@n8io/baseline-id";
 import type { Inbox } from "@n8io/baseline-queue";
 import type { Result } from "@n8io/baseline-result";
-import type { FooNameTakenError } from "./foo-errors.ts";
+import type { Clock } from "../../clock.ts";
+import type { FooNameTakenError, FooNotFoundError } from "./foo-errors.ts";
 import type { Foo, FooEventMap, FooList, FooListInput } from "./models/foo.ts";
 
 export type FooReadRepository = {
@@ -9,11 +10,20 @@ export type FooReadRepository = {
 	list(input: FooListInput): Promise<FooList>;
 };
 
+// Each write names only the errors it can return.
+export type FooRepositoryInsertError = FooNameTakenError;
+export type FooRepositoryUpdateError = FooNameTakenError | FooNotFoundError;
+export type FooRepositoryDeleteError = FooNotFoundError;
+
 // Writes happen only through this, and only fooTransaction hands it out.
 export type FooRepository = FooReadRepository & {
-	insert(foo: Foo): Promise<Result<Foo, FooNameTakenError>>;
-	update(foo: Foo): Promise<Result<Foo, FooNameTakenError>>;
-	delete(id: Id<"foo">): Promise<void>;
+	// Reads like findById and locks the row until the transaction ends: read through this before
+	// a write that depends on what was read, so a concurrent write waits instead of being undone.
+	findByIdForUpdate(id: Id<"foo">): Promise<Foo | undefined>;
+	insert(foo: Foo): Promise<Result<Foo, FooRepositoryInsertError>>;
+	// A row deleted since it was read answers FooNotFoundError, never a throw.
+	update(foo: Foo): Promise<Result<Foo, FooRepositoryUpdateError>>;
+	delete(id: Id<"foo">): Promise<Result<void, FooRepositoryDeleteError>>;
 	// Archives every foo with updatedAt < before and archivedAt null; returns how many.
 	archiveStale(before: Date, now: Date): Promise<number>;
 };
@@ -33,19 +43,16 @@ export type FooTransactionPorts = {
 	// piece-end: queue
 };
 
-// Commits when the work returns ok, rolls back on err or a throw.
-export type FooTransaction = {
-	<T, E>(
-		work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
-	): Promise<Result<T, E>>;
+// Commits when the work returns ok, rolls back on err or a throw. One signature, so explicit
+// type arguments work with an inbox too: fooTransaction<void, never>(work, inbox).
+export type FooTransaction = <T, E>(
+	work: (ports: FooTransactionPorts) => Promise<Result<T, E>>,
 	// piece-start: queue
-	// With an inbox, a repeat skips the work and returns ok.
-	<E>(
-		work: (ports: FooTransactionPorts) => Promise<Result<void, E>>,
-		inbox: Inbox,
-	): Promise<Result<void, E>>;
+	// A repeated inbox skips the work and returns ok(undefined), so only work whose value may be
+	// undefined takes one.
+	inbox?: [undefined] extends [T] ? Inbox | null : null,
 	// piece-end: queue
-};
+) => Promise<Result<T, E>>;
 
 export type FooPorts = {
 	// piece-start: analytics
@@ -66,6 +73,8 @@ export type FooPorts = {
 		delete(id: Id<"foo">): Promise<void>;
 	};
 	// piece-end: cache
+	// Every Use case reads the time here, never from new Date().
+	fooClock: Clock;
 	// piece-start: live
 	// Best effort and never throws; call it after commit with no catch.
 	fooLiveUpdates: {

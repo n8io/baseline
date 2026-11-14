@@ -1,0 +1,6 @@
+// A26: a Use case reads the time from its Clock port, never new Date() or Date.now()
+// expect: src/domains/bar/use-cases/bar-close.ts: Date.now() reads the system time in a Use case
+// @file src/domains/bar/use-cases/bar-close.ts
+import { ok } from "@n8io/baseline-result";
+
+export const barClose = () => ok({ closedAt: Date.now() });

@@ -72,11 +72,11 @@ index 551c8e5..e12079f 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/domains/invoice-line/ports.ts b/src/domains/invoice-line/ports.ts
-index 6afaf80..a96f180 100644
+index 87ae69e..9baaadc 100644
 --- a/src/domains/invoice-line/ports.ts
 +++ b/src/domains/invoice-line/ports.ts
-@@ -25,6 +25,14 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
- 	delete(id: Id<"invoice_line">): Promise<void>;
+@@ -42,6 +42,14 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
+ 	): Promise<Result<void, InvoiceLineRepositoryDeleteError>>;
  	// Archives every invoice line with updatedAt < before and archivedAt null; returns how many.
  	archiveStale(before: Date, now: Date): Promise<number>;
 +	// Removes the customer from every invoice line naming it; returns how many.
@@ -90,15 +90,15 @@ index 6afaf80..a96f180 100644
  };
  
  // No invoiceLineTransaction here: transactions do not nest.
-@@ -75,6 +83,7 @@ export type InvoiceLinePorts = {
+@@ -99,6 +107,7 @@ export type InvoiceLinePorts = {
  		delete(id: Id<"invoice_line">): Promise<void>;
  	};
  	// piece-end: cache
 +	invoiceLineCustomerReader: InvoiceLineCustomerReader;
+ 	// Every Use case reads the time here, never from new Date().
+ 	invoiceLineClock: Clock;
  	// piece-start: live
- 	// Best effort and never throws; call it after commit with no catch.
- 	invoiceLineLiveUpdates: {
-@@ -87,3 +96,9 @@ export type InvoiceLinePorts = {
+@@ -113,3 +122,9 @@ export type InvoiceLinePorts = {
  	invoiceLineReadRepository: InvoiceLineReadRepository;
  	invoiceLineTransaction: InvoiceLineTransaction;
  };
@@ -158,12 +158,12 @@ index 935034b..633ae6e 100644
  		const now = new Date();
  		const invoiceLine = {
 diff --git a/src/domains/invoice-line/spi/index.ts b/src/domains/invoice-line/spi/index.ts
-index 91ec995..7b3ec3d 100644
+index 58f3203..59fe763 100644
 --- a/src/domains/invoice-line/spi/index.ts
 +++ b/src/domains/invoice-line/spi/index.ts
-@@ -1,16 +1,20 @@
- import type { Events } from "@n8io/baseline-queue";
+@@ -2,16 +2,20 @@ import type { Events } from "@n8io/baseline-queue";
  import { drizzle } from "drizzle-orm/node-postgres";
+ import { clockSystemCreate } from "../../../clock.ts";
  import type { Connections } from "../../../connections.ts";
 -import type { InvoiceLinePorts } from "../ports.ts";
 +import type { InvoiceLinePorts, InvoiceLineReaders } from "../ports.ts";
@@ -184,40 +184,40 @@ index 91ec995..7b3ec3d 100644
  ): InvoiceLinePorts => {
  	const { database } = connections;
  	// piece-start: queue
-@@ -48,6 +52,7 @@ export const invoiceLinePortsCreate = (
- 		// piece-start: cache
+@@ -50,6 +54,7 @@ export const invoiceLinePortsCreate = (
  		invoiceLineCache: invoiceLineCacheCreate(connections.cacheStore),
  		// piece-end: cache
+ 		invoiceLineClock: clockSystemCreate(),
 +		invoiceLineCustomerReader: readers.invoiceLineCustomerReader,
  		invoiceLineReadRepository: repository.invoiceLineReadRepository,
  		invoiceLineTransaction: repository.invoiceLineTransaction,
  		// piece-start: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-index b35f8d6..7c02995 100644
+index 36fe489..bab11fe 100644
 --- a/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-ports.memory.ts
-@@ -1,6 +1,7 @@
- import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
+@@ -2,6 +2,7 @@ import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
+ import { type ClockMemory, clockMemoryCreate } from "../../../clock.ts";
  import type { InvoiceLinePorts } from "../ports.ts";
  import { invoiceLineCacheCreate } from "./invoice-line-cache.ts";
 +import { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";
  import {
  	type InvoiceLineMemoryState,
  	invoiceLineMemoryStateCreate,
-@@ -24,6 +25,8 @@ export const invoiceLinePortsMemoryCreate = (): {
- 			// piece-start: cache
+@@ -29,6 +30,8 @@ export const invoiceLinePortsMemoryCreate = (): {
  			invoiceLineCache: invoiceLineCacheCreate(cacheStoreMemoryCreate()),
  			// piece-end: cache
+ 			invoiceLineClock: clock,
 +			// Knows no customer; a test that needs one passes a fake that does.
 +			invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate(),
  			// piece-start: live
  			invoiceLineLiveUpdates: { send: async () => undefined },
  			// piece-end: live
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-index 2b0f390..2ed2915 100644
+index 9f63171..63ce495 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.memory.ts
-@@ -59,6 +59,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
+@@ -69,6 +69,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  			}
  			return archived;
  		},
@@ -231,14 +231,14 @@ index 2b0f390..2ed2915 100644
 +			}
 +			return cleared;
 +		},
- 		delete: async (id) => {
- 			state.invoiceLines.delete(id);
- 		},
+ 		delete: async (id) =>
+ 			state.invoiceLines.delete(id)
+ 				? ok(undefined)
 diff --git a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-index 6b319fa..37a1c75 100644
+index 37b3356..54fbdea 100644
 --- a/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
 +++ b/src/domains/invoice-line/spi/invoice-line-repository.postgres.ts
-@@ -27,6 +27,7 @@ const invoiceLineFromRow = (
+@@ -30,6 +30,7 @@ const invoiceLineFromRow = (
  	archivedAt: row.archivedAt,
  	createdAt: row.createdAt,
  	createdBy: row.createdBy,
@@ -246,7 +246,7 @@ index 6b319fa..37a1c75 100644
  	id: row.id,
  	name: row.name,
  	updatedAt: row.updatedAt,
-@@ -45,6 +46,14 @@ export const invoiceLineRepositoryPostgresCreate = (
+@@ -48,6 +49,14 @@ export const invoiceLineRepositoryPostgresCreate = (
  			.returning({ id: invoiceLine.id });
  		return archived.length;
  	},
@@ -259,8 +259,8 @@ index 6b319fa..37a1c75 100644
 +		return cleared.length;
 +	},
  	delete: async (id) => {
- 		await db.delete(invoiceLine).where(eq(invoiceLine.id, id));
- 	},
+ 		const deleted = await db
+ 			.delete(invoiceLine)
 diff --git a/src/domains/invoice-line/spi/invoice-line-table.ts b/src/domains/invoice-line/spi/invoice-line-table.ts
 index 756b306..15b9c87 100644
 --- a/src/domains/invoice-line/spi/invoice-line-table.ts

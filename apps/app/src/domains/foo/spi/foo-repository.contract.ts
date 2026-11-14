@@ -1,9 +1,13 @@
 import { idCreate } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
-import { FooNameTakenError } from "../foo-errors.ts";
+import { FooNameTakenError, FooNotFoundError } from "../foo-errors.ts";
 import { type Foo, FooListInput } from "../models/foo.ts";
-import type { FooReadRepository, FooTransaction } from "../ports.ts";
+import type {
+	FooReadRepository,
+	FooTransaction,
+	FooTransactionPorts,
+} from "../ports.ts";
 
 export type FooRepositoryContractPorts = {
 	fooReadRepository: FooReadRepository;
@@ -71,7 +75,7 @@ export const fooRepositoryContract = (
 
 		it("refuses ports used after the transaction ended", async () => {
 			const ports = await create();
-			let leaked: Parameters<Parameters<FooTransaction>[0]>[0] | undefined;
+			let leaked: FooTransactionPorts | undefined;
 			await ports.fooTransaction(async (transactionPorts) => {
 				leaked = transactionPorts;
 				return ok(undefined);
@@ -97,10 +101,14 @@ export const fooRepositoryContract = (
 			const first = fooBuild();
 			const repeat = fooBuild();
 			for (const foo of [first, repeat]) {
-				const result = await ports.fooTransaction(async ({ fooRepository }) => {
-					const inserted = await fooRepository.insert(foo);
-					return inserted.ok ? ok(undefined) : inserted;
-				}, inbox);
+				// Explicit type arguments take an inbox too.
+				const result = await ports.fooTransaction<void, FooNameTakenError>(
+					async ({ fooRepository }) => {
+						const inserted = await fooRepository.insert(foo);
+						return inserted.ok ? ok(undefined) : inserted;
+					},
+					inbox,
+				);
 				expect(result).toEqual(ok(undefined));
 			}
 			expect(await ports.fooReadRepository.findById(first.id)).toEqual(first);
@@ -155,11 +163,47 @@ export const fooRepositoryContract = (
 				),
 			).toEqual(ok(renamed));
 			expect(await ports.fooReadRepository.findById(foo.id)).toEqual(renamed);
-			await ports.fooTransaction(async ({ fooRepository }) => {
-				await fooRepository.delete(foo.id);
-				return ok(undefined);
-			});
+			expect(
+				await ports.fooTransaction(({ fooRepository }) =>
+					fooRepository.delete(foo.id),
+				),
+			).toEqual(ok(undefined));
 			expect(await ports.fooReadRepository.findById(foo.id)).toBeUndefined();
+		});
+	});
+
+	describe("missing rows", () => {
+		it("reads a foo for update like findById", async () => {
+			const ports = await create();
+			const foo = fooBuild();
+			await insert(ports, foo);
+			expect(
+				await ports.fooTransaction(async ({ fooRepository }) =>
+					ok([
+						await fooRepository.findByIdForUpdate(foo.id),
+						await fooRepository.findByIdForUpdate(idCreate("foo")),
+					]),
+				),
+			).toEqual(ok([foo, undefined]));
+		});
+
+		// A row deleted by a concurrent transaction since it was read looks the same.
+		it("answers FooNotFoundError to an update or delete of a missing foo", async () => {
+			const ports = await create();
+			const missing = fooBuild();
+			expect(
+				await ports.fooTransaction(({ fooRepository }) =>
+					fooRepository.update(missing),
+				),
+			).toEqual(err(new FooNotFoundError(missing.id)));
+			expect(
+				await ports.fooTransaction(({ fooRepository }) =>
+					fooRepository.delete(missing.id),
+				),
+			).toEqual(err(new FooNotFoundError(missing.id)));
+			expect(
+				await ports.fooReadRepository.findById(missing.id),
+			).toBeUndefined();
 		});
 	});
 

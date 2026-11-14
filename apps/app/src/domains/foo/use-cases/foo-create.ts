@@ -12,7 +12,7 @@ export const fooCreate =
 		input: FooCreateInput,
 	): Promise<Result<Foo, FooNameTakenError>> => {
 		const result = await ports.fooTransaction(async (transaction) => {
-			const now = new Date();
+			const now = ports.fooClock.now();
 			const inserted = await transaction.fooRepository.insert({
 				id: idCreate("foo"),
 				name: input.name,

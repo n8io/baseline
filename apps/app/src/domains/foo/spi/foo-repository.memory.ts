@@ -1,7 +1,7 @@
 import type { Id } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { cursorDecode, cursorEncode } from "../../../cursor.ts";
-import { FooNameTakenError } from "../foo-errors.ts";
+import { FooNameTakenError, FooNotFoundError } from "../foo-errors.ts";
 import type { Foo, FooEventMap, FooListInput } from "../models/foo.ts";
 import type { FooRepository } from "../ports.ts";
 
@@ -40,6 +40,11 @@ export const fooRepositoryMemoryCreate = (state: {
 			(other) => other.name === foo.name && other.id !== foo.id,
 		);
 
+	const findById = async (id: Id<"foo">): Promise<Foo | undefined> => {
+		const foo = state.foos.get(id);
+		return foo && structuredClone(foo);
+	};
+
 	return {
 		archiveStale: async (before, now) => {
 			let archived = 0;
@@ -51,13 +56,11 @@ export const fooRepositoryMemoryCreate = (state: {
 			}
 			return archived;
 		},
-		delete: async (id) => {
-			state.foos.delete(id);
-		},
-		findById: async (id) => {
-			const foo = state.foos.get(id);
-			return foo && structuredClone(foo);
-		},
+		delete: async (id) =>
+			state.foos.delete(id) ? ok(undefined) : err(new FooNotFoundError(id)),
+		findById,
+		// Memory transactions run one at a time, so the plain read already holds the row.
+		findByIdForUpdate: findById,
 		insert: async (foo) => {
 			if (state.foos.has(foo.id)) {
 				throw new Error(`Foo ${foo.id} already exists`);
@@ -96,9 +99,7 @@ export const fooRepositoryMemoryCreate = (state: {
 				: { items, nextCursor };
 		},
 		update: async (foo) => {
-			if (!state.foos.has(foo.id)) {
-				throw new Error(`Foo ${foo.id} to update does not exist`);
-			}
+			if (!state.foos.has(foo.id)) return err(new FooNotFoundError(foo.id));
 			if (nameTaken(foo)) return err(new FooNameTakenError(foo.name));
 			state.foos.set(foo.id, structuredClone(foo));
 			return ok(structuredClone(foo));
