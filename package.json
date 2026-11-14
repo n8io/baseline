@@ -13,7 +13,7 @@
 		"format": "biome format --write .",
 		"test": "vitest run",
 		"test:unit": "turbo run test:unit",
-		"version": "changeset version && biome format --write ."
+		"version": "changeset version && node scripts/ci-pin-write.ts && biome format --write ."
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",

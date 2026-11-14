@@ -851,9 +851,12 @@ export const domainFilesCreate = ({
 		text: fooRename({ text: file.text, names, path: file.path }),
 	}));
 	for (const file of wiring) {
+		// Markdown is never wired: a changelog or doc that quotes a marker on its own line
+		// (CHANGELOG.md, which no Project has) must not become a target.
 		if (
 			copied(file.path) ||
 			/^(scripts|test)\//.test(file.path) ||
+			file.path.endsWith(".md") ||
 			!file.text.split("\n").some((line) => markerPattern.test(line))
 		) {
 			continue;

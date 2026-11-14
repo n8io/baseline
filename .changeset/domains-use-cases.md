@@ -6,17 +6,7 @@ One place builds every Domain's Use cases. The new `src/use-cases.ts` exports `d
 
 To upgrade a Project: `pnpm template-upgrade` adds `src/use-cases.ts` with its `domains-start`/`domains-end` pair empty, and changes only the markers in `worker.ts` (likely a conflict). `server.ts`, `seed.ts` and `src/ui/context.ts` come through unchanged, because their Domain lines sit inside pairs the render empties, so the Project still compiles in the old shape. Move it to the new one by hand before the next `pnpm domain-create`, which otherwise stops with `missing marker "// domain-create: use-cases"`:
 
-1. In `src/use-cases.ts`, between the pair, paste the skeleton and move each `const <domain>UseCases = telemetryUseCasesTrace(...)` from `server.ts` into it above `// domain-create: use-cases`, in the order the Bridges need, with `<domain>UseCases,` above `// domain-create: use-cases-returned`; add the imports it needs:
-
-   ```ts
-   export const domainsUseCasesCreate = (connections: Connections) => {
-   	// domain-create: use-cases
-   	return {
-   		// domain-create: use-cases-returned
-   	};
-   };
-   export type DomainsUseCases = ReturnType<typeof domainsUseCasesCreate>;
-   ```
+1. In `src/use-cases.ts`, between the pair, paste the skeleton and move each `const <domain>UseCases = telemetryUseCasesTrace(...)` from `server.ts` into it above `// domain-create: use-cases`, in the order the Bridges need, with `<domain>UseCases,` above `// domain-create: use-cases-returned`; add the imports it needs. The skeleton is the Template's `src/use-cases.ts`: `export const domainsUseCasesCreate = (connections: Connections) => { ... }` holding the `use-cases` marker above its `return {`, the `use-cases-returned` marker as the returned object's last line, and `export type DomainsUseCases = ReturnType<typeof domainsUseCasesCreate>;` after it.
 
 2. `server.ts`: inside its first pair, `const useCases = domainsUseCasesCreate(connections);` and the memory seed becomes `await seedsRun(useCases);`; routes and live routes take `useCases.<domain>UseCases`; `getLoadContext` passes `useCases` between its pair. `worker.ts`: put `// domain-create: domains-start`, `const useCases = domainsUseCasesCreate(connections);` and `// domain-create: domains-end` where the Use cases were built, and call Consumers and Schedules with `useCases.<domain>UseCases`. `seed.ts`: `seedsRun(useCases: DomainsUseCases)`, and its main block's pair holds `await seedsRun(domainsUseCasesCreate(connections));`. `src/ui/context.ts`: `uiLoadContextCreate(c, useCases: DomainsUseCases)` between its pair. Delete every `<domain>PortsCreate` call and copy left in those four files.
 3. Delete the markers nothing writes at any more: `// domain-create: bridges`, `seed-context`, `seed-types`, `context-types`, the `context` marker in `server.ts`'s `getLoadContext`, and the `use-cases` markers in `server.ts`, `worker.ts` and `seed.ts`.

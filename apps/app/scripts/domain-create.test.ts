@@ -362,6 +362,19 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		).toThrow("src/ui/routes/home.test.ts already exists");
 	});
 
+	it("wires no Markdown file, even one that quotes a marker on its own line", () => {
+		const created = domainFilesCreate({
+			templateFull: [
+				...filesRead(appRoot.pathname),
+				{ path: "CHANGELOG.md", text: "\t// domain-create: use-cases\n" },
+			],
+			appDirectory: appRoot.pathname,
+			names,
+		});
+
+		expect(created.map((f) => f.path)).not.toContain("CHANGELOG.md");
+	});
+
 	it("puts the new schedule item at its marker in .env.schema", () => {
 		expect(file(".env.schema")).toContain(
 			"# @sensitive=false @required=false\nSCHEDULE_INVOICE_LINE_STALE_ARCHIVE=\n# domain-create: schedules",
