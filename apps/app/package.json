@@ -17,6 +17,7 @@
 	},
 	"scripts": {
 		"api-check": "node scripts/api-check.ts",
+		"api-smoke": "node --import ./src/preload.ts scripts/api-smoke.ts",
 		"build": "NODE_ENV=production react-router build",
 		"check": "node scripts/check.ts",
 		"ci": "pnpm check && pnpm test && pnpm test:integration",
