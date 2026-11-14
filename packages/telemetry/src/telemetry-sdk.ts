@@ -104,6 +104,59 @@ const batchOptions = (prefix: "BLRP" | "BSP"): BatchOptions => {
 	return options;
 };
 
+// An unreachable collector makes an exporter retry for its whole timeout (10 s by default), and
+// the retry timers keep a script alive that long after telemetryShutdown. So an exporter times
+// out after 1 s unless OTEL_EXPORTER_OTLP_TIMEOUT (or the signal's own), in milliseconds, says
+// otherwise. A value that is not a positive number counts as unset.
+const exportTimeoutDefaultMillis = 1_000;
+
+const exportTimeoutMillis = (signal: "LOGS" | "METRICS" | "TRACES"): number => {
+	for (const name of [
+		`OTEL_EXPORTER_OTLP_${signal}_TIMEOUT`,
+		"OTEL_EXPORTER_OTLP_TIMEOUT",
+	]) {
+		const value = Number(process.env[name]);
+		if (Number.isFinite(value) && value > 0) {
+			return value;
+		}
+	}
+	return exportTimeoutDefaultMillis;
+};
+
+const exportTimeout = (
+	signal: "LOGS" | "METRICS" | "TRACES",
+): { timeoutMillis: number } => ({
+	timeoutMillis: exportTimeoutMillis(signal),
+});
+
+// ExportResultCode.SUCCESS in @opentelemetry/core.
+const exportSuccess = 0;
+
+let exportFailed = false;
+
+// Notes a failed export, so telemetryShutdown can say so; the exporters report failures to no one.
+const exportWatch = <
+	T extends {
+		export(
+			items: never,
+			resultCallback: (result: { code: number }) => void,
+		): void;
+	},
+>(
+	exporter: T,
+): T => {
+	const exportOriginal = exporter.export.bind(exporter);
+	exporter.export = (items, resultCallback) => {
+		exportOriginal(items, (result) => {
+			if (result.code !== exportSuccess) {
+				exportFailed = true;
+			}
+			resultCallback(result);
+		});
+	};
+	return exporter;
+};
+
 const spanProcessorsFromEnv = (): SpanProcessor[] =>
 	exportersNamed("TRACES").flatMap((name): SpanProcessor[] => {
 		if (name === "console") {
@@ -114,7 +167,7 @@ const spanProcessorsFromEnv = (): SpanProcessor[] =>
 		}
 		return [
 			new BatchSpanProcessor({
-				exporter: new OTLPTraceExporter(),
+				exporter: exportWatch(new OTLPTraceExporter(exportTimeout("TRACES"))),
 				...batchOptions("BSP"),
 			}),
 		];
@@ -134,7 +187,7 @@ const logRecordProcessorsFromEnv = (): LogRecordProcessor[] =>
 		}
 		return [
 			new BatchLogRecordProcessor({
-				exporter: new OTLPLogExporter(),
+				exporter: exportWatch(new OTLPLogExporter(exportTimeout("LOGS"))),
 				...batchOptions("BLRP"),
 			}),
 		];
@@ -165,7 +218,7 @@ const metricReadersFromEnv = (): IMetricReader[] =>
 				exporter:
 					name === "console"
 						? new ConsoleMetricExporter()
-						: new OTLPMetricExporter(),
+						: exportWatch(new OTLPMetricExporter(exportTimeout("METRICS"))),
 				...metricReaderOptions(),
 			}),
 		];
@@ -234,10 +287,45 @@ export const telemetryStart = (): void => {
 	}
 };
 
-// Flushes and stops every signal; last in the shutdown resources. A failed
-// last export (no collector running) is dropped quietly, like every export.
+// A URL may carry credentials, so the warning names only its origin and path.
+const endpointOpen = (value: string): string => {
+	try {
+		const url = new URL(value);
+		return `${url.origin}${url.pathname}`;
+	} catch {
+		return "the OTLP endpoint";
+	}
+};
+
+const endpointRead = (): string =>
+	endpointOpen(
+		[
+			"OTEL_EXPORTER_OTLP_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+			"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT",
+		]
+			.map((name) => process.env[name]?.trim() ?? "")
+			.find((value) => value !== "") ?? "",
+	);
+
+// Flushes and stops every signal; last in the shutdown resources. The final export is bounded by
+// the exporter timeout (1 s by default, see above). If an export failed or timed out, shutdown
+// still resolves, with one warning naming the endpoint. It never throws.
 export const telemetryShutdown = async (): Promise<void> => {
 	const started = sdk;
 	sdk = undefined;
-	await started?.shutdown().catch(() => undefined);
+	if (started === undefined) {
+		return;
+	}
+	exportFailed = false;
+	const shutDown = await started.shutdown().then(
+		() => true,
+		() => false,
+	);
+	if (!shutDown || exportFailed) {
+		process.emitWarning(
+			`Telemetry: the final export to ${endpointRead()} failed or timed out; unsent telemetry was lost.`,
+		);
+	}
 };

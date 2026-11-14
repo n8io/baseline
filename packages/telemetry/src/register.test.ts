@@ -69,7 +69,12 @@ const receiverStart = async (): Promise<{
 const fixtureRun = (
 	env: Record<string, string>,
 	fixture = "src/telemetry-test-fixtures/server.ts",
-): Promise<{ code: number | null; stderr: string }> =>
+): Promise<{
+	code: number | null;
+	lingerMillis: number;
+	stderr: string;
+	stdout: string;
+}> =>
 	new Promise((resolve) => {
 		const child = spawn(
 			process.execPath,
@@ -87,10 +92,23 @@ const fixtureRun = (
 			},
 		);
 		let stderr = "";
+		let stdout = "";
+		let lastOutputAt = performance.now();
+		child.stdout.on("data", (chunk: Buffer) => {
+			stdout += chunk.toString();
+			lastOutputAt = performance.now();
+		});
 		child.stderr.on("data", (chunk: Buffer) => {
 			stderr += chunk.toString();
 		});
-		child.on("close", (code) => resolve({ code, stderr }));
+		child.on("close", (code) =>
+			resolve({
+				code,
+				lingerMillis: performance.now() - lastOutputAt,
+				stderr,
+				stdout,
+			}),
+		);
 	});
 
 const attribute = (span: OtlpSpan, key: string): string | undefined =>
@@ -108,10 +126,11 @@ describe("@n8io/baseline-telemetry/register", () => {
 		const started = await receiverStart();
 		receiver = started.server;
 		const { port } = started.server.address() as AddressInfo;
-		const { code } = await fixtureRun({
+		const { code, stderr } = await fixtureRun({
 			OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}`,
 		});
 		expect(code).toBe(0);
+		expect(stderr).not.toContain("Telemetry:");
 		const servers = started.spans.filter(
 			(span) => span.kind === spanKindServer,
 		);
@@ -182,7 +201,7 @@ describe("@n8io/baseline-telemetry/register", () => {
 		expect(started.spans.length).toBeGreaterThan(0);
 	}, 30_000);
 
-	it("fails quietly when no collector runs", async () => {
+	it("warns once, and nothing else, when no collector runs", async () => {
 		const { code, stderr } = await fixtureRun({
 			OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:9",
 		});
@@ -196,7 +215,9 @@ describe("@n8io/baseline-telemetry/register", () => {
 					line !== "" &&
 					!/ExperimentalWarning|^--import|--trace-warnings/.test(line),
 			);
-		expect(lines).toEqual([]);
+		expect(lines).toEqual([
+			expect.stringMatching(/Warning: Telemetry: the final export to/),
+		]);
 	}, 30_000);
 
 	it("exports nothing, and shuts down at once, when no OTLP endpoint is set", async () => {
@@ -224,5 +245,68 @@ describe("@n8io/baseline-telemetry/register", () => {
 		expect(code).toBe(0);
 		expect(elapsed).toBeDefined();
 		expect(Number(elapsed)).toBeLessThan(500);
+	}, 30_000);
+
+	it("shuts down within the limit and warns once when the collector is unreachable", async () => {
+		// A port that was free a moment ago and has nothing listening.
+		const closed = createServer();
+		await new Promise<void>((resolve) =>
+			closed.listen(0, "127.0.0.1", resolve),
+		);
+		const { port } = closed.address() as AddressInfo;
+		await new Promise((resolve) => closed.close(resolve));
+		const endpoint = `http://127.0.0.1:${port}`;
+		const { code, lingerMillis, stderr, stdout } = await fixtureRun(
+			{ OTEL_EXPORTER_OTLP_ENDPOINT: endpoint, OTEL_LOGS_EXPORTER: "otlp" },
+			"src/telemetry-test-fixtures/shutdown-time.ts",
+		);
+		const [elapsed] = stdout.split("\n").filter((line) => /^\d+$/.test(line));
+		expect(code).toBe(0);
+		expect(Number(elapsed)).toBeLessThan(1_500);
+		// The script exits with it: no retry timer outlives the shutdown (they hold it about 8 s).
+		expect(lingerMillis).toBeLessThan(3_000);
+		expect(stderr.match(/Telemetry: the final export to/g)).toHaveLength(1);
+		expect(stderr).toContain(endpoint);
+	}, 30_000);
+
+	it("resolves after one exporter timeout when a collector accepts the export and never answers", async () => {
+		const sockets = new Set<import("node:net").Socket>();
+		const silent = createServer(() => undefined);
+		silent.on("connection", (socket) => sockets.add(socket));
+		await new Promise<void>((resolve) =>
+			silent.listen(0, "127.0.0.1", resolve),
+		);
+		const { port } = silent.address() as AddressInfo;
+		try {
+			const { stdout, stderr } = await fixtureRun(
+				{
+					OTEL_EXPORTER_OTLP_ENDPOINT: `http://127.0.0.1:${port}`,
+					OTEL_LOGS_EXPORTER: "otlp",
+				},
+				"src/telemetry-test-fixtures/shutdown-time.ts",
+			);
+			const [elapsed] = stdout.split("\n").filter((line) => /^\d+$/.test(line));
+			expect(elapsed).toBeDefined();
+			expect(Number(elapsed)).toBeGreaterThanOrEqual(900);
+			expect(Number(elapsed)).toBeLessThan(1_500);
+			expect(stderr).toContain("Telemetry: the final export to");
+		} finally {
+			for (const socket of sockets) {
+				socket.destroy();
+			}
+			silent.close();
+		}
+	}, 30_000);
+
+	it("names no credentials from the endpoint in the warning", async () => {
+		const { stderr } = await fixtureRun(
+			{
+				OTEL_EXPORTER_OTLP_ENDPOINT: "http://user:secret@127.0.0.1:9",
+				OTEL_LOGS_EXPORTER: "otlp",
+			},
+			"src/telemetry-test-fixtures/shutdown-time.ts",
+		);
+		expect(stderr).toContain("http://127.0.0.1:9");
+		expect(stderr).not.toContain("secret");
 	}, 30_000);
 });
