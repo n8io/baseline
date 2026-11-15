@@ -183,6 +183,30 @@ describe("server wiring", { timeout: 30_000 }, () => {
 				expect(await res.json()).toMatchObject({ code: "AuthnRequired" });
 			}
 		});
+
+		it("serves the OpenAPI document without a token", async () => {
+			const res = await request("/api/v1/openapi.json");
+			expect(res.status).toBe(200);
+		});
+
+		it("declares the bearer scheme and requires it on every operation", async () => {
+			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
+				components: { securitySchemes: Record<string, unknown> };
+				security: unknown;
+			};
+
+			expect(doc.components.securitySchemes).toEqual({
+				bearer: { bearerFormat: "JWT", scheme: "bearer", type: "http" },
+			});
+			expect(doc.security).toEqual([{ bearer: [] }]);
+		});
+
+		it("leaves bearer requests to /api alone, whatever their Origin", async () => {
+			const res = await request("/api/v1/nothing-here", {
+				headers: { ...(await bearer()), Origin: "https://evil.example" },
+			});
+			expect(res.status).toBe(404);
+		});
 	});
 
 	describe("foo API", () => {
@@ -244,23 +268,6 @@ describe("server wiring", { timeout: 30_000 }, () => {
 			});
 			expect(res.status).toBe(400);
 			expect(await res.json()).toMatchObject({ code: "ValidationFailed" });
-		});
-
-		it("serves the OpenAPI document without a token", async () => {
-			const res = await request("/api/v1/openapi.json");
-			expect(res.status).toBe(200);
-		});
-
-		it("declares the bearer scheme and requires it on every operation", async () => {
-			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
-				components: { securitySchemes: Record<string, unknown> };
-				security: unknown;
-			};
-
-			expect(doc.components.securitySchemes).toEqual({
-				bearer: { bearerFormat: "JWT", scheme: "bearer", type: "http" },
-			});
-			expect(doc.security).toEqual([{ bearer: [] }]);
 		});
 
 		it("documents the foo routes in the OpenAPI document", async () => {
