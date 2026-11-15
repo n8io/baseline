@@ -1,0 +1,43 @@
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = resolve(import.meta.dirname, "..");
+const release = readFileSync(
+	join(root, ".github/workflows/release.yml"),
+	"utf8",
+);
+
+// A GITHUB_TOKEN push starts no pull_request run, so the main ruleset would see no
+// required checks on the Version packages PR. The release App's token starts one.
+describe("release.yml", () => {
+	it("opens the Version packages PR with the release App's token", () => {
+		expect(release).toMatch(
+			/- id: app-token\n {8}uses: actions\/create-github-app-token@[0-9a-f]{40} # v\S+\n/,
+		);
+		expect(release).toContain(`client-id: \${{ vars.RELEASE_APP_CLIENT_ID }}`);
+		expect(release).toContain(
+			`private-key: \${{ secrets.RELEASE_APP_PRIVATE_KEY }}`,
+		);
+		expect(release).toMatch(
+			/uses: changesets\/action@[0-9a-f]{40} # v\S+\n {8}with:\n(?: {10}.*\n)*? {10}github-token: \$\{\{ steps\.app-token\.outputs\.token \}\}\n/,
+		);
+	});
+
+	it("scopes the token to this repository and the App's two permissions", () => {
+		const step = release.match(/- id: app-token\n(?: {8}.*\n)*/)?.[0] ?? "";
+		expect(step).not.toMatch(/\b(owner|repositories):/);
+		expect(step.match(/permission-[a-z-]+: \w+/g)).toEqual([
+			"permission-contents: write",
+			"permission-pull-requests: write",
+		]);
+	});
+
+	it("starts no CI run by dispatch and needs no actions permission", () => {
+		expect(release).not.toContain("gh workflow run");
+		expect(release).not.toMatch(/^ {2}actions: write$/m);
+		expect(
+			readFileSync(join(root, ".github/workflows/ci.yml"), "utf8"),
+		).not.toContain("workflow_dispatch");
+	});
+});

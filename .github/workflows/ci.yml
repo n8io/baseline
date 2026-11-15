@@ -1,13 +1,10 @@
 name: ci
 
-# workflow_dispatch: release.yml starts CI on the Version packages PR, whose
-# GITHUB_TOKEN pushes start no pull_request runs.
 # push to main: tests main after each merge and saves the Turborepo cache every pull request reads.
 on:
   pull_request:
   push:
     branches: [main]
-  workflow_dispatch:
 
 # A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
 concurrency:

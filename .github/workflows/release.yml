@@ -8,13 +8,12 @@ concurrency:
   cancel-in-progress: false
   group: release
 
-# actions: start ci.yml on the Version packages PR.
+# contents: push the v<major> tag.
 # id-token: npm trusted publishing (OIDC), so no npm token is stored.
+# The Version packages PR, its branch and the release tags use the App token below.
 permissions:
-  actions: write
   contents: write
   id-token: write
-  pull-requests: write
 
 jobs:
   release:
@@ -30,10 +29,22 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
+      # Pushes made with GITHUB_TOKEN start no pull_request run, so the Version packages
+      # PR would get no checks the main ruleset counts. The release App's token does start
+      # one. Without owner or repositories, the token covers this repository only.
+      - id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          permission-contents: write
+          permission-pull-requests: write
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - id: changesets
         uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
           commit-message: "🔖 Version packages"
+          # Commits, the PR and the tags go through the GitHub API with this token.
+          github-token: ${{ steps.app-token.outputs.token }}
           pr-title: "🔖 Version packages"
           publish-script: pnpm changeset publish
           # changeset version, then Biome, so the generated CHANGELOGs pass `pnpm check`.
@@ -41,12 +52,6 @@ jobs:
         env:
           # Provenance needs n8io/baseline to be public.
           NPM_CONFIG_PROVENANCE: "true"
-      # GITHUB_TOKEN pushes start no pull_request runs, but a dispatch does, and its
-      # checks attach to the PR's head commit.
-      - if: steps.changesets.outputs.pr-number
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run ci.yml --ref changeset-release/main
       # Point v<major> at the newest app@<major>.x.y release, so projects on
       # app-ci.yml@v<major> get it.
       - if: steps.changesets.outputs.has-changesets == 'false'
