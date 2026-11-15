@@ -1,8 +1,8 @@
 // pnpm piece-check [piece...]: proves that every installed piece can still be removed. Each runs
 // `pnpm piece-remove`, `pnpm check` and `pnpm test` on its own throwaway git worktree of HEAD, so
-// your tree is left alone and uncommitted changes are not checked. The pieces and the check of
-// the unmodified tree run two at a time, each in a child process whose output is
-// printed whole only when it fails. A piece listed in `.template.json` as `piecesKept` is
+// your tree is left alone and uncommitted changes are not checked. The unmodified tree is checked
+// first, then the pieces two at a time, each in a child process whose output is printed whole
+// only when it fails. A piece listed in `.template.json` as `piecesKept` is
 // skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
 // app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
 import { spawn } from "node:child_process";
@@ -280,29 +280,34 @@ const main = async () => {
 	});
 	for (const note of plan.notes) console.log(`piece-check: ${note}`);
 	if (plan.checks.length === 0) return;
-	// The unmodified tree starts first and runs alongside the pieces. A piece's result is
-	// reported only once the tree has passed: when the tree fails, no piece is to blame.
-	let tree: JobEnd | undefined;
-	const { promise: treeChecked, resolve: treeCheckEnd } =
-		Promise.withResolvers<void>();
+	// The unmodified tree is checked first, alone. When it fails, no piece is to blame. Its install
+	// also fills the pnpm store, so the pieces' installs, two at a time, only link from it: two
+	// installs downloading into an empty store at once can fail on the same file.
+	const tree = await jobSpawn(directory, { tree: true }).catch(
+		(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
+	);
+	if (tree.outcome === "failed") {
+		console.error(tree.output);
+		process.exitCode = 1;
+		return;
+	}
+	if (tree.outcome === "crashed") {
+		console.error(
+			`piece-check: the check of the unmodified tree stopped before it ended, so no piece is to blame. Run it again.\n${tree.output}`,
+		);
+		process.exitCode = 1;
+		return;
+	}
 	// Output of each piece that fails or could not be checked, printed whole at the end.
 	const failures = new Map<string, string>();
 	const crashes = new Map<string, string>();
 	await eachConcurrently({
-		each: async (job: PieceCheckJob) => {
-			if (tree !== undefined && tree.outcome !== "passed") return;
+		each: async (job) => {
 			const started = Date.now();
 			const end = await jobSpawn(directory, job).catch(
 				(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
 			);
 			const seconds = Math.round((Date.now() - started) / 1000);
-			if ("tree" in job) {
-				tree = end;
-				treeCheckEnd();
-				return;
-			}
-			await treeChecked;
-			if (tree?.outcome !== "passed") return;
 			if (end.outcome === "passed") {
 				console.log(
 					`piece-check: ${job.piece} passes check and test without it (${seconds} s)`,
@@ -319,23 +324,11 @@ const main = async () => {
 					: `piece-check: ${job.piece} could not be checked (${seconds} s)`,
 			);
 		},
-		items: [{ tree: true }, ...plan.checks],
+		items: plan.checks,
 		// Each check runs tsc and vitest across every CPU, so more at once fight for them: on a
-		// 4-CPU CI runner two at once took 105 s, four took 169 s, one at a time 115 s.
+		// 4-CPU CI runner four at once ran slower than one at a time, and two at once a little faster.
 		limit: Math.min(2, availableParallelism()),
 	});
-	if (tree?.outcome === "failed") {
-		console.error(tree.output);
-		process.exitCode = 1;
-		return;
-	}
-	if (tree?.outcome === "crashed") {
-		console.error(
-			`piece-check: the check of the unmodified tree stopped before it ended, so no piece is to blame. Run it again.\n${tree.output}`,
-		);
-		process.exitCode = 1;
-		return;
-	}
 	const inOrder = (ended: Map<string, string>) =>
 		plan.checks.map((c) => c.piece).filter((piece) => ended.has(piece));
 	for (const piece of [...inOrder(failures), ...inOrder(crashes)]) {
