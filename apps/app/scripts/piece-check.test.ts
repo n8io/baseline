@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pieceCheckPlan } from "./piece-check.ts";
+import { eachConcurrently, pieceCheckPlan } from "./piece-check.ts";
 
 const all = new Set([
 	"@n8io/baseline-analytics",
@@ -86,5 +86,26 @@ describe("pieceCheckPlan", () => {
 		expect(plan({ requested: ["cache"] }).checks).toEqual([
 			{ first: [], piece: "cache" },
 		]);
+	});
+});
+
+describe("eachConcurrently", () => {
+	it("runs every item, at most limit at once, starting them in order", async () => {
+		const started: number[] = [];
+		let running = 0;
+		let most = 0;
+		await eachConcurrently({
+			each: async (item: number) => {
+				started.push(item);
+				running += 1;
+				most = Math.max(most, running);
+				await new Promise((resolve) => setTimeout(resolve, 5));
+				running -= 1;
+			},
+			items: [1, 2, 3, 4, 5],
+			limit: 2,
+		});
+		expect(started).toEqual([1, 2, 3, 4, 5]);
+		expect(most).toBe(2);
 	});
 });

@@ -2,13 +2,13 @@
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
 // - each of ui, live, cache, queue, analytics and error-tracking removed alone passes check, unit tests and
 //   build, and git revert of its commit gives back the starting tree;
-// - `pnpm piece-check`, the check the Project's `pieces` job runs, passes on the render;
 // - redis alone is refused, because the cache and live updates run on it;
 // - all seven removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
 // - all seven removed, then invoice-line added with domain-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
-// One render serves every case, to keep CI short.
+// One render serves every case, to keep CI short. `pnpm piece-check` is not one of them:
+// render-and-test's `pieces` job runs it on the render that job checks.
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, rmSync } from "node:fs";
@@ -27,7 +27,6 @@ import {
 } from "../../scripts/app-create.ts";
 import {
 	checkoutExport,
-	checkoutPackagesTrack,
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
@@ -238,10 +237,7 @@ const main = async () => {
 	lockfileTemplateRequire(directory, files);
 	domainAdd({ directory, files, names: customer });
 	pnpmRun(directory, ["check"]);
-	checkoutPackagesTrack(directory);
 	gitCommitAll(directory, "Create api-only with customer");
-	console.log("pnpm piece-check");
-	pnpmRun(directory, ["piece-check"]);
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
 	for (const piece of [

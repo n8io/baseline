@@ -1,16 +1,19 @@
 // pnpm piece-check [piece...]: proves that every installed piece can still be removed. Each runs
-// `pnpm piece-remove`, `pnpm check` and `pnpm test` on a throwaway git worktree of HEAD, so your
-// tree is left alone and uncommitted changes are not checked. A piece listed in `.template.json`
-// as `piecesKept` is skipped: the Project keeps it and its new code needs no markers. The
-// `pieces` job in app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
+// `pnpm piece-remove`, `pnpm check` and `pnpm test` on its own throwaway git worktree of HEAD, so
+// your tree is left alone and uncommitted changes are not checked. The pieces and the check of
+// the unmodified tree run at the same time, one per CPU, each in a child process whose output is
+// printed whole only when it fails. A piece listed in `.template.json` as `piecesKept` is
+// skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
+// app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
+import { spawn } from "node:child_process";
 import {
 	existsSync,
 	mkdtempDisposableSync,
 	readFileSync,
 	rmSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { availableParallelism, tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import {
 	filesNamedIn,
 	packagesInstalled,
@@ -89,10 +92,11 @@ const piecesKeptRead = (directory: string): string[] => {
 const git = (directory: string, args: string[]) =>
 	run({ command: "git", args, options: { cwd: directory } });
 
-// A checkout of HEAD that goes away with the scope; `path` is the app inside it.
+// A checkout of HEAD that goes away with the scope; `path` is the app inside it. The folder's
+// unique name is also the worktree's name in git, so checks running at once never share one.
 const worktreeCreate = (directory: string) => {
 	const folder = mkdtempDisposableSync(join(tmpdir(), "piece-check-"));
-	const root = join(folder.path, "tree");
+	const root = join(folder.path, basename(folder.path));
 	try {
 		git(directory, ["worktree", "add", "--detach", "--quiet", root, "HEAD"]);
 	} catch (error) {
@@ -156,15 +160,117 @@ const pieceCheck = (
 			};
 };
 
-const main = () => {
+// One unit of work for a child process: the unmodified tree, or a piece.
+type PieceCheckJob = { tree: true } | { first: string[]; piece: string };
+
+// A child exits with this code when its check fails. Any other ending (a throw, a kill, no
+// memory) says nothing about a piece, so it blames none.
+const checkFailedCode = 3;
+
+// Runs one job in this process and returns why it fails, if it does.
+const jobRun = (directory: string, job: PieceCheckJob): string | undefined => {
+	if ("tree" in job) {
+		const broken = treeCheck(directory);
+		return broken === undefined
+			? undefined
+			: [
+					`piece-check: fix the tree first: ${broken.step} fails on HEAD before any piece is removed, so no piece is to blame.`,
+					broken.output.split("\n").slice(-40).join("\n"),
+				].join("\n");
+	}
+	const { piece } = job;
+	const failed = pieceCheck(directory, job);
+	if (failed === undefined) return undefined;
+	return [
+		`piece-check: ${piece} fails at ${failed.step}.`,
+		failed.files.length > 0
+			? `Code that uses ${piece} outside its piece markers, or fails without it:\n${failed.files.map((f) => `  ${f}`).join("\n")}`
+			: "",
+		failed.output.split("\n").slice(-40).join("\n"),
+	]
+		.filter((part) => part !== "")
+		.join("\n");
+};
+
+type JobEnd = { outcome: "crashed" | "failed" | "passed"; output: string };
+
+// Runs one job in a child process of this script, keeping its output until it ends.
+const jobSpawn = (directory: string, job: PieceCheckJob) =>
+	new Promise<JobEnd>((done) => {
+		const child = spawn(
+			process.execPath,
+			[...process.execArgv, import.meta.filename, "--job", JSON.stringify(job)],
+			{
+				cwd: directory,
+				env: { ...process.env, FORCE_COLOR: "0", NO_COLOR: "1" },
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		);
+		let output = "";
+		for (const stream of [child.stdout, child.stderr]) {
+			stream.setEncoding("utf8");
+			stream.on("data", (chunk: string) => {
+				output += chunk;
+			});
+		}
+		child.on("error", (error) =>
+			done({ outcome: "crashed", output: String(error) }),
+		);
+		child.on("close", (code, signal) => {
+			const text = output.trim();
+			if (code === 0) done({ outcome: "passed", output: text });
+			else if (code === checkFailedCode)
+				done({ outcome: "failed", output: text });
+			else {
+				done({
+					outcome: "crashed",
+					output:
+						`${text}\n(the check ended with ${signal ?? `exit code ${code}`})`.trim(),
+				});
+			}
+		});
+	});
+
+// Calls `each` on every item, at most `limit` at once, starting them in the order given.
+export const eachConcurrently = async <T>({
+	each,
+	items,
+	limit,
+}: {
+	each: (item: T) => Promise<void>;
+	items: T[];
+	limit: number;
+}) => {
+	const waiting = [...items];
+	const lane = async () => {
+		while (waiting.length > 0) await each(waiting.shift() as T);
+	};
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, lane),
+	);
+};
+
+const main = async () => {
 	const directory = process.cwd();
+	if (process.argv[2] === "--job") {
+		const failed = jobRun(
+			directory,
+			JSON.parse(process.argv[3] ?? "") as PieceCheckJob,
+		);
+		if (failed !== undefined) {
+			console.error(failed);
+			process.exitCode = checkFailedCode;
+		}
+		return;
+	}
 	const requested = process.argv.slice(2);
 	const unknown = requested.filter((p) => pieceRemovals[p] === undefined);
 	if (unknown.length > 0) {
 		console.error(
 			`piece-check: unknown piece ${unknown.join(", ")}; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
 		);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	const plan = pieceCheckPlan({
 		installed: packagesInstalled(directory),
@@ -173,47 +279,77 @@ const main = () => {
 		requested,
 	});
 	for (const note of plan.notes) console.log(`piece-check: ${note}`);
-	if (plan.checks.length > 0) {
-		const broken = treeCheck(directory);
-		if (broken !== undefined) {
-			console.error(
-				[
-					`piece-check: fix the tree first: ${broken.step} fails on HEAD before any piece is removed, so no piece is to blame.`,
-					broken.output.split("\n").slice(-40).join("\n"),
-				].join("\n"),
+	if (plan.checks.length === 0) return;
+	// The unmodified tree starts first and runs alongside the pieces. A piece's result is
+	// reported only once the tree has passed: when the tree fails, no piece is to blame.
+	let tree: JobEnd | undefined;
+	const { promise: treeChecked, resolve: treeCheckEnd } =
+		Promise.withResolvers<void>();
+	// Output of each piece that fails or could not be checked, printed whole at the end.
+	const failures = new Map<string, string>();
+	const crashes = new Map<string, string>();
+	await eachConcurrently({
+		each: async (job: PieceCheckJob) => {
+			if (tree !== undefined && tree.outcome !== "passed") return;
+			const started = Date.now();
+			const end = await jobSpawn(directory, job).catch(
+				(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
 			);
-			process.exit(1);
-		}
-	}
-	const failures: string[] = [];
-	for (const check of plan.checks) {
-		const started = Date.now();
-		const failed = pieceCheck(directory, check);
-		if (failed === undefined) {
+			const seconds = Math.round((Date.now() - started) / 1000);
+			if ("tree" in job) {
+				tree = end;
+				treeCheckEnd();
+				return;
+			}
+			await treeChecked;
+			if (tree?.outcome !== "passed") return;
+			if (end.outcome === "passed") {
+				console.log(
+					`piece-check: ${job.piece} passes check and test without it (${seconds} s)`,
+				);
+				return;
+			}
+			(end.outcome === "failed" ? failures : crashes).set(
+				job.piece,
+				end.output,
+			);
 			console.log(
-				`piece-check: ${check.piece} passes check and test without it (${Math.round((Date.now() - started) / 1000)} s)`,
+				end.outcome === "failed"
+					? `piece-check: ${job.piece} fails (${seconds} s)`
+					: `piece-check: ${job.piece} could not be checked (${seconds} s)`,
 			);
-			continue;
-		}
-		failures.push(check.piece);
+		},
+		items: [{ tree: true }, ...plan.checks],
+		limit: availableParallelism(),
+	});
+	if (tree?.outcome === "failed") {
+		console.error(tree.output);
+		process.exitCode = 1;
+		return;
+	}
+	if (tree?.outcome === "crashed") {
 		console.error(
-			[
-				`piece-check: ${check.piece} fails at ${failed.step}.`,
-				failed.files.length > 0
-					? `Code that uses ${check.piece} outside its piece markers, or fails without it:\n${failed.files.map((f) => `  ${f}`).join("\n")}`
-					: "",
-				failed.output.split("\n").slice(-40).join("\n"),
-			]
-				.filter((part) => part !== "")
-				.join("\n"),
+			`piece-check: the check of the unmodified tree stopped before it ended, so no piece is to blame. Run it again.\n${tree.output}`,
+		);
+		process.exitCode = 1;
+		return;
+	}
+	const inOrder = (ended: Map<string, string>) =>
+		plan.checks.map((c) => c.piece).filter((piece) => ended.has(piece));
+	for (const piece of [...inOrder(failures), ...inOrder(crashes)]) {
+		console.error(failures.get(piece) ?? crashes.get(piece));
+	}
+	if (failures.size > 0) {
+		console.error(
+			`piece-check: ${inOrder(failures).join(", ")} can no longer be removed. Wrap the code that uses it in piece markers (docs/agents/pieces.md), or list the piece in piecesKept in .template.json if this Project keeps it.`,
 		);
 	}
-	if (failures.length > 0) {
+	if (crashes.size > 0) {
 		console.error(
-			`piece-check: ${failures.join(", ")} can no longer be removed. Wrap the code that uses it in piece markers (docs/agents/pieces.md), or list the piece in piecesKept in .template.json if this Project keeps it.`,
+			`piece-check: the check of ${inOrder(crashes).join(", ")} stopped before it ended (a crash or a kill, often out of memory), which blames no piece. Run it again.`,
 		);
-		process.exit(1);
 	}
+	if (failures.size > 0 || crashes.size > 0) process.exitCode = 1;
 };
 
-if (import.meta.main) main();
+if (import.meta.main) await main();
