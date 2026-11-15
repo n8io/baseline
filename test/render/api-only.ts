@@ -1,12 +1,12 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
-// - each of ui, live, cache, queue, analytics and error-tracking removed alone passes check, unit tests and
+// - each of ui, live, cache, queue, analytics, error-tracking and api-reference removed alone passes check, unit tests and
 //   build, and git revert of its commit gives back the starting tree;
 // - `pnpm piece-check`, the check the Project's `pieces` job runs, passes on the render;
 // - redis alone is refused, because the cache and live updates run on it;
-// - all seven removed together, each passing check, then reverted, give back the starting tree,
+// - all eight removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all seven removed, then invoice-line added with domain-create, pass check, unit tests and build
+// - all eight removed, then invoice-line added with domain-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // One render serves every case, to keep CI short.
 import { spawn, spawnSync } from "node:child_process";
@@ -45,6 +45,7 @@ const invoiceLine = {
 };
 type Piece =
 	| "analytics"
+	| "api-reference"
 	| "cache"
 	| "error-tracking"
 	| "live"
@@ -110,6 +111,14 @@ const apiGuardsRequire = async (url: string, openapi: Response) => {
 	}
 	if (anonymous.status !== 401)
 		guardFail("let an anonymous post in", anonymous);
+	// The docs exemption stays in base code: without the piece the page is the API's JSON 404.
+	const docs = await fetch(`${url}/api/v1/docs`);
+	if (
+		docs.status !== 404 ||
+		!(docs.headers.get("content-type") ?? "").includes("json")
+	) {
+		guardFail("answered /api/v1/docs with something but a JSON 404", docs);
+	}
 	const signIn = (origin: string) =>
 		fetch(`${url}/auth/sign-in`, {
 			body: new URLSearchParams({ who: "dev-user" }),
@@ -251,6 +260,7 @@ const main = async () => {
 		"queue",
 		"analytics",
 		"error-tracking",
+		"api-reference",
 	] as const) {
 		const before = head();
 		pieceRemove({ directory, piece, scripts: checkTestBuild });
@@ -278,6 +288,7 @@ const main = async () => {
 		"queue",
 		"analytics",
 		"error-tracking",
+		"api-reference",
 	];
 	for (const piece of all)
 		pieceRemove({ directory, piece, scripts: ["check"] });

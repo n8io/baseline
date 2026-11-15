@@ -88,6 +88,9 @@ const projectFiles: Record<string, string> = {
 	"src/domains/invoice/api/invoice-live.test.ts": "test\n",
 	"src/domains/invoice/api/invoice-live.ts": "live\n",
 	"src/analytics-open.ts": "analytics\n",
+	"src/api-reference.ts": "api reference\n",
+	"src/api-reference.test.ts": "api reference\n",
+	"test/integration/api-reference.test.ts": "api reference\n",
 	"src/error-tracking-open.ts": "error tracking\n",
 	"src/domains/invoice/api/invoice-schedule.ts": "schedule\n",
 	"src/domains/invoice/spi/invoice-cache.ts": "cache\n",
@@ -108,6 +111,7 @@ const projectFiles: Record<string, string> = {
 		block({ body: "\tcache: redisClient,", piece: "cache" }),
 		block({ body: "\tanalytics: analyticsOpen(),", piece: "analytics" }),
 		block({ body: "errorTrackingOpen();", piece: "error-tracking" }),
+		block({ body: 'app.route("/api/v1/docs", docs);', piece: "api-reference" }),
 		"",
 	].join("\n"),
 	"src/ui/routes/home.tsx": "home\n",
@@ -315,6 +319,21 @@ describe("pieceFilesRemove", () => {
 				"",
 			),
 		);
+	});
+
+	it("drops the API reference page, its tests and its server.ts block", () => {
+		using folder = projectCreate();
+		const directory = folder.path;
+		pieceFilesRemove(directory, "api-reference");
+		for (const path of [
+			"src/api-reference.ts",
+			"src/api-reference.test.ts",
+			"test/integration/api-reference.test.ts",
+		]) {
+			expect(existsSync(join(directory, path)), path).toBe(false);
+		}
+		expect(read(directory, "src/server.ts")).not.toContain("/api/v1/docs");
+		expect(read(directory, "src/server.ts")).toContain("errorTrackingOpen");
 	});
 
 	it("drops the Worker, its schedules and their overrides with the queue", () => {

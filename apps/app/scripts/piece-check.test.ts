@@ -9,6 +9,7 @@ const all = new Set([
 	"@n8io/baseline-queue",
 	"@n8io/baseline-redis",
 	"react-router",
+	"swagger-ui-dist",
 ]);
 
 const plan = (options: Partial<Parameters<typeof pieceCheckPlan>[0]> = {}) =>
@@ -24,6 +25,7 @@ describe("pieceCheckPlan", () => {
 	it("checks every installed piece, redis after the cache and live updates", () => {
 		expect(plan().checks).toEqual([
 			{ first: [], piece: "analytics" },
+			{ first: [], piece: "api-reference" },
 			{ first: [], piece: "cache" },
 			{ first: [], piece: "error-tracking" },
 			{ first: [], piece: "live" },
@@ -36,6 +38,7 @@ describe("pieceCheckPlan", () => {
 	it("leaves out a piece the Project kept, and says why", () => {
 		const kept = plan({ kept: ["analytics", "live"] });
 		expect(kept.checks.map((c) => c.piece)).toEqual([
+			"api-reference",
 			"cache",
 			"error-tracking",
 			"queue",

@@ -11,6 +11,10 @@ minimumReleaseAgeExclude:
   - "@n8io/baseline-*"
 allowBuilds:
   protobufjs: false
+  # piece-start: api-reference
+  # swagger-ui-dist's only dependency is an install-time analytics script; keep it off.
+  "@scarf/scarf": false
+  # piece-end: api-reference
 # piece-start: ui
 # The built server never imports these peers; optional keeps them out of production installs.
 packageExtensions:

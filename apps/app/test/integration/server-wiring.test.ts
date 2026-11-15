@@ -251,6 +251,18 @@ describe("server wiring", { timeout: 30_000 }, () => {
 			expect(res.status).toBe(200);
 		});
 
+		it("declares the bearer scheme and requires it on every operation", async () => {
+			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
+				components: { securitySchemes: Record<string, unknown> };
+				security: unknown;
+			};
+
+			expect(doc.components.securitySchemes).toEqual({
+				bearer: { bearerFormat: "JWT", scheme: "bearer", type: "http" },
+			});
+			expect(doc.security).toEqual([{ bearer: [] }]);
+		});
+
 		it("documents the foo routes in the OpenAPI document", async () => {
 			const res = await request("/api/v1/openapi.json");
 			expect(res.status).toBe(200);
