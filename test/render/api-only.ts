@@ -86,7 +86,7 @@ const domainAdd = ({
 
 type OpenApiDocument = {
 	components?: { securitySchemes?: { bearer?: unknown } };
-	paths: Record<string, unknown>;
+	paths: Record<string, Record<string, { security?: unknown }>>;
 	security?: unknown;
 };
 
@@ -128,7 +128,7 @@ const apiGuardsRequire = async ({
 	// The document declares the bearer scheme and requires it on every operation: no operation
 	// opts out with its own `security`.
 	const operations = Object.values(doc.paths).flatMap((path) =>
-		Object.values(path as Record<string, { security?: unknown }>),
+		Object.values(path),
 	);
 	if (
 		!isDeepStrictEqual(doc.components?.securitySchemes?.bearer, {
@@ -139,7 +139,9 @@ const apiGuardsRequire = async ({
 		!isDeepStrictEqual(doc.security, [{ bearer: [] }]) ||
 		operations.some((operation) => operation.security !== undefined)
 	) {
-		guardFail("does not require the bearer scheme on every operation", openapi);
+		throw new Error(
+			`the served API does not require the bearer scheme on every operation: ${JSON.stringify({ scheme: doc.components?.securitySchemes?.bearer, security: doc.security })}`,
+		);
 	}
 	// The docs exemption stays in base code: without the piece the page is the API's JSON 404.
 	const docs = await fetch(`${url}/api/v1/docs`);
