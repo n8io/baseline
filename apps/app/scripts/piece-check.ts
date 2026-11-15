@@ -172,7 +172,13 @@ export const pieceCheckRun = ({
 	for (const name of [...first, piece]) {
 		const failed = tools.pieceRemove(tree, name);
 		if (failed !== undefined) {
-			return { ...failed, step: `pnpm piece-remove ${name}` };
+			return {
+				...failed,
+				step: `pnpm piece-remove ${name}`,
+				...(failed.packageManager === undefined
+					? {}
+					: { step: failed.packageManager, unchecked: true }),
+			};
 		}
 	}
 	const tested = tools.toolRun(tree, ["test"]);
@@ -205,7 +211,7 @@ type PieceCheckJob = { tree: true } | { first: string[]; piece: string };
 // memory) says nothing about a piece, so it blames none.
 const checkFailedCode = 3;
 
-// A child exits with this code when its install failed, so no check ran and no piece is to blame.
+// A child exits with this code when its install, `pnpm remove` or `pnpm add` failed, so no check ran and no piece is to blame.
 const checkUnreadyCode = 4;
 
 // What a job prints and how it exits when its check fails; undefined when it passes.
@@ -262,6 +268,27 @@ type JobEnd = {
 	output: string;
 };
 
+// How a child process ended: its exit code says whether its check passed, failed, or could not run.
+export const jobEndRead = ({
+	code,
+	output,
+	signal,
+}: {
+	code: number | null;
+	output: string;
+	signal: NodeJS.Signals | null;
+}): JobEnd => {
+	const text = output.trim();
+	if (code === 0) return { outcome: "passed", output: text };
+	if (code === checkFailedCode) return { outcome: "failed", output: text };
+	if (code === checkUnreadyCode) return { outcome: "unchecked", output: text };
+	return {
+		outcome: "crashed",
+		output:
+			`${text}\n(the check ended with ${signal ?? `exit code ${code}`})`.trim(),
+	};
+};
+
 // Runs one job in a child process of this script, keeping its output until it ends.
 const jobSpawn = (directory: string, job: PieceCheckJob) =>
 	new Promise<JobEnd>((done) => {
@@ -285,17 +312,7 @@ const jobSpawn = (directory: string, job: PieceCheckJob) =>
 			done({ outcome: "crashed", output: String(error) }),
 		);
 		child.on("close", (code, signal) => {
-			const text = output.trim();
-			if (code === 0) done({ outcome: "passed", output: text });
-			else if (code === checkFailedCode)
-				done({ outcome: "failed", output: text });
-			else {
-				done({
-					outcome: "crashed",
-					output:
-						`${text}\n(the check ended with ${signal ?? `exit code ${code}`})`.trim(),
-				});
-			}
+			done(jobEndRead({ code, output, signal }));
 		});
 	});
 
@@ -423,7 +440,7 @@ const main = async () => {
 	}
 	if (unchecked.size > 0) {
 		console.error(
-			`piece-check: ${inOrder(unchecked).join(", ")} could not be checked (its install failed), which blames no piece. Run it again.`,
+			`piece-check: ${inOrder(unchecked).join(", ")} could not be checked (its install or a package manager step failed), which blames no piece. Run it again.`,
 		);
 	}
 	if (crashes.size > 0) {

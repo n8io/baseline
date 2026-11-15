@@ -1,4 +1,5 @@
 import {
+	chmodSync,
 	type DisposableTempDir,
 	existsSync,
 	mkdirSync,
@@ -8,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	filesNamedIn,
 	pieceFilesRemove,
@@ -567,5 +568,64 @@ describe("pieceRemove", () => {
 		const directory = folder.path;
 		expect(pieceRemove(directory, "live")).toBeUndefined();
 		expect(existsSync(join(directory, "src/live-hub-open.ts"))).toBe(false);
+	});
+
+	describe("when the package manager fails", () => {
+		const pathBefore = process.env.PATH;
+		afterEach(() => {
+			process.env.PATH = pathBefore;
+			delete process.env.FAKE_PNPM_FAIL;
+		});
+
+		// A `pnpm` first on PATH that fails the one command named by FAKE_PNPM_FAIL (a registry
+		// error) and succeeds at every other, so no network is needed.
+		const pnpmFake = () => {
+			const folder = mkdtempDisposableSync(join(tmpdir(), "fake-pnpm-"));
+			const bin = folder.path;
+			const file = join(bin, "pnpm");
+			writeFileSync(
+				file,
+				'#!/bin/sh\nif [ "$1" = "$FAKE_PNPM_FAIL" ]; then echo "ERR_PNPM_FETCH_404 from the registry"; exit 1; fi\nexit 0\n',
+			);
+			chmodSync(file, 0o755);
+			process.env.PATH = `${bin}:${pathBefore ?? ""}`;
+			return folder;
+		};
+
+		it.each([
+			["live", "remove"],
+			["ui", "add"],
+		])(
+			"reports a failed pnpm %s %s as the package manager's, not the piece's, and undoes the removal",
+			(piece, command) => {
+				using folder = projectCreate({
+					"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0", "react-router": "^7.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+				});
+				using _fake = pnpmFake();
+				process.env.FAKE_PNPM_FAIL = command;
+				const failed = pieceRemove(folder.path, piece);
+				expect(failed?.packageManager).toBe(`pnpm ${command}`);
+				expect(failed?.files).toEqual([]);
+				expect(failed?.output).toContain("ERR_PNPM_FETCH_404");
+				expect(
+					run({
+						command: "git",
+						args: ["status", "--porcelain"],
+						options: { cwd: folder.path },
+					}),
+				).toBe("");
+			},
+		);
+
+		it("still blames the piece when only the check fails", () => {
+			using folder = projectCreate({
+				"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+			});
+			using _fake = pnpmFake();
+			process.env.FAKE_PNPM_FAIL = "check";
+			const failed = pieceRemove(folder.path, "live");
+			expect(failed).toBeDefined();
+			expect(failed?.packageManager).toBeUndefined();
+		});
 	});
 });

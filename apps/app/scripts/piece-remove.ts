@@ -460,7 +460,20 @@ export type PieceRemoveFailure = {
 	// Files the failing check names: the code that uses the piece outside its markers.
 	files: string[];
 	output: string;
+	// Set when the package manager failed (registry, network, store), not the Project's code:
+	// the command that failed, such as `pnpm remove`. The piece is not to blame.
+	packageManager?: string;
+	// False when the undo's own `pnpm install` failed too, so the tree needs one.
+	restored?: boolean;
 };
+
+class PackageManagerError extends Error {
+	readonly command: string;
+	constructor({ command, output }: { command: string; output: string }) {
+		super(output);
+		this.command = command;
+	}
+}
 
 const filePath =
 	/(?:^|[\s'"(])(?:\.\/)?((?:src|test|scripts)\/[\w./@$-]+?\.tsx?)(?![\w]|\.\w)/gm;
@@ -478,7 +491,15 @@ export const toolRun = (directory: string, args: string[]) => {
 	});
 	return {
 		ok: result.status === 0,
-		output: `${result.stdout}${result.stderr}`.trim(),
+		output: [
+			result.stdout,
+			result.stderr,
+			result.error?.message,
+			result.signal === null ? undefined : `(ended with ${result.signal})`,
+		]
+			.filter((part) => part !== undefined && part !== null)
+			.join("")
+			.trim(),
 	};
 };
 
@@ -500,10 +521,15 @@ export const pieceRemove = (
 	directory: string,
 	piece: string,
 ): PieceRemoveFailure | undefined => {
-	const failure = (output: string): PieceRemoveFailure => {
+	const failure = (
+		output: string,
+		packageManager?: string,
+	): PieceRemoveFailure => {
 		const restored = removalUndo(directory);
 		return {
-			files: filesNamedIn(output),
+			files: packageManager === undefined ? filesNamedIn(output) : [],
+			restored,
+			...(packageManager === undefined ? {} : { packageManager }),
 			output: restored
 				? output
 				: `${output}\n\npnpm install failed after the undo: run it again.`,
@@ -511,12 +537,15 @@ export const pieceRemove = (
 	};
 	try {
 		pieceFilesRemove(directory, piece);
-		const pnpm = (args: string[]) =>
-			run({
-				command: "pnpm",
-				args,
-				options: { cwd: directory, inherit: true },
-			});
+		const pnpm = (args: string[]) => {
+			const ran = toolRun(directory, args);
+			if (!ran.ok) {
+				throw new PackageManagerError({
+					command: `pnpm ${args[0]}`,
+					output: ran.output,
+				});
+			}
+		};
 		const installed = packagesInstalled(directory);
 		const packages = pieceRemovals[piece]?.packages.filter((p) =>
 			installed.has(p),
@@ -539,6 +568,9 @@ export const pieceRemove = (
 		]);
 		toolRun(directory, ["exec", "biome", "check", "--write", "."]);
 	} catch (error) {
+		if (error instanceof PackageManagerError) {
+			return failure(error.message, error.command);
+		}
 		return failure((error as Error).message);
 	}
 	const checked = toolRun(directory, ["check"]);
@@ -555,8 +587,14 @@ const main = () => {
 	}
 	const failed = pieceRemove(directory, piece);
 	if (failed !== undefined) {
+		const undone =
+			failed.restored === false
+				? "the removal is undone but its packages are not reinstalled (run pnpm install)"
+				: "the removal is undone and the tree is as you left it";
 		const lines = [
-			`piece-remove: removing ${piece} failed, so the removal is undone and the tree is as you left it.`,
+			failed.packageManager === undefined
+				? `piece-remove: removing ${piece} failed, so ${undone}.`
+				: `piece-remove: the package manager failed (${failed.packageManager}), not ${piece}'s code, so ${undone}. Run pnpm piece-remove ${piece} again.`,
 		];
 		if (failed.files.length > 0) {
 			lines.push(
