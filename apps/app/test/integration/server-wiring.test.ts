@@ -203,7 +203,12 @@ describe("server wiring", { timeout: 30_000 }, () => {
 
 		it("leaves bearer requests to /api alone, whatever their Origin", async () => {
 			const res = await request("/api/v1/nothing-here", {
-				headers: { ...(await bearer()), Origin: "https://evil.example" },
+				body: new URLSearchParams({ name: "form" }),
+				headers: {
+					Authorization: (await bearer()).Authorization,
+					Origin: "https://evil.example",
+				},
+				method: "POST",
 			});
 			expect(res.status).toBe(404);
 		});
