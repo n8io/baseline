@@ -28,6 +28,18 @@ describe("ci.yml runs", () => {
 			/- if: github\.event_name == 'push'\n {8}uses: actions\/cache\/save@/,
 		);
 		expect(ci.match(/uses: actions\/cache\/save@/g)).toHaveLength(1);
+		expect(ci).toMatch(
+			/- if: github\.event_name != 'push'\n {8}uses: actions\/cache\/restore@/,
+		);
+		expect(ci).toContain(
+			"\n  automerge:\n    if: github.event_name == 'pull_request'\n",
+		);
+	});
+
+	it("the Template's run never starts on push, which a private Project pays for", () => {
+		expect(read("apps/app/.github/workflows/ci.yml")).toContain(
+			"\non: [pull_request, workflow_dispatch]\n",
+		);
 	});
 
 	it("checks out without keeping the token, since no ci job pushes", () => {

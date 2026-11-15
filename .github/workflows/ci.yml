@@ -32,7 +32,9 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       # Only main saves the cache: one saved on a pull request is readable by that pull request alone.
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # main restores none, so each saved cache holds one full run and never grows.
+      - if: github.event_name != 'push'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           path: .turbo/cache
