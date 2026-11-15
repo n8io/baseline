@@ -186,7 +186,23 @@ export const rulesetBodyCreate = (): Ruleset => ({
 
 // The fields a ruleset is judged by, in a fixed order: GitHub's answer also carries ids, dates
 // and defaults the body never sets, and lists rules and checks in no stable order.
-const rulesetNormalize = (ruleset: Partial<Ruleset>) => ({
+// The parameters under the given keys, in key order: GitHub adds defaults the body never sets
+// (required_reviewers) and answers in its own key order.
+const parametersPick = ({
+	keys,
+	parameters,
+}: {
+	keys: string[];
+	parameters: Record<string, unknown> | undefined;
+}) => Object.fromEntries(keys.sort().map((key) => [key, parameters?.[key]]));
+
+const rulesetNormalize = ({
+	ruleset,
+	shape,
+}: {
+	ruleset: Partial<Ruleset>;
+	shape: Ruleset;
+}) => ({
 	bypass_actors: ruleset.bypass_actors ?? [],
 	conditions: ruleset.conditions,
 	enforcement: ruleset.enforcement,
@@ -203,9 +219,16 @@ const rulesetNormalize = (ruleset: Partial<Ruleset>) => ({
 							)
 								.map(({ context }) => context)
 								.sort(),
+							create: parameters?.do_not_enforce_on_create,
 							strict: parameters?.strict_required_status_checks_policy,
 						}
-					: parameters,
+					: parametersPick({
+							keys: Object.keys(
+								shape.rules.find((rule) => rule.type === type)?.parameters ??
+									{},
+							),
+							parameters,
+						}),
 			])
 			.sort(([a], [b]) => a.localeCompare(b)),
 	),
@@ -221,8 +244,8 @@ export const rulesetChangesFind = ({
 	current: Partial<Ruleset>;
 	wanted: Ruleset;
 }): string[] => {
-	const have = rulesetNormalize(current);
-	const want = rulesetNormalize(wanted);
+	const have = rulesetNormalize({ ruleset: current, shape: wanted });
+	const want = rulesetNormalize({ ruleset: wanted, shape: wanted });
 	const changes: string[] = [];
 	for (const field of [
 		"bypass_actors",
@@ -260,7 +283,7 @@ export const rulesetReconcile = ({
 }): string => {
 	const wanted = rulesetBodyCreate();
 	const path = `repos/${repository}/rulesets`;
-	const listed = JSON.parse(gh(["api", path])) as {
+	const listed = JSON.parse(gh(["api", `${path}?includes_parents=false`])) as {
 		id: number;
 		name: string;
 	}[];
@@ -464,9 +487,10 @@ const githubSteps = ({
 	[
 		"The GitHub half, on a machine where `gh auth status` is signed in:",
 		`  1. gh repo create ${owner ?? "<owner>"}/${name} --private --description '${description.replaceAll("'", "'\\''")}' --source ${directory} --remote origin --push`,
-		`  2. a ruleset on the default branch requiring ${requiredJobs.map((job) => `ci / ${job}`).join(", ")}`,
-		"  3. Dependabot alerts, then Dependabot security updates",
-		`Inside ${directory}, \`pnpm -C ${monorepo} app-create --github-only\` does all three and runs CI once on main.`,
+		`  2. a ruleset on the default branch: no deletion, no force push, squash-merged pull requests only, and ${requiredJobs.map((job) => `ci / ${job}`).join(", ")} required`,
+		"  3. squash-only merging with merged branches deleted",
+		"  4. Dependabot alerts, then Dependabot security updates",
+		`Inside ${directory}, \`pnpm -C ${monorepo} app-create --github-only\` does all four and runs CI once on main.`,
 	].join("\n");
 
 const nextSteps = (directory: string): string =>

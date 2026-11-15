@@ -333,20 +333,31 @@ describe("app-create", () => {
 				...rest,
 				id: 7,
 				rules: [...rules].reverse().map((r) =>
-					r.type === "required_status_checks"
+					r.type === "pull_request"
 						? {
 								...r,
 								parameters: {
+									required_approving_review_count: 0,
+									require_extra_approval_for_unattributed_changes: true,
+									required_reviewers: [],
 									...r.parameters,
-									required_status_checks: [
-										...((r.parameters?.required_status_checks ??
-											[]) as unknown[]),
-									].reverse(),
 								},
 							}
-						: r,
+						: r.type === "required_status_checks"
+							? {
+									...r,
+									parameters: {
+										...r.parameters,
+										required_status_checks: [
+											...((r.parameters?.required_status_checks ??
+												[]) as unknown[]),
+										].reverse(),
+									},
+								}
+							: r,
 				),
 				source: "n8io/x",
+				source_type: "Repository",
 			};
 		};
 		const ghFake = (answers: { list: unknown[]; ruleset?: unknown }) => {
@@ -355,7 +366,7 @@ describe("app-create", () => {
 				calls.push({ args, input });
 				if (args.includes("--method")) return "{}";
 				return JSON.stringify(
-					args.at(-1)?.endsWith("/rulesets") ? answers.list : answers.ruleset,
+					args.at(-1)?.includes("/rulesets?") ? answers.list : answers.ruleset,
 				);
 			};
 			return { calls, gh };
@@ -425,7 +436,7 @@ describe("app-create", () => {
 				"n8io/x already has the ci ruleset as wanted",
 			);
 			expect(calls.map((c) => c.args.join(" "))).toEqual([
-				"api repos/n8io/x/rulesets",
+				"api repos/n8io/x/rulesets?includes_parents=false",
 				"api repos/n8io/x/rulesets/7",
 			]);
 		});
