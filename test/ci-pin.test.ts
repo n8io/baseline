@@ -20,7 +20,7 @@ describe("the Template's app-ci pin", () => {
 		},
 	);
 
-	it("never edits the repo's own workflows, which the release job's GITHUB_TOKEN may not push", () => {
+	it("never edits the repo's own workflows, which the release App's token may not push", () => {
 		expect(ciPinFiles.filter((file) => file.startsWith(".github/"))).toEqual(
 			[],
 		);

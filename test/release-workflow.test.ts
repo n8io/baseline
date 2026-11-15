@@ -33,9 +33,17 @@ describe("release.yml", () => {
 		]);
 	});
 
-	it("starts no CI run by dispatch and needs no actions permission", () => {
+	it("hands changesets/action the token only through its input", () => {
+		const step = release.match(/- id: changesets\n(?: {8}.*\n)*/)?.[0] ?? "";
+		expect(step).toContain("github-token:");
+		expect(step).not.toContain("GITHUB_TOKEN:");
+	});
+
+	it("starts no CI run by dispatch and keeps GITHUB_TOKEN to the tag push and OIDC", () => {
 		expect(release).not.toContain("gh workflow run");
-		expect(release).not.toMatch(/^ {2}actions: write$/m);
+		expect(release).toMatch(
+			/\npermissions:\n {2}contents: write\n {2}id-token: write\n\njobs:/,
+		);
 		expect(
 			readFileSync(join(root, ".github/workflows/ci.yml"), "utf8"),
 		).not.toContain("workflow_dispatch");
