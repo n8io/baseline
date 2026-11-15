@@ -48,6 +48,26 @@ export const problemCodesOpen = (document: unknown): unknown => {
 	return document;
 };
 
+// A base document built before the bearer scheme was declared has no `security`. oasdiff reports
+// the first top-level requirement as "no longer allows anonymous access" on every operation, so the
+// base is read as the secured document it is now (every /api/v1 route already needed a token).
+// Delete this once no Project is older than that release.
+export const securityBearerDeclare = (document: unknown): unknown => {
+	const doc = document as {
+		components?: { securitySchemes?: Record<string, unknown> };
+		security?: unknown;
+	};
+	if (doc.security !== undefined) return document;
+	doc.components = {
+		...doc.components,
+		securitySchemes: {
+			bearer: { bearerFormat: "JWT", scheme: "bearer", type: "http" },
+		},
+	};
+	doc.security = [{ bearer: [] }];
+	return document;
+};
+
 // Builds the server in `directory`, boots it on memory adapters and saves its OpenAPI document.
 const documentSave = async ({
 	directory,
@@ -130,7 +150,7 @@ const main = async () => {
 			directory: join(base, prefix),
 			file: baseFile,
 			port: 3101,
-			prepare: problemCodesOpen,
+			prepare: (document) => securityBearerDeclare(problemCodesOpen(document)),
 		});
 		step({
 			args: ["breaking", baseFile, revisionFile, "--fail-on", "ERR"],

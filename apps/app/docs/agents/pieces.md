@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
 
 ## How to remove a piece
 
@@ -99,3 +99,13 @@ It reports what is logged at error or fatal from the moment `src/connections.ts`
 `SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=op(op://<project>-production/sentry/dsn)` to `.env.production`.
 
 Add error tracking back: `git revert` the "Remove error-tracking" commit.
+
+## API reference
+
+`pnpm piece-remove api-reference`
+
+The interactive API reference at `/api/v1/docs`: Swagger UI (`swagger-ui-dist`, named only in `src/api-reference.ts`) served from this app's own origin and reading `/api/v1/openapi.json`. Its Authorize button takes a bearer token, which the OpenAPI document declares in base code, so the document keeps its `bearer` scheme after the piece goes. The page and its two files answer without a token, in every environment, like the document; the exemption in `server.ts`'s "no Actor, no API" guard stays, so without the piece `/api/v1/docs` is the API's JSON 404. The command also drops the `@scarf/scarf` line from `pnpm-workspace.yaml`. Nothing else uses it, so it can go in any order.
+
+The page works under the Template's CSP unchanged: both script tags carry the request's nonce. Swagger UI's two `data:` icons stay blocked by `default-src`; do not loosen `img-src` for them.
+
+Add the API reference back: `git revert` the "Remove api-reference" commit.

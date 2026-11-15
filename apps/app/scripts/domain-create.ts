@@ -62,6 +62,8 @@ const pieces = [
 		package: "@n8io/baseline-error-tracking",
 		paths: [],
 	},
+	// Owns no Domain file either; listed for its server.ts block.
+	{ name: "api-reference", package: "swagger-ui-dist", paths: [] },
 	// Owns no Domain file either (src/redis-open.ts is not a Domain's).
 	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
 	{
@@ -241,6 +243,9 @@ export const domainNameRefusal = (
 		if (!kebabPattern.test(name)) return `"${name}" is not kebab-case`;
 		if (name.includes("foo")) return `"${name}" contains foo`;
 	}
+	// /api/v1/docs belongs to the API reference page and skips the sign-in guard.
+	if (names.plural === "docs")
+		return '"docs" is the API reference page\'s path';
 	if (names.plural === names.kebab) {
 		return "the plural must differ from the name";
 	}

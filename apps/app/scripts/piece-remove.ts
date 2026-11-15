@@ -1,5 +1,5 @@
 // pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
-// redis, queue, analytics or error-tracking). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// redis, queue, analytics, error-tracking or api-reference). It deletes the piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
 // commits. When the check fails it undoes the removal and lists the files that use the piece outside
 // its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
@@ -173,6 +173,14 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 		packages: ["@n8io/baseline-analytics"],
 		paths: ["src/analytics-open.ts", "src/analytics-open.test.ts"],
 		srcFiles: /-use-cases-analytics\.test\.ts$/,
+	},
+	"api-reference": {
+		packages: ["swagger-ui-dist"],
+		paths: [
+			"src/api-reference.ts",
+			"src/api-reference.test.ts",
+			"test/integration/api-reference.test.ts",
+		],
 	},
 	cache: {
 		packages: ["@n8io/baseline-cache"],

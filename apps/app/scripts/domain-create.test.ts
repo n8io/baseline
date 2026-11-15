@@ -604,6 +604,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			app,
 			templateWithoutPieces(filesRead(appRoot.pathname), [
 				"analytics",
+				"api-reference",
 				"cache",
 				"error-tracking",
 				"live",
@@ -633,7 +634,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		).toEqual([]);
 		expect(
 			created.filter((f) =>
-				/piece-(start|end): (analytics|cache|error-tracking|live|queue|redis|ui)|SCHEDULE_|Analytics/.test(
+				/piece-(start|end): (analytics|api-reference|cache|error-tracking|live|queue|redis|ui)|SCHEDULE_|Analytics/.test(
 					f.text,
 				),
 			),

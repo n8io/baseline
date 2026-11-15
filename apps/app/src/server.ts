@@ -41,6 +41,7 @@ import { fooScopes } from "#domains/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
 import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
+import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
 import { domainsUseCasesCreate } from "./use-cases.ts";
@@ -118,10 +119,13 @@ app.use("/api/v1/*", authnMiddlewareCreate(authn, { source: "bearer" }));
 // No Actor, no API: an anonymous request gets 401 before any route validates its input.
 app.use(
 	"/api/v1/*",
-	except("/api/v1/openapi.json", async (c, next) => {
-		authnActorRequire(c);
-		await next();
-	}),
+	except(
+		["/api/v1/openapi.json", "/api/v1/docs", "/api/v1/docs/*"],
+		async (c, next) => {
+			authnActorRequire(c);
+			await next();
+		},
+	),
 );
 app.route("/auth", authnRoutesCreate(authn));
 app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
@@ -133,9 +137,20 @@ app.route(
 );
 // domain-create: live
 // piece-end: live
+// piece-start: api-reference
+// Public like openapi.json (the guard above exempts /api/v1/docs); without this piece it is a 404.
+app.route("/api/v1/docs", apiReferenceRoutesCreate());
+// piece-end: api-reference
+// Every operation needs a bearer token, which the API reference page's Authorize button takes.
+app.openAPIRegistry.registerComponent("securitySchemes", "bearer", {
+	bearerFormat: "JWT",
+	scheme: "bearer",
+	type: "http",
+});
 app.doc31("/api/v1/openapi.json", {
 	info: { title: "app", version: "1" },
 	openapi: "3.1.0",
+	security: [{ bearer: [] }],
 });
 // Unknown /api paths answer JSON, never a page.
 app.all("/api/*", httpNotFoundHandle);
