@@ -12,9 +12,10 @@
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
 # secrets: give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password, which fetches them at
 # boot, or set every variable .env.production names in the environment, which needs no token.
+# Alpine (musl) in both stages, so native packages install their musl builds; its shell is BusyBox sh.
 # Build: docker build .
 
-FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS build
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS build
 WORKDIR /app
 RUN npm install --global pnpm@12.17.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -33,7 +34,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	&& pnpm install --prod --frozen-lockfile --offline --store-dir /pnpm/store --package-import-method copy \
 	&& find node_modules -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -delete
 
-FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
 WORKDIR /app
 ENV NODE_ENV=production APP_ENV=production
 ENV NODE_OPTIONS="--import /app/src/preload.ts"

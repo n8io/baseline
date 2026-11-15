@@ -13,7 +13,7 @@ Read when deploying a Project or changing how it runs.
 - Probe `/livez` and `/readyz` on `HEALTH_PORT` (9000).
 - A TLS-terminating proxy must set `x-forwarded-proto: https`, or browsers without `Sec-Fetch-Site` get 403 on form posts.
 - The load balancer or edge rate-limits requests; the app does not.
-- `image-budget.json` caps the production image; CI's `image` job prints `Image: N MB` and fails above it. Set it to that size plus about 10%, and lower it after `pnpm piece-remove`. The Dockerfile deletes source maps and type declarations from the production `node_modules`. A Project whose production dependency reads either at run time (the TypeScript compiler reads its `lib.*.d.ts`) excludes that package in the `find` line.
+- `image-budget.json` caps the production image; CI's `image` job prints `Image: N MB` and fails above it. Set it to that size plus about 10%, and lower it after `pnpm piece-remove`. The Dockerfile deletes source maps and type declarations from the production `node_modules`. A Project whose production dependency reads either at run time (the TypeScript compiler reads its `lib.*.d.ts`) excludes that package in the `find` line. The image is Alpine (musl): a production dependency with a native binary needs a musl build, or the Project keeps `node:26-slim`.
 - More than one instance, or Kubernetes (probes, pool sizing, PgBouncer, rollouts, outages): [deploy-kubernetes.md](deploy-kubernetes.md).
 
 ## Running locally next to another Project
