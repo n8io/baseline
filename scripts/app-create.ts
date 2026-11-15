@@ -594,7 +594,10 @@ export const ciDispatch = async ({
 			]);
 			break;
 		} catch (error) {
-			if (attempt === limit || /workflow_dispatch/.test(String(error))) {
+			if (
+				attempt === Math.min(limit, 10) ||
+				/workflow_dispatch/.test(String(error))
+			) {
 				return `Could not start CI on main; run it from ${page}`;
 			}
 			await setTimeout(intervalMs ?? 3_000);
@@ -622,7 +625,7 @@ export const ciDispatch = async ({
 		} catch {
 			// The list is not up yet; ask again.
 		}
-		await setTimeout(intervalMs ?? 3_000);
+		if (attempt < limit) await setTimeout(intervalMs ?? 3_000);
 	}
 	return `CI was started on main; its run has not shown up in the list yet, find it at ${page}`;
 };
