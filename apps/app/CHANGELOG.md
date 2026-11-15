@@ -1,5 +1,26 @@
 # app
 
+## 8.2.0
+
+### Minor Changes
+
+- 0f9ae9a: The production image runs on `node:26-alpine` in both stages, at the owner's choice after a comparison of slim, Alpine and distroless (#393). The Template's full render goes from 324 MB to 254 MB, and with every piece removed it goes from 302 MB to 232 MB. On the day of the change Trivy reported 1 OS vulnerability in the Alpine base and 210 in Debian slim. Native packages now install their musl builds, and a shell in the container is BusyBox `sh`, not `bash`. `image-budget.json` drops from 360 to 280 MB.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `Dockerfile`, `dockerfile.test.ts`, `docs/agents/deploy.md` and `image-budget.json`. A Project that set its own budget gets a conflict in `image-budget.json`: keep yours, then lower it to your next `image` job's `Image: N MB` plus about 10%. A Project with a production dependency that ships only a glibc native binary keeps `node:26-slim` (keep both `FROM` lines, the test and your `image-budget.json`). Rebuild the image and run your deploy checks; a script or health check that calls `bash` inside the container needs `sh`.
+
+### Patch Changes
+
+- fc43eff: A Project now keeps the test that the OpenAPI document declares the bearer scheme and requires it on every operation. It moved out of the example (foo) block of `server-wiring.test.ts` into the base "security guards" block, so removing the Domain no longer removes it. The same block gains a test that a bearer request to /api passes whatever its Origin, and a test that the document is served without a token. On a template upgrade a Project gets these tests; To upgrade a Project: run `pnpm template-upgrade`; it takes `test/integration/server-wiring.test.ts`.
+- a30ed95: The production image is smaller: the Dockerfile deletes source maps and type declarations (`*.map`, `*.d.ts`, `*.d.mts`, `*.d.cts`) from the production `node_modules`, which Node never reads at run time. The Template's full render went from 430 MB to 324 MB, and with every piece removed it went from 342 MB to 302 MB. `image-budget.json` drops from 430 to 360 MB, and `docs/agents/deploy.md` says how a Project sets its own.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `Dockerfile`, `dockerfile.test.ts`, `docs/agents/deploy.md` and `image-budget.json`. A Project that kept the Template's 430 gets 360. A Project that set its own budget gets a conflict in `image-budget.json`: keep yours, then lower it to your next `image` job's `Image: N MB` plus about 10%. A Project whose production dependency reads `.d.ts` or `.map` files at run time excludes that package in the Dockerfile's `find` line.
+- 4fd91f4: `pnpm piece-check` now reports a failed `pnpm install` in a piece's worktree as "could not be checked", with the install's output, and never as "X can no longer be removed". Only a failing check after a good install blames the piece.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `scripts/piece-check.ts` and `docs/agents/pieces.md`.
+- f9deae9: `pnpm template-upgrade` waits for npm to serve every `@n8io/baseline-*` tarball before it installs, so an upgrade to a release published minutes ago no longer fails with `ERR_PNPM_TARBALL_HTTP_STATUS` 404. A wait that runs out names the missing tarball, says it is a registry delay, and says what to run by hand. The upgrade that brings this release in still runs your old `template-upgrade.ts`, so the wait applies from the next upgrade.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `scripts/npm-tarballs-wait.ts`, `scripts/template-upgrade.ts` and their tests, and `docs/agents/template-upgrade.md`.
+
 ## 8.1.1
 
 ### Patch Changes
