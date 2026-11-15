@@ -19,6 +19,11 @@ const serverEntry = "build/server/index.js";
 
 const ports = integrationPortClaimerCreate();
 
+// How long a boot may take to succeed or to fail. On a 2-CPU runner with every integration worker
+// busy a boot takes 10 to 12 s, so a wait for a boot outcome allows at least this, never the 10 s
+// default. A wait that also covers a Postgres connection failing may allow longer.
+export const productionServerBootMs = 20_000;
+
 const sleep = (ms: number): Promise<void> =>
 	new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -171,7 +176,7 @@ const appProcessWaitFor = ({
 			}
 			return check();
 		},
-		timeoutMs: 20_000,
+		timeoutMs: productionServerBootMs,
 	});
 
 const appProcessStart = async ({

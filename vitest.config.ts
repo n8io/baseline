@@ -5,8 +5,8 @@ export default mergeConfig(
 	vitestShared,
 	defineConfig({
 		test: {
-			// test/render/ runs inside a rendered app, never here.
-			exclude: ["test/render/**"],
+			// The second-domain fixture's tests run inside a rendered app, never here.
+			exclude: ["test/render/second-domain/**"],
 			include: ["test/**/*.test.ts"],
 		},
 	}),

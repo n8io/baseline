@@ -94,6 +94,40 @@ const domains: {
 	},
 ];
 
+// Waits until npm serves the tarball of every @n8io/baseline-* package the project's lockfile
+// resolved. On a release day the newest is seconds old: npm lists a version before its tarball
+// answers, and the install fails with ERR_PNPM_TARBALL_HTTP_STATUS 404 (run 43596056438, 30 s to
+// 2.5 min after the publish). pnpm asks only twice, at once, on a 404 whatever fetchRetries says;
+// fetchRetries covers 5xx and network errors, so any answer but 404 is left to the install. Five
+// minutes of 404 is a real failure, reported before the job's 10 minute limit.
+const npmTarballsWait = async (directory: string): Promise<void> => {
+	const lockfile = readFileSync(join(directory, "pnpm-lock.yaml"), "utf8");
+	const urls = [
+		...lockfile.matchAll(/^ {2}'?@n8io\/(baseline-[^@']+)@([^:'(]+)'?:$/gm),
+	].map(
+		([, name, version]) =>
+			`https://registry.npmjs.org/@n8io/${name}/-/${name}-${version}.tgz`,
+	);
+	const deadline = Date.now() + 5 * 60_000;
+	for (const url of new Set(urls)) {
+		for (;;) {
+			const status = await fetch(url, {
+				method: "HEAD",
+				signal: AbortSignal.timeout(10_000),
+			}).then(
+				(res) => res.status,
+				() => undefined,
+			);
+			if (status !== 404) break;
+			if (Date.now() > deadline) {
+				throw new Error(`npm still answers 404 after 5 minutes for ${url}`);
+			}
+			console.log(`waiting for npm to serve ${url}`);
+			await new Promise((resolve) => setTimeout(resolve, 15_000));
+		}
+	}
+};
+
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");
 	if (process.argv[2] === undefined || existsSync(directory)) {
@@ -118,7 +152,10 @@ const main = async () => {
 			term: glossaryTerm(d.kebab),
 		})),
 	});
-	// The template's lockfile drops our own packages, so this install adds them.
+	// The template's lockfile drops our own packages, so this install adds them, resolved first so
+	// their tarballs can be awaited.
+	pnpmRun(directory, ["install", "--lockfile-only", "--no-frozen-lockfile"]);
+	await npmTarballsWait(directory);
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, previousFiles);
 	gitCommitAll(directory, `Create render-test from app@${previous}`);

@@ -29,6 +29,25 @@ export const checkoutExport = (): TemplateFile[] => {
 	return templateExport(clone, "HEAD");
 };
 
+// Adds `entries` (indented lines) to the workspace's overrides block, or appends the block when
+// there is none: pnpm refuses a second overrides key (ERR_PNPM_INVALID_SETTING).
+export const workspaceOverridesAdd = (
+	workspace: string,
+	entries: string[],
+): string => {
+	const block = /^overrides:[ \t]*(?:#.*)?\r?\n/m;
+	if (block.test(workspace)) {
+		return workspace.replace(block, (key) => `${key}${entries.join("")}`);
+	}
+	if (/^overrides:/m.test(workspace)) {
+		throw new Error(
+			"pnpm-workspace.yaml has an overrides key that is not a block of lines",
+		);
+	}
+	const ended = workspace === "" || workspace.endsWith("\n");
+	return `${workspace}${ended ? "" : "\n"}overrides:\n${entries.join("")}`;
+};
+
 // Packs this checkout's packages/* into the project and points every @n8io/baseline-* dependency
 // at the tarballs with pnpm overrides, so HEAD tests the package code that releases with this
 // template. The tarballs travel in app.tar for app-ci's frozen installs; git ignores them, and the
@@ -57,9 +76,10 @@ export const checkoutPackagesUse = (directory: string) => {
 		}
 		return `  "${scoped}": file:./${tarball}\n`;
 	});
-	appendFileSync(
-		join(directory, "pnpm-workspace.yaml"),
-		`overrides:\n${overrides.join("")}`,
+	const workspace = join(directory, "pnpm-workspace.yaml");
+	writeFileSync(
+		workspace,
+		workspaceOverridesAdd(readFileSync(workspace, "utf8"), overrides),
 	);
 	appendFileSync(join(directory, ".git/info/exclude"), `/${folder}/\n`);
 	// The image installs from the manifests before it copies the project, and again in /prod.
