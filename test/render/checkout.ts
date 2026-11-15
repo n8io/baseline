@@ -116,3 +116,13 @@ export const lockfileTemplateRequire = (
 		);
 	}
 };
+
+// Git ignores the tarballs, but `pnpm piece-check` installs in a worktree of HEAD, where the
+// overrides must find them. Call it before the commit that the check runs on.
+export const checkoutPackagesTrack = (directory: string) => {
+	run({
+		command: "git",
+		args: ["add", "--force", ".baseline-packages"],
+		options: { cwd: directory },
+	});
+};
