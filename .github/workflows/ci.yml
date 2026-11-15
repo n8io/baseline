@@ -2,7 +2,17 @@ name: ci
 
 # workflow_dispatch: release.yml starts CI on the Version packages PR, whose
 # GITHUB_TOKEN pushes start no pull_request runs.
-on: [pull_request, workflow_dispatch]
+# push to main: tests main after each merge and saves the Turborepo cache every pull request reads.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
+concurrency:
+  group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,18 +25,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: pnpm
           node-version-file: .node-version
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # Only main saves the cache: one saved on a pull request is readable by that pull request alone.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           path: .turbo/cache
           restore-keys: turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo run check test build --affected
+      # main runs every task, so its cache holds them all.
+      - run: pnpm turbo run check test build ${{ github.event_name != 'push' && '--affected' || '' }}
+      - if: github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          path: .turbo/cache
 
   # The same Semgrep scan app-ci runs; apps/app is scanned through render-and-test.
   sast:
@@ -35,19 +53,24 @@ jobs:
     container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: >-
           semgrep scan --error --metrics=off
           --config p/typescript --config p/nodejs --config p/react --config p/secrets
           packages scripts test
 
   # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
+  # On main there are no added lines to read.
   glossary-check:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -77,6 +100,8 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -95,6 +120,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -125,6 +151,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -138,6 +166,7 @@ jobs:
           node test/render/api-only.ts "$RUNNER_TEMP/api-only"
 
   automerge:
+    if: github.event_name == 'pull_request'
     needs: [api-only, integration, packages, render, render-and-test, sast]
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
