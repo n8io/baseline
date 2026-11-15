@@ -1,10 +1,12 @@
 name: ci
 
-# push to main: tests main after each merge and saves the Turborepo cache every pull request reads.
+# A run on main tests main after each merge and saves the Turborepo cache every pull request reads.
+# workflow_dispatch: main-run starts that run after a Dependabot merge, which a push cannot.
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
 concurrency:
@@ -30,7 +32,7 @@ jobs:
           node-version-file: .node-version
       # Only main saves the cache: one saved on a pull request is readable by that pull request alone.
       # main restores none, so each saved cache holds one full run and never grows.
-      - if: github.event_name != 'push'
+      - if: github.ref != 'refs/heads/main'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
@@ -38,13 +40,13 @@ jobs:
           restore-keys: turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       # main runs every task, so its cache holds them all.
-      - run: pnpm turbo run check test build ${{ github.event_name != 'push' && '--affected' || '' }}
+      - run: pnpm turbo run check test build ${{ github.ref != 'refs/heads/main' && '--affected' || '' }}
       # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
       # On main there are no added lines to read.
-      - if: ${{ !cancelled() && github.event_name != 'push' }}
+      - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         continue-on-error: true
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
-      - if: github.event_name == 'push'
+      - if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
@@ -168,3 +170,22 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+
+  # automerge merges with GITHUB_TOKEN, whose push starts no run on main; a dispatch is the one run it can start.
+  main-run:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    needs: automerge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .merged)" = true ]; then
+            gh workflow run ci.yml --ref main
+          fi
