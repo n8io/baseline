@@ -16,4 +16,5 @@ Read when handling a Dependabot pull request, a major update or a security alert
 3. **Minor and patch.** CI runs every required check, then the `automerge` job squash-merges the PR. Nothing to do unless a check fails; if one does, find the update that broke it and fix the code or hold that update back.
 4. **Major.** Read the release notes and the breaking changes with the person, check out the branch, apply what the notes require, and run `pnpm run ci`. Merge by squash once green, after the person agrees.
 5. **A major of `app-ci.yml`.** Dependabot proposes moving `.github/workflows/ci.yml` to the next `app-ci.yml@v<major>`. A new major means a new check that can fail; read the Template changelog, and take the matching `pnpm template-upgrade` ([walkthrough](template-upgrade.md)) first.
-6. **No release.** Update PRs carry no changeset, so they publish nothing and tag nothing.
+6. **A failed security update.** When Dependabot ends with `security_update_not_possible` (usually an indirect dependency), the alert is a ticket, not noise: refresh the lockfile by hand with `pnpm update <package> --depth Infinity`, or bump the direct parent; use an `overrides` entry in `pnpm-workspace.yaml`, with a comment saying why, only when the parent's range blocks the fix.
+7. **No release.** Update PRs carry no changeset, so they publish nothing and tag nothing.
