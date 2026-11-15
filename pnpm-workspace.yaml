@@ -20,12 +20,4 @@ packageExtensions:
         optional: true
       vite:
         optional: true
-# The dev-server plugin (dev only, but installed in the image) pins @hono/node-server ^1 and minimatch ^9,
-# and shadcn's ts-morph pins minimatch ^10; all three are open advisories fixed in 2.1.3 and 11.0.1.
-# They use only getRequestListener, getConnInfo and the named minimatch export, which the newer majors keep.
-# Drop each line once its parent's own range allows the patched version.
-overrides:
-  "@hono/vite-dev-server>@hono/node-server": ^2.1.6
-  "@hono/vite-dev-server>minimatch": ^11.0.1
-  "@ts-morph/common>minimatch": ^11.0.1
 # piece-end: ui

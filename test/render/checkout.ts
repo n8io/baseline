@@ -57,14 +57,9 @@ export const checkoutPackagesUse = (directory: string) => {
 		}
 		return `  "${scoped}": file:./${tarball}\n`;
 	});
-	// The template's own overrides block (security pins) stays; a second `overrides:` key is invalid.
-	const workspace = join(directory, "pnpm-workspace.yaml");
-	const text = readFileSync(workspace, "utf8");
-	writeFileSync(
-		workspace,
-		/^overrides:\n/m.test(text)
-			? text.replace(/^overrides:\n/m, `overrides:\n${overrides.join("")}`)
-			: `${text}overrides:\n${overrides.join("")}`,
+	appendFileSync(
+		join(directory, "pnpm-workspace.yaml"),
+		`overrides:\n${overrides.join("")}`,
 	);
 	appendFileSync(join(directory, ".git/info/exclude"), `/${folder}/\n`);
 	// The image installs from the manifests before it copies the project, and again in /prod.
@@ -120,14 +115,4 @@ export const lockfileTemplateRequire = (
 			`the first install resolved fresh instead of the template's lockfile:\n${fresh.join("\n")}`,
 		);
 	}
-};
-
-// Git ignores the tarballs, but `pnpm piece-check` installs in a worktree of HEAD, where the
-// overrides must find them. Call it before the commit that the check runs on.
-export const checkoutPackagesTrack = (directory: string) => {
-	run({
-		command: "git",
-		args: ["add", "--force", ".baseline-packages"],
-		options: { cwd: directory },
-	});
 };
