@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { eachConcurrently, pieceCheckPlan } from "./piece-check.ts";
+import {
+	eachConcurrently,
+	pieceCheckIn,
+	pieceCheckPlan,
+	pieceFailureReport,
+} from "./piece-check.ts";
 
 const all = new Set([
 	"@n8io/baseline-analytics",
@@ -110,5 +115,50 @@ describe("eachConcurrently", () => {
 		});
 		expect(started).toEqual([1, 2, 3, 4, 5]);
 		expect(most).toBe(2);
+	});
+});
+
+describe("pieceCheckIn", () => {
+	const removed: string[] = [];
+	const tools = ({ failing }: { failing?: string | undefined }) => ({
+		pieceRemove: (_tree: string, name: string) => {
+			removed.push(name);
+			return undefined;
+		},
+		toolRun: (_tree: string, args: string[]) =>
+			args[0] === failing
+				? { ok: false, output: `ERR_PNPM_TARBALL_HTTP_STATUS on ${args[0]}` }
+				: { ok: true, output: "" },
+	});
+	const check = (failing?: string) =>
+		pieceFailureReport(
+			"cache",
+			pieceCheckIn({
+				first: [],
+				piece: "cache",
+				tools: tools({ failing }),
+				tree: "/tree",
+			}),
+		);
+
+	it("reports a failed install as not checked, exits 4 and blames no piece", () => {
+		removed.length = 0;
+		const report = check("install");
+		expect(report?.code).toBe(4);
+		expect(report?.text).toContain("cache could not be checked");
+		expect(report?.text).toContain("ERR_PNPM_TARBALL_HTTP_STATUS");
+		expect(report?.text).toContain("no piece is to blame");
+		expect(report?.text).not.toContain("fails at");
+		expect(removed).toEqual([]);
+	});
+
+	it("blames the piece, with exit 3, when its test fails after a good install", () => {
+		const report = check("test");
+		expect(report?.code).toBe(3);
+		expect(report?.text).toContain("piece-check: cache fails at pnpm test.");
+	});
+
+	it("reports nothing when every step passes", () => {
+		expect(check()).toBeUndefined();
 	});
 });
