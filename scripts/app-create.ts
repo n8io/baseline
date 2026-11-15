@@ -558,56 +558,73 @@ const projectRender = async (answers: TemplateAnswers): Promise<string> => {
 	return directory;
 };
 
-// GitHub indexes a new repository's workflows a few seconds after the push, so a missing workflow
-// or run is retried. A ci.yml without workflow_dispatch (a release before it had one) is not.
-const ghRetry = async (args: string[]): Promise<string> => {
-	for (let attempt = 1; ; attempt++) {
-		try {
-			return run({ command: "gh", args }).trim();
-		} catch (error) {
-			if (attempt === 10 || /workflow_dispatch/.test(String(error))) {
-				throw error;
-			}
-			await setTimeout(3_000);
-		}
-	}
-};
+type GhAsk = (args: string[]) => Promise<string>;
 
-const ciDispatch = async (repository: string): Promise<string> => {
+const ghAsk: GhAsk = async (args) => run({ command: "gh", args }).trim();
+
+// Dispatches ci.yml on main and prints the new run's URL. GitHub indexes a new repository's
+// workflows a few seconds after the push, so a missing workflow is retried (a ci.yml without
+// workflow_dispatch, a release before it had one, is not), and the run takes a few more seconds to
+// show in the list, so the list is polled. Only a failed dispatch says CI did not start.
+export const ciDispatch = async ({
+	attempts,
+	gh,
+	intervalMs,
+	repository,
+}: {
+	attempts?: number | null;
+	gh?: GhAsk | null;
+	intervalMs?: number | null;
+	repository: string;
+}): Promise<string> => {
+	const ask = gh ?? ghAsk;
+	const limit = attempts ?? 20;
 	const page = `https://github.com/${repository}/actions/workflows/ci.yml`;
 	const since = new Date(Date.now() - 60_000).toISOString().slice(0, 19);
-	try {
-		await ghRetry([
-			"workflow",
-			"run",
-			"ci.yml",
-			"--repo",
-			repository,
-			"--ref",
-			"main",
-		]);
-		const url = await ghRetry([
-			"run",
-			"list",
-			"--repo",
-			repository,
-			"--workflow",
-			"ci.yml",
-			"--event",
-			"workflow_dispatch",
-			"--created",
-			`>=${since}`,
-			"--limit",
-			"1",
-			"--json",
-			"url",
-			"--jq",
-			'.[0].url // error("no run yet")',
-		]);
-		return `CI is running on main: ${url}`;
-	} catch {
-		return `Could not start CI on main; run it from ${page}`;
+	for (let attempt = 1; ; attempt++) {
+		try {
+			await ask([
+				"workflow",
+				"run",
+				"ci.yml",
+				"--repo",
+				repository,
+				"--ref",
+				"main",
+			]);
+			break;
+		} catch (error) {
+			if (attempt === limit || /workflow_dispatch/.test(String(error))) {
+				return `Could not start CI on main; run it from ${page}`;
+			}
+			await setTimeout(intervalMs ?? 3_000);
+		}
 	}
+	for (let attempt = 1; attempt <= limit; attempt++) {
+		try {
+			const url = await ask([
+				"run",
+				"list",
+				"--repo",
+				repository,
+				"--workflow",
+				"ci.yml",
+				"--event",
+				"workflow_dispatch",
+				"--limit",
+				"5",
+				"--json",
+				"url,createdAt",
+				"--jq",
+				`map(select(.createdAt >= "${since}")) | .[0].url // empty`,
+			]);
+			if (url !== "") return `CI is running on main: ${url}`;
+		} catch {
+			// The list is not up yet; ask again.
+		}
+		await setTimeout(intervalMs ?? 3_000);
+	}
+	return `CI was started on main; its run has not shown up in the list yet, find it at ${page}`;
 };
 
 // owner/name from a git remote URL (https or ssh).
@@ -683,7 +700,7 @@ const githubCreate = async ({
 	for (const args of securityUpdatesCalls(repository))
 		run({ command: "gh", args });
 	console.log(`Set up https://github.com/${repository}`);
-	console.log(await ciDispatch(repository));
+	console.log(await ciDispatch({ repository }));
 };
 
 const main = async () => {
