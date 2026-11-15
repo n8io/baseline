@@ -50,8 +50,13 @@ describe("ci.yml runs", () => {
 		expect(job).toContain(
 			"\n    permissions:\n      actions: write\n      pull-requests: read\n",
 		);
-		expect(job).toMatch(
-			/--jq \.merged\)" = true \]; then\n {12}gh workflow run ci\.yml --ref main\n/,
+		expect(job).toContain(`GH_REPO: \${{ github.repository }}`);
+		// A failed lookup fails the job instead of skipping the dispatch.
+		expect(job).toContain(
+			'merged=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .merged)\n',
+		);
+		expect(job).toContain(
+			'if [ "$merged" = true ]; then gh workflow run ci.yml --ref main; fi\n',
 		);
 	});
 

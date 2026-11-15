@@ -171,7 +171,7 @@ jobs:
       contents: write
       pull-requests: write
 
-  # automerge merges with GITHUB_TOKEN, whose push starts no run on main; a dispatch is the one run it can start.
+  # automerge merges with GITHUB_TOKEN, whose push starts no run on main; a dispatch is a run it can start.
   main-run:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     needs: automerge
@@ -186,6 +186,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .merged)" = true ]; then
-            gh workflow run ci.yml --ref main
-          fi
+          merged=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .merged)
+          if [ "$merged" = true ]; then gh workflow run ci.yml --ref main; fi

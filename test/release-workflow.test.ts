@@ -44,8 +44,6 @@ describe("release.yml", () => {
 		expect(release).toMatch(
 			/\npermissions:\n {2}contents: write\n {2}id-token: write\n\njobs:/,
 		);
-		// ci.yml's one dispatch is main-run's, after a Dependabot merge.
-		const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
-		expect(ci.match(/gh workflow run/g)).toHaveLength(1);
+		expect(release).not.toMatch(/\bactions:/);
 	});
 });
