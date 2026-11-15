@@ -132,6 +132,15 @@ describe("Dockerfile", () => {
 		).toBe(false);
 	});
 
+	it("leaves source maps and type declarations out of the production node_modules", () => {
+		const production = instructions.find(
+			({ args, keyword }) => keyword === "RUN" && args.includes("--prod"),
+		);
+		expect(production?.args).toMatch(
+			/ && find node_modules -type f \\\( -name '\*\.map' -o -name '\*\.d\.ts' -o -name '\*\.d\.mts' -o -name '\*\.d\.cts' \\\) -delete$/,
+		);
+	});
+
 	it("copies migrations, .env.schema and .env.production and no other env file", () => {
 		const copies = runtime
 			.filter(({ keyword }) => keyword === "COPY")

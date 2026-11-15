@@ -24,12 +24,14 @@ COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	pnpm install --frozen-lockfile --offline --store-dir /pnpm/store \
 	&& pnpm run build
-# Production dependencies only, without build-only peers (autoInstallPeers: false in pnpm-workspace.yaml).
+# Production dependencies only, without build-only peers (autoInstallPeers: false in pnpm-workspace.yaml),
+# and without source maps and type declarations: Node reads neither (no --enable-source-maps).
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 	mkdir /prod \
 	&& cp package.json pnpm-lock.yaml pnpm-workspace.yaml /prod/ \
 	&& cd /prod \
-	&& pnpm install --prod --frozen-lockfile --offline --store-dir /pnpm/store --package-import-method copy
+	&& pnpm install --prod --frozen-lockfile --offline --store-dir /pnpm/store --package-import-method copy \
+	&& find node_modules -type f \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \) -delete
 
 FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39
 WORKDIR /app
