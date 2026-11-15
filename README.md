@@ -26,7 +26,7 @@ flowchart LR
 > [!NOTE]
 > You need Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12 (the exact version is in `packageManager`), Docker, and the [GitHub CLI](https://cli.github.com) logged in, which `app-create` uses to create the project's repo (`--no-github` skips it).
 
-**1. Create a project.** This renders the latest `app@` release with no Domain yet, creates a private GitHub repo with a CI ruleset, and runs CI once on main.
+**1. Create a project.** This renders the latest `app@` release with no Domain yet, creates a private GitHub repo whose main takes squash-merged pull requests only and needs every CI check, and runs CI once on main.
 
 ```sh
 git clone https://github.com/n8io/baseline && cd baseline

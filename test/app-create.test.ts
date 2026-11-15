@@ -17,11 +17,14 @@ import {
 	contextLanguageWrite,
 	envFilesWrite,
 	glossaryTerm,
+	mergeSettingsCall,
 	npmVersionsWait,
 	releaseWarning,
 	repositoryFromRemote,
 	requiredJobs,
 	rulesetBodyCreate,
+	rulesetChangesFind,
+	rulesetReconcile,
 	securityUpdatesCalls,
 } from "../scripts/app-create.ts";
 
@@ -273,20 +276,180 @@ describe("app-create", () => {
 		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((m) => m[1]);
 
 		expect([...requiredJobs, "glossary-check"].sort()).toEqual(jobs.sort());
-		expect(rulesetBodyCreate()).toMatchObject({
+	});
+
+	it("protects main like baseline's own: no deletion, no force push, squash only, the checks, no bypass", () => {
+		const body = rulesetBodyCreate();
+		const rule = (type: string) => body.rules.find((r) => r.type === type);
+
+		expect(body).toMatchObject({
+			bypass_actors: [],
 			conditions: { ref_name: { include: ["~DEFAULT_BRANCH"] } },
 			enforcement: "active",
-			rules: [
-				{
-					parameters: {
-						required_status_checks: requiredJobs.map((job) => ({
-							context: `ci / ${job}`,
-						})),
-					},
-					type: "required_status_checks",
-				},
-			],
+			name: "ci",
 			target: "branch",
+		});
+		expect(body.rules.map((r) => r.type).sort()).toEqual([
+			"deletion",
+			"non_fast_forward",
+			"pull_request",
+			"required_status_checks",
+		]);
+		expect(rule("pull_request")?.parameters).toMatchObject({
+			allowed_merge_methods: ["squash"],
+			required_approving_review_count: 0,
+		});
+		expect(rule("required_status_checks")?.parameters).toEqual({
+			do_not_enforce_on_create: false,
+			required_status_checks: requiredJobs.map((job) => ({
+				context: `ci / ${job}`,
+			})),
+			strict_required_status_checks_policy: false,
+		});
+	});
+
+	it("sets the repository to squash-only merging and deletes merged branches", () => {
+		expect(mergeSettingsCall("n8io/x")).toEqual([
+			"api",
+			"--method",
+			"PATCH",
+			"repos/n8io/x",
+			"-F",
+			"allow_squash_merge=true",
+			"-F",
+			"allow_merge_commit=false",
+			"-F",
+			"allow_rebase_merge=false",
+			"-F",
+			"delete_branch_on_merge=true",
+		]);
+	});
+
+	describe("ruleset reconcile", () => {
+		// What GitHub answers: ids and defaults added, rules and checks in another order.
+		const stored = () => {
+			const { rules, ...rest } = rulesetBodyCreate();
+			return {
+				...rest,
+				id: 7,
+				rules: [...rules].reverse().map((r) =>
+					r.type === "pull_request"
+						? {
+								...r,
+								parameters: {
+									required_approving_review_count: 0,
+									require_extra_approval_for_unattributed_changes: true,
+									required_reviewers: [],
+									...r.parameters,
+								},
+							}
+						: r.type === "required_status_checks"
+							? {
+									...r,
+									parameters: {
+										...r.parameters,
+										required_status_checks: [
+											...((r.parameters?.required_status_checks ??
+												[]) as unknown[]),
+										].reverse(),
+									},
+								}
+							: r,
+				),
+				source: "n8io/x",
+				source_type: "Repository",
+			};
+		};
+		const ghFake = (answers: { list: unknown[]; ruleset?: unknown }) => {
+			const calls: { args: string[]; input?: string | undefined }[] = [];
+			const gh = (args: string[], input?: string) => {
+				calls.push({ args, input });
+				if (args.includes("--method")) return "{}";
+				return JSON.stringify(
+					args.at(-1)?.includes("/rulesets?") ? answers.list : answers.ruleset,
+				);
+			};
+			return { calls, gh };
+		};
+
+		it("creates the ruleset when there is none", () => {
+			const { calls, gh } = ghFake({ list: [{ id: 1, name: "other" }] });
+
+			expect(rulesetReconcile({ gh, repository: "n8io/x" })).toBe(
+				"Created the ci ruleset on n8io/x",
+			);
+			expect(calls.at(-1)).toEqual({
+				args: [
+					"api",
+					"--method",
+					"POST",
+					"repos/n8io/x/rulesets",
+					"--input",
+					"-",
+				],
+				input: JSON.stringify(rulesetBodyCreate()),
+			});
+		});
+
+		it("updates a ruleset that differs, and says what changed", () => {
+			const old = {
+				...stored(),
+				bypass_actors: [{ actor_id: 5, actor_type: "RepositoryRole" }],
+				rules: [
+					{
+						parameters: {
+							required_status_checks: [{ context: "ci / check" }],
+							strict_required_status_checks_policy: false,
+						},
+						type: "required_status_checks",
+					},
+				],
+			};
+			const { calls, gh } = ghFake({
+				list: [{ id: 7, name: "ci" }],
+				ruleset: old,
+			});
+
+			expect(rulesetReconcile({ gh, repository: "n8io/x" })).toBe(
+				"Updated the ci ruleset on n8io/x: changed bypass_actors, changed rule required_status_checks, added rule deletion, added rule non_fast_forward, added rule pull_request",
+			);
+			expect(calls.at(-1)).toEqual({
+				args: [
+					"api",
+					"--method",
+					"PUT",
+					"repos/n8io/x/rulesets/7",
+					"--input",
+					"-",
+				],
+				input: JSON.stringify(rulesetBodyCreate()),
+			});
+		});
+
+		it("makes no write when the ruleset already matches", () => {
+			const { calls, gh } = ghFake({
+				list: [{ id: 7, name: "ci" }],
+				ruleset: stored(),
+			});
+
+			expect(rulesetReconcile({ gh, repository: "n8io/x" })).toBe(
+				"n8io/x already has the ci ruleset as wanted",
+			);
+			expect(calls.map((c) => c.args.join(" "))).toEqual([
+				"api repos/n8io/x/rulesets?includes_parents=false",
+				"api repos/n8io/x/rulesets/7",
+			]);
+		});
+
+		it("reports a changed merge method", () => {
+			const current = stored();
+			const pull = current.rules.find((r) => r.type === "pull_request");
+			if (pull?.parameters)
+				pull.parameters.allowed_merge_methods = ["merge", "squash"];
+
+			expect(
+				rulesetChangesFind({ current, wanted: rulesetBodyCreate() }),
+			).toEqual(["changed rule pull_request"]);
 		});
 	});
 
