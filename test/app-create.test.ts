@@ -19,6 +19,7 @@ import {
 	envFilesWrite,
 	glossaryTerm,
 	mergeSettingsCall,
+	npmTarballsWait,
 	npmVersionsWait,
 	releaseWarning,
 	repositoryFromRemote,
@@ -193,6 +194,97 @@ describe("app-create", () => {
 				timeoutMs: 50,
 			}),
 		).rejects.toThrow("npm still does not serve @n8io/baseline-http@9.0.0");
+	});
+
+	it("waits for a just-published tarball that answers 404, then lets the install run", async () => {
+		await using fake = await registryServe({
+			"/@n8io/baseline-http/-/baseline-http-2.1.0.tgz": 2,
+		});
+		using folder = projectCreate();
+		writeFileSync(
+			join(folder.path, "pnpm-lock.yaml"),
+			"packages:\n\n  '@n8io/baseline-http@2.1.0':\n    resolution: {}\n\n  react@19.0.0:\n    resolution: {}\n",
+		);
+		const lines: string[] = [];
+		await npmTarballsWait({
+			directory: folder.path,
+			intervalMs: 5,
+			log: (line) => lines.push(line),
+			registry: fake.registry,
+		});
+
+		expect(fake.asked).toEqual([
+			"/@n8io/baseline-http/-/baseline-http-2.1.0.tgz",
+			"/@n8io/baseline-http/-/baseline-http-2.1.0.tgz",
+			"/@n8io/baseline-http/-/baseline-http-2.1.0.tgz",
+		]);
+		expect(lines).toHaveLength(2);
+	});
+
+	it("names the tarball npm still answers 404 for and calls it a registry delay", async () => {
+		await using fake = await registryServe({});
+		using folder = projectCreate();
+		writeFileSync(
+			join(folder.path, "pnpm-lock.yaml"),
+			"packages:\n\n  '@n8io/baseline-id@1.0.0':\n    resolution: {}\n",
+		);
+		await expect(
+			npmTarballsWait({
+				directory: folder.path,
+				intervalMs: 5,
+				log: () => {},
+				registry: fake.registry,
+				timeoutMs: 30,
+			}),
+		).rejects.toThrow(
+			/baseline-id-1\.0\.0\.tgz.*registry delay after a fresh publish, not a broken Project/,
+		);
+	});
+
+	it("asks a served tarball once and adds no delay", async () => {
+		await using fake = await registryServe({
+			"/@n8io/baseline-id/-/baseline-id-1.0.0.tgz": 0,
+		});
+		using folder = projectCreate();
+		writeFileSync(
+			join(folder.path, "pnpm-lock.yaml"),
+			"packages:\n\n  '@n8io/baseline-id@1.0.0':\n    resolution: {}\n",
+		);
+		await npmTarballsWait({
+			directory: folder.path,
+			log: () => {
+				throw new Error("must not log");
+			},
+			registry: fake.registry,
+		});
+		expect(fake.asked).toHaveLength(1);
+	});
+
+	it("leaves any answer but 404 to the install", async () => {
+		let asked = 0;
+		const server = createServer((_request, response) => {
+			asked += 1;
+			response.writeHead(500).end();
+		});
+		server.listen(0, "127.0.0.1");
+		await once(server, "listening");
+		using folder = projectCreate();
+		writeFileSync(
+			join(folder.path, "pnpm-lock.yaml"),
+			"packages:\n\n  '@n8io/baseline-id@1.0.0':\n    resolution: {}\n",
+		);
+		try {
+			await npmTarballsWait({
+				directory: folder.path,
+				log: () => {
+					throw new Error("must not wait");
+				},
+				registry: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+			});
+		} finally {
+			server.close();
+		}
+		expect(asked).toBe(1);
 	});
 
 	describe("ciDispatch", () => {
