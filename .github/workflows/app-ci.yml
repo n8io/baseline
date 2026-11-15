@@ -69,7 +69,7 @@ jobs:
 
   unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 4
     steps:
       - *checkout
       - *download
@@ -77,11 +77,16 @@ jobs:
       - *pnpm
       - *node
       - *install
-      - run: pnpm test
+      # CI enforces the budget on the command, as `check` does; the job limit is only a backstop.
+      - run: |
+          status=0
+          timeout 2m pnpm test || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test passed its 2 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          exit "$status"
 
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     services:
       postgres:
         image: postgres:18
@@ -107,10 +112,15 @@ jobs:
       - *pnpm
       - *node
       - *install
-      - run: pnpm test:integration
-        env:
+      # CI enforces the budget on the command, as `check` does; the job limit is only a backstop.
+      - env:
           INTEGRATION_CACHE_URL: redis://localhost:6379
           INTEGRATION_DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
+        run: |
+          status=0
+          timeout 3m pnpm test:integration || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration passed its 3 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          exit "$status"
 
   migrations:
     runs-on: ubuntu-latest

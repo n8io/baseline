@@ -13,6 +13,10 @@ const integration: TestProjectConfiguration = {
 		// CI runner, past the 10 s default. Files drop their databases in parallel so they share one.
 		// `await using` teardown runs inside the test instead, so those files give each test 60 s.
 		hookTimeout: 30_000,
+		// The files mostly wait on Servers they spawn and on Postgres, so they need few CPUs. Vitest's
+		// default (CPUs minus one) runs them one at a time on a 2-CPU CI runner: 182 s against the
+		// 3 min budget, and 83 s with four at once.
+		maxWorkers: 4,
 		name: "integration",
 		setupFiles: ["varlock/auto-load"],
 	},

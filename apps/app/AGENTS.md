@@ -29,7 +29,7 @@ There is no coverage tooling.
 
 Dev, tests, the worker, migrate and seed run TypeScript directly with erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
 
-When a budget trips, decide again deliberately: make the code faster or set a new budget. Never raise it quietly.
+CI fails the command at its budget. Then make the code faster or set a new budget deliberately; never raise it quietly.
 
 ## Tests
 
