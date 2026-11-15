@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	filesNamedIn,
 	pieceFilesRemove,
@@ -571,8 +571,10 @@ describe("pieceRemove", () => {
 	});
 
 	describe("when the package manager fails", () => {
+		const pathBefore = process.env.PATH;
 		afterEach(() => {
-			vi.unstubAllEnvs();
+			process.env.PATH = pathBefore;
+			delete process.env.FAKE_PNPM_FAIL;
 		});
 
 		// A `pnpm` first on PATH that fails the one command named by FAKE_PNPM_FAIL (a registry
@@ -586,7 +588,7 @@ describe("pieceRemove", () => {
 				'#!/bin/sh\nif [ "$1" = "$FAKE_PNPM_FAIL" ]; then echo "ERR_PNPM_FETCH_404 from the registry"; exit 1; fi\nexit 0\n',
 			);
 			chmodSync(file, 0o755);
-			vi.stubEnv("PATH", `${bin}:${process.env.PATH ?? ""}`);
+			process.env.PATH = `${bin}:${pathBefore ?? ""}`;
 			return folder;
 		};
 
@@ -600,7 +602,7 @@ describe("pieceRemove", () => {
 					"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0", "react-router": "^7.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 				});
 				using _fake = pnpmFake();
-				vi.stubEnv("FAKE_PNPM_FAIL", command);
+				process.env.FAKE_PNPM_FAIL = command;
 				const failed = pieceRemove(folder.path, piece);
 				expect(failed?.packageManager).toBe(`pnpm ${command}`);
 				expect(failed?.files).toEqual([]);
@@ -620,7 +622,7 @@ describe("pieceRemove", () => {
 				"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 			});
 			using _fake = pnpmFake();
-			vi.stubEnv("FAKE_PNPM_FAIL", "check");
+			process.env.FAKE_PNPM_FAIL = "check";
 			const failed = pieceRemove(folder.path, "live");
 			expect(failed).toBeDefined();
 			expect(failed?.packageManager).toBeUndefined();
