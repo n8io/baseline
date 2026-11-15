@@ -577,9 +577,9 @@ describe("pieceRemove", () => {
 
 		// A `pnpm` first on PATH that fails the one command named by FAKE_PNPM_FAIL (a registry
 		// error) and succeeds at every other, so no network is needed.
-		const pnpmFake = (directory: string) => {
-			const bin = join(directory, "..", `${directory.split("/").pop()}-bin`);
-			mkdirSync(bin, { recursive: true });
+		const pnpmFake = () => {
+			const folder = mkdtempDisposableSync(join(tmpdir(), "fake-pnpm-"));
+			const bin = folder.path;
 			const file = join(bin, "pnpm");
 			writeFileSync(
 				file,
@@ -587,6 +587,7 @@ describe("pieceRemove", () => {
 			);
 			chmodSync(file, 0o755);
 			vi.stubEnv("PATH", `${bin}:${process.env.PATH ?? ""}`);
+			return folder;
 		};
 
 		it.each([
@@ -598,7 +599,7 @@ describe("pieceRemove", () => {
 				using folder = projectCreate({
 					"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0", "react-router": "^7.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 				});
-				pnpmFake(folder.path);
+				using _fake = pnpmFake();
 				vi.stubEnv("FAKE_PNPM_FAIL", command);
 				const failed = pieceRemove(folder.path, piece);
 				expect(failed?.packageManager).toBe(`pnpm ${command}`);
@@ -618,7 +619,7 @@ describe("pieceRemove", () => {
 			using folder = projectCreate({
 				"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 			});
-			pnpmFake(folder.path);
+			using _fake = pnpmFake();
 			vi.stubEnv("FAKE_PNPM_FAIL", "check");
 			const failed = pieceRemove(folder.path, "live");
 			expect(failed).toBeDefined();

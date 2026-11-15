@@ -13,7 +13,7 @@ A piece's code sits mostly in whole files: `src/connections.ts` opens each piece
 
 ## If it fails
 
-When `pnpm check` fails after the removal, the command undoes it (the tree is as you left it, packages reinstalled), lists the files the check names, and exits 1. Those files use the piece outside its markers. When the package manager itself fails (`pnpm remove` or `pnpm add`: registry, network), the command says so, undoes the removal the same way and exits 1; run it again. Wrap each piece's code in its own `// piece-start: <piece>` and `// piece-end: <piece>` lines, as the Template does, and run the command again. If you cannot, or this Project keeps the piece, list it in `piecesKept`.
+When `pnpm check` fails after the removal, the command undoes it (the tree is as you left it, packages reinstalled), lists the files the check names, and exits 1. Those files use the piece outside its markers. Wrap each piece's code in its own `// piece-start: <piece>` and `// piece-end: <piece>` lines, as the Template does, and run the command again. If you cannot, or this Project keeps the piece, list it in `piecesKept`. When the package manager itself fails (`pnpm remove` or `pnpm add`: registry, network), the command says so, undoes the removal the same way and exits 1; run it again.
 
 Rules for code that belongs to a piece, so the removal stays clean:
 

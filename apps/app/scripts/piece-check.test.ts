@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	eachConcurrently,
+	jobEndRead,
 	pieceCheckFailureReport,
 	pieceCheckPlan,
 	pieceCheckRun,
@@ -207,5 +208,18 @@ describe("pieceCheckRun", () => {
 
 	it("reports nothing when every step passes", () => {
 		expect(check()).toBeUndefined();
+	});
+});
+
+describe("jobEndRead", () => {
+	const end = (code: number | null) =>
+		jobEndRead({ code, output: " out ", signal: null });
+
+	it("maps each exit code to its outcome", () => {
+		expect(end(0).outcome).toBe("passed");
+		expect(end(3).outcome).toBe("failed");
+		expect(end(4)).toEqual({ outcome: "unchecked", output: "out" });
+		expect(end(1).outcome).toBe("crashed");
+		expect(end(null).outcome).toBe("crashed");
 	});
 });

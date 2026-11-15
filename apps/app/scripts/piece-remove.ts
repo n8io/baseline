@@ -463,6 +463,8 @@ export type PieceRemoveFailure = {
 	// Set when the package manager failed (registry, network, store), not the Project's code:
 	// the command that failed, such as `pnpm remove`. The piece is not to blame.
 	packageManager?: string;
+	// False when the undo's own `pnpm install` failed too, so the tree needs one.
+	restored?: boolean;
 };
 
 class PackageManagerError extends Error {
@@ -489,7 +491,15 @@ export const toolRun = (directory: string, args: string[]) => {
 	});
 	return {
 		ok: result.status === 0,
-		output: `${result.stdout}${result.stderr}`.trim(),
+		output: [
+			result.stdout,
+			result.stderr,
+			result.error?.message,
+			result.signal === null ? undefined : `(ended with ${result.signal})`,
+		]
+			.filter((part) => part !== undefined && part !== null)
+			.join("")
+			.trim(),
 	};
 };
 
@@ -518,6 +528,7 @@ export const pieceRemove = (
 		const restored = removalUndo(directory);
 		return {
 			files: packageManager === undefined ? filesNamedIn(output) : [],
+			restored,
 			...(packageManager === undefined ? {} : { packageManager }),
 			output: restored
 				? output
@@ -576,10 +587,14 @@ const main = () => {
 	}
 	const failed = pieceRemove(directory, piece);
 	if (failed !== undefined) {
+		const undone =
+			failed.restored === false
+				? "the removal is undone but its packages are not reinstalled (run pnpm install)"
+				: "the removal is undone and the tree is as you left it";
 		const lines = [
 			failed.packageManager === undefined
-				? `piece-remove: removing ${piece} failed, so the removal is undone and the tree is as you left it.`
-				: `piece-remove: the package manager failed (${failed.packageManager}), not ${piece}'s code, so the removal is undone and the tree is as you left it. Run it again.`,
+				? `piece-remove: removing ${piece} failed, so ${undone}.`
+				: `piece-remove: the package manager failed (${failed.packageManager}), not ${piece}'s code, so ${undone}. Run pnpm piece-remove ${piece} again.`,
 		];
 		if (failed.files.length > 0) {
 			lines.push(
