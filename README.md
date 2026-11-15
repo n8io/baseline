@@ -52,7 +52,7 @@ Open the URL `pnpm dev` prints. The Worker restarts when a file it imports chang
 | Lint, format check and typecheck                      | `pnpm check`                |
 | Unit tests (memory adapters)                          | `pnpm test`                 |
 | Integration tests (needs `docker compose up -d`)      | `pnpm test:integration`     |
-| Most of CI (not oasdiff, migrations, sast, image)      | `pnpm run ci`               |
+| Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`               |
 | Add a Domain                                          | `pnpm domain-create <name>` |
 | Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen`              |
 | Pull the newest template release                      | `pnpm template-upgrade`     |
