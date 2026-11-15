@@ -14,6 +14,7 @@ import {
 	answersWrite,
 	appCreateArgsRead,
 	baselinePackagesPinned,
+	ciDispatch,
 	contextLanguageWrite,
 	envFilesWrite,
 	glossaryTerm,
@@ -192,6 +193,81 @@ describe("app-create", () => {
 				timeoutMs: 50,
 			}),
 		).rejects.toThrow("npm still does not serve @n8io/baseline-http@9.0.0");
+	});
+
+	describe("ciDispatch", () => {
+		const ghScript = (answers: (string | Error)[]) => {
+			const calls: string[][] = [];
+			const gh = async (args: string[]) => {
+				calls.push(args);
+				const answer = answers.shift() ?? "";
+				if (answer instanceof Error) throw answer;
+				return answer;
+			};
+			return { calls, gh };
+		};
+		const url = "https://github.com/acme/x/actions/runs/1";
+
+		it("prints the run's URL when it shows up on a later poll", async () => {
+			const { calls, gh } = ghScript(["", "", "", url]);
+
+			expect(
+				await ciDispatch({ gh, intervalMs: 1, repository: "acme/x" }),
+			).toBe(`CI is running on main: ${url}`);
+			expect(calls.map((c) => c[1])).toEqual(["run", "list", "list", "list"]);
+		});
+
+		it("says the run was started, not failed, when it never shows up", async () => {
+			const { gh } = ghScript(["", ...Array<string>(3).fill("")]);
+
+			expect(
+				await ciDispatch({
+					attempts: 3,
+					gh,
+					intervalMs: 1,
+					repository: "acme/x",
+				}),
+			).toBe(
+				"CI was started on main; its run has not shown up in the list yet, find it at https://github.com/acme/x/actions/workflows/ci.yml",
+			);
+		});
+
+		it("says CI could not start when the dispatch fails", async () => {
+			const { calls, gh } = ghScript([new Error("HTTP 404")]);
+
+			expect(
+				await ciDispatch({
+					attempts: 1,
+					gh,
+					intervalMs: 1,
+					repository: "acme/x",
+				}),
+			).toBe(
+				"Could not start CI on main; run it from https://github.com/acme/x/actions/workflows/ci.yml",
+			);
+			expect(calls).toHaveLength(1);
+		});
+
+		it("retries a dispatch GitHub has not indexed yet, but not a missing workflow_dispatch", async () => {
+			const early = ghScript([new Error("HTTP 404"), "", url]);
+			expect(
+				await ciDispatch({
+					gh: early.gh,
+					intervalMs: 1,
+					repository: "acme/x",
+				}),
+			).toBe(`CI is running on main: ${url}`);
+
+			const never = ghScript([new Error("no workflow_dispatch trigger")]);
+			expect(
+				await ciDispatch({
+					gh: never.gh,
+					intervalMs: 1,
+					repository: "acme/x",
+				}),
+			).toContain("Could not start CI");
+			expect(never.calls).toHaveLength(1);
+		});
 	});
 
 	it("reads owner/name from the origin --github-only runs against", () => {
