@@ -80,7 +80,7 @@ describe("an extensible error code", () => {
 		});
 	});
 
-	// Run where the oasdiff binary is on PATH (CI's `oasdiff` job puts it there; the Package's own
+	// Run where the oasdiff binary is on PATH (CI's `check` job puts it there; the Package's own
 	// job does not, so these two run locally and wherever it is installed).
 	it.skipIf(!oasdiffFound)(
 		"lets a route answer one more code on a status it already declares",

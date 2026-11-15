@@ -30,8 +30,6 @@ export const requiredJobs = [
 	"check",
 	"unit",
 	"integration",
-	"migrations",
-	"oasdiff",
 	"pieces",
 	"image",
 	"sast",
@@ -266,9 +264,24 @@ export const rulesetChangesFind = ({
 		else if (
 			JSON.stringify(have.rules[type]) !== JSON.stringify(want.rules[type])
 		)
-			changes.push(`changed rule ${type}`);
+			changes.push(
+				`changed rule ${type}${checksChangeName(have.rules[type], want.rules[type])}`,
+			);
 	}
 	return changes;
+};
+
+// Which required checks a change adds and removes, so an upgrade can see it only drops checks.
+const checksChangeName = (have: unknown, want: unknown): string => {
+	const checks = (rule: unknown) =>
+		(rule as { checks?: string[] }).checks ?? [];
+	const added = checks(want).filter((check) => !checks(have).includes(check));
+	const removed = checks(have).filter((check) => !checks(want).includes(check));
+	const named = [
+		...(added.length > 0 ? [`added ${added.join(", ")}`] : []),
+		...(removed.length > 0 ? [`removed ${removed.join(", ")}`] : []),
+	];
+	return named.length > 0 ? ` (${named.join("; ")})` : "";
 };
 
 type Gh = (args: string[], input?: string | undefined) => string;
