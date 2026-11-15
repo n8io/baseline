@@ -1,5 +1,21 @@
 # @n8io/baseline-telemetry
 
+## 2.0.0
+
+### Major Changes
+
+- a278133: Four small gaps, found building the showcase app.
+  - cache: `cacheCreate(store, { keyOf, prefix, schema })` returns a cache whose `set(value)` takes the value alone, so a Domain no longer needs a wrapper to turn `set(id, value)` into `set(value)`.
+  - queue: `@n8io/baseline-queue/testing` exports `queueTestConsumerRun({ consumer, data, eventId? })`, which runs one Event through a Consumer as the worker does. `queueCreate` on a database that was never migrated now says "the queue schema is missing in this database: run queueMigrate (pnpm migrate)", with pg-boss's error as `cause`.
+  - live: `useLiveUpdates({ channel, id: string | null })`; a `null` id opens no stream.
+  - telemetry (breaking): a signal with no `OTEL_<SIGNAL>_EXPORTER` and no OTLP endpoint (`OTEL_EXPORTER_OTLP_ENDPOINT` or the signal's own) now exports nothing. Before, it exported to `localhost:4318`, and every script waited about 9 s at exit for a collector that was not there.
+
+  To upgrade a Project: if you relied on the default `localhost:4318` with no endpoint variable, set `OTEL_EXPORTER_OTLP_ENDPOINT` where you run a collector. The Template's `.env.development` already does.
+
+### Minor Changes
+
+- a217e91: `telemetryShutdown` no longer holds a process open for about 9 s when an OTLP endpoint is set and no collector listens. The final export waits at most one exporter timeout (1 s by default), then shutdown resolves and prints one warning naming the endpoint (without credentials). OTLP exporters now time out after 1 s instead of 10 s, so a collector that takes longer than 1 s to answer loses its batches and a failed export is retried at most once; set `OTEL_EXPORTER_OTLP_TIMEOUT` (milliseconds, or the signal's own) higher for such a collector.
+
 ## 1.4.0
 
 ### Minor Changes
