@@ -1,5 +1,31 @@
 # app
 
+## 8.1.0
+
+### Minor Changes
+
+- ec468dc: The Template serves an interactive API reference at `/api/v1/docs`, and its OpenAPI document declares bearer auth.
+  - The page is Swagger UI, self-hosted from `swagger-ui-dist` (the new dependency), with its script and stylesheet served from the app's own origin and the request's CSP nonce on both script tags. It answers without a token in every environment, like `/api/v1/openapi.json`; `httpSecureHeaders` is unchanged. Use Authorize with a token from the memory issuer (`authnMemoryTokenFetch`) or your provider to send requests.
+  - `/api/v1/openapi.json` now has a `bearer` security scheme (`type: http`, `scheme: bearer`, `bearerFormat: JWT`) and a document-level `security` requirement, so generated clients and viewers know every operation needs a token.
+  - It is the `api-reference` piece: `pnpm piece-remove api-reference` removes `src/api-reference.ts`, its tests, its block in `src/server.ts`, the dependency and the `@scarf/scarf` line in `pnpm-workspace.yaml`.
+
+  To upgrade a Project: `pnpm template-upgrade`. To remove the page, run `pnpm piece-remove api-reference` afterwards; `/api/v1/docs` then answers the API's JSON 404. The `/api/v1/docs` exemption in the "no Actor, no API" guard stays in `server.ts`.
+
+### Patch Changes
+
+- 5d5a772: The shared `app-ci.yml` no longer runs a separate `glossary-check` job: the glossary alias warnings now run as a step inside `check` and still show as annotations when `check` gets that far. The `image` job skips `pnpm install` (the Dockerfile installs inside the image), and the checkout keeps no credentials in `.git`. `pnpm run ci` now also runs `pnpm piece-check`, and `AGENTS.md` lists what it covers and what only CI runs. No required check changes.
+- 7c686fc: `src/connections.postgres.test.ts` gives its test 60 s, like every integration test that drops its database with `await using`: the drop forces a Postgres checkpoint, which took 6.7 s on a CI runner against Vitest's 5 s default. `structure.test.ts` now fails a file that drops its database with `await using` and has no `describe(name, { timeout: 60_000 }, ...)`.
+
+  To upgrade a Project: run `pnpm template-upgrade`. In the Project's own Postgres tests, give any file that uses `await using database = await integrationDatabaseCreate()` the timeout: `describe("name", { timeout: 60_000 }, () => { ... })`; `pnpm test` (`structure.test.ts`) fails on one that lacks it. Files that drop in `afterAll` need nothing, because `hookTimeout` covers them.
+- ba96c41: The integration budget is 4 minutes, up from 3, at the owner's request: `pnpm test:integration` runs under `timeout 4m` in `app-ci.yml`, the integration job limit is 6 minutes, and AGENTS.md `## Verify` says 4 min. A Project that copies the budget line from the Template's AGENTS.md changes `(3 min budget)` to `(4 min budget)`.
+- cad7559: `pnpm piece-check` checks the pieces two at a time, each on its own throwaway worktree with a unique name, so two runs on one machine never collide. Each piece prints one result line, and a failing piece's output is printed at the end. The checks per piece and the exit code are unchanged; a broken tree still blames no piece, and neither does a check that crashes or is killed.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `scripts/piece-check.ts`, its test and `docs/agents/pieces.md`.
+- 41a9518: The shared `app-ci.yml` `sast` job now scans with a pinned snapshot of the same Semgrep packs (`p/typescript`, `p/nodejs`, `p/react`, `p/secrets`: 121 rules at one commit of semgrep/semgrep-rules) instead of downloading them from semgrep.dev on every run, so a new upstream rule can no longer fail a pull request on its own. Rule ids and `nosemgrep` suppressions are unchanged, and the findings were the same on the Template and on the known Projects. `docs/agents/dependency-updates.md` says how the pin moves. No required check changes.
+- bdc6028: `server-ready.test.ts` no longer fails now and then on a busy 2-CPU runner with "timed out waiting for the exit". The test that takes PORT before the server starts waited 10 s for the exit, but the exit comes only after a whole boot, which takes 10 to 12 s there. It now allows `productionServerBootMs` (20 s), the same allowance every other boot wait in `test/integration/production-server.ts` uses, so a server that hangs instead of exiting still fails.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `test/integration/production-server.ts` and `test/integration/server-ready.test.ts`.
+
 ## 8.0.1
 
 ### Patch Changes
