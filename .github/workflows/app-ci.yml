@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - &download
         if: inputs.artifact != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -53,6 +54,12 @@ jobs:
       # ubuntu-latest ships shellcheck. find runs it only when a script exists.
       - name: Shell scripts pass shellcheck
         run: find . -name '*.sh' -not -path './node_modules/*' -exec shellcheck {} +
+      # Warnings only: it prints a ::warning annotation per glossary alias in the added lines and exits 0.
+      # continue-on-error keeps a crash in the script from failing `check`.
+      - name: Glossary aliases in added lines
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        continue-on-error: true
+        run: pnpm glossary-check
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
   sast:
@@ -204,18 +211,6 @@ jobs:
       - name: No breaking change inside /api/v1
         run: pnpm api-check
 
-  glossary-check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      - run: pnpm glossary-check
-
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -223,9 +218,7 @@ jobs:
       - *checkout
       - *download
       - *extract
-      - *pnpm
-      - *node
-      - *install
+      # The Dockerfile installs inside the image, so the runner needs no pnpm or Node.
       - name: Build the image (never pushed)
         run: docker build --tag app:ci .
       - name: Image size within image-budget.json

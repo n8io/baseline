@@ -14,22 +14,22 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - format: `pnpm format`
 - lint + format check + typecheck: `pnpm check` (30 s budget)
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
-- integration tests: `pnpm test:integration` (3 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis up (`pnpm dev` starts them)
-- full CI-equivalent: `pnpm run ci` (`pnpm ci` is pnpm's own clean install)
-- dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker (health port in the script, restarts on change). `pnpm dev:reset` wipes their data
+- integration tests: `pnpm test:integration` (3 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis (`pnpm dev` starts them)
+- most of CI: `pnpm run ci` = check, unit, integration, piece-check (HEAD only, commit first); not oasdiff, migrations, sast, image
+- dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker. `pnpm dev:reset` wipes their data
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `spi/*-table.ts` file)
 - new domain: `pnpm domain-create`
 - API check (oasdiff): `pnpm api-check`
 - pieces removable: `pnpm piece-check`
 - template upgrade: `pnpm template-upgrade`
-- glossary warnings: `pnpm glossary-check`
+- glossary aliases: `pnpm glossary-check`
 
 There is no coverage tooling.
 
 Dev, tests, the worker, migrate and seed run TypeScript directly with erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
 
-CI fails the command at its budget. Then make the code faster or set a new budget deliberately; never raise it quietly.
+CI fails a command at its budget. Make the code faster or set a new budget deliberately; never raise it quietly.
 
 ## Tests
 
