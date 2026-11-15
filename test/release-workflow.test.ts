@@ -44,8 +44,6 @@ describe("release.yml", () => {
 		expect(release).toMatch(
 			/\npermissions:\n {2}contents: write\n {2}id-token: write\n\njobs:/,
 		);
-		expect(
-			readFileSync(join(root, ".github/workflows/ci.yml"), "utf8"),
-		).not.toContain("workflow_dispatch");
+		expect(release).not.toMatch(/\bactions:/);
 	});
 });

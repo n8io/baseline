@@ -22,18 +22,51 @@ describe("ci.yml runs", () => {
 
 	it("baseline's run on main tests main and alone saves the Turborepo cache", () => {
 		const ci = read(".github/workflows/ci.yml");
-		expect(ci).toContain("\n  push:\n    branches: [main]\n");
+		expect(ci).toContain(
+			"\n  push:\n    branches: [main]\n  workflow_dispatch:\n",
+		);
 		expect(ci).not.toMatch(/uses: actions\/cache@/);
+		expect(ci).not.toContain("github.event_name == 'push'");
+		expect(ci).not.toContain("github.event_name != 'push'");
 		expect(ci).toMatch(
-			/- if: github\.event_name == 'push'\n {8}uses: actions\/cache\/save@/,
+			/- if: github\.ref == 'refs\/heads\/main'\n {8}uses: actions\/cache\/save@/,
 		);
 		expect(ci.match(/uses: actions\/cache\/save@/g)).toHaveLength(1);
 		expect(ci).toMatch(
-			/- if: github\.event_name != 'push'\n {8}uses: actions\/cache\/restore@/,
+			/- if: github\.ref != 'refs\/heads\/main'\n {8}uses: actions\/cache\/restore@/,
 		);
 		expect(ci).toContain(
 			"\n  automerge:\n    if: github.event_name == 'pull_request'\n",
 		);
+	});
+
+	// A GITHUB_TOKEN push starts no workflow, a GITHUB_TOKEN dispatch always does.
+	it("baseline starts its run on main after a Dependabot merge, which a push cannot", () => {
+		const ci = read(".github/workflows/ci.yml");
+		const job = ci.slice(ci.indexOf("\n  main-run:\n"));
+		expect(job).toContain(
+			"\n    if: github.event.pull_request.user.login == 'dependabot[bot]'\n    needs: automerge\n",
+		);
+		expect(job).toContain(
+			"\n    permissions:\n      actions: write\n      pull-requests: read\n",
+		);
+		expect(job).toContain(`GH_REPO: \${{ github.repository }}`);
+		// A failed lookup fails the job instead of skipping the dispatch.
+		expect(job).toContain(
+			'merged=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq .merged)\n',
+		);
+		expect(job).toContain(
+			'if [ "$merged" = true ]; then gh workflow run ci.yml --ref main; fi\n',
+		);
+	});
+
+	it("dependabot-automerge.yml asks Projects for no new permission", () => {
+		const automerge = read(".github/workflows/dependabot-automerge.yml");
+		expect(automerge).toContain("\non:\n  workflow_call:\n\n");
+		expect(automerge).toContain(
+			"\n    permissions:\n      contents: write\n      pull-requests: write\n    steps:",
+		);
+		expect(automerge).not.toContain("actions:");
 	});
 
 	it("the Template's run never starts on push, which a private Project pays for", () => {
