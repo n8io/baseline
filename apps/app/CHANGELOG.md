@@ -1,5 +1,15 @@
 # app
 
+## 8.0.1
+
+### Patch Changes
+
+- 06b2061: The Project's `ci` workflow cancels a superseded run on the same ref, so a second push to a pull request stops the first run. Runs on `main` never cancel each other.
+- 2d24861: Clear the moderate advisory in the built server: `react-router-hono-server` moves to 4.1.9, which brings `@hono/node-server` 2.1.6. `docs/agents/dependency-updates.md` gains a step on what to do when Dependabot ends with `security_update_not_possible`.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `apps/app/package.json`, the doc and `piece-remove.ts`, and `pnpm install` refreshes your lockfile.
+- 9cebb25: CI now enforces the unit (2 min) and integration (3 min) budgets on the test command itself, with a message that names the budget, and the job limits sit a little above as a backstop. The Template's integration tests run four files at a time (`maxWorkers: 4`), so a Project's integration job no longer runs close to its limit on a 2-CPU runner.
+
 ## 8.0.0
 
 ### Major Changes
