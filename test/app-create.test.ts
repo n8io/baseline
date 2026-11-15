@@ -261,7 +261,9 @@ describe("app-create", () => {
 	});
 
 	it("leaves any answer but 404 to the install", async () => {
+		let asked = 0;
 		const server = createServer((_request, response) => {
+			asked += 1;
 			response.writeHead(500).end();
 		});
 		server.listen(0, "127.0.0.1");
@@ -282,6 +284,7 @@ describe("app-create", () => {
 		} finally {
 			server.close();
 		}
+		expect(asked).toBe(1);
 	});
 
 	describe("ciDispatch", () => {
