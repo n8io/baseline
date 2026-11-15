@@ -136,9 +136,9 @@ const databaseTimeoutViolations = (
 	files
 		.filter(
 			({ source }) =>
-				source.includes("integration-database") &&
-				/await using \w+ = await integrationDatabaseCreate/.test(source) &&
-				!/(timeout: 60_000|, 60_000\))/.test(source),
+				/await using\s+\w+\s*=\s*await integrationDatabaseCreate/.test(
+					source,
+				) && !/describe\([^{}]*\{[^{}]*timeout: 60_000/.test(source),
 		)
 		.map(
 			({ path }) =>
@@ -298,11 +298,24 @@ describe("integration database timeout", () => {
 				{
 					path: "b.test.ts",
 					source: source(
-						`it("b", async () => { await using database = await integrationDatabaseCreate(); }, 60_000);`,
+						`describe("b", { retry: 1, timeout: 60_000 }, () => { ${using} });`,
 					),
 				},
 			]),
 		).toEqual([]);
+	});
+
+	it("fails a file whose 60 s sits on a hook, not on the describe", () => {
+		expect(
+			databaseTimeoutViolations([
+				{
+					path: "c.test.ts",
+					source: source(
+						`beforeAll(async () => {}, 60_000); describe("c", () => { ${using} });`,
+					),
+				},
+			]),
+		).toEqual([expect.stringContaining("give its tests 60 s")]);
 	});
 
 	it("fails a file that drops with await using and keeps the default timeout", () => {
