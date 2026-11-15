@@ -3,6 +3,7 @@ import { createServer as netServerCreate, type Socket } from "node:net";
 import { describe, expect, it } from "vitest";
 import {
 	httpStatus,
+	productionServerBootMs,
 	productionServerSpawn,
 	productionServerStart,
 	productionServerWaitFor,
@@ -47,6 +48,8 @@ describe("server readiness", { timeout: 60_000 }, () => {
 					statuses.add(await httpStatus(server.healthPort, "/readyz"));
 					return server.child.exitCode !== null;
 				},
+				// The boot itself must fail, so the exit comes after a whole boot.
+				timeoutMs: productionServerBootMs,
 			});
 
 			expect(await server.exited).toBe(1);
