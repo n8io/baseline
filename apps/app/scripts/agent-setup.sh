@@ -84,7 +84,7 @@ step "oasdiff"
 if command -v oasdiff >/dev/null; then
 	echo "oasdiff $(oasdiff --version 2>/dev/null | head -n 1)"
 else
-	echo "Not installed: pnpm api-check prints its install line. Where the download is blocked, CI's oasdiff job runs the check."
+	echo "Not installed: pnpm api-check prints its install line. Where the download is blocked, CI's check job runs it."
 fi
 
 step "Ready"

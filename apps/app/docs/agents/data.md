@@ -8,7 +8,7 @@ Read when touching a table, a migration or SQL.
 - Run `pnpm codegen` after editing a table file, and before running a new table's Postgres tests (they migrate from `migrations/`). Name the migration with `pnpm codegen --name <slug>`. A PR may only add folders under `migrations/`.
 - Split drops and adds into two migrations: add in one, drop (with its `destructive.md`) in a later one.
 - On a migration conflict, delete your migration, rebase and run `pnpm codegen` again. Never use `--fix-conflicts` or `--hints`.
-- Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; the `migrations` CI job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
+- Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; CI's `check` job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
 - Tables hold UUIDs; code and the API speak prefixed ids (`invoice_…`). `postgresIdColumnCreate("invoice")` converts at the column; in raw values use `idToUuid` and `idFromUuid` from `@n8io/baseline-id`.
 - No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
 - Do not use `sql.raw` in `spi/`.
