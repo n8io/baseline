@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../test/integration/integration-database.ts";
 import { connectionsOpen } from "./connections.ts";
 
-describe("connectionsOpen with urls", () => {
+// `await using` drops the database inside the test: a checkpoint can take longer than the 5 s default.
+describe("connectionsOpen with urls", { timeout: 60_000 }, () => {
 	it("opens a real database while the cache stays in memory", async () => {
 		await using database = await integrationDatabaseCreate();
 		const connections = await connectionsOpen({
