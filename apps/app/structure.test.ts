@@ -128,6 +128,23 @@ const filesList = (dir: URL, prefix: string) =>
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
 
+// A test that drops its database with `await using` does it inside the test, and DROP DATABASE forces a
+// Postgres checkpoint (6.7 s on one CI runner), so the file must give its tests 60 s, as vitest.config.ts says.
+const databaseTimeoutViolations = (
+	files: { path: string; source: string }[],
+): string[] =>
+	files
+		.filter(
+			({ source }) =>
+				source.includes("integration-database") &&
+				/await using \w+ = await integrationDatabaseCreate/.test(source) &&
+				!/(timeout: 60_000|, 60_000\))/.test(source),
+		)
+		.map(
+			({ path }) =>
+				`${path}: this test drops its database with \`await using\`, which can take over 5 s on a CI runner; give its tests 60 s with \`describe(name, { timeout: 60_000 }, ...)\``,
+		);
+
 // AGENTS.md loads every time an agent starts, so it has a size budget. The Template's file stays under 13,000
 // bytes, so a Project has at least 1 KB for rules of its own.
 const agentsMaxBytes = 14_000;
@@ -245,6 +262,58 @@ describe("test placement", () => {
 		expect(testPlacementViolations(paths)).toEqual([
 			expect.stringContaining("put a test beside the file it covers"),
 		]);
+	});
+});
+
+describe("integration database timeout", () => {
+	const source = (extra: string) =>
+		`import { integrationDatabaseCreate } from "./integration-database.ts";\n${extra}`;
+	const using =
+		"it('x', async () => { await using database = await integrationDatabaseCreate(); });";
+
+	it("holds for the real tree", () => {
+		const files = appFilesList(appRoot)
+			.filter((path) =>
+				/(^src\/.*\.(postgres|redis)\.test\.ts|^test\/integration\/.*\.test\.ts)$/.test(
+					path,
+				),
+			)
+			.map((path) => ({
+				path,
+				source: readFileSync(new URL(path, appRoot), "utf8"),
+			}));
+		expect(files.length).toBeGreaterThan(10);
+		expect(databaseTimeoutViolations(files)).toEqual([]);
+	});
+
+	it("passes a file that gives its tests 60 s", () => {
+		expect(
+			databaseTimeoutViolations([
+				{
+					path: "a.test.ts",
+					source: source(
+						`describe("a", { timeout: 60_000 }, () => { ${using} });`,
+					),
+				},
+				{
+					path: "b.test.ts",
+					source: source(
+						`it("b", async () => { await using database = await integrationDatabaseCreate(); }, 60_000);`,
+					),
+				},
+			]),
+		).toEqual([]);
+	});
+
+	it("fails a file that drops with await using and keeps the default timeout", () => {
+		expect(
+			databaseTimeoutViolations([
+				{
+					path: "a.test.ts",
+					source: source(`describe("a", () => { ${using} });`),
+				},
+			]),
+		).toEqual([expect.stringContaining("give its tests 60 s")]);
 	});
 });
 

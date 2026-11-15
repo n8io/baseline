@@ -11,7 +11,7 @@ const integration: TestProjectConfiguration = {
 		globalSetup: ["test/integration/global-setup.ts"],
 		// A guard, not the fix: DROP DATABASE forces a Postgres checkpoint, and one took 8.4 s on a
 		// CI runner, past the 10 s default. Files drop their databases in parallel so they share one.
-		// `await using` teardown runs inside the test instead, so those files give each test 60 s.
+		// `await using` teardown runs inside the test instead, so those files give each test 60 s (structure.test.ts holds that).
 		hookTimeout: 30_000,
 		// The files mostly wait on Servers they spawn and on Postgres, so they need few CPUs. Vitest's
 		// default (CPUs minus one) runs them one at a time on a 2-CPU CI runner: 182 s against the
