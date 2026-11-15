@@ -517,7 +517,7 @@ export const pieceRemove = (
 			pnpm(["remove", ...packages]);
 		}
 		if (piece === "ui" && !installed.has("@hono/node-server")) {
-			pnpm(["add", "@hono/node-server@^2.1.5"]);
+			pnpm(["add", "@hono/node-server@^2.1.6"]);
 		}
 		// Removing an unused import is an unsafe fix in Biome, so it runs on its own.
 		toolRun(directory, [
