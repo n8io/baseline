@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
 	eachConcurrently,
-	pieceCheckIn,
+	pieceCheckFailureReport,
 	pieceCheckPlan,
-	pieceFailureReport,
+	pieceCheckRun,
 } from "./piece-check.ts";
 
 const all = new Set([
@@ -118,7 +118,7 @@ describe("eachConcurrently", () => {
 	});
 });
 
-describe("pieceCheckIn", () => {
+describe("pieceCheckRun", () => {
 	const removed: string[] = [];
 	const tools = ({ failing }: { failing?: string | undefined }) => ({
 		pieceRemove: (_tree: string, name: string) => {
@@ -131,9 +131,9 @@ describe("pieceCheckIn", () => {
 				: { ok: true, output: "" },
 	});
 	const check = (failing?: string) =>
-		pieceFailureReport(
+		pieceCheckFailureReport(
 			"cache",
-			pieceCheckIn({
+			pieceCheckRun({
 				first: [],
 				piece: "cache",
 				tools: tools({ failing }),
