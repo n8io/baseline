@@ -326,7 +326,7 @@ const main = async () => {
 		},
 		items: plan.checks,
 		// Each check runs tsc and vitest across every CPU, so more at once fight for them: on a
-		// 4-CPU CI runner two at once took 105 s, four took 169 s, one at a time 115 s.
+		// 4-CPU CI runner four at once ran slower than one at a time, and two at once a little faster.
 		limit: Math.min(2, availableParallelism()),
 	});
 	const inOrder = (ended: Map<string, string>) =>
