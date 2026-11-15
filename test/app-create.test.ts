@@ -268,14 +268,14 @@ describe("app-create", () => {
 		);
 	});
 
-	it("requires every app-ci.yml job but glossary-check, as ci / <job>", () => {
+	it("requires every app-ci.yml job, as ci / <job>", () => {
 		const workflow = readFileSync(
 			join(import.meta.dirname, "../.github/workflows/app-ci.yml"),
 			"utf8",
 		);
 		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((m) => m[1]);
 
-		expect([...requiredJobs, "glossary-check"].sort()).toEqual(jobs.sort());
+		expect([...requiredJobs].sort()).toEqual(jobs.sort());
 	});
 
 	it("protects main like baseline's own: no deletion, no force push, squash only, the checks, no bypass", () => {

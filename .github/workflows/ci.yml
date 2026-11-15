@@ -42,6 +42,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # main runs every task, so its cache holds them all.
       - run: pnpm turbo run check test build ${{ github.event_name != 'push' && '--affected' || '' }}
+      # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
+      # On main there are no added lines to read.
+      - if: ${{ !cancelled() && github.event_name != 'push' }}
+        continue-on-error: true
+        run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
       - if: github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -61,22 +66,6 @@ jobs:
           semgrep scan --error --metrics=off
           --config p/typescript --config p/nodejs --config p/react --config p/secrets
           packages scripts test
-
-  # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
-  # On main there are no added lines to read.
-  glossary-check:
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-      - run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
 
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
   integration:
