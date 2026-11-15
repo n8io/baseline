@@ -110,11 +110,11 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      # CI enforces the budget on the command, as `check` does; the job limit is only a backstop.
+      # CI enforces the budget on the command, the job limit is only a backstop.
       - run: |
           status=0
           timeout 3m pnpm test:integration || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration passed its 3 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 3 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
           exit "$status"
         working-directory: apps/app
 

@@ -77,11 +77,11 @@ jobs:
       - *pnpm
       - *node
       - *install
-      # CI enforces the budget on the command, as `check` does; the job limit is only a backstop.
+      # CI enforces the budget on the command, the job limit is only a backstop.
       - run: |
           status=0
           timeout 2m pnpm test || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test passed its 2 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test went over its 2 min budget (AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
           exit "$status"
 
   integration:
@@ -112,14 +112,14 @@ jobs:
       - *pnpm
       - *node
       - *install
-      # CI enforces the budget on the command, as `check` does; the job limit is only a backstop.
+      # CI enforces the budget on the command, the job limit is only a backstop.
       - env:
           INTEGRATION_CACHE_URL: redis://localhost:6379
           INTEGRATION_DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
         run: |
           status=0
           timeout 3m pnpm test:integration || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration passed its 3 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 3 min budget (AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
           exit "$status"
 
   migrations:
