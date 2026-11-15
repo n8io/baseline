@@ -602,7 +602,7 @@ export const npmTarballsWait = async ({
 			if (status !== 404) break;
 			if (Date.now() > deadline) {
 				throw new Error(
-					`npm still answers 404 after ${timeout / 60_000} min for ${url}. This is a registry delay after a fresh publish, not a broken Project: in a few minutes run `pnpm install` in the Project folder and commit.`,
+					`npm still answers 404 after ${timeout / 60_000} min for ${url}. This is a registry delay after a fresh publish, not a broken Project: in a few minutes run pnpm install in the Project folder and commit.`,
 				);
 			}
 			(log ?? console.log)(`waiting for npm to serve ${url}`);
