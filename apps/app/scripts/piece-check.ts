@@ -320,7 +320,7 @@ const main = async () => {
 			);
 		},
 		items: [{ tree: true }, ...plan.checks],
-		limit: availableParallelism(),
+		limit: 2,
 	});
 	if (tree?.outcome === "failed") {
 		console.error(tree.output);
