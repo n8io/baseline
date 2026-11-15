@@ -3,6 +3,11 @@ name: ci
 # workflow_dispatch: app-create runs CI once on a new Project's main.
 on: [pull_request, workflow_dispatch]
 
+# A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
+concurrency:
+  group: ci-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
