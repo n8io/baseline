@@ -1,7 +1,7 @@
 // pnpm piece-check [piece...]: proves that every installed piece can still be removed. Each runs
 // `pnpm piece-remove`, `pnpm check` and `pnpm test` on its own throwaway git worktree of HEAD, so
 // your tree is left alone and uncommitted changes are not checked. The pieces and the check of
-// the unmodified tree run at the same time, one per CPU, each in a child process whose output is
+// the unmodified tree run two at a time, each in a child process whose output is
 // printed whole only when it fails. A piece listed in `.template.json` as `piecesKept` is
 // skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
 // app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
@@ -320,7 +320,9 @@ const main = async () => {
 			);
 		},
 		items: [{ tree: true }, ...plan.checks],
-		limit: 2,
+		// Each check runs tsc and vitest across every CPU, so more at once fight for them: on a
+		// 4-CPU CI runner two at once took 105 s, four took 169 s, one at a time 115 s.
+		limit: Math.min(2, availableParallelism()),
 	});
 	if (tree?.outcome === "failed") {
 		console.error(tree.output);
