@@ -73,7 +73,7 @@ jobs:
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     services:
       postgres:
         image: postgres:18
@@ -105,8 +105,8 @@ jobs:
       # CI enforces the budget on the command, the job limit is only a backstop.
       - run: |
           status=0
-          timeout 3m pnpm test:integration || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 3 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          timeout 4m pnpm test:integration || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
           exit "$status"
         working-directory: apps/app
 

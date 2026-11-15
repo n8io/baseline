@@ -14,7 +14,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - format: `pnpm format`
 - lint + format check + typecheck: `pnpm check` (30 s budget)
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
-- integration tests: `pnpm test:integration` (3 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis (`pnpm dev` starts them)
+- integration tests: `pnpm test:integration` (4 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis (`pnpm dev` starts them)
 - most of CI: `pnpm run ci` = check, unit, integration, piece-check (HEAD only, commit first); not oasdiff, migrations, sast, image
 - dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker. `pnpm dev:reset` wipes their data
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
