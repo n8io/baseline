@@ -172,7 +172,13 @@ export const pieceCheckRun = ({
 	for (const name of [...first, piece]) {
 		const failed = tools.pieceRemove(tree, name);
 		if (failed !== undefined) {
-			return { ...failed, step: `pnpm piece-remove ${name}` };
+			return {
+				...failed,
+				step: `pnpm piece-remove ${name}`,
+				...(failed.packageManager === undefined
+					? {}
+					: { step: failed.packageManager, unchecked: true }),
+			};
 		}
 	}
 	const tested = tools.toolRun(tree, ["test"]);

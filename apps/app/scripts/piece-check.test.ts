@@ -152,6 +152,53 @@ describe("pieceCheckRun", () => {
 		expect(removed).toEqual([]);
 	});
 
+	it.each(["pnpm remove", "pnpm add"])(
+		"reports a failed %s during the removal as not checked, exits 4 and blames no piece",
+		(command) => {
+			const report = pieceCheckFailureReport(
+				"cache",
+				pieceCheckRun({
+					first: [],
+					piece: "cache",
+					tools: {
+						...tools({}),
+						pieceRemove: () => ({
+							files: [],
+							output: "ERR_PNPM_FETCH_404 from the registry",
+							packageManager: command,
+						}),
+					},
+					tree: "/tree",
+				}),
+			);
+			expect(report?.code).toBe(4);
+			expect(report?.text).toContain("cache could not be checked");
+			expect(report?.text).toContain(`${command} failed`);
+			expect(report?.text).toContain("ERR_PNPM_FETCH_404");
+			expect(report?.text).not.toContain("fails at");
+		},
+	);
+
+	it("blames the piece, with exit 3, when its removal fails on the Project's code", () => {
+		const report = pieceCheckFailureReport(
+			"cache",
+			pieceCheckRun({
+				first: [],
+				piece: "cache",
+				tools: {
+					...tools({}),
+					pieceRemove: () => ({
+						files: ["src/a.ts"],
+						output: "src/a.ts(1,1) error",
+					}),
+				},
+				tree: "/tree",
+			}),
+		);
+		expect(report?.code).toBe(3);
+		expect(report?.text).toContain("fails at pnpm piece-remove cache");
+	});
+
 	it("blames the piece, with exit 3, when its test fails after a good install", () => {
 		const report = check("test");
 		expect(report?.code).toBe(3);
