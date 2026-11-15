@@ -56,11 +56,11 @@ const entries = (): string[][] => {
 };
 
 describe("Dockerfile", () => {
-	it("builds from node:26-slim pinned by digest in every stage", () => {
+	it("builds from node:26-alpine pinned by digest in every stage", () => {
 		const froms = instructions.filter(({ keyword }) => keyword === "FROM");
 		expect(froms).toHaveLength(2);
 		for (const { args } of froms) {
-			expect(args).toMatch(/^node:26-slim@sha256:[0-9a-f]{64}( AS \w+)?$/);
+			expect(args).toMatch(/^node:26-alpine@sha256:[0-9a-f]{64}( AS \w+)?$/);
 		}
 	});
 
