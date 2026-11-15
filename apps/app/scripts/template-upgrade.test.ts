@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { once } from "node:events";
 import {
 	type DisposableTempDir,
 	existsSync,
@@ -6,9 +7,12 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import type { TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
@@ -30,8 +34,11 @@ const runCapture = () => {
 			error: (line: string) => errors.push(line),
 			log: (line: string) => logs.push(line),
 		},
-		pnpm: (script: string) => scripts.push(script),
+		pnpm: (args: string[]) => scripts.push(args.join(" ")),
 		scripts,
+		tarballsWait: async () => {
+			scripts.push("wait");
+		},
 	};
 };
 
@@ -127,7 +134,14 @@ describe("templateUpgradeRun", () => {
 			JSON.parse(readFileSync(join(app, ".template.json"), "utf8")).release,
 		).toBe("1.1.0");
 		expect(git(app, "rev-list", "--count", "HEAD").trim()).toBe("1");
-		expect(run.scripts).toEqual(["install", "format", "check", "test"]);
+		expect(run.scripts).toEqual([
+			"install --lockfile-only",
+			"wait",
+			"install",
+			"format",
+			"check",
+			"test",
+		]);
 		expect(run.logs.join("\n")).toContain("- Four is 4.");
 	});
 
@@ -256,6 +270,69 @@ describe("templateUpgradeRun", () => {
 			}),
 		).toBe(0);
 		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("own\n");
+	});
+
+	it("installs only after npm serves the tarballs the lockfile names, and says so when it never does", async () => {
+		let asked = 0;
+		const server = createServer((_request, response) => {
+			asked += 1;
+			response.writeHead(asked > 2 ? 200 : 404).end();
+		});
+		server.listen(0, "127.0.0.1");
+		await once(server, "listening");
+		const registry = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+		try {
+			using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+			const app = folder.path;
+			writeFileSync(
+				join(app, "pnpm-lock.yaml"),
+				"packages:\n\n  '@n8io/baseline-id@1.0.0':\n    resolution: {}\n",
+			);
+			git(app, "commit", "--quiet", "-am", "lockfile");
+			const run = runCapture();
+			expect(
+				await templateUpgradeRun({
+					appDirectory: app,
+					to: "1.1.0",
+					tools,
+					...run,
+					tarballsWait: () =>
+						npmTarballsWait({
+							directory: app,
+							intervalMs: 5,
+							log: () => {},
+							registry,
+						}),
+				}),
+			).toBe(0);
+			expect(asked).toBe(3);
+			expect(run.scripts[0]).toBe("install --lockfile-only");
+			expect(run.scripts[1]).toBe("install");
+		} finally {
+			server.close();
+		}
+	});
+
+	it("stops before installing when the wait runs out, and names the reason", async () => {
+		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		const run = runCapture();
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: folder.path,
+				to: "1.1.0",
+				tools,
+				...run,
+				tarballsWait: async () => {
+					throw new Error("npm still answers 404 for baseline-id");
+				},
+			}),
+		).toBe(1);
+		expect(run.errors.join("\n")).toContain(
+			"the install could not start: npm still answers 404 for baseline-id",
+		);
+		expect(run.errors.join("\n")).toContain("Run pnpm install, pnpm format");
+		expect(run.scripts).toEqual(["install --lockfile-only"]);
 	});
 
 	it("refuses a dirty working tree", async () => {

@@ -16,6 +16,7 @@ import {
 	domainNameRefusal,
 	domainReadsRefusal,
 } from "../../apps/app/scripts/domain-create.ts";
+import { npmTarballsWait } from "../../apps/app/scripts/npm-tarballs-wait.ts";
 import {
 	filesWrite,
 	releaseLatest,
@@ -29,7 +30,6 @@ import {
 	appRender,
 	gitCommitAll,
 	glossaryTerm,
-	npmTarballsWait,
 	pnpmRun,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";

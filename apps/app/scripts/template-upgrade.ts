@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import { piecesGoneFind, piecesRemoveFromTree } from "./piece-remove.ts";
 import {
 	filesWrite,
@@ -272,6 +273,7 @@ export const templateUpgradeRun = async ({
 	appDirectory,
 	output,
 	pnpm,
+	tarballsWait,
 	to,
 	tools,
 }: {
@@ -281,7 +283,9 @@ export const templateUpgradeRun = async ({
 		error: (line: string) => void;
 		log: (line: string) => void;
 	} | null;
-	pnpm: (script: string) => void;
+	pnpm: (args: string[]) => void;
+	/** Resolves once npm serves every @n8io/baseline-* tarball the lockfile names. */
+	tarballsWait: () => Promise<void>;
 	to: string;
 	tools: UpgradeTools;
 }): Promise<number> => {
@@ -302,12 +306,23 @@ export const templateUpgradeRun = async ({
 	);
 	if (result.conflicts.length > 0) {
 		logError(
-			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run pnpm install, pnpm check and pnpm test.`,
+			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run pnpm install, pnpm check and pnpm test. If the install answers 404 for an @n8io/baseline-* tarball, npm is still publishing the release: wait a few minutes and run it again.`,
+		);
+		return 1;
+	}
+	// The merge can pin a release published minutes ago, whose tarball npm answers 404 for
+	// first: resolve the lockfile, wait for the tarballs, then install.
+	try {
+		pnpm(["install", "--lockfile-only"]);
+		await tarballsWait();
+	} catch (error) {
+		logError(
+			`template-upgrade: merged, but the install could not start: ${(error as Error).message}\nThe merge is done and .template.json has moved, so running template-upgrade again does nothing. Run pnpm install, pnpm format, pnpm check and pnpm test yourself.`,
 		);
 		return 1;
 	}
 	try {
-		for (const script of ["install", "format", "check", "test"]) pnpm(script);
+		for (const script of ["install", "format", "check", "test"]) pnpm([script]);
 	} catch {
 		logError("template-upgrade: merged, but format, typecheck or tests fail");
 		return 1;
@@ -326,13 +341,14 @@ const main = async () => {
 			fetch: (version) => templateFetch(version),
 			finish: (directory) => templateFinish(directory, appDirectory),
 		},
-		pnpm: (script) => {
+		pnpm: (args) => {
 			run({
 				command: "pnpm",
-				args: [script],
+				args,
 				options: { cwd: appDirectory, inherit: true },
 			});
 		},
+		tarballsWait: () => npmTarballsWait({ directory: appDirectory }),
 	});
 };
 
