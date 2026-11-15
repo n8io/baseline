@@ -62,17 +62,28 @@ jobs:
         run: pnpm glossary-check
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
+  # The rules are baseline's pinned snapshot of p/typescript, p/nodejs, p/react and p/secrets
+  # (.github/semgrep/rules.txt at this workflow's own commit), never fetched live from semgrep.dev.
+  # Moving the pin: docs/agents/dependency-updates.md in the Template.
   sast:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
+    env:
+      SEMGREP_ENABLE_VERSION_CHECK: "0"
     steps:
       - *checkout
       - *download
       - *extract
-      - run: >-
-          semgrep scan --error --metrics=off
-          --config p/typescript --config p/nodejs --config p/react --config p/secrets
+      - name: Pinned Semgrep rules
+        env:
+          PIN: https://raw.githubusercontent.com/${{ job.workflow_repository }}/${{ job.workflow_sha }}/.github/semgrep
+        run: |
+          set -eu
+          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/rules.sh" "$PIN/rules.sh"
+          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/rules.txt" "$PIN/rules.txt"
+          sh "$RUNNER_TEMP/rules.sh" "$RUNNER_TEMP/rules.txt" "$RUNNER_TEMP/semgrep-rules"
+      - run: semgrep scan --error --metrics=off --no-rewrite-rule-ids --config "$RUNNER_TEMP/semgrep-rules"
 
   unit:
     runs-on: ubuntu-latest
