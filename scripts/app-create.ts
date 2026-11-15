@@ -1,6 +1,6 @@
 // pnpm app-create: makes a new Project from the latest app@ release, with no Domain yet.
 // Renders apps/app, writes the Project's answers, installs and commits, then creates the private
-// GitHub repository, the CI ruleset and Dependabot security updates, and runs CI once on main.
+// GitHub repository, the CI ruleset, squash-only merging and Dependabot security updates, and runs CI once on main.
 // --no-github stops after the commit; --github-only does the GitHub half inside an existing render.
 // Flags skip the questions: --name --description [--owner]. docs/agents/project-create.md.
 import { randomBytes } from "node:crypto";
@@ -137,14 +137,42 @@ export const gitCommitAll = (directory: string, message: string): void => {
 	});
 };
 
-// The ruleset on the default branch: every required app-ci.yml job, as `ci / <job>`.
-export const rulesetBodyCreate = () => ({
+type Rule = { parameters?: Record<string, unknown>; type: string };
+type Ruleset = {
+	bypass_actors: unknown[];
+	conditions: { ref_name: { exclude: string[]; include: string[] } };
+	enforcement: string;
+	name: string;
+	rules: Rule[];
+	target: string;
+};
+
+// The ruleset on the default branch, the rules baseline's own main has: no deletion, no force
+// push, a pull request with squash as the only merge method and no required approvals (so a
+// Dependabot merge with GITHUB_TOKEN still works), and every required app-ci.yml job as
+// `ci / <job>`. No bypass actors.
+export const rulesetBodyCreate = (): Ruleset => ({
+	bypass_actors: [],
 	conditions: { ref_name: { exclude: [], include: ["~DEFAULT_BRANCH"] } },
 	enforcement: "active",
 	name: "ci",
 	rules: [
+		{ type: "deletion" },
+		{ type: "non_fast_forward" },
 		{
 			parameters: {
+				allowed_merge_methods: ["squash"],
+				dismiss_stale_reviews_on_push: false,
+				require_code_owner_review: false,
+				require_last_push_approval: false,
+				required_approving_review_count: 0,
+				required_review_thread_resolution: false,
+			},
+			type: "pull_request",
+		},
+		{
+			parameters: {
+				do_not_enforce_on_create: false,
 				required_status_checks: requiredJobs.map((job) => ({
 					context: `ci / ${job}`,
 				})),
@@ -155,6 +183,122 @@ export const rulesetBodyCreate = () => ({
 	],
 	target: "branch",
 });
+
+// The fields a ruleset is judged by, in a fixed order: GitHub's answer also carries ids, dates
+// and defaults the body never sets, and lists rules and checks in no stable order.
+const rulesetNormalize = (ruleset: Partial<Ruleset>) => ({
+	bypass_actors: ruleset.bypass_actors ?? [],
+	conditions: ruleset.conditions,
+	enforcement: ruleset.enforcement,
+	rules: Object.fromEntries(
+		((ruleset.rules ?? []) as Rule[])
+			.map(({ parameters, type }): [string, unknown] => [
+				type,
+				type === "required_status_checks"
+					? {
+							checks: (
+								(parameters?.required_status_checks ?? []) as {
+									context: string;
+								}[]
+							)
+								.map(({ context }) => context)
+								.sort(),
+							strict: parameters?.strict_required_status_checks_policy,
+						}
+					: parameters,
+			])
+			.sort(([a], [b]) => a.localeCompare(b)),
+	),
+	target: ruleset.target,
+});
+
+// What differs between the ruleset on GitHub and the wanted one, as short phrases; empty when
+// they are the same.
+export const rulesetChangesFind = ({
+	current,
+	wanted,
+}: {
+	current: Partial<Ruleset>;
+	wanted: Ruleset;
+}): string[] => {
+	const have = rulesetNormalize(current);
+	const want = rulesetNormalize(wanted);
+	const changes: string[] = [];
+	for (const field of [
+		"bypass_actors",
+		"conditions",
+		"enforcement",
+		"target",
+	] as const) {
+		if (JSON.stringify(have[field]) !== JSON.stringify(want[field]))
+			changes.push(`changed ${field}`);
+	}
+	for (const type of new Set([
+		...Object.keys(have.rules),
+		...Object.keys(want.rules),
+	])) {
+		if (!(type in have.rules)) changes.push(`added rule ${type}`);
+		else if (!(type in want.rules)) changes.push(`removed rule ${type}`);
+		else if (
+			JSON.stringify(have.rules[type]) !== JSON.stringify(want.rules[type])
+		)
+			changes.push(`changed rule ${type}`);
+	}
+	return changes;
+};
+
+type Gh = (args: string[], input?: string | undefined) => string;
+
+// Makes the ruleset named ci match rulesetBodyCreate(): creates it when missing, updates it when
+// it differs (and says what changed), and makes no write when it already matches.
+export const rulesetReconcile = ({
+	gh,
+	repository,
+}: {
+	gh: Gh;
+	repository: string;
+}): string => {
+	const wanted = rulesetBodyCreate();
+	const path = `repos/${repository}/rulesets`;
+	const listed = JSON.parse(gh(["api", path])) as {
+		id: number;
+		name: string;
+	}[];
+	const found = listed.find(({ name }) => name === wanted.name);
+	if (found === undefined) {
+		gh(
+			["api", "--method", "POST", path, "--input", "-"],
+			JSON.stringify(wanted),
+		);
+		return `Created the ${wanted.name} ruleset on ${repository}`;
+	}
+	const current = JSON.parse(gh(["api", `${path}/${found.id}`])) as Ruleset;
+	const changes = rulesetChangesFind({ current, wanted });
+	if (changes.length === 0)
+		return `${repository} already has the ${wanted.name} ruleset as wanted`;
+	gh(
+		["api", "--method", "PUT", `${path}/${found.id}`, "--input", "-"],
+		JSON.stringify(wanted),
+	);
+	return `Updated the ${wanted.name} ruleset on ${repository}: ${changes.join(", ")}`;
+};
+
+// Squash is the only way a pull request merges, and a merged branch goes away, which is what the
+// ruleset's pull request rule allows.
+export const mergeSettingsCall = (repository: string) => [
+	"api",
+	"--method",
+	"PATCH",
+	`repos/${repository}`,
+	"-F",
+	"allow_squash_merge=true",
+	"-F",
+	"allow_merge_commit=false",
+	"-F",
+	"allow_rebase_merge=false",
+	"-F",
+	"delete_branch_on_merge=true",
+];
 
 // Turns on Dependabot alerts, then Dependabot security updates, which need the alerts on.
 export const securityUpdatesCalls = (repository: string) =>
@@ -461,7 +605,8 @@ const originRead = (directory: string): string | null => {
 };
 
 // Creates the repository, or, when the render already has an origin (--github-only in a clone),
-// uses that one. Then the ruleset unless one named ci exists, Dependabot, and one CI run on main.
+// uses that one. Then the ruleset (created, or updated to match), the merge settings, Dependabot,
+// and one CI run on main.
 const githubCreate = async ({
 	description,
 	directory,
@@ -499,26 +644,18 @@ const githubCreate = async ({
 	} else {
 		console.log(`Using ${repository}, the render's origin`);
 	}
-	const rulesets = run({
-		command: "gh",
-		args: ["api", `repos/${repository}/rulesets`, "--jq", ".[].name"],
-	});
-	if (rulesets.split("\n").includes("ci")) {
-		console.log(`${repository} already has the ci ruleset`);
-	} else {
-		run({
-			command: "gh",
-			args: [
-				"api",
-				"--method",
-				"POST",
-				`repos/${repository}/rulesets`,
-				"--input",
-				"-",
-			],
-			options: { input: JSON.stringify(rulesetBodyCreate()) },
-		});
-	}
+	console.log(
+		rulesetReconcile({
+			gh: (args, input) =>
+				run({
+					command: "gh",
+					args,
+					options: input === undefined ? {} : { input },
+				}),
+			repository,
+		}),
+	);
+	run({ command: "gh", args: mergeSettingsCall(repository) });
 	for (const args of securityUpdatesCalls(repository))
 		run({ command: "gh", args });
 	console.log(`Set up https://github.com/${repository}`);
