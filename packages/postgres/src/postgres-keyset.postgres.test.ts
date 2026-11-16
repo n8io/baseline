@@ -31,6 +31,7 @@ const rows: Omit<Item, "id">[] = [
 
 const sorts = {
 	date: { column: item.at, sortValue: (row: Item) => row.at.toISOString() },
+	integer: { column: item.score, sortValue: (row: Item) => row.score },
 	number: { column: item.score, sortValue: (row: Item) => row.score },
 	text: { column: item.name, sortValue: (row: Item) => row.name },
 } as const;
@@ -40,7 +41,7 @@ const compare = (a: string | number, b: string | number): number =>
 
 describe("postgresKeysetCreate", () => {
 	it.each(
-		(["date", "number", "text"] as const).flatMap((kind) => [
+		(["date", "integer", "number", "text"] as const).flatMap((kind) => [
 			{ descending: false, kind },
 			{ descending: true, kind },
 		]),
@@ -99,4 +100,35 @@ describe("postgresKeysetCreate", () => {
 			expect(seen).toEqual(expected);
 		},
 	);
+
+	it("takes the int4 edges an integer cursor allows", async () => {
+		await using pgPool = postgresPoolCreate({
+			databaseUrl: await postgresTestDatabaseCreate(),
+		});
+		const db = drizzle({ client: pgPool });
+		await db.execute(
+			"CREATE TABLE item (at timestamptz NOT NULL, id uuid PRIMARY KEY, name text NOT NULL, score integer NOT NULL)",
+		);
+		await db
+			.insert(item)
+			.values({ at: at(1), id: idCreate("item"), name: "a", score: 0 });
+		for (const [value, descending] of [
+			[2 ** 31 - 1, true],
+			[-(2 ** 31), false],
+		] as const) {
+			const keyset = postgresKeysetCreate({
+				after: { id: idCreate("item"), value },
+				descending,
+				idColumn: item.id,
+				kind: "integer",
+				sortColumn: item.score,
+			});
+			const found = await db
+				.select()
+				.from(item)
+				.where(keyset.where)
+				.orderBy(...keyset.orderBy);
+			expect(found.map((row) => row.score)).toEqual([0]);
+		}
+	});
 });

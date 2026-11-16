@@ -68,6 +68,25 @@ describe("cursor", () => {
 		expect(read("number", 3)).not.toBeNull();
 	});
 
+	// Postgres refuses a fraction or a value past int4 for an integer column: the list would answer
+	// 500 instead of its first page.
+	it("reads an integer cursor an integer column cannot hold as none", () => {
+		const id = idCreate("invoice");
+		const read = (value: unknown) =>
+			decode(encoded({ id, kind: "integer", value }), "integer");
+
+		for (const value of [9.5, 3e9, -3e9, 2 ** 31, -(2 ** 31) - 1, "3"]) {
+			expect(read(value)).toBeNull();
+		}
+		for (const value of [0, -3, 2 ** 31 - 1, -(2 ** 31)]) {
+			expect(read(value)).toEqual({ id, kind: "integer", value });
+		}
+		// A number sort takes a fraction.
+		expect(
+			decode(encoded({ id, kind: "number", value: 9.5 }), "number"),
+		).not.toBeNull();
+	});
+
 	it("reads an id with another prefix as none", () => {
 		const cursor = encoded({
 			id: idCreate("customer"),
@@ -96,11 +115,14 @@ describe("cursorMemoryPage", () => {
 		row("b", 1),
 	];
 	const sorts = {
+		integer: { kind: "integer", sortValue: (r: Row) => r.total },
 		number: { kind: "number", sortValue: (r: Row) => r.total },
 		text: { kind: "text", sortValue: (r: Row) => r.name },
 	} as const;
 
 	it.each([
+		{ descending: false, sort: "integer" },
+		{ descending: true, sort: "integer" },
 		{ descending: false, sort: "number" },
 		{ descending: true, sort: "number" },
 		{ descending: false, sort: "text" },
