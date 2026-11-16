@@ -20,6 +20,7 @@ Rules for code that belongs to a piece, so the removal stays clean:
 - Put it in a whole file named for the piece (`<domain>-use-cases-<piece>.test.ts`, `spi/<domain>-<piece>.ts`) where you can, and in blocks only where it shares a file.
 - A variable, parameter or import used only inside a block must be declared inside it, or it is unused once the block goes.
 - Blocks of different pieces may nest; they may not cross. Biome sorts imports and exports and can pull a block apart: a file with blocks in its exports starts with `// biome-ignore-all assist/source/organizeImports: <why>`. `structure.test.ts` fails on a start without its end, and on blocks that cross.
+- Never wrap an import line in markers: Biome sorts imports and would carry one into or out of a block. Add a new import with the imports above the file's first `piece-start:` line, and an import only a piece uses to that piece's own file. When `pnpm format` has pulled a block apart (`structure.test.ts` or piece-remove says the markers do not balance), move the imports it carried back above the first marker and put each `piece-start:` and `piece-end:` line back around the code it held, then run `pnpm format` again and check the blocks are still whole.
 - A page that uses live updates carries them in `live` blocks (see the `*-detail.tsx` pages in `src/ui/routes/`), so removing `live` leaves the page.
 
 ## Keeping every piece removable
@@ -27,6 +28,8 @@ Rules for code that belongs to a piece, so the removal stays clean:
 `pnpm piece-check [piece...]` runs `pnpm check` and `pnpm test` on `HEAD` unmodified and, when they fail, reports only "fix the tree first", so a broken tree blames no piece. It removes each installed piece on its own throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The unmodified tree is checked first, alone, which also fills the pnpm store; then the pieces are checked two at a time (more at once fight over the CPUs and run slower); each piece prints one result line, and a failing piece's output is printed at the end. A check that crashes, is killed (often out of memory), whose install fails or whose removal's `pnpm remove` or `pnpm add` fails (registry error, network) is reported as "could not be checked" and blames no piece: run it again. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates; `queue` is skipped, with a note, while a Consumer exists.
 
 A Project that will never remove a piece lists it in `.template.json`: `"piecesKept": ["live", "cache"]`. `piece-check` skips it, and new code needs no markers for it. Decide that once, on purpose; the Template's own pieces stay removable.
+
+A Project's own file that belongs to a piece, such as a test of the pages under `test/ui` or an integration test of analytics, is listed in `.template.json` too, so `pnpm piece-remove` and `piece-check` delete it with the piece: `"pieceFiles": { "ui": ["test/ui"], "analytics": ["test/integration/observability-analytics.test.ts"] }`. Paths are from the Project root; a folder goes whole. List them there, never in `scripts/piece-remove.ts`: `pnpm template-upgrade` replaces that script with the Template's. An unknown piece or a path outside the Project makes both commands stop and say which entry is wrong.
 
 `pnpm template-upgrade` renders both releases with the pieces this Project removed already removed (found by their missing package in `package.json`), so a removed piece's package, files and lines do not come back. If a piece's lines still conflict, commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
 
@@ -40,7 +43,7 @@ A Project that will never remove a piece lists it in `.template.json`: `"piecesK
 
 The React Router pages, their components and styles, and the Vite dev server. The API, sign-in, live update streams and the Worker stay. Without UI pages, `src/server.ts` serves its Hono app with `@hono/node-server`, Vite builds it into `build/server/index.js` as before, and `pnpm dev` runs it with `node --watch`.
 
-Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Domain, and add their lines at the `domain-create:` markers in `src/ui/routes.ts` and `src/ui/context.ts` and the `context` marker in `src/server.ts`.
+Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Domain, and add their lines at the `domain-create:` markers in `src/ui/routes.ts` and `src/ui/context.ts`.
 
 ## Live updates
 
