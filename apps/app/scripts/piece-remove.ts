@@ -12,7 +12,7 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, normalize, relative } from "node:path";
 import { pieceBlocksRemove, piecesRemovedFind } from "./domain-create.ts";
 import { run } from "./template-render.ts";
 
@@ -339,6 +339,63 @@ export const pieceMarkersProblems = (text: string): string[] => {
 	return problems;
 };
 
+// What `.template.json` says about pieces: `piecesKept`, the pieces this Project keeps, and
+// `pieceFiles`, the Project's own paths that go with a piece, such as a test that exercises it.
+// They live there, not in pieceRemovals, so a template-upgrade copying this script keeps them.
+export type PieceSettings = { files: Record<string, string[]>; kept: string[] };
+
+export const pieceSettingsRead = (directory: string): PieceSettings => {
+	const file = join(directory, ".template.json");
+	if (!existsSync(file)) return { files: {}, kept: [] };
+	const template = JSON.parse(readFileSync(file, "utf8")) as {
+		pieceFiles?: unknown;
+		piecesKept?: unknown;
+	};
+	const pieces = Object.keys(pieceRemovals).join(", ");
+	const kept = template.piecesKept ?? [];
+	if (!Array.isArray(kept) || kept.some((p) => typeof p !== "string")) {
+		throw new Error(
+			`piecesKept in .template.json must be a list of piece names; pieces are ${pieces}`,
+		);
+	}
+	const keptUnknown = kept.filter((p) => pieceRemovals[p] === undefined);
+	if (keptUnknown.length > 0) {
+		throw new Error(
+			`piecesKept in .template.json names ${keptUnknown.join(", ")}, which is no piece; pieces are ${pieces}`,
+		);
+	}
+	const files = template.pieceFiles ?? {};
+	if (typeof files !== "object" || files === null || Array.isArray(files)) {
+		throw new Error(
+			'pieceFiles in .template.json must map a piece to its paths, such as { "ui": ["test/ui"] }',
+		);
+	}
+	for (const [piece, paths] of Object.entries(files)) {
+		if (pieceRemovals[piece] === undefined) {
+			throw new Error(
+				`pieceFiles in .template.json names ${piece}, which is no piece; pieces are ${pieces}`,
+			);
+		}
+		if (!Array.isArray(paths) || paths.some((p) => typeof p !== "string")) {
+			throw new Error(
+				`pieceFiles.${piece} in .template.json must be a list of paths`,
+			);
+		}
+		const outside = paths.filter(
+			(p) =>
+				isAbsolute(p) ||
+				[".", ""].includes(normalize(p).replace(/\/$/, "")) ||
+				normalize(p).split("/")[0] === "..",
+		);
+		if (outside.length > 0) {
+			throw new Error(
+				`pieceFiles.${piece} in .template.json names ${outside.join(", ")}, which is not a path inside the Project; give paths from the Project root, such as test/ui`,
+			);
+		}
+	}
+	return { files: files as Record<string, string[]>, kept };
+};
+
 const usage = `usage: pnpm piece-remove <${Object.keys(pieceRemovals).join("|")}>`;
 
 // Why the piece cannot be removed from this Project now, or undefined when it can.
@@ -353,6 +410,11 @@ export const pieceRemoveRefusal = (
 		args: ["status", "--porcelain"],
 		options: { cwd: directory },
 	});
+	try {
+		pieceSettingsRead(directory);
+	} catch (error) {
+		return (error as Error).message;
+	}
 	if (status !== "") {
 		return "Commit or stash your changes first, so the removal is a commit of its own that git revert can take back.";
 	}
@@ -394,7 +456,10 @@ const filesRemove = ({
 			);
 		}
 	}
-	for (const path of removal.paths) {
+	for (const path of [
+		...removal.paths,
+		...(pieceSettingsRead(directory).files[piece] ?? []),
+	]) {
 		rmSync(join(directory, path), { force: true, recursive: true });
 	}
 	for (const path of filesList(directory)) {

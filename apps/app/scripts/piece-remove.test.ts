@@ -17,6 +17,7 @@ import {
 	pieceRemovals,
 	pieceRemove,
 	pieceRemoveRefusal,
+	pieceSettingsRead,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
 
@@ -185,6 +186,15 @@ describe("pieceRemoveRefusal", () => {
 		expect(pieceRemoveRefusal(directory, undefined)).toContain("usage");
 	});
 
+	it("refuses a .template.json whose pieceFiles is wrong, and says why", () => {
+		using folder = projectCreate({
+			".template.json": JSON.stringify({ pieceFiles: { pages: ["test/ui"] } }),
+		});
+		expect(pieceRemoveRefusal(folder.path, "ui")).toBe(
+			`pieceFiles in .template.json names pages, which is no piece; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
+		);
+	});
+
 	it("refuses a tree with uncommitted changes", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
@@ -223,7 +233,76 @@ describe("pieceRemoveRefusal", () => {
 	});
 });
 
+describe("pieceSettingsRead", () => {
+	const settings = (template: unknown) => {
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-settings-"));
+		writeFileSync(
+			join(folder.path, ".template.json"),
+			JSON.stringify(template),
+		);
+		return pieceSettingsRead(folder.path);
+	};
+
+	it("reads the Project's piece paths and kept pieces, and none without .template.json", () => {
+		expect(
+			settings({ pieceFiles: { ui: ["test/ui"] }, piecesKept: ["live"] }),
+		).toEqual({ files: { ui: ["test/ui"] }, kept: ["live"] });
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-settings-"));
+		expect(pieceSettingsRead(folder.path)).toEqual({ files: {}, kept: [] });
+	});
+
+	it("fails on an unknown piece", () => {
+		expect(() => settings({ piecesKept: ["pages"] })).toThrow(
+			/piecesKept in \.template\.json names pages, which is no piece/,
+		);
+		expect(() => settings({ pieceFiles: { pages: [] } })).toThrow(
+			/pieceFiles in \.template\.json names pages, which is no piece/,
+		);
+	});
+
+	it("fails on a path outside the Project", () => {
+		for (const path of ["/etc", "../other", "test/../..", ".", "./"]) {
+			expect(() => settings({ pieceFiles: { ui: [path] } })).toThrow(
+				`pieceFiles.ui in .template.json names ${path}, which is not a path inside the Project`,
+			);
+		}
+	});
+
+	it("fails on a value of the wrong shape", () => {
+		expect(() => settings({ pieceFiles: ["test/ui"] })).toThrow(
+			/must map a piece to its paths/,
+		);
+		expect(() => settings({ pieceFiles: { ui: "test/ui" } })).toThrow(
+			"pieceFiles.ui in .template.json must be a list of paths",
+		);
+		expect(() => settings({ piecesKept: "live" })).toThrow(
+			/must be a list of piece names/,
+		);
+	});
+});
+
 describe("pieceFilesRemove", () => {
+	it("deletes the paths .template.json lists for the piece, and only for it", () => {
+		using folder = projectCreate({
+			".template.json": JSON.stringify({
+				pieceFiles: {
+					analytics: ["test/integration/observability-analytics.test.ts"],
+					ui: ["test/ui"],
+				},
+			}),
+			"test/integration/observability-analytics.test.ts": "analytics\n",
+			"test/ui/home.test.ts": "ui\n",
+		});
+		const directory = folder.path;
+		pieceFilesRemove(directory, "ui");
+		expect(existsSync(join(directory, "test/ui"))).toBe(false);
+		expect(
+			existsSync(
+				join(directory, "test/integration/observability-analytics.test.ts"),
+			),
+		).toBe(true);
+	});
+
 	it("deletes live's files and blocks and leaves Markdown alone", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
