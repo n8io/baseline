@@ -6,12 +6,7 @@
 // skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
 // app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
 import { spawn } from "node:child_process";
-import {
-	existsSync,
-	mkdtempDisposableSync,
-	readFileSync,
-	rmSync,
-} from "node:fs";
+import { mkdtempDisposableSync, rmSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import {
@@ -19,6 +14,7 @@ import {
 	packagesInstalled,
 	pieceRemovals,
 	pieceRemove,
+	pieceSettingsRead,
 	toolRun,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
@@ -71,22 +67,6 @@ export const pieceCheckPlan = ({
 		plan.checks.push({ first, piece });
 	}
 	return plan;
-};
-
-const piecesKeptRead = (directory: string): string[] => {
-	const file = join(directory, ".template.json");
-	if (!existsSync(file)) return [];
-	const template = JSON.parse(readFileSync(file, "utf8")) as {
-		piecesKept?: string[];
-	};
-	const kept = template.piecesKept ?? [];
-	const unknown = kept.filter((p) => pieceRemovals[p] === undefined);
-	if (unknown.length > 0) {
-		throw new Error(
-			`piecesKept in .template.json names ${unknown.join(", ")}, which is no piece; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
-		);
-	}
-	return kept;
 };
 
 const git = (directory: string, args: string[]) =>
@@ -357,9 +337,17 @@ const main = async () => {
 		process.exitCode = 1;
 		return;
 	}
+	let kept: string[];
+	try {
+		kept = pieceSettingsRead(directory).kept;
+	} catch (error) {
+		console.error(`piece-check: ${(error as Error).message}`);
+		process.exitCode = 1;
+		return;
+	}
 	const plan = pieceCheckPlan({
 		installed: packagesInstalled(directory),
-		kept: piecesKeptRead(directory),
+		kept,
 		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
 		requested,
 	});
