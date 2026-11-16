@@ -1,7 +1,10 @@
 import { type AnyColumn, type SQL, sql } from "drizzle-orm";
 
-/** How the sort column compares: `text` by byte order (`COLLATE "C"`), `date` as an instant. */
-export type PostgresKeysetKind = "date" | "number" | "text";
+/**
+ * How the sort column compares: `text` by byte order (`COLLATE "C"`), `date` as an instant,
+ * `integer` and `number` as numbers (`integer` takes only a whole number).
+ */
+export type PostgresKeysetKind = "date" | "integer" | "number" | "text";
 
 export type PostgresKeysetOptions = {
 	/** The last row of the previous page; none for the first page. */
@@ -30,17 +33,37 @@ const isoInstantIs = (value: string): boolean => {
 	return new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
 };
 
-const afterValueAssert = (
-	kind: PostgresKeysetKind,
-	value: string | number,
-): void => {
-	const valid =
-		kind === "number"
-			? typeof value === "number" && Number.isFinite(value)
-			: typeof value === "string" && (kind === "text" || isoInstantIs(value));
+// The values an integer column holds, by its SQL type; Postgres refuses any other number.
+const integerRanges: Record<string, readonly [number, number]> = {
+	integer: [-(2 ** 31), 2 ** 31 - 1],
+	serial: [1, 2 ** 31 - 1],
+	smallint: [-(2 ** 15), 2 ** 15 - 1],
+	smallserial: [1, 2 ** 15 - 1],
+};
+
+const afterValueAssert = ({
+	kind,
+	sortColumn,
+	value,
+}: {
+	kind: PostgresKeysetKind;
+	sortColumn: AnyColumn;
+	value: string | number;
+}): void => {
+	const numeric = kind === "integer" || kind === "number";
+	const range = numeric
+		? (integerRanges[sortColumn.getSQLType()] ??
+			(kind === "integer" ? integerRanges.integer : undefined))
+		: undefined;
+	const valid = numeric
+		? typeof value === "number" &&
+			(range
+				? Number.isInteger(value) && value >= range[0] && value <= range[1]
+				: Number.isFinite(value))
+		: typeof value === "string" && (kind === "text" || isoInstantIs(value));
 	if (!valid) {
 		throw new TypeError(
-			`A ${kind} keyset needs ${kind === "number" ? "a finite number" : kind === "date" ? "an ISO instant such as 2026-01-01T00:00:00.000Z" : "a string"}, got ${JSON.stringify(value)}`,
+			`A ${kind} keyset needs ${range ? `an integer from ${range[0]} to ${range[1]}` : kind === "number" ? "a finite number" : kind === "date" ? "an ISO instant such as 2026-01-01T00:00:00.000Z" : "a string"}, got ${JSON.stringify(value)}`,
 		);
 	}
 };
@@ -48,7 +71,8 @@ const afterValueAssert = (
 // Keyset ("seek") paging on (sort, id): the rows after `after` in the order of `orderBy`. The sort
 // column must be NOT NULL (a NULL never compares), and a `date` column must hold no more than
 // milliseconds, the precision of the JS Date a cursor is written from. Decode and check the
-// cursor before calling; a value of the wrong type for `kind` throws a TypeError.
+// cursor before calling; a value of the wrong type for `kind`, or a number an integer or smallint
+// sort column cannot hold, throws a TypeError.
 // A number is bound untyped so Postgres reads it as the column's own type: a `::numeric` cast
 // would turn an integer column's index condition into a filter over the whole index.
 export const postgresKeysetCreate = ({
@@ -63,7 +87,7 @@ export const postgresKeysetCreate = ({
 	const direction = descending ? sql`DESC` : sql`ASC`;
 	const orderBy = [sql`${sortBy} ${direction}`, sql`${idColumn} ${direction}`];
 	if (!after) return { orderBy, where: undefined };
-	afterValueAssert(kind, after.value);
+	afterValueAssert({ kind, sortColumn, value: after.value });
 	// The sort side's COLLATE "C" decides the comparison; a date compares as an instant.
 	const value =
 		kind === "date" ? sql`${after.value}::timestamptz` : sql`${after.value}`;

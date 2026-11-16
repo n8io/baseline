@@ -1,9 +1,17 @@
-import { integer, pgTable, text } from "drizzle-orm/pg-core";
+import {
+	doublePrecision,
+	integer,
+	pgTable,
+	smallint,
+	text,
+} from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { postgresKeysetCreate } from "./index.ts";
 
 const item = pgTable("item", {
 	id: text().primaryKey(),
+	ratio: doublePrecision().notNull(),
+	rank: smallint().notNull(),
 	score: integer().notNull(),
 });
 
@@ -60,4 +68,47 @@ describe("postgresKeysetCreate", () => {
 			).toThrow(TypeError);
 		},
 	);
+
+	// Postgres refuses a number its integer column cannot hold; a missed cursor check fails here,
+	// not as a 500 from Postgres.
+	it.each([
+		{ column: "score", kind: "integer", value: 9.5 },
+		{ column: "score", kind: "integer", value: 3e9 },
+		{ column: "score", kind: "number", value: -3e9 },
+		{ column: "score", kind: "number", value: 9.5 },
+		{ column: "rank", kind: "number", value: 40_000 },
+		{ column: "ratio", kind: "integer", value: 9.5 },
+	] as const)(
+		"throws a TypeError for a $kind keyset on $column after $value",
+		({ column, kind, value }) => {
+			expect(() =>
+				postgresKeysetCreate({
+					after: { id: "x", value },
+					descending: false,
+					idColumn: item.id,
+					kind,
+					sortColumn: item[column],
+				}),
+			).toThrow(/needs an integer from/);
+		},
+	);
+
+	it("takes a number its column holds", () => {
+		for (const [column, kind, value] of [
+			["score", "integer", 2 ** 31 - 1],
+			["score", "number", -(2 ** 31)],
+			["rank", "integer", -32_768],
+			["ratio", "number", 9.5],
+		] as const) {
+			expect(
+				postgresKeysetCreate({
+					after: { id: "x", value },
+					descending: false,
+					idColumn: item.id,
+					kind,
+					sortColumn: item[column],
+				}).where,
+			).toBeDefined();
+		}
+	});
 });

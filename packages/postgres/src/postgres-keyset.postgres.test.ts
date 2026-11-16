@@ -31,6 +31,7 @@ const rows: Omit<Item, "id">[] = [
 
 const sorts = {
 	date: { column: item.at, sortValue: (row: Item) => row.at.toISOString() },
+	integer: { column: item.score, sortValue: (row: Item) => row.score },
 	number: { column: item.score, sortValue: (row: Item) => row.score },
 	text: { column: item.name, sortValue: (row: Item) => row.name },
 } as const;
@@ -40,7 +41,7 @@ const compare = (a: string | number, b: string | number): number =>
 
 describe("postgresKeysetCreate", () => {
 	it.each(
-		(["date", "number", "text"] as const).flatMap((kind) => [
+		(["date", "integer", "number", "text"] as const).flatMap((kind) => [
 			{ descending: false, kind },
 			{ descending: true, kind },
 		]),

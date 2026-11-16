@@ -13,6 +13,13 @@ Read when touching a table, a migration or SQL.
 - No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
 - Do not use `sql.raw` in `spi/`.
 
+## Lists
+
+A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` (Postgres) or `cursorMemoryPage` (memory) takes the page after it, and `cursorEncode` writes the next one (see Foo's repositories). A cursor that does not decode reads as none: the first page.
+
+- Give each sort the `CursorKind` of its column: `integer` for an `integer` column, so a cursor with a fraction or past int4 reads as none instead of Postgres answering 500; `number` for `real` and `double precision`. Sort on `integer`, not `smallint`: a cursor past `smallint` makes `postgresKeysetCreate` throw.
+- The repository contract test pages every value of the sort enum with `cursorTestPagesCheck` (`src/cursor-test-pages-check.ts`), on items with ties on each sort value that allows them.
+
 ## Locking and limits
 
 A transaction alone does not stop a lost write: two transactions can read the same row, and the later write undoes the earlier one. Under Postgres's READ COMMITTED:

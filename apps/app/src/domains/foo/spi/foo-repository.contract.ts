@@ -1,6 +1,7 @@
 import { idCreate } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
+import { cursorTestPagesCheck } from "../../../cursor-test-pages-check.ts";
 import { FooNameTakenError, FooNotFoundError } from "../foo-errors.ts";
 import { type Foo, FooListInput } from "../models/foo.ts";
 import type {
@@ -222,20 +223,24 @@ export const fooRepositoryContract = (
 		};
 		const names = (items: Foo[]): string[] => items.map((foo) => foo.name);
 
-		it("pages in sort order until nextCursor is null", async () => {
+		it("pages every sort to the end, ties by id", async () => {
 			const ports = await create();
-			await seed(ports);
-			const seen: string[] = [];
-			let cursor: string | undefined;
-			do {
-				const page = await ports.fooReadRepository.list(
-					FooListInput.parse({ cursor, limit: 2, sort: "name" }),
-				);
-				seen.push(...names(page.items));
-				cursor = page.nextCursor ?? undefined;
-				expect(page.total).toBeUndefined();
-			} while (cursor);
-			expect(seen).toEqual(["Alpha", "Bravo", "Charlie", "Delta", "Echo"]);
+			// Ties on createdAt; names unique, and in byte order apart from a locale's.
+			const foos = ["Delta", "alpha", "Charlie", "bravo", "Echo"].map(
+				(name, index) => fooBuild({ createdAt: day(index % 2), name }),
+			);
+			for (const foo of foos) await insert(ports, foo);
+			await insert(ports, fooBuild({ archivedAt: day(9), name: "Old" }));
+			await cursorTestPagesCheck({
+				items: foos,
+				list: (input) =>
+					ports.fooReadRepository.list(FooListInput.parse(input)),
+				sorts: FooListInput.shape.sort.unwrap().options,
+				sortValues: {
+					createdAt: (foo) => foo.createdAt.toISOString(),
+					name: (foo) => foo.name,
+				},
+			});
 		});
 
 		it("reads a cursor from another sort, or a mangled one, as the first page", async () => {
