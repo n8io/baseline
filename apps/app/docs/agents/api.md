@@ -1,6 +1,6 @@
 # Changing an API shape
 
-Read when a change adds, renames or removes a field, a query parameter, an error or a route under `/api/v1`. Check it before you push: `pnpm api-check` (needs `oasdiff` on `PATH`; it prints the install line when it is missing). It builds the OpenAPI document of `origin/main` and of your working tree, and runs `oasdiff breaking --fail-on ERR`. CI's `oasdiff` job runs the same command. The OpenAPI document declares a `bearer` scheme and requires it on every operation, and `/api/v1/docs` shows it as an interactive reference with an Authorize button (a removable piece; see `pieces.md`).
+Read when a change adds, renames or removes a field, a query parameter, an error or a route under `/api/v1`. Check it before you push: `pnpm api-check` (needs `oasdiff` on `PATH`; it prints the install line when it is missing). It builds the OpenAPI document of `origin/main` and of your working tree, and runs `oasdiff breaking --fail-on ERR`. CI's `check` job runs the same command. The OpenAPI document declares a `bearer` scheme and requires it on every operation, and `/api/v1/docs` shows it as an interactive reference with an Authorize button (a removable piece; see `pieces.md`).
 
 ## What oasdiff allows
 

@@ -5,7 +5,8 @@
 # <major> is the Template's major; `pnpm run version` moves the Template's pin (scripts/ci-pin-write.ts).
 # No token needed: the @n8io/baseline-* packages install from npmjs. Callers grant `contents: read`.
 # Jobs run the project's scripts by their fixed names (its AGENTS.md `## Verify` roles).
-# A change that adds a failing check ships in the next major, never inside the current one.
+# A change that adds a failing check, or adds, renames or removes a job (a required check), ships in
+# the next major, never inside the current one.
 name: app-ci
 
 on:
@@ -20,9 +21,11 @@ on:
         type: string
 
 jobs:
+  # Every check that needs the install and finishes in seconds, in one job: each job bills at least
+  # a minute and spends about 25 s on setup. Lint, types and format, then migrations, then oasdiff.
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - &checkout
         if: inputs.artifact == ''
@@ -49,11 +52,63 @@ jobs:
         id: install
         run: pnpm install --frozen-lockfile
       - run: timeout 30s pnpm check
+      # From here on each check reports even when an earlier one failed.
       - name: src/env.d.ts matches .env.schema
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: git diff --exit-code src/env.d.ts
       # ubuntu-latest ships shellcheck. find runs it only when a script exists.
       - name: Shell scripts pass shellcheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: find . -name '*.sh' -not -path './node_modules/*' -exec shellcheck {} +
+      - name: Migrations are consistent
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm exec drizzle-kit check
+      - name: Migrations match the tables
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          # A Project with no Domain yet has no table, and drizzle-kit generate refuses an empty schema.
+          if ! compgen -G "src/domains/*/spi/*-table.ts" >/dev/null; then exit 0; fi
+          pnpm exec drizzle-kit generate
+          if [ -n "$(git status --porcelain -- migrations)" ]; then
+            git status --porcelain -- migrations
+            echo "::error::The tables changed without a migration. Run pnpm codegen and commit migrations/."
+            exit 1
+          fi
+      - name: Migrations already on main are unchanged
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          changed=$(git diff --name-only --no-renames --diff-filter=DMT origin/main...HEAD -- migrations)
+          for file in $changed; do
+            echo "::error file=$file::Migrations already on main never change; add a new one instead."
+          done
+          [ -z "$changed" ]
+      - name: Destructive SQL has a destructive.md
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          status=0
+          for sql in $(git diff --name-only --no-renames --diff-filter=A origin/main...HEAD -- 'migrations/*/migration.sql'); do
+            folder=$(dirname "$sql")
+            if [ -f "$folder/destructive.md" ]; then continue; fi
+            if grep -inE '\bdrop[[:space:]]+(table|column|schema|index|constraint|type|view|sequence)\b|\brename\b|\balter[[:space:]]+column\b[^;]*\btype\b|\bset[[:space:]]+not[[:space:]]+null\b' "$sql"; then
+              echo "::error file=$sql::Destructive SQL needs $folder/destructive.md saying why it is safe now."
+              status=1
+            fi
+          done
+          exit $status
+      - name: Install oasdiff
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          OASDIFF_SHA256: a8023002fcb2eaa7f5758148a9303cb63d33b939886df312268bc0fc7b939140
+          OASDIFF_VERSION: 1.35.0
+        run: |
+          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
+          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: No breaking change inside /api/v1
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm api-check
       # Warnings only: it prints a ::warning annotation per glossary alias in the added lines and exits 0.
       # continue-on-error keeps a crash in the script from failing `check`.
       - name: Glossary aliases in added lines
@@ -140,51 +195,6 @@ jobs:
           if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
           exit "$status"
 
-  migrations:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      # Each migrations check reports even when an earlier one failed.
-      - run: pnpm exec drizzle-kit check
-      - name: Migrations match the tables
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: |
-          # A Project with no Domain yet has no table, and drizzle-kit generate refuses an empty schema.
-          if ! compgen -G "src/domains/*/spi/*-table.ts" >/dev/null; then exit 0; fi
-          pnpm exec drizzle-kit generate
-          if [ -n "$(git status --porcelain -- migrations)" ]; then
-            git status --porcelain -- migrations
-            echo "::error::The tables changed without a migration. Run pnpm codegen and commit migrations/."
-            exit 1
-          fi
-      - name: Migrations already on main are unchanged
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: |
-          changed=$(git diff --name-only --no-renames --diff-filter=DMT origin/main...HEAD -- migrations)
-          for file in $changed; do
-            echo "::error file=$file::Migrations already on main never change; add a new one instead."
-          done
-          [ -z "$changed" ]
-      - name: Destructive SQL has a destructive.md
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: |
-          status=0
-          for sql in $(git diff --name-only --no-renames --diff-filter=A origin/main...HEAD -- 'migrations/*/migration.sql'); do
-            folder=$(dirname "$sql")
-            if [ -f "$folder/destructive.md" ]; then continue; fi
-            if grep -inE '\bdrop[[:space:]]+(table|column|schema|index|constraint|type|view|sequence)\b|\brename\b|\balter[[:space:]]+column\b[^;]*\btype\b|\bset[[:space:]]+not[[:space:]]+null\b' "$sql"; then
-              echo "::error file=$sql::Destructive SQL needs $folder/destructive.md saying why it is safe now."
-              status=1
-            fi
-          done
-          exit $status
-
   # Each installed piece is removed on a throwaway worktree; check and unit tests must pass without it.
   # A Project that keeps a piece lists it in .template.json `piecesKept`.
   pieces:
@@ -198,29 +208,6 @@ jobs:
       - *node
       - *install
       - run: pnpm piece-check
-
-  oasdiff:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      OASDIFF_SHA256: a8023002fcb2eaa7f5758148a9303cb63d33b939886df312268bc0fc7b939140
-      OASDIFF_VERSION: 1.35.0
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      - name: Install oasdiff
-        run: |
-          archive="oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
-          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/$archive"
-          echo "$OASDIFF_SHA256  $RUNNER_TEMP/$archive" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" oasdiff
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - name: No breaking change inside /api/v1
-        run: pnpm api-check
 
   image:
     runs-on: ubuntu-latest

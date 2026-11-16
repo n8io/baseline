@@ -32,7 +32,7 @@ Without it a script stops with "needs Node 26" (`scripts/node-version-require.ts
 
 - **Docker is gone.** The daemon can die between turns. `docker info` fails: run the script again; it starts `dockerd`, and its other steps skip what is done.
 - **429 Too Many Requests on a pull.** The daemon runs without the mirror: `/etc/docker/daemon.json` existed without `registry-mirrors` (the script leaves it alone), or the daemon was already running when the script wrote the file. Add the mirror if it is missing and restart `dockerd`. The mirror serves plain names and digest-pinned bases. When you cannot edit the daemon's config, set `IMAGE_REGISTRY=mirror.gcr.io/library/` in `.env.development.local`: `compose.yaml` puts it in front of the Postgres and Redis images.
-- **`pnpm api-check` says oasdiff is missing.** It prints the install line. Where the download is blocked, CI's `oasdiff` job runs the check on your pull request.
+- **`pnpm api-check` says oasdiff is missing.** It prints the install line. Where the download is blocked, CI's `check` job runs it on your pull request.
 
 ## Building the production image behind a TLS proxy
 

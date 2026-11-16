@@ -100,7 +100,7 @@ A change that should ship needs a changeset. Run `pnpm changeset` and pick the p
 Dependabot opens update PRs weekly, for releases at least 7 days old. Patch and minor updates come grouped in one PR that merges itself once CI passes; each major is its own PR to review and merge by hand. Update PRs carry no changeset, so they never publish. Add one to a major only if it should ship.
 
 > [!WARNING]
-> `app-ci.yml@v<major>` follows the Template's major, and older majors stay frozen. A major never gains a check that can fail on projects that passed before; a change like that ships with the next Template major.
+> `app-ci.yml@v<major>` follows the Template's major, and older majors stay frozen. A major never gains a check that can fail on projects that passed before, and never adds, renames or removes a job (a required check); a change like that ships with the next Template major.
 
 ## For AI agents
 

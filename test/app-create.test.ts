@@ -487,7 +487,7 @@ describe("app-create", () => {
 			});
 
 			expect(rulesetReconcile({ gh, repository: "n8io/x" })).toBe(
-				"Updated the ci ruleset on n8io/x: changed bypass_actors, changed rule required_status_checks, added rule deletion, added rule non_fast_forward, added rule pull_request",
+				"Updated the ci ruleset on n8io/x: changed bypass_actors, changed rule required_status_checks (added ci / image, ci / integration, ci / pieces, ci / sast, ci / unit), added rule deletion, added rule non_fast_forward, added rule pull_request",
 			);
 			expect(calls.at(-1)).toEqual({
 				args: [
@@ -514,6 +514,32 @@ describe("app-create", () => {
 			expect(calls.map((c) => c.args.join(" "))).toEqual([
 				"api repos/n8io/x/rulesets?includes_parents=false",
 				"api repos/n8io/x/rulesets/7",
+			]);
+		});
+
+		// app-ci.yml@v9 folded migrations and oasdiff into check. A v8 Project moves its ruleset
+		// before the upgrade: that only drops checks, so v8's workflow still meets every one.
+		it("only removes checks from a v8 ruleset", () => {
+			const current = stored();
+			const checks = current.rules.find(
+				(r) => r.type === "required_status_checks",
+			);
+			if (checks?.parameters)
+				checks.parameters.required_status_checks = [
+					"check",
+					"unit",
+					"integration",
+					"migrations",
+					"oasdiff",
+					"pieces",
+					"image",
+					"sast",
+				].map((job) => ({ context: `ci / ${job}` }));
+
+			expect(
+				rulesetChangesFind({ current, wanted: rulesetBodyCreate() }),
+			).toEqual([
+				"changed rule required_status_checks (removed ci / migrations, ci / oasdiff)",
 			]);
 		});
 

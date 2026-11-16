@@ -1,5 +1,5 @@
 // pnpm api-check: fails when this change breaks the API a client already uses. It builds the
-// OpenAPI document of origin/main and of the working tree, the way CI's `oasdiff` job does, and runs
+// OpenAPI document of origin/main and of the working tree, the way CI's `check` job does, and runs
 // `oasdiff breaking --fail-on ERR` on the pair. docs/agents/api.md says what oasdiff allows.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
