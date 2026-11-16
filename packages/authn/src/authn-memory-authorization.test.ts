@@ -119,4 +119,39 @@ describe("authnMemoryAuthorizationCreate", () => {
 
 		expect(requests).toHaveLength(2);
 	});
+
+	it("keeps the held token while it lives when the early fetch fails", async () => {
+		const start = Date.now();
+		vi.useFakeTimers({ now: start, toFake: ["Date"] });
+		let refuse = false;
+		vi.stubGlobal("fetch", async () =>
+			refuse
+				? new Response("down", { status: 503 })
+				: Response.json({ access_token: "t1", expires_in: 900 }),
+		);
+		const authorization = authnMemoryAuthorizationCreate({
+			clientId: "feed",
+			url: appOrigin,
+		});
+
+		await authorization();
+		refuse = true;
+		vi.setSystemTime(start + 14 * 60_000 + 30_000);
+		expect(await authorization()).toBe("Bearer t1");
+		await expect(authorization({ renew: true })).rejects.toThrow("503");
+		vi.setSystemTime(start + 15 * 60_000);
+		await expect(authorization()).rejects.toThrow("503");
+	});
+
+	it("refuses a renewSeconds that is negative or not a number", () => {
+		for (const renewSeconds of [-1, Number.NaN]) {
+			expect(() =>
+				authnMemoryAuthorizationCreate({
+					clientId: "feed",
+					renewSeconds,
+					url: appOrigin,
+				}),
+			).toThrow(RangeError);
+		}
+	});
 });

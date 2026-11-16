@@ -12,7 +12,8 @@ export type AuthnMemoryAuthorization = (options?: {
  * Keeps a machine client's token from a served app's memory issuer fresh, for a script that runs
  * longer than a token lives. Each call returns the held `Authorization` value and fetches a new
  * token when the held one expires within `renewSeconds` (default 60, at most half its lifetime);
- * callers that ask while a fetch runs share it. Takes what `authnMemoryTokenFetch` takes.
+ * callers that ask while a fetch runs share it. When that early fetch fails, callers keep the
+ * held token until it expires. Takes what `authnMemoryTokenFetch` takes.
  */
 export const authnMemoryAuthorizationCreate = ({
 	clientId,
@@ -25,6 +26,12 @@ export const authnMemoryAuthorizationCreate = ({
 	scopes?: string[] | null;
 	url: string;
 }): AuthnMemoryAuthorization => {
+	const renewMs = (renewSeconds ?? 60) * 1000;
+	if (!Number.isFinite(renewMs) || renewMs < 0) {
+		throw new RangeError(
+			`authnMemoryAuthorizationCreate: renewSeconds must be a finite number of 0 or more, got ${renewSeconds}`,
+		);
+	}
 	let held: { renewAt: number; token: AuthnMemoryToken } | null = null;
 	let pending: Promise<string> | null = null;
 
@@ -38,7 +45,7 @@ export const authnMemoryAuthorizationCreate = ({
 					url,
 				});
 				const lifetime = token.expiresAt.getTime() - fetchedAt;
-				const margin = Math.min((renewSeconds ?? 60) * 1000, lifetime / 2);
+				const margin = Math.min(renewMs, lifetime / 2);
 				held = { renewAt: token.expiresAt.getTime() - margin, token };
 				return token.authorization;
 			} finally {
@@ -49,10 +56,26 @@ export const authnMemoryAuthorizationCreate = ({
 	};
 
 	return async (options) => {
-		if (pending !== null) return pending;
-		if (options?.renew !== true && held !== null && Date.now() < held.renewAt) {
+		const renew = options?.renew === true;
+		if (
+			pending === null &&
+			!renew &&
+			held !== null &&
+			Date.now() < held.renewAt
+		) {
 			return held.token.authorization;
 		}
-		return tokenRenew();
+		const fallback = renew ? null : held;
+		try {
+			return await tokenRenew();
+		} catch (error) {
+			if (
+				fallback !== null &&
+				Date.now() < fallback.token.expiresAt.getTime()
+			) {
+				return fallback.token.authorization;
+			}
+			throw error;
+		}
 	};
 };
