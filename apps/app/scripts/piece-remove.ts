@@ -341,16 +341,23 @@ export const pieceMarkersProblems = (text: string): string[] => {
 
 // What `.template.json` says about pieces: `piecesKept`, the pieces this Project keeps, and
 // `pieceFiles`, the Project's own paths that go with a piece, such as a test that exercises it.
-// They live there, not in pieceRemovals, so a template-upgrade copying this script keeps them.
+// They live there, not in pieceRemovals, so this script stays the Template's and upgrades never conflict on them.
 export type PieceSettings = { files: Record<string, string[]>; kept: string[] };
 
 export const pieceSettingsRead = (directory: string): PieceSettings => {
 	const file = join(directory, ".template.json");
 	if (!existsSync(file)) return { files: {}, kept: [] };
-	const template = JSON.parse(readFileSync(file, "utf8")) as {
-		pieceFiles?: unknown;
-		piecesKept?: unknown;
-	};
+	let template: { pieceFiles?: unknown; piecesKept?: unknown };
+	try {
+		template = JSON.parse(readFileSync(file, "utf8"));
+	} catch (error) {
+		throw new Error(
+			`.template.json is not valid JSON: ${(error as Error).message}`,
+		);
+	}
+	if (typeof template !== "object" || template === null) {
+		throw new Error(".template.json must hold an object");
+	}
 	const pieces = Object.keys(pieceRemovals).join(", ");
 	const kept = template.piecesKept ?? [];
 	if (!Array.isArray(kept) || kept.some((p) => typeof p !== "string")) {
@@ -358,7 +365,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 			`piecesKept in .template.json must be a list of piece names; pieces are ${pieces}`,
 		);
 	}
-	const keptUnknown = kept.filter((p) => pieceRemovals[p] === undefined);
+	const keptUnknown = kept.filter((p) => !Object.hasOwn(pieceRemovals, p));
 	if (keptUnknown.length > 0) {
 		throw new Error(
 			`piecesKept in .template.json names ${keptUnknown.join(", ")}, which is no piece; pieces are ${pieces}`,
@@ -371,7 +378,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 		);
 	}
 	for (const [piece, paths] of Object.entries(files)) {
-		if (pieceRemovals[piece] === undefined) {
+		if (!Object.hasOwn(pieceRemovals, piece)) {
 			throw new Error(
 				`pieceFiles in .template.json names ${piece}, which is no piece; pieces are ${pieces}`,
 			);

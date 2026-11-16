@@ -19,4 +19,4 @@ Read when running `pnpm template-upgrade`, resolving its conflicts, or when some
 6. **Run what CI runs.** `pnpm dev` starts this Project's services, or `varlock run -- docker compose -p <project> up -d` does (bare `docker compose` publishes the default ports, not this Project's); then `pnpm run ci` (check, unit, integration, piece-check; piece-check reads the commit, so commit the upgrade first) and `pnpm api-check`. A failing `migrations` check in CI usually means a table changed without `pnpm codegen`.
 7. **Pull request.** Commit, open a PR and let `app-ci.yml` run every required check, including `oasdiff` (no breaking `/api/v1` change) and `migrations` (migrations already merged never change). Merge by squash once green.
 
-An upgrade can bring the Template's `scripts/piece-remove.ts` over yours, so a Project's own piece paths go in `pieceFiles` in `.template.json` (docs/agents/pieces.md), never in `scripts/piece-remove.ts`.
+A Project's own piece paths go in `pieceFiles` in `.template.json` (docs/agents/pieces.md), never in `scripts/piece-remove.ts`: an upgrade that changes the script conflicts with them.

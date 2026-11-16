@@ -238,7 +238,7 @@ describe("pieceSettingsRead", () => {
 		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-settings-"));
 		writeFileSync(
 			join(folder.path, ".template.json"),
-			JSON.stringify(template),
+			typeof template === "string" ? template : JSON.stringify(template),
 		);
 		return pieceSettingsRead(folder.path);
 	};
@@ -257,6 +257,9 @@ describe("pieceSettingsRead", () => {
 		);
 		expect(() => settings({ pieceFiles: { pages: [] } })).toThrow(
 			/pieceFiles in \.template\.json names pages, which is no piece/,
+		);
+		expect(() => settings({ pieceFiles: { constructor: [] } })).toThrow(
+			/names constructor, which is no piece/,
 		);
 	});
 
@@ -277,6 +280,12 @@ describe("pieceSettingsRead", () => {
 		);
 		expect(() => settings({ piecesKept: "live" })).toThrow(
 			/must be a list of piece names/,
+		);
+		expect(() => settings("{ release: 1 }")).toThrow(
+			/^\.template\.json is not valid JSON: /,
+		);
+		expect(() => settings("null")).toThrow(
+			".template.json must hold an object",
 		);
 	});
 });

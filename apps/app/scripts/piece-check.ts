@@ -337,9 +337,17 @@ const main = async () => {
 		process.exitCode = 1;
 		return;
 	}
+	let kept: string[];
+	try {
+		kept = pieceSettingsRead(directory).kept;
+	} catch (error) {
+		console.error(`piece-check: ${(error as Error).message}`);
+		process.exitCode = 1;
+		return;
+	}
 	const plan = pieceCheckPlan({
 		installed: packagesInstalled(directory),
-		kept: pieceSettingsRead(directory).kept,
+		kept,
 		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
 		requested,
 	});
