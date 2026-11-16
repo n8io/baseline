@@ -2,7 +2,7 @@ import { type Id, idToUuid } from "@n8io/baseline-id";
 
 // What a list sorts on: text by code unit, a number, an `integer` column (a value it holds,
 // -2147483648 to 2147483647), or an instant as an ISO string. Sort an integer column with
-// `integer`: under `number` a cursor of 9.5 reaches Postgres, which refuses it.
+// `integer`: under `number` a cursor of 9.5 is a 500 instead of the first page.
 export type CursorKind = "date" | "integer" | "number" | "text";
 
 // A list page's position: the sort value and id of its last item, as base64url JSON. Every

@@ -225,7 +225,7 @@ export const fooRepositoryContract = (
 
 		it("pages every sort to the end, ties by id", async () => {
 			const ports = await create();
-			// Ties on createdAt; names unique, and in byte order apart from a locale's.
+			// Ties on createdAt. Mixed-case names: byte order (COLLATE "C") differs from a locale's.
 			const foos = ["Delta", "alpha", "Charlie", "bravo", "Echo"].map(
 				(name, index) => fooBuild({ createdAt: day(index % 2), name }),
 			);

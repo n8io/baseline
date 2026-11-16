@@ -4,7 +4,8 @@ import { expect } from "vitest";
 // A sort's field: the sort value without its leading "-".
 type CursorTestSortField<S extends string> = S extends `-${infer F}` ? F : S;
 
-// Byte order for strings, like cursorMemoryPage and COLLATE "C".
+// Byte order for strings, as COLLATE "C" compares. Written apart from cursorMemoryPage's own
+// order on purpose: the check must not share the code it checks.
 const compare = (a: number | string, b: number | string): number =>
 	typeof a === "string" && typeof b === "string"
 		? Buffer.compare(Buffer.from(a), Buffer.from(b))
@@ -39,6 +40,15 @@ export const cursorTestPagesCheck = async <
 }): Promise<void> => {
 	const limit = 2;
 	expect(items.length).toBeGreaterThan(limit);
+	expect(sorts.length).toBeGreaterThan(0);
+	// Without a tie on some sort value, the id tie-break is never tested.
+	const fields = Object.values<(item: T) => number | string>(sortValues);
+	expect(
+		fields.some(
+			(sortValue) => new Set(items.map(sortValue)).size < items.length,
+		),
+		"no tie on any sort value",
+	).toBe(true);
 	for (const sort of sorts) {
 		const descending = sort.startsWith("-");
 		const sortValue =
@@ -56,9 +66,15 @@ export const cursorTestPagesCheck = async <
 		for (let pages = 0; ; pages += 1) {
 			if (pages > items.length) throw new Error(`${sort} never ended`);
 			const page = await list({ cursor, limit, sort });
-			expect(page.items.length, sort).toBeLessThanOrEqual(limit);
+			// Without `count` there is no total.
+			expect(page.total, sort).toBeUndefined();
 			seen.push(...page.items.map((item) => item.id));
-			if (page.nextCursor === null) break;
+			if (page.nextCursor === null) {
+				expect(page.items.length, sort).toBeLessThanOrEqual(limit);
+				break;
+			}
+			// Every page before the last is full.
+			expect(page.items.length, sort).toBe(limit);
 			cursor = page.nextCursor;
 		}
 		expect(seen, sort).toEqual(expected);
