@@ -117,7 +117,7 @@ export const cacheContract = (
 		});
 
 		test("an entry expires after its TTL", async () => {
-			// A whole second of TTL: a busy CI runner once took over 50 ms between the set and the get.
+			// A TTL of a whole second, so a slow runner cannot expire the entry between the set and the first get.
 			const cache = cacheCreate(store(), { prefix, schema: Foo, ttlMs: 1_000 });
 			await cache.set(foo.id, foo);
 			expect(await cache.get(foo.id)).toEqual(foo);
