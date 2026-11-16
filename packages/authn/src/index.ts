@@ -11,6 +11,10 @@ export {
 export { authnActorRequire } from "./authn-actor-require.ts";
 export { AuthnRequiredError } from "./authn-errors.ts";
 export {
+	type AuthnMemoryAuthorization,
+	authnMemoryAuthorizationCreate,
+} from "./authn-memory-authorization.ts";
+export {
 	type AuthnMemoryToken,
 	authnMemoryTokenFetch,
 } from "./authn-memory-token-fetch.ts";
