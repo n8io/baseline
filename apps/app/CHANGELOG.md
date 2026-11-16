@@ -1,5 +1,41 @@
 # app
 
+## 9.0.0
+
+### Major Changes
+
+- 5b9624a: The shared `app-ci.yml` runs the `migrations` and `oasdiff` checks as steps of the `check` job, so a Project's CI has six required checks instead of eight: `ci / check`, `unit`, `integration`, `pieces`, `image` and `sast`. Each job bills at least one minute and spends about 25 s on setup, while the migrations steps take about 2 s and oasdiff about 16 s, so the run bills two minutes fewer. Every step of `check` after `pnpm check` now reports even when an earlier one failed, and the job limit goes from 3 to 5 minutes.
+
+  To upgrade a Project, in this order (the ruleset first: it only drops `ci / migrations` and `ci / oasdiff`, which the old workflow still produces, so main and open pull requests stay mergeable; a 9.x workflow under the old ruleset would wait forever for those two):
+  1. With `gh` signed in as an admin of the Project's repository, from inside the Project's clone (its `origin` is the repository) and a baseline clone at 9.0.0 or later: `pnpm -C <baseline clone> app-create --github-only`. Its output includes `Updated the ci ruleset on <owner>/<repo>: changed rule required_status_checks (removed ci / migrations, ci / oasdiff)`. Like every `--github-only` run it also re-applies squash-only merging, turns on Dependabot security updates and starts one CI run on main. A Project with its own extra required checks, or a ruleset not named `ci`, removes those two contexts from its ruleset by hand instead.
+  2. Right after, so that no pull request merges while migrations and oasdiff are no longer required: `pnpm template-upgrade --to 9.0.0`; it takes `.github/workflows/ci.yml` (the pin moves to `app-ci.yml@v9`) and the docs that named the old jobs.
+
+### Minor Changes
+
+- 96f9429: Refuse a cursor an integer column cannot hold. `CursorKind` gains `integer`: `cursorDecode` reads a cursor whose value is not a whole number from -2147483648 to 2147483647 as none, so the list shows its first page instead of a 500. `postgresKeysetCreate` takes `kind: "integer"` (an `integer` or `serial` column only) and throws a `TypeError` for a number its `integer` or `smallint` sort column cannot hold, whatever the kind. The Foo contract test pages every sort, with ties, through the new `cursorTestPagesCheck` helper.
+- f035b7c: A Project lists its own files that belong to a piece in `.template.json` as `"pieceFiles": { "<piece>": ["path", ...] }`; `pnpm piece-remove` and `pnpm piece-check` delete them with the piece, and stop with a clear message on an unknown piece or a path outside the Project. Keep such paths there instead of in `scripts/piece-remove.ts`, which the Template owns: each release that changes it conflicts with lines you added. `docs/agents/pieces.md` no longer names a `context` marker in `src/server.ts`, and says where a new import goes so Biome never pulls a piece block apart.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `scripts/piece-remove.ts`, `scripts/piece-check.ts`, their tests, and `docs/agents/pieces.md`. Move any piece paths you added to `scripts/piece-remove.ts` into `pieceFiles` in `.template.json`.
+
+### Patch Changes
+
+- e3df762: `authnMemoryAuthorizationCreate({ clientId, url })` returns a function that gives a script the current `Authorization` value of a memory machine client and fetches a new token before the held one expires (15 minutes), so a script that runs longer stops failing with 401s. Callers share one fetch; `{ renew: true }` refetches after a 401. `authnMemoryTokenFetch` stays for a script that ends sooner.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `docs/agents/scripts.md` and `docs/agents/authn.md`.
+- ff0b8a3: Docs only. `docs/agents/dependency-updates.md` says re-running failed jobs, or one job, keeps the first attempt's `app-ci.yml` version; re-run all jobs, merge main or push a commit to get a moved `v<major>` tag. A `workflow_dispatch` run does not clear a cancelled required check.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `docs/agents/dependency-updates.md`.
+- 2a01437: Docs only. `docs/agents/domain-create.md` says a seed that takes another Domain's ids must tolerate a row it seeded earlier still holding a stale one (no foreign keys between Domains; a row deleted and seeded again gets a new id). `docs/agents/api.md` says a Domain's `<domain>-error-status.ts` table is typed `as const satisfies Record<BarError["type"], number>`, not `HttpErrorStatus`, because a Domain's root imports no HTTP package.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `docs/agents/domain-create.md` and `docs/agents/api.md`.
+- 37a6f5f: `pnpm piece-check` reports a failed `pnpm remove` or `pnpm add` during a piece's removal (registry error, network, store) as "could not be checked" with the command's output, instead of blaming the piece; a removal that fails on your code still blames the piece. `pnpm piece-remove` run by hand says the package manager failed and undoes the removal.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it takes `scripts/piece-remove.ts`, `scripts/piece-check.ts`, their tests, and `docs/agents/pieces.md`.
+- Updated dependencies [e3df762]
+- Updated dependencies [96f9429]
+  - @n8io/baseline-authn@6.1.0
+  - @n8io/baseline-postgres@5.3.0
+
 ## 8.2.0
 
 ### Minor Changes
