@@ -11,7 +11,7 @@ pnpm add @n8io/baseline-http
 - `httpRouterCreate()`: an `OpenAPIHono` router whose request validation answers 400 with a problem body.
 - `httpErrorHandle`, `httpNotFoundHandle`: `app.onError` and the API's not-found route; both answer `application/problem+json`, never error text.
 - `httpErrorBodyCreate(error, status)`, `httpProblemHeaders`: the problem body and headers for a domain error. The body carries the request's `traceId`.
-- `HttpErrorStatus<E>`: a domain's map from error `type` to status; a missing type fails type-checking. A Template Project keeps that table at its Domain's root, which imports no HTTP package, so there it is `as const satisfies Record<E["type"], number>` instead.
+- `HttpErrorStatus<E>`: a domain's map from error `type` to status; a missing type fails type-checking.
 - `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses`: a route's OpenAPI error responses from that map.
 - `HttpProblem`: the problem body type.
 - `httpRouteName`: middleware that names the HTTP server span after the route that answered.
@@ -63,10 +63,6 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 		return c.json(fooResponse(result.value), 200);
 	});
 ```
-
-## Extensible error codes
-
-`httpErrorResponsesCreate` documents the problem's `code` as a `string` whose known values are listed in `x-extensible-enum`, not in `enum`. A new error code on a status a route already answers is then a compatible change (oasdiff reports no breaking change), so a client treats an unknown code as the status's general failure. The TypeScript types stay closed: the listed types must be keys of the status table.
 
 ## Needs
 
