@@ -6,12 +6,7 @@
 // skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
 // app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
 import { spawn } from "node:child_process";
-import {
-	existsSync,
-	mkdtempDisposableSync,
-	readFileSync,
-	rmSync,
-} from "node:fs";
+import { mkdtempDisposableSync, rmSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import {
@@ -19,6 +14,7 @@ import {
 	packagesInstalled,
 	pieceRemovals,
 	pieceRemove,
+	pieceSettingsRead,
 	toolRun,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
@@ -71,22 +67,6 @@ export const pieceCheckPlan = ({
 		plan.checks.push({ first, piece });
 	}
 	return plan;
-};
-
-const piecesKeptRead = (directory: string): string[] => {
-	const file = join(directory, ".template.json");
-	if (!existsSync(file)) return [];
-	const template = JSON.parse(readFileSync(file, "utf8")) as {
-		piecesKept?: string[];
-	};
-	const kept = template.piecesKept ?? [];
-	const unknown = kept.filter((p) => pieceRemovals[p] === undefined);
-	if (unknown.length > 0) {
-		throw new Error(
-			`piecesKept in .template.json names ${unknown.join(", ")}, which is no piece; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
-		);
-	}
-	return kept;
 };
 
 const git = (directory: string, args: string[]) =>
@@ -172,7 +152,13 @@ export const pieceCheckRun = ({
 	for (const name of [...first, piece]) {
 		const failed = tools.pieceRemove(tree, name);
 		if (failed !== undefined) {
-			return { ...failed, step: `pnpm piece-remove ${name}` };
+			return {
+				...failed,
+				step: `pnpm piece-remove ${name}`,
+				...(failed.packageManager === undefined
+					? {}
+					: { step: failed.packageManager, unchecked: true }),
+			};
 		}
 	}
 	const tested = tools.toolRun(tree, ["test"]);
@@ -205,7 +191,7 @@ type PieceCheckJob = { tree: true } | { first: string[]; piece: string };
 // memory) says nothing about a piece, so it blames none.
 const checkFailedCode = 3;
 
-// A child exits with this code when its install failed, so no check ran and no piece is to blame.
+// A child exits with this code when its install, `pnpm remove` or `pnpm add` failed, so no check ran and no piece is to blame.
 const checkUnreadyCode = 4;
 
 // What a job prints and how it exits when its check fails; undefined when it passes.
@@ -262,6 +248,27 @@ type JobEnd = {
 	output: string;
 };
 
+// How a child process ended: its exit code says whether its check passed, failed, or could not run.
+export const jobEndRead = ({
+	code,
+	output,
+	signal,
+}: {
+	code: number | null;
+	output: string;
+	signal: NodeJS.Signals | null;
+}): JobEnd => {
+	const text = output.trim();
+	if (code === 0) return { outcome: "passed", output: text };
+	if (code === checkFailedCode) return { outcome: "failed", output: text };
+	if (code === checkUnreadyCode) return { outcome: "unchecked", output: text };
+	return {
+		outcome: "crashed",
+		output:
+			`${text}\n(the check ended with ${signal ?? `exit code ${code}`})`.trim(),
+	};
+};
+
 // Runs one job in a child process of this script, keeping its output until it ends.
 const jobSpawn = (directory: string, job: PieceCheckJob) =>
 	new Promise<JobEnd>((done) => {
@@ -285,17 +292,7 @@ const jobSpawn = (directory: string, job: PieceCheckJob) =>
 			done({ outcome: "crashed", output: String(error) }),
 		);
 		child.on("close", (code, signal) => {
-			const text = output.trim();
-			if (code === 0) done({ outcome: "passed", output: text });
-			else if (code === checkFailedCode)
-				done({ outcome: "failed", output: text });
-			else {
-				done({
-					outcome: "crashed",
-					output:
-						`${text}\n(the check ended with ${signal ?? `exit code ${code}`})`.trim(),
-				});
-			}
+			done(jobEndRead({ code, output, signal }));
 		});
 	});
 
@@ -340,9 +337,17 @@ const main = async () => {
 		process.exitCode = 1;
 		return;
 	}
+	let kept: string[];
+	try {
+		kept = pieceSettingsRead(directory).kept;
+	} catch (error) {
+		console.error(`piece-check: ${(error as Error).message}`);
+		process.exitCode = 1;
+		return;
+	}
 	const plan = pieceCheckPlan({
 		installed: packagesInstalled(directory),
-		kept: piecesKeptRead(directory),
+		kept,
 		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
 		requested,
 	});
@@ -423,7 +428,7 @@ const main = async () => {
 	}
 	if (unchecked.size > 0) {
 		console.error(
-			`piece-check: ${inOrder(unchecked).join(", ")} could not be checked (its install failed), which blames no piece. Run it again.`,
+			`piece-check: ${inOrder(unchecked).join(", ")} could not be checked (its install or a package manager step failed), which blames no piece. Run it again.`,
 		);
 	}
 	if (crashes.size > 0) {

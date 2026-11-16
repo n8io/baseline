@@ -1,4 +1,5 @@
 import {
+	chmodSync,
 	type DisposableTempDir,
 	existsSync,
 	mkdirSync,
@@ -8,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
 	filesNamedIn,
 	pieceFilesRemove,
@@ -16,6 +17,7 @@ import {
 	pieceRemovals,
 	pieceRemove,
 	pieceRemoveRefusal,
+	pieceSettingsRead,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
 
@@ -184,6 +186,15 @@ describe("pieceRemoveRefusal", () => {
 		expect(pieceRemoveRefusal(directory, undefined)).toContain("usage");
 	});
 
+	it("refuses a .template.json whose pieceFiles is wrong, and says why", () => {
+		using folder = projectCreate({
+			".template.json": JSON.stringify({ pieceFiles: { pages: ["test/ui"] } }),
+		});
+		expect(pieceRemoveRefusal(folder.path, "ui")).toBe(
+			`pieceFiles in .template.json names pages, which is no piece; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
+		);
+	});
+
 	it("refuses a tree with uncommitted changes", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
@@ -222,7 +233,85 @@ describe("pieceRemoveRefusal", () => {
 	});
 });
 
+describe("pieceSettingsRead", () => {
+	const settings = (template: unknown) => {
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-settings-"));
+		writeFileSync(
+			join(folder.path, ".template.json"),
+			typeof template === "string" ? template : JSON.stringify(template),
+		);
+		return pieceSettingsRead(folder.path);
+	};
+
+	it("reads the Project's piece paths and kept pieces, and none without .template.json", () => {
+		expect(
+			settings({ pieceFiles: { ui: ["test/ui"] }, piecesKept: ["live"] }),
+		).toEqual({ files: { ui: ["test/ui"] }, kept: ["live"] });
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-settings-"));
+		expect(pieceSettingsRead(folder.path)).toEqual({ files: {}, kept: [] });
+	});
+
+	it("fails on an unknown piece", () => {
+		expect(() => settings({ piecesKept: ["pages"] })).toThrow(
+			/piecesKept in \.template\.json names pages, which is no piece/,
+		);
+		expect(() => settings({ pieceFiles: { pages: [] } })).toThrow(
+			/pieceFiles in \.template\.json names pages, which is no piece/,
+		);
+		expect(() => settings({ pieceFiles: { constructor: [] } })).toThrow(
+			/names constructor, which is no piece/,
+		);
+	});
+
+	it("fails on a path outside the Project", () => {
+		for (const path of ["/etc", "../other", "test/../..", ".", "./"]) {
+			expect(() => settings({ pieceFiles: { ui: [path] } })).toThrow(
+				`pieceFiles.ui in .template.json names ${path}, which is not a path inside the Project`,
+			);
+		}
+	});
+
+	it("fails on a value of the wrong shape", () => {
+		expect(() => settings({ pieceFiles: ["test/ui"] })).toThrow(
+			/must map a piece to its paths/,
+		);
+		expect(() => settings({ pieceFiles: { ui: "test/ui" } })).toThrow(
+			"pieceFiles.ui in .template.json must be a list of paths",
+		);
+		expect(() => settings({ piecesKept: "live" })).toThrow(
+			/must be a list of piece names/,
+		);
+		expect(() => settings("{ release: 1 }")).toThrow(
+			/^\.template\.json is not valid JSON: /,
+		);
+		expect(() => settings("null")).toThrow(
+			".template.json must hold an object",
+		);
+	});
+});
+
 describe("pieceFilesRemove", () => {
+	it("deletes the paths .template.json lists for the piece, and only for it", () => {
+		using folder = projectCreate({
+			".template.json": JSON.stringify({
+				pieceFiles: {
+					analytics: ["test/integration/observability-analytics.test.ts"],
+					ui: ["test/ui"],
+				},
+			}),
+			"test/integration/observability-analytics.test.ts": "analytics\n",
+			"test/ui/home.test.ts": "ui\n",
+		});
+		const directory = folder.path;
+		pieceFilesRemove(directory, "ui");
+		expect(existsSync(join(directory, "test/ui"))).toBe(false);
+		expect(
+			existsSync(
+				join(directory, "test/integration/observability-analytics.test.ts"),
+			),
+		).toBe(true);
+	});
+
 	it("deletes live's files and blocks and leaves Markdown alone", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
@@ -567,5 +656,64 @@ describe("pieceRemove", () => {
 		const directory = folder.path;
 		expect(pieceRemove(directory, "live")).toBeUndefined();
 		expect(existsSync(join(directory, "src/live-hub-open.ts"))).toBe(false);
+	});
+
+	describe("when the package manager fails", () => {
+		const pathBefore = process.env.PATH;
+		afterEach(() => {
+			process.env.PATH = pathBefore;
+			delete process.env.FAKE_PNPM_FAIL;
+		});
+
+		// A `pnpm` first on PATH that fails the one command named by FAKE_PNPM_FAIL (a registry
+		// error) and succeeds at every other, so no network is needed.
+		const pnpmFake = () => {
+			const folder = mkdtempDisposableSync(join(tmpdir(), "fake-pnpm-"));
+			const bin = folder.path;
+			const file = join(bin, "pnpm");
+			writeFileSync(
+				file,
+				'#!/bin/sh\nif [ "$1" = "$FAKE_PNPM_FAIL" ]; then echo "ERR_PNPM_FETCH_404 from the registry"; exit 1; fi\nexit 0\n',
+			);
+			chmodSync(file, 0o755);
+			process.env.PATH = `${bin}:${pathBefore ?? ""}`;
+			return folder;
+		};
+
+		it.each([
+			["live", "remove"],
+			["ui", "add"],
+		])(
+			"reports a failed pnpm %s %s as the package manager's, not the piece's, and undoes the removal",
+			(piece, command) => {
+				using folder = projectCreate({
+					"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0", "react-router": "^7.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+				});
+				using _fake = pnpmFake();
+				process.env.FAKE_PNPM_FAIL = command;
+				const failed = pieceRemove(folder.path, piece);
+				expect(failed?.packageManager).toBe(`pnpm ${command}`);
+				expect(failed?.files).toEqual([]);
+				expect(failed?.output).toContain("ERR_PNPM_FETCH_404");
+				expect(
+					run({
+						command: "git",
+						args: ["status", "--porcelain"],
+						options: { cwd: folder.path },
+					}),
+				).toBe("");
+			},
+		);
+
+		it("still blames the piece when only the check fails", () => {
+			using folder = projectCreate({
+				"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+			});
+			using _fake = pnpmFake();
+			process.env.FAKE_PNPM_FAIL = "check";
+			const failed = pieceRemove(folder.path, "live");
+			expect(failed).toBeDefined();
+			expect(failed?.packageManager).toBeUndefined();
+		});
 	});
 });

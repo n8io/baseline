@@ -13,6 +13,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
 	domainFilesCreate,
 	domainNameRefusal,
@@ -83,6 +84,12 @@ const domainAdd = ({
 	pnpmRun(directory, ["exec", "biome", "check", "--write", ...paths]);
 };
 
+type OpenApiDocument = {
+	components?: { securitySchemes?: { bearer?: unknown } };
+	paths: Record<string, Record<string, { security?: unknown }>>;
+	security?: unknown;
+};
+
 const guardFail = (what: string, res: Response) => {
 	throw new Error(
 		`the served API ${what}: ${res.status} ${JSON.stringify([...res.headers])}`,
@@ -91,8 +98,16 @@ const guardFail = (what: string, res: Response) => {
 
 // The guards test/integration/server-wiring.test.ts proves on the production build, once more through
 // @hono/node-server: the CSP and secure headers, 401 before a route reads the body, httpCsrf
-// on sign-in, and the __Host- session cookie.
-const apiGuardsRequire = async (url: string, openapi: Response) => {
+// on sign-in, the __Host- session cookie, and the OpenAPI document's bearer scheme.
+const apiGuardsRequire = async ({
+	doc,
+	openapi,
+	url,
+}: {
+	doc: OpenApiDocument;
+	openapi: Response;
+	url: string;
+}) => {
 	const csp = /^base-uri 'self'; default-src 'self'; .*'nonce-/;
 	const anonymous = await fetch(`${url}/api/v1/invoice-lines`, {
 		body: "{not json",
@@ -110,6 +125,24 @@ const apiGuardsRequire = async (url: string, openapi: Response) => {
 	}
 	if (anonymous.status !== 401)
 		guardFail("let an anonymous post in", anonymous);
+	// The document declares the bearer scheme and requires it on every operation: no operation
+	// opts out with its own `security`.
+	const operations = Object.values(doc.paths).flatMap((path) =>
+		Object.values(path),
+	);
+	if (
+		!isDeepStrictEqual(doc.components?.securitySchemes?.bearer, {
+			bearerFormat: "JWT",
+			scheme: "bearer",
+			type: "http",
+		}) ||
+		!isDeepStrictEqual(doc.security, [{ bearer: [] }]) ||
+		operations.some((operation) => operation.security !== undefined)
+	) {
+		throw new Error(
+			`the served API does not require the bearer scheme on every operation: ${JSON.stringify({ scheme: doc.components?.securitySchemes?.bearer, security: doc.security })}`,
+		);
+	}
 	// The docs exemption stays in base code: without the piece the page is the API's JSON 404.
 	const docs = await fetch(`${url}/api/v1/docs`);
 	if (
@@ -167,11 +200,15 @@ const apiServe = async (directory: string) => {
 				`http://127.0.0.1:${port}/api/v1/openapi.json`,
 			).catch(() => undefined);
 			if (res?.status === 200) {
-				const doc = (await res.json()) as { paths: Record<string, unknown> };
+				const doc = (await res.json()) as OpenApiDocument;
 				if (!("/api/v1/invoice-lines" in doc.paths)) {
 					throw new Error("the served API has no /api/v1/invoice-lines");
 				}
-				await apiGuardsRequire(`http://127.0.0.1:${port}`, res);
+				await apiGuardsRequire({
+					doc,
+					openapi: res,
+					url: `http://127.0.0.1:${port}`,
+				});
 				return;
 			}
 			if (Date.now() > deadline || server.exitCode !== null) {

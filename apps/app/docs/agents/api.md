@@ -30,6 +30,8 @@ A rename or a removal is two releases. First add the new shape beside the old on
 
 A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in the Domain's `<domain>-error-status.ts` table (at the Domain's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
 
+Type that table `as const satisfies Record<BarError["type"], number>`, not with `HttpErrorStatus` from `@n8io/baseline-http`: a Domain's root imports no HTTP package (the architecture test refuses it), and `api/` files import the table from `../index.ts`.
+
 Give a route its error list inline, or declare it `as const`: `httpErrorResponsesCreate` takes a `readonly` list. Typing the list as a plain `string[]` fails type-checking, because the types must be keys of the table.
 
 ## Route conventions

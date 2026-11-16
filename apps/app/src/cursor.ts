@@ -1,7 +1,9 @@
 import { type Id, idToUuid } from "@n8io/baseline-id";
 
-// What a list sorts on: text by code unit, a number, or an instant as an ISO string.
-export type CursorKind = "date" | "number" | "text";
+// What a list sorts on: text by code unit, a number, an `integer` column (a value it holds,
+// -2147483648 to 2147483647), or an instant as an ISO string. Sort an integer column with
+// `integer`: under `number` a cursor of 9.5 is a 500 instead of the first page.
+export type CursorKind = "date" | "integer" | "number" | "text";
 
 // A list page's position: the sort value and id of its last item, as base64url JSON. Every
 // repository adapter of a Domain, memory or Postgres, uses it, so a cursor from one reads the
@@ -15,16 +17,23 @@ export type Cursor<P extends string> = {
 export const cursorEncode = <P extends string>(cursor: Cursor<P>): string =>
 	Buffer.from(JSON.stringify(cursor)).toString("base64url");
 
-// A number is not range-checked: a caller sorting an integer column does that itself.
+const INTEGER_MAX = 2 ** 31 - 1;
+const INTEGER_MIN = -(2 ** 31);
+
 const valueIs = (kind: CursorKind, value: unknown): value is number | string =>
-	kind === "number"
-		? typeof value === "number" && Number.isFinite(value)
-		: typeof value === "string" &&
-			// Postgres refuses a NUL in text, and reads only a four-digit year as an instant: a date is
-			// exactly what Date#toISOString writes for such a year.
-			(kind === "text"
-				? !value.includes("\0")
-				: /^\d{4}-/.test(value) && new Date(value).toISOString() === value);
+	kind === "integer"
+		? typeof value === "number" &&
+			Number.isInteger(value) &&
+			value >= INTEGER_MIN &&
+			value <= INTEGER_MAX
+		: kind === "number"
+			? typeof value === "number" && Number.isFinite(value)
+			: typeof value === "string" &&
+				// Postgres refuses a NUL in text, and reads only a four-digit year as an instant: a date is
+				// exactly what Date#toISOString writes for such a year.
+				(kind === "text"
+					? !value.includes("\0")
+					: /^\d{4}-/.test(value) && new Date(value).toISOString() === value);
 
 // A cursor that does not decode, comes from another sort (its kind differs) or whose id has
 // another prefix, reads as none, so a mangled or stale link shows the first page.

@@ -42,6 +42,8 @@ await fetch("http://localhost:3000/api/v1/invoices", {
 });
 ```
 
+The token lives 15 minutes. A script that can run longer asks `authnMemoryAuthorizationCreate({ clientId, url })` for a function instead, and calls it for the `Authorization` value of each request: it renews the token before it expires ([scripts.md](scripts.md)).
+
 The token's Actor has `kind: "client"`. The key behind it comes from `AUTHN_SECRET`, so every Server that shares the secret accepts it, behind a load balancer too. With a real provider there is no `/auth/token`: create the client at the provider.
 
 ## Tests

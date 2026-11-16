@@ -23,6 +23,8 @@ Read when adding a Domain. `pnpm domain-create <name>` copies the Template's own
 
 `--plural <plural>` names the plural when it is not `<name>s`. A part flag needs `--bare`, and a part whose piece the Project removed (`--pages` without the UI, `--schedule` without the queue) is refused. `--reads` refuses a Domain that does not exist or that already reads the new one.
 
+A seed that stores another Domain's ids must tolerate a row it seeded earlier still holding an id that no longer exists: there are no foreign keys between Domains, and a row deleted and seeded again comes back with a new id. Replace or skip the stale id rather than letting a Use case error stop `pnpm seed`.
+
 ## What it never writes
 
 Business Rules, Use cases beyond create, get, list, update and delete, Consumers, outcome Events, and the reader's real shape. The Bridge calls the target's `<target>Get` with `<target>Id` and returns its `name`, as domain-create wrote the target; if the target's get or Model has changed since, `pnpm check` fails after the files are written, and you fix the Bridge and its test by hand. Those are the Domain's own design; plan tickets for them, not for what domain-create already wrote. [events.md](events.md) covers Consumers, [bridges.md](bridges.md) outcome Events.

@@ -16,6 +16,7 @@ pnpm add @n8io/baseline-authn
 - `AuthnRequiredError`: the 401 `authnActorRequire` throws.
 - `authnMemoryTokenCreate({ authn, actor })`: a bearer token from the memory issuer, for tests that hold the `Authn`.
 - `authnMemoryTokenFetch({ url, clientId, scopes })`: a machine client's bearer token from a served app's memory issuer, for scripts and dev tools. See [Machine clients](#machine-clients).
+- `authnMemoryAuthorizationCreate({ url, clientId, scopes, renewSeconds })`: a function that returns the current `Authorization` value and fetches a new token before the held one expires, for a script that runs longer than a token lives. See [Machine clients](#machine-clients).
 - `AuthnMemoryUser` and `AuthnMemoryClient`: the entries of `memoryUsers` and `memoryClients`.
 
 The main entry imports nothing from React or React Router, so an API or Worker installs neither. Pages import the two subpaths:
@@ -124,6 +125,29 @@ await fetch("http://localhost:3000/api/v1/scores", {
 - `scopes` asks for a subset of the client's scopes; it defaults to all of them. A scope the client does not have answers 400 `invalid_scope`, an unknown client 401 `invalid_client`.
 - The token carries `gty: "client-credentials"`, which the Template's `actorFromClaims` reads as an Actor of kind `"client"`.
 - With an OIDC provider there is no `/auth/token` (404), and `authnMemoryTokenFetch` rejects with a message naming the issuer: create the machine client at your provider instead.
+
+A memory token lives 15 minutes, and nothing renews it. A script that runs longer, such as a feed, asks `authnMemoryAuthorizationCreate` for its `Authorization` value before each call instead:
+
+```ts
+import { authnMemoryAuthorizationCreate } from "@n8io/baseline-authn";
+
+const authorization = authnMemoryAuthorizationCreate({
+	clientId: "score-feed",
+	url: "http://localhost:3000",
+});
+const scorePost = async (score: Score) =>
+	fetch("http://localhost:3000/api/v1/scores", {
+		body: JSON.stringify(score),
+		headers: {
+			authorization: await authorization(),
+			"content-type": "application/json",
+		},
+		method: "POST",
+	});
+```
+
+- It holds one token and fetches a new one when the held one expires within `renewSeconds` (default 60, at most half the token's lifetime). Callers that ask while a fetch runs share it, and a failed fetch rejects them all and is tried again on the next call. A failed early fetch (inside the margin) answers with the held token while it still lives.
+- `authorization({ renew: true })` fetches a new token first: call it once after a 401, then give up if the retry is refused too.
 
 ## Testing
 
