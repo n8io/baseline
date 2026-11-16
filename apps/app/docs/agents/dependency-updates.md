@@ -19,6 +19,8 @@ Read when handling a Dependabot pull request, a major update or a security alert
 6. **A failed security update.** When Dependabot ends with `security_update_not_possible` (usually an indirect dependency), the alert is a ticket, not noise: refresh the lockfile by hand with `pnpm update <package> --depth Infinity`, or bump the direct parent; use an `overrides` entry in `pnpm-workspace.yaml`, with a comment saying why, only when the parent's range blocks the fix.
 7. **No release.** Update PRs carry no changeset, so they publish nothing and tag nothing.
 
+A moved `app-ci.yml@v<major>` tag (a patch release of the workflow) reaches a pull request only on a fresh `pull_request` run: push a commit or merge main into it. Re-running a job keeps the workflow version of the original run, and a `workflow_dispatch` run does not clear a cancelled required check on the pull request.
+
 ## Semgrep rules
 
 `ci / sast` scans with a pinned snapshot of Semgrep's `p/typescript`, `p/nodejs`, `p/react` and `p/secrets` packs, never fetched live from semgrep.dev: baseline's `.github/semgrep/rules.txt` names one commit of github.com/semgrep/semgrep-rules and the rule files, and each scan fetches them from there, so `sast` needs github.com and raw.githubusercontent.com. A new upstream rule cannot fail a pull request on its own; Dependabot does not move this pin.
