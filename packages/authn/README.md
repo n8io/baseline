@@ -146,7 +146,7 @@ const scorePost = async (score: Score) =>
 	});
 ```
 
-- It holds one token and fetches a new one when the held one expires within `renewSeconds` (default 60, at most half the token's lifetime). Callers that ask while a fetch runs share it, and a failed fetch rejects them all and is tried again on the next call.
+- It holds one token and fetches a new one when the held one expires within `renewSeconds` (default 60, at most half the token's lifetime). Callers that ask while a fetch runs share it, and a failed fetch rejects them all and is tried again on the next call. A failed early fetch (inside the margin) answers with the held token while it still lives.
 - `authorization({ renew: true })` fetches a new token first: call it once after a 401, then give up if the retry is refused too.
 
 ## Testing
