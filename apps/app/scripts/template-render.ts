@@ -493,6 +493,36 @@ const contextRender = (text: string, answers: TemplateAnswers): string => {
 	return lines.join("\n").replace(/\n+$/, "\n");
 };
 
+// README.md names the Project and the release it was made from: its `# app` title becomes the
+// Project's name, its bold line the description, and its first `<sub>` line, which describes the
+// Template, a link to the release's changelog. A README missing one of them throws, so the
+// Template's README cannot drift from this.
+export const readmeRender = ({
+	answers,
+	release,
+	text,
+}: {
+	answers: TemplateAnswers;
+	release: string;
+	text: string;
+}): string => {
+	const lines = text.split("\n");
+	const description = lines.findIndex((line) => /^\*\*.+\*\*$/.test(line));
+	const made = lines.findIndex((line) => line.startsWith("<sub>"));
+	if (lines[0] !== "# app" || description === -1 || made === -1) {
+		throw new Error(
+			"README.md: needs a `# app` title, a bold description line and a <sub> line",
+		);
+	}
+	if (release === "") throw new Error("README.md: package.json has no version");
+	const tag = `app@${release}`;
+	lines[0] = `# ${answers.name}`;
+	lines[description] = `**${answers.description}**`;
+	lines[made] =
+		`<sub>Made from [baseline](https://github.com/${templateRepository}) [${tag}](https://github.com/${templateRepository}/blob/${encodeURIComponent(tag)}/apps/app/CHANGELOG.md). \`pnpm template-upgrade\` takes a newer release.</sub>`;
+	return lines.join("\n");
+};
+
 // A Project's own ports, from its name, so two Projects run side by side on one machine: seven in a
 // row at a multiple of ten from 20000 to 29999, below the range the OS hands out to outgoing
 // connections. compose.yaml publishes the four *_HOST_PORT ones (.env.schema); `pnpm dev` serves on
@@ -626,14 +656,31 @@ export const filesWrite = (root: string, files: TemplateFile[]): void => {
 	}
 };
 
-// Renders every file; src/domains/ stays as an empty folder the structure test reads.
+// Renders every file, README.md with the release package.json names; src/domains/ stays as an empty folder the structure test reads.
 export const templateFilesRender = (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
-): TemplateFile[] => [
-	...files.flatMap((file) => templateFileRender(file, answers) ?? []),
-	{ path: "src/domains/.gitkeep", text: "" },
-];
+): TemplateFile[] => {
+	const manifest = files.find((file) => file.path === "package.json");
+	const { version } = JSON.parse(manifest?.text ?? "{}") as {
+		version?: string;
+	};
+	return [
+		...files.flatMap((file) =>
+			file.path === "README.md"
+				? {
+						...file,
+						text: readmeRender({
+							answers,
+							release: version ?? "",
+							text: file.text,
+						}),
+					}
+				: (templateFileRender(file, answers) ?? []),
+		),
+		{ path: "src/domains/.gitkeep", text: "" },
+	];
+};
 
 // Line removal leaves formatting and unused imports for Biome, and src/env.d.ts for varlock.
 // Runs both with the tools of `toolsDirectory` (a project or apps/app with node_modules).

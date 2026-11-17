@@ -12,6 +12,7 @@ import {
 	hostPortsCreate,
 	linesRemove,
 	lockfileRender,
+	readmeRender,
 	run,
 	templateFileRender,
 	templateFilesRender,
@@ -210,6 +211,32 @@ describe("fooBlocksFind", () => {
 		].join("\n");
 
 		expect(fooBlocksFind(text, ".env.schema")).toEqual([[1, 2]]);
+	});
+});
+
+describe("readmeRender", () => {
+	const text =
+		"# app\n\n**A starter app.**\n\n<sub>The Template.</sub>\n\n## Start\n\n<sub>Kept.</sub>\n";
+
+	it("names the Project, its description and the release it was made from", () => {
+		expect(readmeRender({ answers, release: "10.2.0", text })).toBe(
+			"# invoicing\n\n**Invoices for small shops.**\n\n<sub>Made from [baseline](https://github.com/n8io/baseline) [app@10.2.0](https://github.com/n8io/baseline/blob/app%4010.2.0/apps/app/CHANGELOG.md). `pnpm template-upgrade` takes a newer release.</sub>\n\n## Start\n\n<sub>Kept.</sub>\n",
+		);
+	});
+
+	it("refuses a README it cannot render and a release with no version", () => {
+		for (const broken of [
+			text.replace("# app", "# other"),
+			text.replace("**A starter app.**", "A starter app."),
+			text.replaceAll("<sub>", ""),
+		]) {
+			expect(() =>
+				readmeRender({ answers, release: "10.2.0", text: broken }),
+			).toThrow("README.md: needs");
+		}
+		expect(() => readmeRender({ answers, release: "", text })).toThrow(
+			"package.json has no version",
+		);
 	});
 });
 
@@ -430,6 +457,16 @@ describe.runIf(template)("the template's own files", () => {
 
 		expect(leftovers).toEqual([]);
 		expect(rendered.map((f) => f.path)).toContain("src/domains/.gitkeep");
+		const readme = rendered.find((f) => f.path === "README.md")?.text ?? "";
+		const { version } = JSON.parse(
+			readFileSync(new URL("package.json", appRoot), "utf8"),
+		) as { version: string };
+		expect(readme.split("\n").slice(0, 3)).toEqual([
+			"# invoicing",
+			"",
+			"**Invoices for small shops.**",
+		]);
+		expect(readme).toContain(`[app@${version}]`);
 		// React Router serves static files from public/.
 		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
 	});

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" width="880" height="330" role="img" aria-label="A write and its Event, end to end: a request runs through a Domain's API, Use case, Repository and SPI into one transaction that commits the row and its Event; the Worker delivers the Event in Event key order to another Domain's Consumer, whose Use case records it in the Inbox so a repeat is skipped.">
+<title>A write and its Event, end to end: a request runs through a Domain's API, Use case, Repository and SPI into one transaction that commits the row and its Event; the Worker delivers the Event in Event key order to another Domain's Consumer, whose Use case records it in the Inbox so a repeat is skipped.</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+
+@media (prefers-reduced-motion: no-preference){
+@keyframes server0{0%,0.00%,6.88%,100%{stroke:#5FA8D3}0.00%{stroke:#F5B544}}.server0 rect{animation:server0 8s linear infinite}
+@keyframes server1{0%,4.69%,16.57%,100%{stroke:#5FA8D3}9.69%{stroke:#F5B544}}.server1 rect{animation:server1 8s linear infinite}
+@keyframes server2{0%,14.39%,26.26%,100%{stroke:#5FA8D3}19.39%{stroke:#F5B544}}.server2 rect{animation:server2 8s linear infinite}
+@keyframes server3{0%,24.08%,35.96%,100%{stroke:#5FA8D3}29.08%{stroke:#F5B544}}.server3 rect{animation:server3 8s linear infinite}
+@keyframes server4{0%,33.78%,45.65%,100%{stroke:#5FA8D3}38.78%{stroke:#F5B544}}.server4 rect{animation:server4 8s linear infinite}
+@keyframes worker0{0%,81.00%,92.88%,100%{stroke:#5FA8D3}86.00%{stroke:#F5B544}}.worker0 rect{animation:worker0 8s linear infinite}
+@keyframes worker1{0%,71.31%,83.18%,100%{stroke:#5FA8D3}76.31%{stroke:#F5B544}}.worker1 rect{animation:worker1 8s linear infinite}
+@keyframes worker2{0%,61.61%,73.49%,100%{stroke:#5FA8D3}66.61%{stroke:#F5B544}}.worker2 rect{animation:worker2 8s linear infinite}
+@keyframes worker3{0%,51.92%,63.79%,100%{stroke:#5FA8D3}56.92%{stroke:#F5B544}}.worker3 rect{animation:worker3 8s linear infinite}
+@keyframes worker4{0%,42.22%,54.10%,100%{stroke:#5FA8D3}47.22%{stroke:#F5B544}}.worker4 rect{animation:worker4 8s linear infinite}
+@keyframes commit{0%,37.53%{opacity:.3}40.65%,55.03%{opacity:1}62.53%,100%{opacity:.3}}.commit{animation:commit 8s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="330" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="330" rx="6" fill="url(#grid)"/>
+<text x="30" y="44" class="display" font-size="15" font-weight="700">A write and its Event, end to end</text>
+<text x="850" y="44" text-anchor="end" class="mono dim" font-size="12">Server</text>
+<text x="850" y="312" text-anchor="end" class="mono dim" font-size="12">Worker</text>
+<path d="M100 102 H780 V250 H100" fill="none" stroke="#5FA8D3" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g class="server0"><rect x="30" y="74" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="100" y="100" text-anchor="middle" class="display" font-size="14" font-weight="600">API</text><text x="100" y="117" text-anchor="middle" class="mono dim" font-size="11">HTTP route</text></g>
+<g class="server1"><rect x="200" y="74" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="270" y="100" text-anchor="middle" class="display" font-size="14" font-weight="600">Use case</text><text x="270" y="117" text-anchor="middle" class="mono dim" font-size="11">applies Rules</text></g>
+<g class="server2"><rect x="370" y="74" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="440" y="100" text-anchor="middle" class="display" font-size="14" font-weight="600">Repository</text><text x="440" y="117" text-anchor="middle" class="mono dim" font-size="11">a port</text></g>
+<g class="server3"><rect x="540" y="74" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="610" y="100" text-anchor="middle" class="display" font-size="14" font-weight="600">SPI</text><text x="610" y="117" text-anchor="middle" class="mono dim" font-size="11">database adapter</text></g>
+<g class="server4"><rect x="710" y="74" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="780" y="100" text-anchor="middle" class="display" font-size="14" font-weight="600">Transaction</text><text x="780" y="117" text-anchor="middle" class="mono dim" font-size="11">the row + its Event</text></g>
+<g class="worker0"><rect x="30" y="222" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="100" y="248" text-anchor="middle" class="display" font-size="14" font-weight="600">Inbox</text><text x="100" y="265" text-anchor="middle" class="mono dim" font-size="11">skips a repeat</text></g>
+<g class="worker1"><rect x="200" y="222" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="270" y="248" text-anchor="middle" class="display" font-size="14" font-weight="600">Use case</text><text x="270" y="265" text-anchor="middle" class="mono dim" font-size="11">does the work</text></g>
+<g class="worker2"><rect x="370" y="222" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="440" y="248" text-anchor="middle" class="display" font-size="14" font-weight="600">Consumer</text><text x="440" y="265" text-anchor="middle" class="mono dim" font-size="11">another Domain</text></g>
+<g class="worker3"><rect x="540" y="222" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="610" y="248" text-anchor="middle" class="display" font-size="14" font-weight="600">Worker</text><text x="610" y="265" text-anchor="middle" class="mono dim" font-size="11">per Event key</text></g>
+<g class="worker4"><rect x="710" y="222" width="140" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="780" y="248" text-anchor="middle" class="display" font-size="14" font-weight="600">Event</text><text x="780" y="265" text-anchor="middle" class="mono dim" font-size="11">in the queue</text></g>
+<g class="commit"><rect x="500" y="152" width="260" height="26" rx="2" fill="#0C1C30" stroke="#6CD4A0"/>
+<text x="630" y="170" text-anchor="middle" class="mono ok" font-size="12">COMMIT: the write + its Event</text>
+</g>
+<text x="30" y="170" class="mono dim" font-size="12">A rollback drops the Event with the write.</text>
+<text x="30" y="312" class="mono dim" font-size="12">Same Event key: one at a time, in commit order.</text>
+<circle class="moving" r="7" fill="#F5B544"><animateMotion dur="8s" repeatCount="indefinite" path="M100 102 H780 V250 H100" keyPoints="0;1;1" keyTimes="0;0.86;1" calcMode="linear"/></circle>
+</svg>
