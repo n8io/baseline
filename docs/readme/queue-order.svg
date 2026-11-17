@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="Events of one Event key reach the Consumer one at a time, in commit order; when order_2's second Event fails five times its key is blocked and the other keys carry on">
+<title>Events of one Event key reach the Consumer one at a time, in commit order; when order_2's second Event fails five times its key is blocked and the other keys carry on</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+.chip{fill:#0C1C30}
+.e00{transform:translateX(520px)}.e00 rect{fill:#6CD4A0}
+.e01{transform:translateX(525px)}.e01 rect{fill:#6CD4A0}
+.e02{transform:translateX(530px)}.e02 rect{fill:#6CD4A0}
+.e10{transform:translateX(520px)}.e10 rect{fill:#6CD4A0}
+.e11{transform:translateX(230px)}.e11 rect{fill:#FF7A6B}
+.e20{transform:translateX(520px)}.e20 rect{fill:#6CD4A0}
+.e21{transform:translateX(525px)}.e21 rect{fill:#6CD4A0}
+.e22{transform:translateX(530px)}.e22 rect{fill:#6CD4A0}
+@media (prefers-reduced-motion: no-preference){
+@keyframes e00{0%{transform:translateX(0);opacity:0}2%{opacity:1}2.73%{transform:translateX(0)}7.27%,15.45%{transform:translateX(170px);opacity:1}20.00%,92%{transform:translateX(520px);opacity:1}100%{transform:translateX(520px);opacity:0}}.e00{animation:e00 11s ease-in-out infinite}
+@keyframes e00c{0%,15.45%{fill:#F5B544}20.00%,100%{fill:#6CD4A0}}.e00 rect{animation:e00c 11s linear infinite}
+@keyframes e01{0%{transform:translateX(0);opacity:0}2%{opacity:1}15.45%{transform:translateX(0)}20.00%,28.18%{transform:translateX(230px);opacity:1}32.73%,92%{transform:translateX(525px);opacity:1}100%{transform:translateX(525px);opacity:0}}.e01{animation:e01 11s ease-in-out infinite}
+@keyframes e01c{0%,28.18%{fill:#F5B544}32.73%,100%{fill:#6CD4A0}}.e01 rect{animation:e01c 11s linear infinite}
+@keyframes e02{0%{transform:translateX(0);opacity:0}2%{opacity:1}28.18%{transform:translateX(0)}32.73%,40.91%{transform:translateX(290px);opacity:1}45.45%,92%{transform:translateX(530px);opacity:1}100%{transform:translateX(530px);opacity:0}}.e02{animation:e02 11s ease-in-out infinite}
+@keyframes e02c{0%,40.91%{fill:#F5B544}45.45%,100%{fill:#6CD4A0}}.e02 rect{animation:e02c 11s linear infinite}
+@keyframes e10{0%{transform:translateX(0);opacity:0}2%{opacity:1}6.36%{transform:translateX(0)}10.91%,19.09%{transform:translateX(170px);opacity:1}23.64%,92%{transform:translateX(520px);opacity:1}100%{transform:translateX(520px);opacity:0}}.e10{animation:e10 11s ease-in-out infinite}
+@keyframes e10c{0%,19.09%{fill:#F5B544}23.64%,100%{fill:#6CD4A0}}.e10 rect{animation:e10c 11s linear infinite}
+@keyframes e11{0%{transform:translateX(0);opacity:0}2%{opacity:1}19.09%{transform:translateX(0)}23.64%,92%{transform:translateX(230px);opacity:1}100%{transform:translateX(230px);opacity:0}}.e11{animation:e11 11s ease-in-out infinite}
+@keyframes e11f{0%,34.55%{fill:#F5B544}36.36%,100%{fill:#FF7A6B}}.e11 rect{animation:e11f 11s linear infinite}
+@keyframes e12{0%,100%{opacity:1}50%{opacity:.45}}.e12{animation:e12 2s ease-in-out infinite}
+@keyframes e20{0%{transform:translateX(0);opacity:0}2%{opacity:1}10.00%{transform:translateX(0)}14.55%,22.73%{transform:translateX(170px);opacity:1}27.27%,92%{transform:translateX(520px);opacity:1}100%{transform:translateX(520px);opacity:0}}.e20{animation:e20 11s ease-in-out infinite}
+@keyframes e20c{0%,22.73%{fill:#F5B544}27.27%,100%{fill:#6CD4A0}}.e20 rect{animation:e20c 11s linear infinite}
+@keyframes e21{0%{transform:translateX(0);opacity:0}2%{opacity:1}22.73%{transform:translateX(0)}27.27%,35.45%{transform:translateX(230px);opacity:1}40.00%,92%{transform:translateX(525px);opacity:1}100%{transform:translateX(525px);opacity:0}}.e21{animation:e21 11s ease-in-out infinite}
+@keyframes e21c{0%,35.45%{fill:#F5B544}40.00%,100%{fill:#6CD4A0}}.e21 rect{animation:e21c 11s linear infinite}
+@keyframes e22{0%{transform:translateX(0);opacity:0}2%{opacity:1}35.45%{transform:translateX(0)}40.00%,48.18%{transform:translateX(290px);opacity:1}52.73%,92%{transform:translateX(530px);opacity:1}100%{transform:translateX(530px);opacity:0}}.e22{animation:e22 11s ease-in-out infinite}
+@keyframes e22c{0%,48.18%{fill:#F5B544}52.73%,100%{fill:#6CD4A0}}.e22 rect{animation:e22c 11s linear infinite}
+@keyframes blocked{0%,36.36%{opacity:0}40.00%,92%{opacity:1}100%{opacity:0}}.blocked{animation:blocked 11s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="300" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="300" rx="6" fill="url(#grid)"/>
+<text x="30" y="44" class="display" font-size="15" font-weight="700">Ordered per Event key</text>
+<rect x="430" y="64" width="80" height="186" rx="2" fill="none" stroke="#5FA8D3" stroke-width="1.5"/>
+<text x="470" y="56" text-anchor="middle" class="mono dim" font-size="12">Consumer</text>
+<text x="765" y="56" text-anchor="middle" class="mono dim" font-size="12">handled</text>
+<text x="30" y="98" class="mono" font-size="13">order_1</text>
+<line x1="120" y1="93" x2="420" y2="93" stroke="#5FA8D3" stroke-dasharray="3 5"/>
+<g class="e00"><rect x="278" y="80" width="44" height="26" rx="2" fill="#F5B544"/><text x="300" y="98" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#1</text></g>
+<g class="e01"><rect x="218" y="80" width="44" height="26" rx="2" fill="#F5B544"/><text x="240" y="98" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#2</text></g>
+<g class="e02"><rect x="158" y="80" width="44" height="26" rx="2" fill="#F5B544"/><text x="180" y="98" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#3</text></g>
+<text x="30" y="160" class="mono" font-size="13">order_2</text>
+<line x1="120" y1="155" x2="420" y2="155" stroke="#5FA8D3" stroke-dasharray="3 5"/>
+<g class="e10"><rect x="278" y="142" width="44" height="26" rx="2" fill="#F5B544"/><text x="300" y="160" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#1</text></g>
+<g class="e11"><rect x="218" y="142" width="44" height="26" rx="2" fill="#F5B544"/><text x="240" y="160" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#2</text></g>
+<g class="e12"><rect x="158" y="142" width="44" height="26" rx="2" fill="#F5B544"/><text x="180" y="160" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#3</text></g>
+<text x="30" y="222" class="mono" font-size="13">order_3</text>
+<line x1="120" y1="217" x2="420" y2="217" stroke="#5FA8D3" stroke-dasharray="3 5"/>
+<g class="e20"><rect x="278" y="204" width="44" height="26" rx="2" fill="#F5B544"/><text x="300" y="222" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#1</text></g>
+<g class="e21"><rect x="218" y="204" width="44" height="26" rx="2" fill="#F5B544"/><text x="240" y="222" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#2</text></g>
+<g class="e22"><rect x="158" y="204" width="44" height="26" rx="2" fill="#F5B544"/><text x="180" y="222" text-anchor="middle" class="mono chip" font-size="12" font-weight="700">#3</text></g>
+<g class="blocked"><rect x="520" y="173" width="330" height="22" rx="2" fill="#10243D" stroke="#FF7A6B"/><text x="532" y="188" class="mono fail" font-size="11">#2 failed 5 times: key blocked, copy in .dead</text></g>
+<text x="30" y="278" class="mono dim" font-size="12">Other keys carry on. Retry the Event or give it up to release its key.</text>
+<text x="850" y="278" text-anchor="end" class="mono dim" font-size="12">on any number of workers</text>
+</svg>
