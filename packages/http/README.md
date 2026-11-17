@@ -1,26 +1,96 @@
 # @n8io/baseline-http
 
-Hono helpers for the API: RFC 9457 problem bodies, OpenAPI error responses, secure headers and graceful close.
+**Every API error answers in one shape**: RFC 9457 problem bodies with the request's trace id, OpenAPI error responses checked against your Domain's errors, and secure defaults for the Hono app around them.
 
 ```sh
 pnpm add @n8io/baseline-http
 ```
 
-## Exports
+```json
+{
+	"status": 404,
+	"title": "Not Found",
+	"code": "FooNotFound",
+	"traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+}
+```
 
-- `httpRouterCreate()`: an `OpenAPIHono` router whose request validation answers 400 with a problem body.
-- `httpErrorHandle`, `httpNotFoundHandle`: `app.onError` and the API's not-found route; both answer `application/problem+json`, never error text.
-- `httpErrorBodyCreate(error, status)`, `httpProblemHeaders`: the problem body and headers for a domain error. The body carries the request's `traceId`.
-- `HttpErrorStatus<E>`: a domain's map from error `type` to status; a missing type fails type-checking.
-- `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses`: a route's OpenAPI error responses from that map.
-- `HttpProblem`: the problem body type.
-- `httpRouteName`: middleware that names the HTTP server span after the route that answered.
-- `httpCsrf`: Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.
-- `httpSecureHeaders`: Hono's secure headers plus an enforced CSP whose `script-src` takes a fresh nonce per request (`c.get("secureHeadersNonce")`).
-- `httpServerClose(server)`: stops accepting connections and resolves once open requests finish.
-- `httpServerKeepAlive(server)`: keeps idle connections open for 65 s, so a load balancer with the usual 60 s idle timeout never reuses a connection the server has closed (a 502). Keep the balancer's idle timeout under 65 s.
+## Guarantees
+
+| You get                              | How                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One error shape**                  | Validation failures, Domain errors, refused requests and crashes all answer `application/problem+json`: `status`, `title`, `code`, `traceId`.                 |
+| **No leaked text**                   | A body never carries an error message or the caller's input. A crash is a logged 500 `InternalError`.                                                         |
+| **Errors you can find**              | `traceId` is the request's trace, so a caller's report leads straight to its spans and logs.                                                                  |
+| **Pointers to bad input**            | A failed request validation is 400 `ValidationFailed` with one JSON Pointer per issue.                                                                        |
+| **Docs that match the code**         | `httpErrorResponsesCreate` declares a route's error responses from the same table it answers with; a Domain error missing from the table fails type-checking. |
+| **New error codes are not breaking** | Codes are an `x-extensible-enum`, so the API diff accepts a new code on a status a route already declares.                                                    |
+| **Secure headers and a nonce CSP**   | HSTS, `nosniff`, `Referrer-Policy` and an enforced CSP whose `script-src` takes a fresh nonce per request.                                                    |
+| **CSRF refused on cookie routes**    | A cross-site form, multipart or text POST answers 403; JSON and bearer requests pass. Works behind a TLS proxy.                                               |
+| **No 502s from the load balancer**   | Idle connections stay open 65 s, longer than a balancer's usual 60 s.                                                                                         |
+| **A close that finishes requests**   | `httpServerClose` stops accepting connections and resolves once open requests finish.                                                                         |
+| **Spans named after routes**         | `POST /api/v1/foos`, not `POST`.                                                                                                                              |
 
 ## Example
+
+Wire the app once:
+
+```ts
+export const app = httpRouterCreate();
+app.use(httpRouteName);
+app.onError(httpErrorHandle);
+app.use(httpSecureHeaders);
+app.use("*", except(["/api/*"], httpCsrf));
+app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
+app.all("/api/*", httpNotFoundHandle);
+
+httpServerKeepAlive(server);
+// On shutdown: await httpServerClose(server);
+```
+
+Then a route maps each Domain error to a status once, and its docs and answers both read that map:
+
+```ts
+const fooErrorStatus = {
+	FooNotFound: 404,
+} as const satisfies HttpErrorStatus<FooError>;
+
+// The route's OpenAPI responses declare what the map holds:
+const responses = {
+	200: fooOk,
+	...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
+};
+
+// Its handler answers a failed Result from the same map:
+const status = fooErrorStatus[result.error.type];
+const body = httpErrorBodyCreate(result.error, status);
+return c.json(body, status, httpProblemHeaders);
+```
+
+Test a route with Hono's `app.request()`: the problem body comes back as JSON, with no server and no mocks.
+
+## Reference
+
+<details><summary><b>Exports</b></summary>
+
+| Export                                                         | Does                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `httpRouterCreate()`                                           | An `OpenAPIHono` router whose request validation answers 400 `ValidationFailed` with a problem body.                                                                                                                                                                                      |
+| `httpErrorHandle`                                              | `app.onError`. A thrown error with a 4xx `httpStatus` and a `type` (authn's 401s) answers that status and code; a Hono 4xx `HTTPException` answers its status (400 `ValidationFailed`, 413 `PayloadTooLarge`, 415 `UnsupportedMediaType`); anything else is a logged 500 `InternalError`. |
+| `httpNotFoundHandle`                                           | The API's not-found route: a JSON 404 `NotFound`, never HTML.                                                                                                                                                                                                                             |
+| `httpErrorBodyCreate(error, status)`                           | The problem body for a Domain error; `code` is the error's `type`.                                                                                                                                                                                                                        |
+| `httpProblemHeaders`                                           | `Content-Type: application/problem+json`.                                                                                                                                                                                                                                                 |
+| `HttpProblem`                                                  | The problem body type: `status`, `title`, `code`, optional `traceId` and `errors` (`{ pointer, detail }[]`). `traceId` is absent only when nothing traces the request.                                                                                                                    |
+| `HttpErrorStatus<E>`                                           | A Domain's map from error `type` to status; a missing type fails type-checking.                                                                                                                                                                                                           |
+| `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses` | A route's OpenAPI error responses: one `application/problem+json` entry per status, listing the error types that answer with it, typed so the handler may return those statuses.                                                                                                          |
+| `httpRouteName`                                                | Middleware that names the HTTP server span after the route that answered and sets `http.route`. Catch-all routes (a pattern ending in `*`) keep the name something else gave them.                                                                                                        |
+| `httpCsrf`                                                     | Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.                                                          |
+| `httpSecureHeaders`                                            | Hono's secure headers plus an enforced CSP (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`) whose `script-src` takes a fresh nonce per request: `c.get("secureHeadersNonce")`.                                                                    |
+| `httpServerClose(server)`                                      | Stops accepting connections, closes idle keep-alive sockets every 100 ms, and resolves once every open request finishes. It never cuts a running request off.                                                                                                                             |
+| `httpServerKeepAlive(server)`                                  | Keeps idle connections open for 65 s (headers timeout 66 s), so a load balancer with the usual 60 s idle timeout never reuses a connection the server has closed (a 502). Keep the balancer's idle timeout under 65 s.                                                                    |
+</details>
+
+<details><summary><b>A whole route</b></summary>
 
 ```ts
 import { createRoute } from "@hono/zod-openapi";
@@ -63,7 +133,26 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 		return c.json(fooResponse(result.value), 200);
 	});
 ```
+</details>
 
-## Needs
+<details><summary><b>A validation failure</b></summary>
 
-Peers: `hono`, `@hono/zod-openapi`, `zod` and `@opentelemetry/api`. No env.
+```json
+{
+	"status": 400,
+	"title": "Bad Request",
+	"code": "ValidationFailed",
+	"traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+	"errors": [
+		{
+			"pointer": "/name",
+			"detail": "Too small: expected string to have >=1 characters"
+		}
+	]
+}
+```
+
+Each `pointer` is an RFC 6901 JSON Pointer into the request part that failed. Zod's "Unrecognized keys" message would repeat the caller's key names, so it reads `Unrecognized key`.
+</details>
+
+**Needs** `hono`, `@hono/zod-openapi`, `zod` and `@opentelemetry/api` as peers. No env.

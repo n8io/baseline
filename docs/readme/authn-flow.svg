@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 340" width="880" height="340" role="img" aria-label="Authn: a page signs in through the provider and gets sealed cookies, a machine client sends a bearer token, and the middleware turns either into one Actor">
+<title>Authn: a page signs in through the provider and gets sealed cookies, a machine client sends a bearer token, and the middleware turns either into one Actor</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+
+@media (prefers-reduced-motion: no-preference){
+@keyframes lane0box0{0%,1.11%,12.22%,100%{stroke:#5FA8D3}4.44%{stroke:#F5B544}}.lane0box0 rect{animation:lane0box0 9s linear infinite}
+@keyframes lane0box1{0%,12.30%,23.41%,100%{stroke:#5FA8D3}15.63%{stroke:#F5B544}}.lane0box1 rect{animation:lane0box1 9s linear infinite}
+@keyframes lane0box2{0%,23.49%,34.60%,100%{stroke:#5FA8D3}26.82%{stroke:#F5B544}}.lane0box2 rect{animation:lane0box2 9s linear infinite}
+@keyframes lane0box3{0%,34.67%,45.78%,100%{stroke:#5FA8D3}38.01%{stroke:#F5B544}}.lane0box3 rect{animation:lane0box3 9s linear infinite}
+@keyframes lane1box0{0%,47.78%,58.89%,100%{stroke:#5FA8D3}51.11%{stroke:#F5B544}}.lane1box0 rect{animation:lane1box0 9s linear infinite}
+@keyframes lane1box1{0%,61.38%,72.49%,100%{stroke:#5FA8D3}64.71%{stroke:#F5B544}}.lane1box1 rect{animation:lane1box1 9s linear infinite}
+@keyframes lane1box2{0%,74.98%,86.10%,100%{stroke:#5FA8D3}78.32%{stroke:#F5B544}}.lane1box2 rect{animation:lane1box2 9s linear infinite}
+@keyframes actorGlow{0%,45.56%,57.78%,83.33%,95.56%,100%{stroke:#5FA8D3}48.89%,86.67%{stroke:#F5B544}}.actor rect{animation:actorGlow 9s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="340" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="340" rx="6" fill="url(#grid)"/>
+<text x="40" y="44" class="display" font-size="15" font-weight="700">Two ways in, one Actor out</text>
+<text x="40" y="80" class="mono accent" font-size="12">Pages</text>
+<path d="M108 120 H644 L690 190" fill="none" stroke="#5FA8D3" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g class="lane0box0"><rect x="40" y="92" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="108" y="118" text-anchor="middle" class="display" font-size="13" font-weight="600">Browser</text><text x="108" y="135" text-anchor="middle" class="mono dim" font-size="11">GET /auth/sign-in</text></g>
+<g class="lane0box1"><rect x="196" y="92" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="264" y="118" text-anchor="middle" class="display" font-size="13" font-weight="600">Provider</text><text x="264" y="135" text-anchor="middle" class="mono dim" font-size="11">sign-in + PKCE</text></g>
+<g class="lane0box2"><rect x="352" y="92" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="420" y="118" text-anchor="middle" class="display" font-size="13" font-weight="600">/auth/callback</text><text x="420" y="135" text-anchor="middle" class="mono dim" font-size="11">sealed cookies</text></g>
+<g class="lane0box3"><rect x="508" y="92" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="576" y="118" text-anchor="middle" class="display" font-size="13" font-weight="600">Middleware</text><text x="576" y="135" text-anchor="middle" class="mono dim" font-size="11">source: &quot;cookie&quot;</text></g>
+<text x="196" y="168" class="mono dim" font-size="11">/auth/refresh renews the token before it lapses</text>
+<circle class="moving" r="7" fill="#F5B544"><animateMotion dur="9s" repeatCount="indefinite" path="M108 120 H644 L690 190" keyPoints="0;0;1;1" keyTimes="0;0.044;0.489;1" calcMode="linear"/></circle>
+<text x="40" y="210" class="mono accent" font-size="12">API</text>
+<path d="M108 250 H644 L690 190" fill="none" stroke="#5FA8D3" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g class="lane1box0"><rect x="40" y="222" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="108" y="248" text-anchor="middle" class="display" font-size="13" font-weight="600">Machine client</text><text x="108" y="265" text-anchor="middle" class="mono dim" font-size="11">client credentials</text></g>
+<g class="lane1box1"><rect x="274" y="222" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="342" y="248" text-anchor="middle" class="display" font-size="13" font-weight="600">Bearer token</text><text x="342" y="265" text-anchor="middle" class="mono dim" font-size="11">Authorization</text></g>
+<g class="lane1box2"><rect x="508" y="222" width="136" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="576" y="248" text-anchor="middle" class="display" font-size="13" font-weight="600">Middleware</text><text x="576" y="265" text-anchor="middle" class="mono dim" font-size="11">source: &quot;bearer&quot;</text></g>
+
+<circle class="moving" r="7" fill="#F5B544"><animateMotion dur="9s" repeatCount="indefinite" path="M108 250 H644 L690 190" keyPoints="0;0;1;1" keyTimes="0;0.511;0.867;1" calcMode="linear"/></circle>
+<g class="actor"><rect x="690" y="142" width="150" height="96" rx="2" fill="#10243D" stroke="#F5B544" stroke-width="1.5"/><text x="765" y="188" text-anchor="middle" class="display" font-size="16" font-weight="600">Actor</text><text x="765" y="205" text-anchor="middle" class="mono dim" font-size="11">id · kind · scopes</text></g>
+<text x="765" y="258" text-anchor="middle" class="mono dim" font-size="11">c.var.actor</text>
+<text x="40" y="322" class="mono dim" font-size="12">No token: anonymous. A bad token: 401 on the API, sign-in again on a page.</text>
+</svg>
