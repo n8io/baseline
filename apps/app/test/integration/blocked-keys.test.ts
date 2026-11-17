@@ -9,7 +9,7 @@ import {
 import { ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { integrationDatabaseCreate } from "../test/integration/integration-database.ts";
+import { integrationDatabaseCreate } from "./integration-database.ts";
 
 // `pnpm blocked-keys [retry|give-up <consumer> <key>]`, through the preload as in a pod.
 const blockedKeysRun = async (
@@ -109,5 +109,9 @@ describe("src/blocked-keys.ts on Postgres", { timeout: 60_000 }, () => {
 		expect(
 			(await blockedKeysRun(databaseUrl, ["give-up", ...blocked])).code,
 		).toBe(1);
+	});
+
+	it("exits 1 on a memory database, which has no queue", async () => {
+		expect((await blockedKeysRun("memory://", [])).code).toBe(1);
 	});
 });

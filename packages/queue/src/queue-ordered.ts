@@ -59,17 +59,20 @@ export const queueOrderedBlockedKeyRetry = async (
 };
 
 // Releases a blocked key by deleting its failed Event, so the key moves on without it. The copy in
-// `<queueName>.dead` stays. false when the Consumer has no blocked Event for that key.
+// `<queueName>.dead` stays. false when the Consumer has no blocked Event for that key. One statement
+// that names the failed state, not a lookup then pg-boss's deleteJob: that deletes by id whatever
+// the state, so a retry between the two would lose an Event already running again.
 export const queueOrderedBlockedKeyGiveUp = async (
 	boss: PgBoss,
-	blocked: { consumer: string; key: string },
+	{ consumer, key }: { consumer: string; key: string },
 ): Promise<boolean> => {
-	const id = await queueOrderedBlockedEventId(boss, blocked);
-	if (id === undefined) {
-		return false;
-	}
-	const response = await boss.deleteJob(queueOrderedName(blocked.consumer), id);
-	return queueOrderedAffected(response) > 0;
+	const { rows } = await boss
+		.getDb()
+		.executeSql(
+			"DELETE FROM queue.job WHERE name = $1 AND singleton_key = $2 AND policy = 'key_strict_fifo' AND state = 'failed' RETURNING id",
+			[queueOrderedName(consumer), key],
+		);
+	return rows.length > 0;
 };
 
 let blockedKeys: Gauge | undefined;

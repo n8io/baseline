@@ -220,11 +220,11 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 		},
 		packages: ["@n8io/baseline-queue"],
 		paths: [
-			"src/blocked-keys.postgres.test.ts",
 			"src/blocked-keys.ts",
 			"src/events-open.ts",
 			"src/queue-open.ts",
 			"src/worker.ts",
+			"test/integration/blocked-keys.test.ts",
 			"test/integration/worker-ready.test.ts",
 			"test/integration/worker-shutdown.test.ts",
 		],

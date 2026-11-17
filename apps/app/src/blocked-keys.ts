@@ -5,11 +5,12 @@
 //   give-up <consumer> <key>   deletes the failed Event, so the key moves on (its dead-letter copy stays)
 // <consumer> is the Consumer's queueName. It exits 1 when it released nothing.
 // `pnpm piece-remove queue` deletes this file.
-import { logger } from "@n8io/baseline-logger";
-import { type Queue, queueCreate } from "@n8io/baseline-queue";
+import type { Queue } from "@n8io/baseline-queue";
+import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { ENV } from "#env";
 import { databaseOpen } from "./connections.ts";
+import { queueOpen } from "./queue-open.ts";
 
 const blockedKeyReleases = {
 	"give-up": (queue: Queue, blocked: { consumer: string; key: string }) =>
@@ -18,7 +19,8 @@ const blockedKeyReleases = {
 		queue.blockedKeyRetry(blocked),
 };
 
-// The exit code: 0 when it listed or released, 1 when it released nothing or was called wrong.
+// The exit code: 0 when it listed or released, 1 when it released nothing or was called wrong. It
+// prints for the operator on stdout and stderr, not through the logger, so LOG_LEVEL never hides it.
 const blockedKeysRun = async (
 	queue: Queue,
 	args: string[],
@@ -27,9 +29,11 @@ const blockedKeysRun = async (
 	if (command === undefined) {
 		const blocked = await queue.blockedKeys();
 		for (const entry of blocked) {
-			logger.info(entry, "Event key is blocked");
+			console.log(
+				`${entry.consumer} ${entry.key} blocked since ${entry.since.toISOString()}`,
+			);
 		}
-		logger.info({ count: blocked.length }, "Blocked Event keys listed");
+		console.log(`${blocked.length} blocked Event key(s)`);
 		return 0;
 	}
 	if (
@@ -38,8 +42,7 @@ const blockedKeysRun = async (
 		key === undefined ||
 		rest.length > 0
 	) {
-		logger.error(
-			{ args },
+		console.error(
 			"Usage: blocked-keys [retry <consumer> <key> | give-up <consumer> <key>]",
 		);
 		return 1;
@@ -47,17 +50,15 @@ const blockedKeysRun = async (
 	const release =
 		blockedKeyReleases[command as keyof typeof blockedKeyReleases];
 	if (!(await release(queue, { consumer, key }))) {
-		logger.error(
-			{ consumer, key },
-			"Nothing released: that Consumer has no blocked Event for that key",
+		console.error(
+			`Nothing released: ${consumer} has no blocked Event for ${key}`,
 		);
 		return 1;
 	}
-	logger.info(
-		{ consumer, key },
+	console.log(
 		command === "retry"
-			? "Released: the failed Event runs again, before the Events behind it"
-			: "Released: the failed Event was given up, and the key moves on",
+			? `Released ${consumer} ${key}: the failed Event runs again, before the Events behind it`
+			: `Released ${consumer} ${key}: the failed Event was given up, and the key moves on`,
 	);
 	return 0;
 };
@@ -67,16 +68,28 @@ const database = databaseOpen({
 	role: "publisher",
 	url: ENV.DATABASE_URL,
 });
+// What queueOpen adds to close, then the pool, in that order.
+const resources: ShutdownStep[] = [];
+if (database !== "memory") {
+	resources.push({ close: () => database.end(), name: "database" });
+}
 try {
-	if (database === "memory") {
-		logger.error("memory database: there is no queue to look at");
+	const { queue } = await queueOpen({
+		database,
+		intakes: [],
+		resources,
+		role: "publisher",
+	});
+	if (queue === "memory") {
+		console.error("DATABASE_URL is memory://: there is no queue to look at");
 		process.exitCode = 1;
 	} else {
-		await using pgPool = database;
-		await using queue = await queueCreate({ pgPool, role: "publisher" });
 		process.exitCode = await blockedKeysRun(queue, process.argv.slice(2));
 	}
 } finally {
+	for (const step of resources) {
+		await step.close();
+	}
 	// Its spans and logs are lost when the process ends unflushed.
 	await telemetryShutdown();
 }
