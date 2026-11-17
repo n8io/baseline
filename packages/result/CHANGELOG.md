@@ -1,5 +1,11 @@
 # @n8io/baseline-result
 
+## 1.1.2
+
+### Patch Changes
+
+- e1fafaf: Rewrite the README: a promise, a Guarantees table, a short example and the reference folded below.
+
 ## 1.1.1
 
 ### Patch Changes

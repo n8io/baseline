@@ -1,5 +1,17 @@
 # @n8io/baseline-postgres
 
+## 5.3.1
+
+### Patch Changes
+
+- e1fafaf: Rewrite the README: a promise, an animated diagram, a Guarantees table, a short example and the reference folded below.
+- Updated dependencies [e1fafaf]
+- Updated dependencies [df8b85a]
+- Updated dependencies [e1fafaf]
+  - @n8io/baseline-id@3.0.1
+  - @n8io/baseline-logger@3.1.1
+  - @n8io/baseline-result@1.1.2
+
 ## 5.3.0
 
 ### Minor Changes

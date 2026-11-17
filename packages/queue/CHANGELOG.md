@@ -1,5 +1,15 @@
 # @n8io/baseline-queue
 
+## 8.1.1
+
+### Patch Changes
+
+- ede01ee: Rewrite the README: a Guarantees table, a short example, animated diagrams of per-key order and the outbox, and the reference folded below.
+- Updated dependencies [df8b85a]
+- Updated dependencies [e1fafaf]
+  - @n8io/baseline-logger@3.1.1
+  - @n8io/baseline-result@1.1.2
+
 ## 8.1.0
 
 ### Minor Changes

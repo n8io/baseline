@@ -1,5 +1,41 @@
 # app
 
+## 10.1.1
+
+### Patch Changes
+
+- 2ece2c7: Every Project gets a README. `pnpm app-create` renders the new `README.md` with the Project's name and description and a link to the release it was made from; it shows how to start, what runs, how to add a Domain, the commands, and where the agent docs are. A Project takes it with `pnpm template-upgrade`. The `Made from` line names the release, so it changes with every release: a Project that rewrote its `README.md` or removed that line resolves a README conflict at each upgrade by keeping its own text (docs/agents/template-upgrade.md). After `pnpm piece-remove`, drop what the README says about the piece (docs/agents/pieces.md).
+- Updated dependencies [df8b85a]
+- Updated dependencies [ccb666a]
+- Updated dependencies [e1fafaf]
+- Updated dependencies [df8b85a]
+- Updated dependencies [ccb666a]
+- Updated dependencies [ccb666a]
+- Updated dependencies [e1fafaf]
+- Updated dependencies [ede01ee]
+- Updated dependencies [df8b85a]
+- Updated dependencies [e1fafaf]
+- Updated dependencies [ede01ee]
+- Updated dependencies [e1fafaf]
+- Updated dependencies [e1fafaf]
+- Updated dependencies [df8b85a]
+- Updated dependencies [df8b85a]
+  - @n8io/baseline-analytics@2.0.1
+  - @n8io/baseline-authn@6.1.1
+  - @n8io/baseline-cache@6.2.1
+  - @n8io/baseline-error-tracking@1.0.1
+  - @n8io/baseline-health@2.0.2
+  - @n8io/baseline-http@3.0.1
+  - @n8io/baseline-id@3.0.1
+  - @n8io/baseline-live@7.2.1
+  - @n8io/baseline-logger@3.1.1
+  - @n8io/baseline-postgres@5.3.1
+  - @n8io/baseline-queue@8.1.1
+  - @n8io/baseline-redis@1.0.1
+  - @n8io/baseline-result@1.1.2
+  - @n8io/baseline-shutdown@3.0.2
+  - @n8io/baseline-telemetry@2.0.1
+
 ## 10.1.0
 
 ### Minor Changes

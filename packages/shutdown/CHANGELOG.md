@@ -1,5 +1,13 @@
 # @n8io/baseline-shutdown
 
+## 3.0.2
+
+### Patch Changes
+
+- df8b85a: Rewrite the README: a bold promise, a Guarantees table, a short example, an animated diagram, a testing note and the full reference folded below.
+- Updated dependencies [df8b85a]
+  - @n8io/baseline-logger@3.1.1
+
 ## 3.0.1
 
 ### Patch Changes
