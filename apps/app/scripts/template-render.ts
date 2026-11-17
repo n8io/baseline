@@ -517,7 +517,7 @@ export const readmeRender = ({
 	if (release === "") throw new Error("README.md: package.json has no version");
 	const tag = `app@${release}`;
 	lines[0] = `# ${answers.name}`;
-	lines[description] = `**${answers.description}**`;
+	lines[description] = `**${answers.description.trim()}**`;
 	lines[made] =
 		`<sub>Made from [baseline](https://github.com/${templateRepository}) [${tag}](https://github.com/${templateRepository}/blob/${encodeURIComponent(tag)}/apps/app/CHANGELOG.md). \`pnpm template-upgrade\` takes a newer release.</sub>`;
 	return lines.join("\n");
@@ -656,11 +656,13 @@ export const filesWrite = (root: string, files: TemplateFile[]): void => {
 	}
 };
 
-// Renders every file, README.md with the release package.json names; src/domains/ stays as an empty folder the structure test reads.
+// Renders every file; src/domains/ stays as an empty folder the structure test reads.
 export const templateFilesRender = (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
 ): TemplateFile[] => {
+	// README.md names the release package.json holds. It skips the foo-line removal: the leftovers
+	// test in template-render.test.ts holds it free of foo.
 	const manifest = files.find((file) => file.path === "package.json");
 	const { version } = JSON.parse(manifest?.text ?? "{}") as {
 		version?: string;

@@ -240,6 +240,30 @@ describe("readmeRender", () => {
 	});
 });
 
+describe("templateFilesRender", () => {
+	const readme = {
+		path: "README.md",
+		text: "# app\n\n**A starter app.**\n\n<sub>The Template.</sub>\n",
+	};
+
+	it("refuses a README.md beside a package.json with no version", () => {
+		expect(() =>
+			templateFilesRender(
+				[readme, { path: "package.json", text: '{ "name": "app" }' }],
+				answers,
+			),
+		).toThrow("package.json has no version");
+	});
+
+	it("renders a release that has no README.md", () => {
+		expect(
+			templateFilesRender([{ path: "src/a.ts", text: "a\n" }], answers).map(
+				(f) => f.path,
+			),
+		).toEqual(["src/a.ts", "src/domains/.gitkeep"]);
+	});
+});
+
 describe("templateFileRender", () => {
 	it("drops only the Foo entry from CONTEXT.md and writes the description", () => {
 		const text =
@@ -457,6 +481,12 @@ describe.runIf(template)("the template's own files", () => {
 
 		expect(leftovers).toEqual([]);
 		expect(rendered.map((f) => f.path)).toContain("src/domains/.gitkeep");
+		// React Router serves static files from public/.
+		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
+	});
+
+	it("render README.md with the Project's name and the release package.json names", () => {
+		const rendered = templateFilesRender(files, answers);
 		const readme = rendered.find((f) => f.path === "README.md")?.text ?? "";
 		const { version } = JSON.parse(
 			readFileSync(new URL("package.json", appRoot), "utf8"),
@@ -467,8 +497,6 @@ describe.runIf(template)("the template's own files", () => {
 			"**Invoices for small shops.**",
 		]);
 		expect(readme).toContain(`[app@${version}]`);
-		// React Router serves static files from public/.
-		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
 	});
 
 	it("empty every domains-start/domains-end pair, which domainsPairsFill fills back exactly", () => {

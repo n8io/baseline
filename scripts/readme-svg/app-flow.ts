@@ -14,8 +14,10 @@ const theme = readmeSvgThemes.blueprint;
 const width = 880;
 const height = 330;
 const period = 8;
-// The dot travels for this share of the period, then rests on the last box.
-const travel = 0.86;
+// The dot waits on the first box for this share of the period, travels until `travel`, then rests
+// on the last box, so no box lights at the loop's ends.
+const lead = 0.06;
+const travel = 0.9;
 const boxWidth = 140;
 const boxHeight = 56;
 const boxLefts = [30, 200, 370, 540, 710] as const;
@@ -31,8 +33,8 @@ const serverBoxes = [
 ];
 // Read right to left: the dot comes back along the bottom row.
 const workerBoxes = [
-	{ label: "Inbox", sublabel: "skips a repeat" },
-	{ label: "Use case", sublabel: "does the work" },
+	{ label: "Inbox", sublabel: "same transaction" },
+	{ label: "Use case", sublabel: "skips a repeat" },
 	{ label: "Consumer", sublabel: "another Domain" },
 	{ label: "Worker", sublabel: "per Event key" },
 	{ label: "Event", sublabel: "in the queue" },
@@ -48,7 +50,7 @@ const pathLength = (last - first) * 2 + (bottomCentreY - topCentreY);
 
 // The moment (in seconds) the dot reaches a point `distance` along the path.
 const reachedAt = (distance: number): number =>
-	(distance / pathLength) * travel * period;
+	(lead + (distance / pathLength) * (travel - lead)) * period;
 
 const glow = (name: string, seconds: number): string =>
 	`@keyframes ${name}{0%,${keyframePercent(seconds - 0.4, period)},${keyframePercent(seconds + 0.55, period)},100%{stroke:${theme.line}}${keyframePercent(seconds, period)}{stroke:${theme.accent}}}.${name} rect{animation:${name} ${period}s linear infinite}`;
@@ -137,12 +139,12 @@ export default svgDocument({
 			x: 30,
 			y: height - 18,
 		}),
-		`<circle class="moving" r="7" fill="${theme.accent}"><animateMotion dur="${period}s" repeatCount="indefinite" path="${path}" keyPoints="0;1;1" keyTimes="0;${travel};1" calcMode="linear"/></circle>`,
+		`<circle class="moving" r="7" fill="${theme.accent}"><animateMotion dur="${period}s" repeatCount="indefinite" path="${path}" keyPoints="0;0;1;1" keyTimes="0;${lead};${travel};1" calcMode="linear"/></circle>`,
 	].join("\n"),
 	height,
 	motionCss: [...topGlows, ...bottomGlows, commit].join("\n"),
 	theme,
 	title:
-		"A write and its Event, end to end: a request runs through a Domain's API, Use case, Repository and SPI into one transaction that commits the row and its Event; the Worker delivers the Event in Event key order to another Domain's Consumer, whose Use case records it in the Inbox so a repeat is skipped.",
+		"A write and its Event, end to end: a request runs through a Domain's API, Use case, Repository and SPI into one transaction that commits the row and its Event; the Worker delivers each Event, one at a time per Event key in commit order, to another Domain's Consumer, whose Use case records it in the Inbox so a repeat is skipped.",
 	width,
 });
