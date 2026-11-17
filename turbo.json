@@ -6,12 +6,16 @@
 		"//#test": {},
 		"build": {
 			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md", "!README.md"],
 			"outputs": ["build/**", "dist/**"]
 		},
 		"check": {
 			"dependsOn": ["build"]
 		},
-		"test": {},
+		"test": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md", "!README.md"]
+		},
 		"test:unit": {}
 	}
 }

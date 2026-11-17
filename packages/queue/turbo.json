@@ -3,7 +3,7 @@
 	"extends": ["//"],
 	"tasks": {
 		"test": {
-			"inputs": ["$TURBO_DEFAULT$", "../../test/postgres/*.ts"]
+			"inputs": ["$TURBO_DEFAULT$", "!CHANGELOG.md", "../../test/postgres/*.ts"]
 		}
 	}
 }

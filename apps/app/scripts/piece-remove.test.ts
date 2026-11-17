@@ -21,6 +21,8 @@ import {
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
 
+// Reads and runs no file of the app, only its imports and a temporary folder.
+
 // Built, never written out, so a removal run over this file finds no block in it.
 const marker = ({
 	comment = "//",

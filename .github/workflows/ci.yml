@@ -16,7 +16,35 @@ concurrency:
 permissions:
   contents: read
 
+# A pull request that changes only Markdown outside apps/app skips integration, render, render-and-test and api-only:
+# a skipped job satisfies a required check. packages still runs; Turborepo picks the affected tasks.
 jobs:
+  # Whether the pull request changes anything but Markdown. If this job fails, the jobs run anyway.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: diff
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: |
+          code=true
+          if [ -n "$BASE" ]; then
+            # Its own line, so a failed diff fails the job (and the jobs run) instead of reading as empty.
+            files=$(git diff --name-only --no-renames "$BASE...HEAD")
+            # The Template's Markdown ships to Projects, whose tests read it, so it counts as code here.
+            if ! grep -qv '\.md$' <<< "$files" && ! grep -q '^apps/app/' <<< "$files"; then code=false; fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   packages:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -71,6 +99,8 @@ jobs:
 
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
   integration:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     services:
@@ -112,6 +142,8 @@ jobs:
   # Renders apps/app as a project would hold it: origin/main is the previous release,
   # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
   render:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -137,14 +169,20 @@ jobs:
           path: app.tar
           retention-days: 1
 
+  # Runs even when render was skipped or failed, so each of its jobs reports skipped: required checks
+  # need a result. A failed render fails the pull request on its own.
   render-and-test:
     needs: render
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/app-ci.yml
     with:
       artifact: render-and-test
+      skip: ${{ needs.render.result != 'success' }}
 
   # pnpm piece-remove on a fresh render: each piece alone, all together, and the way back.
   api-only:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

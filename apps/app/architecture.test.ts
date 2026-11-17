@@ -8,6 +8,11 @@ import {
 	architectureSrcRead,
 } from "./architecture-test-rules.ts";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./src/**", "./architecture-test-samples/*.txt"], {
+	query: "?raw",
+});
+
 const appRoot = fileURLToPath(new URL("./", import.meta.url));
 const samplesDir = new URL("./architecture-test-samples/", import.meta.url);
 const ruleIds = Object.keys(architectureRules);

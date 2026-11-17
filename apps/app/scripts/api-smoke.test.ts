@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { apiSmokeRoutesFind } from "./api-smoke.ts";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./api-smoke.ts"], { query: "?raw" });
+
 describe("apiSmokeRoutesFind", () => {
 	it("keeps the GET routes without a path parameter, sorted", () => {
 		expect(

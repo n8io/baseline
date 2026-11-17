@@ -25,7 +25,8 @@ import { releaseRender } from "../apps/app/scripts/template-upgrade.ts";
 
 type GlossaryTerm = { term: string; definition: string };
 
-// The app-ci.yml jobs a pull request must pass: every job there (glossary aliases warn inside `check`).
+// The app-ci.yml jobs a pull request must pass: every job there but `changes`, which only reads the
+// diff for the others (glossary aliases warn inside `check`).
 export const requiredJobs = [
 	"check",
 	"unit",

@@ -3,6 +3,19 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(
+	[
+		"./**",
+		"./**/.*",
+		"./.*/**",
+		"!./.git/**",
+		"!./.react-router/**",
+		"!**/*.md",
+	],
+	{ query: "?raw" },
+);
+
 const read = (path: string) =>
 	readFileSync(new URL(`./${path}`, import.meta.url), "utf8");
 
@@ -173,9 +186,9 @@ describe("src/preload.ts", () => {
 			.filter(
 				(path) =>
 					!skipped.test(path) &&
-					!["CHANGELOG.md", "dockerfile.test.ts", "src/preload.ts"].includes(
-						path,
-					),
+					// Docs may name a preload; only code can load one.
+					!path.endsWith(".md") &&
+					!["dockerfile.test.ts", "src/preload.ts"].includes(path),
 			)
 			.filter((path) => {
 				const text = readFileSync(

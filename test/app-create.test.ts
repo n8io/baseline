@@ -344,12 +344,14 @@ describe("app-create", () => {
 		);
 	});
 
-	it("requires every app-ci.yml job, as ci / <job>", () => {
+	it("requires every app-ci.yml job but changes, as ci / <job>", () => {
 		const workflow = readFileSync(
 			join(import.meta.dirname, "../.github/workflows/app-ci.yml"),
 			"utf8",
 		);
-		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)].map((m) => m[1]);
+		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)]
+			.map((m) => m[1])
+			.filter((job) => job !== "changes");
 
 		expect([...requiredJobs].sort()).toEqual(jobs.sort());
 	});

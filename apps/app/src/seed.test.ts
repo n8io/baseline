@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { describe, expect, it } from "vitest";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./**/*.ts", "../.env.*"], { query: "?raw" });
+
 // Runs `node src/seed.ts` the way `pnpm seed` does: varlock through the preload alone.
 const seedRun = async (env: Record<string, string | undefined>) => {
 	const child = spawn(
