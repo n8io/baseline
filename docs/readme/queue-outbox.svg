@@ -12,7 +12,7 @@
 .rolledback{opacity:0}
 .consumer rect{stroke:#6CD4A0}
 @media (prefers-reduced-motion: no-preference){
-@keyframes travel{0%,14%{transform:translateX(0);opacity:1}26%,44%{transform:translateX(430px);opacity:1}48%,100%{transform:translateX(430px);opacity:0}}.travel{animation:travel 10s ease-in-out infinite}
+@keyframes travel{0%,12%{transform:translateX(0);opacity:0}14%{transform:translateX(0);opacity:1}26%,44%{transform:translateX(430px);opacity:1}48%,100%{transform:translateX(430px);opacity:0}}.travel{animation:travel 10s ease-in-out infinite}
 @keyframes queued{0%,25%{opacity:0}26%,46%{opacity:1}48%,100%{opacity:0}}.queued{animation:queued 10s linear infinite}
 @keyframes rows{0%,52%{opacity:1}60%,96%{opacity:.2}100%{opacity:1}}.rows{animation:rows 10s linear infinite}
 @keyframes committed{0%,10%{opacity:0}14%,46%{opacity:1}50%,100%{opacity:0}}.committed{animation:committed 10s linear infinite}

@@ -25,9 +25,9 @@
 @keyframes down{0%,39.23%{opacity:0}40.00%,66.15%{opacity:1}66.92%,100%{opacity:0}}.down{animation:down 13s linear infinite}
 @keyframes resolved{0%,48.46%{opacity:0}50.00%,66.15%{opacity:1}67.69%,100%{opacity:0}}.stale{animation:resolved 13s linear infinite}
 @keyframes caught{0%,66.15%{opacity:0}67.69%,96%{opacity:1}100%{opacity:0}}.caught{animation:caught 13s linear infinite}
-@keyframes p0{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,74.23%{stroke:#5FA8D3;fill:#0C1C30}74.62%,82.31%{stroke:#6CD4A0;fill:#10243D}85.38%,100%{stroke:#5FA8D3;fill:#10243D}}.p0 rect{animation:p0 13s linear infinite}
-@keyframes p1{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,78.85%{stroke:#5FA8D3;fill:#0C1C30}79.23%,86.92%{stroke:#6CD4A0;fill:#10243D}90.00%,100%{stroke:#5FA8D3;fill:#10243D}}.p1 rect{animation:p1 13s linear infinite}
-@keyframes p2{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,83.46%{stroke:#5FA8D3;fill:#0C1C30}83.85%,91.54%{stroke:#6CD4A0;fill:#10243D}94.62%,100%{stroke:#5FA8D3;fill:#10243D}}.p2 rect{animation:p2 13s linear infinite}
+@keyframes p0{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,74.23%{stroke:#5FA8D3;fill:#10243D;opacity:.35}74.62%,82.31%{stroke:#6CD4A0;fill:#10243D;opacity:1}85.38%,100%{stroke:#5FA8D3;fill:#10243D}}.p0 rect{animation:p0 13s linear infinite}
+@keyframes p1{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,78.85%{stroke:#5FA8D3;fill:#10243D;opacity:.35}79.23%,86.92%{stroke:#6CD4A0;fill:#10243D;opacity:1}90.00%,100%{stroke:#5FA8D3;fill:#10243D}}.p1 rect{animation:p1 13s linear infinite}
+@keyframes p2{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,83.46%{stroke:#5FA8D3;fill:#10243D;opacity:.35}83.85%,91.54%{stroke:#6CD4A0;fill:#10243D;opacity:1}94.62%,100%{stroke:#5FA8D3;fill:#10243D}}.p2 rect{animation:p2 13s linear infinite}
 }
 @media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
 </style>
@@ -43,11 +43,11 @@
 <text x="620" y="58" text-anchor="middle" class="mono dim" font-size="12">instance</text>
 <text x="795" y="58" text-anchor="middle" class="mono dim" font-size="12">open page</text>
 <g class=""><rect x="560" y="70" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="95" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
-<g class="p0"><rect x="740" y="70" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="95" text-anchor="middle" class="display" font-size="12" font-weight="600">loaders rerun</text></g>
+<g class="p0"><rect x="740" y="70" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="95" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
 <g class=""><rect x="560" y="148" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="173" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
-<g class="p1"><rect x="740" y="148" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="173" text-anchor="middle" class="display" font-size="12" font-weight="600">loaders rerun</text></g>
+<g class="p1"><rect x="740" y="148" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="173" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
 <g class=""><rect x="560" y="226" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="251" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
-<g class="p2"><rect x="740" y="226" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="251" text-anchor="middle" class="display" font-size="12" font-weight="600">loaders rerun</text></g>
+<g class="p2"><rect x="740" y="226" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="251" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
 <circle class="moving send" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M220 168 H300" keyPoints="0;0;1;1" keyTimes="0;0.031;0.100;1" calcMode="linear"/></circle>
 <circle class="moving lost" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M220 168 H292" keyPoints="0;0;1;1" keyTimes="0;0.431;0.485;1" calcMode="linear"/></circle>
 <circle class="moving fan0" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M470 168 L560 90" keyPoints="0;0;1;1" keyTimes="0;0.100;0.177;1" calcMode="linear"/></circle>

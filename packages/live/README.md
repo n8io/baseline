@@ -1,6 +1,6 @@
 # @n8io/baseline-live
 
-**Every open page reruns its loaders the moment something it shows changes.** The server sends a Live update over Server-Sent Events, it fans out to every instance through pub/sub, and a lost one never fails the change that caused it.
+**Every open page reruns its loaders when something it shows changes.** The server sends a Live update over Server-Sent Events, it fans out to every instance through pub/sub, and a lost one never fails the change that caused it.
 
 ```sh
 pnpm add @n8io/baseline-live

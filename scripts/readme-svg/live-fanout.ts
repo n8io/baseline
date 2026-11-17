@@ -108,7 +108,7 @@ const motion = [
 	...rowTops.map((_, row) => {
 		const updated = pageUntil;
 		const caughtUp = (readyFrom[row] ?? 0) + readyTravel;
-		return `@keyframes p${row}{0%,${at(updated - 0.05)}{stroke:${theme.line};fill:${theme.panel}}${at(updated)},${at(updated + 1)}{stroke:${theme.accent};fill:${theme.panel}}${at(updated + 1.4)},${at(lostUntil)}{stroke:${theme.line};fill:${theme.panel}}${at(lostUntil + 0.2)},${at(caughtUp - 0.05)}{stroke:${theme.line};fill:${theme.background}}${at(caughtUp)},${at(caughtUp + 1)}{stroke:${theme.ok};fill:${theme.panel}}${at(caughtUp + 1.4)},100%{stroke:${theme.line};fill:${theme.panel}}}.p${row} rect{animation:p${row} ${period}s linear infinite}`;
+		return `@keyframes p${row}{0%,${at(updated - 0.05)}{stroke:${theme.line};fill:${theme.panel}}${at(updated)},${at(updated + 1)}{stroke:${theme.accent};fill:${theme.panel}}${at(updated + 1.4)},${at(lostUntil)}{stroke:${theme.line};fill:${theme.panel}}${at(lostUntil + 0.2)},${at(caughtUp - 0.05)}{stroke:${theme.line};fill:${theme.panel};opacity:.35}${at(caughtUp)},${at(caughtUp + 1)}{stroke:${theme.ok};fill:${theme.panel};opacity:1}${at(caughtUp + 1.4)},100%{stroke:${theme.line};fill:${theme.panel}}}.p${row} rect{animation:p${row} ${period}s linear infinite}`;
 	}),
 ].join("\n");
 
@@ -177,7 +177,7 @@ export default svgDocument({
 				className: `p${row}`,
 				fontSize: 12,
 				height: rowHeight,
-				label: "loaders rerun",
+				label: "page",
 				theme,
 				width: pageWidth,
 				x: pageLeft,

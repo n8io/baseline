@@ -42,7 +42,7 @@ const css = [
 
 // 0–50%: the transaction commits and the Event travels to the Consumer. 50–100%: it rolls back.
 const motion = [
-	`@keyframes travel{0%,14%{transform:translateX(0);opacity:1}26%,44%{transform:translateX(${travel}px);opacity:1}48%,100%{transform:translateX(${travel}px);opacity:0}}.travel{animation:travel ${period}s ease-in-out infinite}`,
+	`@keyframes travel{0%,12%{transform:translateX(0);opacity:0}14%{transform:translateX(0);opacity:1}26%,44%{transform:translateX(${travel}px);opacity:1}48%,100%{transform:translateX(${travel}px);opacity:0}}.travel{animation:travel ${period}s ease-in-out infinite}`,
 	`@keyframes queued{0%,25%{opacity:0}26%,46%{opacity:1}48%,100%{opacity:0}}.queued{animation:queued ${period}s linear infinite}`,
 	`@keyframes rows{0%,52%{opacity:1}60%,96%{opacity:.2}100%{opacity:1}}.rows{animation:rows ${period}s linear infinite}`,
 	`@keyframes committed{0%,10%{opacity:0}14%,46%{opacity:1}50%,100%{opacity:0}}.committed{animation:committed ${period}s linear infinite}`,

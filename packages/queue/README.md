@@ -10,17 +10,17 @@ pnpm add @n8io/baseline-queue
 
 ## Guarantees
 
-| You get                              | How                                                                                                                                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Committed with the write**         | A publish writes the Event on the caller's transaction (an outbox). A rollback drops it with the rows.                                               |
-| **In order per Event key**           | A publish locks its key until its transaction ends; each Consumer gets one Event of a key at a time, in commit order, on any number of workers.      |
-| **Parallel across keys**             | Events of different keys run beside each other. Measured once: 12 workers drain about 1,000 Events a second over 50 keys.                            |
-| **Handled once**                     | `queueInboxInsert` records the Event in the Consumer's own transaction and returns `false` for a repeat. The worker prunes Inbox rows after 30 days. |
-| **A loud stop, never a silent skip** | Five attempts with backoff, then a copy in `<queueName>.dead`, the key held back, an error log and the `baseline.queue.blocked_keys` gauge.          |
-| **Schedules that survive rollouts**  | Synced from the migrate entry, started in the worker, one run per tick however many workers. `SCHEDULE_<NAME>` overrides a cron or turns it `off`.   |
-| **One trace**                        | A Consumer runs in the trace of the request that published its Event.                                                                                |
-| **Any schema**                       | A Zod, Valibot or ArkType schema as it is: anything that implements Standard Schema. A failure names the paths, never the values.                    |
-| **Liveness that outlasts an outage** | `isAlive()` fails only when the poll loop hangs for 60 s; a Postgres outage never restarts a worker.                                                 |
+| You get                              | How                                                                                                                                                |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Committed with the write**         | A publish writes the Event on the caller's transaction (an outbox). A rollback drops it with the rows.                                             |
+| **In order per Event key**           | A publish locks its key until its transaction ends; each Consumer gets one Event of a key at a time, in commit order, on any number of workers.    |
+| **Parallel across keys**             | Events of different keys run beside each other. Measured once: 12 workers drain about 1,000 Events a second over 50 keys.                          |
+| **Handled once**                     | `queueInboxInsert` records the Event in the caller's transaction and returns `false` for a repeat. The worker prunes old Inbox rows daily.         |
+| **A loud stop, never a silent skip** | Five attempts with backoff, then a copy in `<queueName>.dead`, the key held back, an error log and the `baseline.queue.blocked_keys` gauge.        |
+| **Schedules that survive rollouts**  | Synced from the migrate entry, started in the worker, one run per tick however many workers. `SCHEDULE_<NAME>` overrides a cron or turns it `off`. |
+| **One trace**                        | A Consumer runs in the trace of the request that published its Event.                                                                              |
+| **Any schema**                       | A Zod, Valibot or ArkType schema as it is: anything that implements Standard Schema. A failure names the paths, never the values.                  |
+| **Liveness that outlasts an outage** | `isAlive()` fails only when the poll loop hangs for 60 s, so a Postgres outage never fails liveness, given a pool query timeout under 60 s.        |
 
 <p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/queue-outbox.svg" width="880" alt="A transaction inserts an order and publishes order.placed. On COMMIT the Event moves into the queue in the same Postgres and its Consumer lights up; on ROLLBACK neither the row nor the Event exists."></p>
 
@@ -38,9 +38,9 @@ export const billingOrderPlaced = queueConsumerCreate({
 		}),
 	schema: z.object({ totalCents: z.number().int() }),
 });
-
 // In the worker. A server opens the queue as a "publisher" and calls consumersSubscribe.
-const events = queueEventsCreate(await queueCreate({ pgPool, role: "worker" }));
+const queue = await queueCreate({ pgPool, role: "worker" });
+const events = queueEventsCreate(queue);
 await events.consumersStart([billingOrderPlaced]);
 ```
 
@@ -54,9 +54,10 @@ await publisher.publish({
 	key: order.id,
 	name: "order.placed",
 });
+await publisher.committed(); // after COMMIT; on a rollback, discard the publisher
 ```
 
-Test a Consumer the way the worker runs it, with no database: `queueTestConsumerRun` from `@n8io/baseline-queue/testing` validates the data with its schema and passes an Inbox. Unit-test a publisher with `queueEventsMemoryCreate`, which records each publish.
+Test a Consumer the way the worker runs it, with no queue running: `queueTestConsumerRun` from `@n8io/baseline-queue/testing` validates the data with its schema and passes an Inbox. Unit-test code that publishes with `queueEventsMemoryCreate()`, an `EventsPublisher` that records each publish.
 
 ```ts
 import { queueTestConsumerRun } from "@n8io/baseline-queue/testing";
@@ -71,17 +72,17 @@ const result = await queueTestConsumerRun({
 
 <details><summary><b>Exports</b></summary>
 
-- `queueMigrate({ databaseUrl, queuesRemoved?, vendor? })` (`vendor`, typed `QueueMigrateVendorOptions`, takes `ssl`, `application_name` and `options` for the connection pg-boss opens to migrate): installs or upgrades pg-boss in schema `queue` and creates `queue.inbox`. It also removes the queues an upgrade left behind (see Upgrading to 8). Run it from the migrate entry.
-- `queueCreate({ pgPool, role, concurrency?, vendor? })`, `Queue`: starts pg-boss on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Consumers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since }` (see A blocked key); `stop()` waits up to 15 s for running jobs, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
+- `queueMigrate({ databaseUrl, queuesRemoved?, vendor? })` (`vendor`, typed `QueueMigrateVendorOptions`, takes `ssl`, `application_name` and `options` for the connection pg-boss opens to migrate): installs or upgrades the queue's tables in schema `queue` and creates `queue.inbox`. It also removes the queues an upgrade left behind (see Upgrading to 8, under Reference). Run it from the migrate entry.
+- `queueCreate({ pgPool, role, concurrency?, vendor? })`, `Queue`: starts the queue on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Consumers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health, under Reference); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since }` (see Runbook: a blocked key, under Reference); `stop()` waits up to 15 s for running jobs, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
 - `Events`: how Events travel, whatever carries them: `consumersSubscribe(consumers)` (every process that publishes calls it at boot), `consumersStart(consumers)` (worker only), `publisherCreate(transaction)` and `isAlive()`. A composition root opens one and nothing else names the transport.
-- `EventsPublisher`: one per transaction. `publish({ name, data, key })` inside it, then `committed()` once it has committed; on a rollback, discard it. `key` is the Event key: the id of the entity the Event is about, never empty (see Order).
+- `EventsPublisher`: one per transaction. `publish({ name, data, key })` inside it, then `committed()` once it has committed; on a rollback, discard it. `key` is the Event key: the id of the entity the Event is about, never empty (see Order, under Reference).
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
-- `queueEventsMemoryCreate({ published? })`: records each publish in the `published` array as `{ name, data, key }`, for unit tests. The argument is optional.
+- `queueEventsMemoryCreate({ published? })`: an `EventsPublisher` that records each publish in the `published` array as `{ name, data, key }`, for unit tests. The argument is optional.
 - `queueConsumerCreate({ queueName, eventName, schema, run })`, `Consumer`: validates each Event with the schema and runs the Consumer with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
 - `@n8io/baseline-queue/testing`: `queueTestConsumerRun({ consumer, data, eventId? })` runs one Event through a Consumer as the worker does (validated by its schema, with an Inbox of its `queueName` and the `eventId`, a new one by default) and returns the Consumer's result. Import it from test files only.
-- `queueScheduleCreate({ name, cron, run })`, `Schedule`: a UTC cron Schedule. `queueSchedulesSync({ databaseUrl, schedules, env, vendor? })` writes the Schedules to the database from the migrate entry, and `queueSchedulesStart({ queue, schedules, env })` runs them in the worker (see Schedules). `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
+- `queueScheduleCreate({ name, cron, run })`, `Schedule`: a UTC cron Schedule. `queueSchedulesSync({ databaseUrl, schedules, env, vendor? })` writes the Schedules to the database from the migrate entry, and `queueSchedulesStart({ queue, schedules, env })` runs them in the worker (see Schedules, under Reference). `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
-- `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the package needs no `pg` types.
+- `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the Package needs no `pg` types.
 
 </details>
 
@@ -155,7 +156,7 @@ Every publish names an Event key: the id of the entity the Event is about. Each 
 
 An Event that fails all five attempts stays in its queue as failed, and a copy goes to `<queueName>.dead`. Strict order means the later Events of that key now wait until someone decides; every other key carries on. The worker logs it at error level ("its key is blocked until released") with the queue and the key, and counts it on `baseline.queue.dead_letters`. An Event the queue fails itself (a dead worker or a fetch out of time, five times over) blocks its key without that log line or count. So every worker also looks once a minute: it logs each blocked key it has not logged yet at error level ("Event key is blocked until released") and sets the gauge `baseline.queue.blocked_keys` to the number of blocked keys per Consumer (`messaging.destination.name`). Every worker reports the same count, so alert on its maximum across workers being above 0, not on a sum.
 
-Decide within 7 days. After that pg-boss deletes the failed Event, and the key moves on without it.
+Decide within 7 days. After that the queue deletes the failed Event, and the key moves on without it.
 
 List what is blocked with `queue.blockedKeys()`, or in SQL:
 
@@ -200,7 +201,7 @@ The `SCHEDULE_<NAME>` overrides act where the sync runs, so set them in the envi
 
 So a Postgres outage or failover never fails liveness, as long as a poll fails instead of hanging: give the pool a query timeout well under 60 s (`postgresPoolCreate` sets 15 s). Polls fail, the failures of each queue are logged as "Queue error" once per 30 s, and the worker stays up and carries on by itself when Postgres is back. A dependency being down belongs to the startup check: a process that cannot reach Postgres fails `queueCreate` and never reports ready. A publisher has no poll loop and is always alive.
 
-pg-boss reports a failed poll as a plain object; the package logs it as an `Error` with the same message, stack and `code`, and that object as its `cause`. When `queueMigrate` removes a queue that a running worker still polls (an old unordered queue, or one in `queuesRemoved`), that worker logs one warning ("Queue was removed") and stops polling it.
+The queue reports a failed poll as a plain object; the Package logs it as an `Error` with the same message, stack and `code`, and that object as its `cause`. When `queueMigrate` removes a queue that a running worker still polls (an old unordered queue, or one in `queuesRemoved`), that worker logs one warning ("Queue was removed") and stops polling it.
 
 </details>
 
@@ -214,7 +215,7 @@ Releases before 8 kept a Consumer's jobs in an unordered queue named `<queueName
 2. Events left in the old queue run as they did before, without a key, so they have no order among themselves or against new Events. If that matters for a Consumer, let its queue empty before you roll out.
 3. A later `queueMigrate` removes the old queue, once the ordered queue is a week old, nothing in the old one is waiting or running and nothing has been published to it for a week.
 
-A rollback to the old release leaves the Events already in the ordered queues waiting until you roll forward again; pg-boss deletes a waiting Event after 14 days. Do not roll back to it once the old queues are gone: its publishes would find no queue and be lost.
+A rollback to the old release leaves the Events already in the ordered queues waiting until you roll forward again; the queue deletes a waiting Event after 14 days. Do not roll back to it once the old queues are gone: its publishes would find no queue and be lost.
 
 </details>
 
@@ -224,4 +225,4 @@ A rollback to the old release leaves the Events already in the ordered queues wa
 
 </details>
 
-**Needs** `@opentelemetry/api` as a peer; `DATABASE_URL` and an optional `SCHEDULE_<NAME>` per Schedule, by the Template's convention; a pool you pass to `queueCreate` (pg-boss brings its own `pg` for `queueMigrate`); and your schema library (the Template uses Zod; the package imports none). Runs on pg-boss, in the app's own Postgres.
+**Needs** `@opentelemetry/api` as a peer; `DATABASE_URL` and an optional `SCHEDULE_<NAME>` per Schedule, by the Template's convention; a pool you pass to `queueCreate` (pg-boss brings its own `pg` for `queueMigrate`); and your schema library (the Template uses Zod; the Package imports none). Runs on [pg-boss](https://github.com/timgit/pg-boss), in the app's own Postgres.
