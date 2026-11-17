@@ -1,7 +1,12 @@
 name: ci
 
 # workflow_dispatch: app-create runs CI once on a new Project's main.
-on: [pull_request, workflow_dispatch]
+# schedule: a nightly run of every test on main, since a pull request runs only the tests its diff reaches.
+on:
+  pull_request:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
 
 # A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
 concurrency:

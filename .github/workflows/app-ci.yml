@@ -27,8 +27,8 @@ on:
         type: boolean
 
 # On a pull request, unit runs only the tests its diff reaches (`pnpm test --changed`), and a diff of
-# Markdown alone skips integration, pieces and image. Every other run (a dispatch, baseline's render)
-# runs everything.
+# Markdown alone skips integration, pieces and image. Every other run (the Template's nightly run on
+# main, a dispatch, baseline's render) runs everything.
 jobs:
   # Whether the pull request changes anything but Markdown. If this job fails or is skipped (baseline's
   # render passes an artifact), the jobs run anyway.
