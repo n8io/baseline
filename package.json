@@ -11,6 +11,7 @@
 		"app-create": "node --import ./apps/app/scripts/node-version-require.ts scripts/app-create.ts",
 		"check": "biome check . && tsc --noEmit",
 		"format": "biome format --write .",
+		"readme-svg": "node scripts/readme-svg-write.ts",
 		"test": "vitest run",
 		"test:unit": "turbo run test:unit",
 		"version": "changeset version && node scripts/ci-pin-write.ts && biome format --write ."
