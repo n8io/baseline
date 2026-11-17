@@ -4,7 +4,7 @@
 
 export type ReadmeSvgTheme = {
 	accent: string;
-	accentSecondary: string;
+	accentSecondary?: string;
 	background: string;
 	dim: string;
 	display: string;
@@ -26,7 +26,6 @@ const sansFonts =
 export const readmeSvgThemes = {
 	blueprint: {
 		accent: "#F5B544",
-		accentSecondary: "#5FA8D3",
 		background: "#0C1C30",
 		dim: "#86A3BE",
 		display: monoFonts,
@@ -71,20 +70,22 @@ export type SvgDocumentOptions = {
 	body: string;
 	css?: string | null;
 	height: number;
+	motionCss?: string | null;
 	theme: ReadmeSvgTheme;
 	title: string;
 	width: number;
 };
 
 // The whole file: the title, the shared classes, the reduced-motion block and the theme's own
-// background panel, so the diagram reads on GitHub light and dark and on npmjs. `css` applies
-// only when the viewer allows motion; under reduced motion each element keeps its unanimated
-// style, `.typed` text shows in full and `.moving` (an element SMIL moves) hides, so give each
-// element its finished look as its style.
+// background panel, so the diagram reads on GitHub light and dark and on npmjs. `css` always
+// applies; `motionCss` (every @keyframes and animation rule) only when the viewer allows motion.
+// Under reduced motion each element keeps its unanimated style, `.typed` text shows in full and
+// `.moving` (an element SMIL moves) hides, so give each element its finished look as its style.
 export const svgDocument = ({
 	body,
 	css,
 	height,
+	motionCss,
 	theme,
 	title,
 	width,
@@ -98,8 +99,9 @@ export const svgDocument = ({
 .accent{fill:${theme.accent}}
 .ok{fill:${theme.ok}}
 .fail{fill:${theme.fail}}
-@media (prefers-reduced-motion: no-preference){
 ${css ?? ""}
+@media (prefers-reduced-motion: no-preference){
+${motionCss ?? ""}
 }
 @media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
 </style>
@@ -110,22 +112,48 @@ ${body}
 
 export type SvgGridOptions = {
 	height: number;
+	id?: string | null;
 	step?: number | null;
 	theme: ReadmeSvgTheme;
 	width: number;
 };
 
-// The blueprint's faint graph-paper grid, as a tiled pattern. Each tile draws its top and left
-// edge at double width, half of which the tile clips.
+// The blueprint's faint graph-paper grid, as a tiled pattern over the rounded panel. Each tile
+// draws its top and left edge at double width, half of which the tile clips.
 export const svgGrid = ({
 	height,
+	id,
 	step,
 	theme,
 	width,
 }: SvgGridOptions): string => {
 	const gap = step ?? 20;
-	return `<defs><pattern id="grid" width="${gap}" height="${gap}" patternUnits="userSpaceOnUse"><path d="M0 0V${gap}M0 0H${gap}" fill="none" stroke="${theme.grid}" stroke-width="2"/></pattern></defs><rect width="${width}" height="${height}" fill="url(#grid)"/>`;
+	const patternId = id ?? "grid";
+	return `<defs><pattern id="${patternId}" width="${gap}" height="${gap}" patternUnits="userSpaceOnUse"><path d="M0 0V${gap}M0 0H${gap}" fill="none" stroke="${theme.grid}" stroke-width="2"/></pattern></defs><rect width="${width}" height="${height}" rx="${theme.radius + 4}" fill="url(#${patternId})"/>`;
 };
+
+export type SvgTextOptions = {
+	anchor?: "start" | "middle" | "end" | null;
+	className?: string | null;
+	fontSize?: number | null;
+	text: string;
+	weight?: number | null;
+	x: number;
+	y: number;
+};
+
+// One line of escaped text. `className` picks the font and colour: `display` or `mono`, plus
+// `dim`, `accent`, `ok` or `fail`.
+export const svgText = ({
+	anchor,
+	className,
+	fontSize,
+	text,
+	weight,
+	x,
+	y,
+}: SvgTextOptions): string =>
+	`<text x="${x}" y="${y}"${anchor ? ` text-anchor="${anchor}"` : ""} class="${className ?? "mono"}" font-size="${fontSize ?? 13}"${weight ? ` font-weight="${weight}"` : ""}>${svgEscape(text)}</text>`;
 
 export type SvgBoxOptions = {
 	className?: string | null;
@@ -178,7 +206,8 @@ export type SvgTypedTextOptions = {
 };
 
 // A mono line typed left to right between `typedFrom` and `typedUntil` (seconds), held, then
-// cleared just before the loop restarts. The reveal is SMIL on a clipPath rect's width: CSS
+// cleared from 92% to 97% of the period. `id` must be unique in the diagram, and `className`
+// must not change the font: the width assumes a monospace character of 0.61em. The reveal is SMIL on a clipPath rect's width: CSS
 // width there does not repaint in Chrome. `prompt` (such as "$ ") is drawn in the accent.
 export const svgTypedText = ({
 	className,
@@ -192,6 +221,13 @@ export const svgTypedText = ({
 	x,
 	y,
 }: SvgTypedTextOptions): string => {
+	if (
+		!(0 <= typedFrom && typedFrom <= typedUntil && typedUntil <= period * 0.92)
+	) {
+		throw new Error(
+			`svgTypedText ${id}: need 0 <= typedFrom <= typedUntil <= 92% of the period`,
+		);
+	}
 	const size = fontSize ?? 13;
 	const width = Math.ceil(`${prompt ?? ""}${text}`.length * size * 0.61) + 6;
 	const keyTimes = [0, typedFrom / period, typedUntil / period, 0.92, 0.97, 1]
