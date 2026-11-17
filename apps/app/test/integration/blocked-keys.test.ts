@@ -54,8 +54,8 @@ describe("src/blocked-keys.ts on Postgres", { timeout: 60_000 }, () => {
 		const events = queueEventsCreate(queue);
 		await events.consumersSubscribe([
 			queueConsumerCreate({
-				eventName: "foo.blocked",
-				queueName: "audit.foo-blocked",
+				eventName: "sample.blocked",
+				queueName: "audit.sample-blocked",
 				run: async () => ok(undefined),
 				schema: z.object({}),
 			}),
@@ -63,14 +63,14 @@ describe("src/blocked-keys.ts on Postgres", { timeout: 60_000 }, () => {
 		// No Worker runs here, so the Event waits; failing it by hand blocks its key.
 		const block = async (): Promise<void> => {
 			await pgPool.query(
-				"UPDATE queue.job SET state = 'failed', completed_on = now() WHERE name = 'audit.foo-blocked.ordered'",
+				"UPDATE queue.job SET state = 'failed', completed_on = now() WHERE name = 'audit.sample-blocked.ordered'",
 			);
 		};
 		const pgClient = await pgPool.connect();
 		try {
 			await events
-				.publisherCreate<{ "foo.blocked": Record<string, never> }>(pgClient)
-				.publish({ data: {}, key: "foo_1", name: "foo.blocked" });
+				.publisherCreate<{ "sample.blocked": Record<string, never> }>(pgClient)
+				.publish({ data: {}, key: "sample_1", name: "sample.blocked" });
 		} finally {
 			pgClient.release();
 		}
@@ -79,23 +79,23 @@ describe("src/blocked-keys.ts on Postgres", { timeout: 60_000 }, () => {
 
 		const listed = await blockedKeysRun(databaseUrl, []);
 		expect(listed.code).toBe(0);
-		expect(listed.output).toContain("audit.foo-blocked");
-		expect(listed.output).toContain("foo_1");
+		expect(listed.output).toContain("audit.sample-blocked");
+		expect(listed.output).toContain("sample_1");
 
-		const wrong = ["retry", "audit.foo-blocked", "foo_2"];
+		const wrong = ["retry", "audit.sample-blocked", "sample_2"];
 		expect((await blockedKeysRun(databaseUrl, wrong)).code).toBe(1);
 		expect(await queue.blockedKeys()).toHaveLength(1);
 		expect(
 			(
 				await blockedKeysRun(databaseUrl, [
 					"skip",
-					"audit.foo-blocked",
-					"foo_1",
+					"audit.sample-blocked",
+					"sample_1",
 				])
 			).code,
 		).toBe(1);
 
-		const blocked = ["audit.foo-blocked", "foo_1"];
+		const blocked = ["audit.sample-blocked", "sample_1"];
 		expect(
 			(await blockedKeysRun(databaseUrl, ["retry", ...blocked])).code,
 		).toBe(0);
