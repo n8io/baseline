@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" width="880" height="330" role="img" aria-label="A Live update fans out from liveHub.send through Redis pub/sub to every instance and each open page reruns its loaders; while Redis is down send still resolves, and when it returns each stream sends ready so every page catches up">
+<title>A Live update fans out from liveHub.send through Redis pub/sub to every instance and each open page reruns its loaders; while Redis is down send still resolves, and when it returns each stream sends ready so every page catches up</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+.down,.stale,.caught{opacity:0}
+.redis rect{stroke:#5FA8D3}
+@media (prefers-reduced-motion: no-preference){
+@keyframes send{0%,2.69%{opacity:0}3.08%,10.00%{opacity:1}10.77%,100%{opacity:0}}.send{animation:send 13s linear infinite}
+@keyframes lost{0%,42.69%{opacity:0}43.08%,48.46%{opacity:1}49.23%,100%{opacity:0}}.lost{animation:lost 13s linear infinite}
+@keyframes fan0{0%,9.62%{opacity:0}10.00%,17.69%{opacity:1}18.46%,100%{opacity:0}}.fan0{animation:fan0 13s linear infinite}
+@keyframes page0{0%,17.31%{opacity:0}17.69%,23.85%{opacity:1}24.62%,100%{opacity:0}}.page0{animation:page0 13s linear infinite}
+@keyframes ready0{0%,68.85%{opacity:0}69.23%,74.62%{opacity:1}75.38%,100%{opacity:0}}.ready0{animation:ready0 13s linear infinite}
+@keyframes fan1{0%,9.62%{opacity:0}10.00%,17.69%{opacity:1}18.46%,100%{opacity:0}}.fan1{animation:fan1 13s linear infinite}
+@keyframes page1{0%,17.31%{opacity:0}17.69%,23.85%{opacity:1}24.62%,100%{opacity:0}}.page1{animation:page1 13s linear infinite}
+@keyframes ready1{0%,73.46%{opacity:0}73.85%,79.23%{opacity:1}80.00%,100%{opacity:0}}.ready1{animation:ready1 13s linear infinite}
+@keyframes fan2{0%,9.62%{opacity:0}10.00%,17.69%{opacity:1}18.46%,100%{opacity:0}}.fan2{animation:fan2 13s linear infinite}
+@keyframes page2{0%,17.31%{opacity:0}17.69%,23.85%{opacity:1}24.62%,100%{opacity:0}}.page2{animation:page2 13s linear infinite}
+@keyframes ready2{0%,78.08%{opacity:0}78.46%,83.85%{opacity:1}84.62%,100%{opacity:0}}.ready2{animation:ready2 13s linear infinite}
+@keyframes redis{0%,39.23%{stroke:#5FA8D3}40.00%,66.15%{stroke:#FF7A6B}66.92%,100%{stroke:#6CD4A0}}.redis rect{animation:redis 13s linear infinite}
+@keyframes down{0%,39.23%{opacity:0}40.00%,66.15%{opacity:1}66.92%,100%{opacity:0}}.down{animation:down 13s linear infinite}
+@keyframes resolved{0%,48.46%{opacity:0}50.00%,66.15%{opacity:1}67.69%,100%{opacity:0}}.stale{animation:resolved 13s linear infinite}
+@keyframes caught{0%,66.15%{opacity:0}67.69%,96%{opacity:1}100%{opacity:0}}.caught{animation:caught 13s linear infinite}
+@keyframes p0{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,74.23%{stroke:#5FA8D3;fill:#10243D;opacity:.35}74.62%,82.31%{stroke:#6CD4A0;fill:#10243D;opacity:1}85.38%,100%{stroke:#5FA8D3;fill:#10243D}}.p0 rect{animation:p0 13s linear infinite}
+@keyframes p1{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,78.85%{stroke:#5FA8D3;fill:#10243D;opacity:.35}79.23%,86.92%{stroke:#6CD4A0;fill:#10243D;opacity:1}90.00%,100%{stroke:#5FA8D3;fill:#10243D}}.p1 rect{animation:p1 13s linear infinite}
+@keyframes p2{0%,23.46%{stroke:#5FA8D3;fill:#10243D}23.85%,31.54%{stroke:#F5B544;fill:#10243D}34.62%,48.46%{stroke:#5FA8D3;fill:#10243D}50.00%,83.46%{stroke:#5FA8D3;fill:#10243D;opacity:.35}83.85%,91.54%{stroke:#6CD4A0;fill:#10243D;opacity:1}94.62%,100%{stroke:#5FA8D3;fill:#10243D}}.p2 rect{animation:p2 13s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="330" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="330" rx="6" fill="url(#grid)"/>
+<text x="30" y="40" class="display" font-size="15" font-weight="700">One change, every open page</text>
+<path d="M220 168 H300" stroke="#5FA8D3" stroke-dasharray="3 5" fill="none"/>
+<path d="M470 168 L560 90 M680 90 H740" stroke="#5FA8D3" stroke-dasharray="3 5" fill="none"/>
+<path d="M470 168 L560 168 M680 168 H740" stroke="#5FA8D3" stroke-dasharray="3 5" fill="none"/>
+<path d="M470 168 L560 246 M680 246 H740" stroke="#5FA8D3" stroke-dasharray="3 5" fill="none"/>
+<g class=""><rect x="30" y="140" width="190" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="125" y="166" text-anchor="middle" class="display" font-size="14" font-weight="600">liveHub.send()</text><text x="125" y="183" text-anchor="middle" class="mono dim" font-size="11">after the commit</text></g>
+<g class="redis"><rect x="300" y="140" width="170" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="385" y="166" text-anchor="middle" class="display" font-size="14" font-weight="600">Redis pub/sub</text><text x="385" y="183" text-anchor="middle" class="mono dim" font-size="11">every instance</text></g>
+<text x="620" y="58" text-anchor="middle" class="mono dim" font-size="12">instance</text>
+<text x="795" y="58" text-anchor="middle" class="mono dim" font-size="12">open page</text>
+<g class=""><rect x="560" y="70" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="95" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
+<g class="p0"><rect x="740" y="70" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="95" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
+<g class=""><rect x="560" y="148" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="173" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
+<g class="p1"><rect x="740" y="148" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="173" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
+<g class=""><rect x="560" y="226" width="120" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="620" y="251" text-anchor="middle" class="display" font-size="12" font-weight="600">SSE stream</text></g>
+<g class="p2"><rect x="740" y="226" width="110" height="40" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="795" y="251" text-anchor="middle" class="display" font-size="12" font-weight="600">page</text></g>
+<circle class="moving send" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M220 168 H300" keyPoints="0;0;1;1" keyTimes="0;0.031;0.100;1" calcMode="linear"/></circle>
+<circle class="moving lost" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M220 168 H292" keyPoints="0;0;1;1" keyTimes="0;0.431;0.485;1" calcMode="linear"/></circle>
+<circle class="moving fan0" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M470 168 L560 90" keyPoints="0;0;1;1" keyTimes="0;0.100;0.177;1" calcMode="linear"/></circle>
+<circle class="moving page0" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 90 H740" keyPoints="0;0;1;1" keyTimes="0;0.177;0.238;1" calcMode="linear"/></circle>
+<circle class="moving ready0" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 90 H740" keyPoints="0;0;1;1" keyTimes="0;0.692;0.746;1" calcMode="linear"/></circle>
+<circle class="moving fan1" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M470 168 L560 168" keyPoints="0;0;1;1" keyTimes="0;0.100;0.177;1" calcMode="linear"/></circle>
+<circle class="moving page1" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 168 H740" keyPoints="0;0;1;1" keyTimes="0;0.177;0.238;1" calcMode="linear"/></circle>
+<circle class="moving ready1" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 168 H740" keyPoints="0;0;1;1" keyTimes="0;0.738;0.792;1" calcMode="linear"/></circle>
+<circle class="moving fan2" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M470 168 L560 246" keyPoints="0;0;1;1" keyTimes="0;0.100;0.177;1" calcMode="linear"/></circle>
+<circle class="moving page2" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 246 H740" keyPoints="0;0;1;1" keyTimes="0;0.177;0.238;1" calcMode="linear"/></circle>
+<circle class="moving ready2" r="6" fill="#F5B544"><animateMotion dur="13s" repeatCount="indefinite" path="M680 246 H740" keyPoints="0;0;1;1" keyTimes="0;0.785;0.838;1" calcMode="linear"/></circle>
+<g class="down"><text x="385" y="130" text-anchor="middle" class="mono fail" font-size="12" font-weight="700">down</text></g>
+<g class="stale"><text x="30" y="222" class="mono dim" font-size="12">send resolves within 1 s; counted and logged</text><text x="30" y="242" class="mono dim" font-size="12">pages stay as they were</text></g>
+<g class="caught"><text x="30" y="222" class="mono ok" font-size="12">back: each stream sends ready</text><text x="30" y="242" class="mono ok" font-size="12">within 1 to 5 s, every page catches up</text></g>
+<text x="30" y="312" class="mono dim" font-size="12">An update says what changed, never the data. Losing one never fails the change.</text>
+</svg>

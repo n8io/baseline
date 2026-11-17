@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="880" height="320" role="img" aria-label="Health probes across a process's life: nothing answers while it boots, /livez is 200 once the port opens, /readyz is 503 until ready(), 200 while ready and 503 again from SIGTERM while the server drains">
+<title>Health probes across a process's life: nothing answers while it boots, /livez is 200 once the port opens, /readyz is 503 until ready(), 200 while ready and 503 again from SIGTERM while the server drains</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+
+@media (prefers-reduced-motion: no-preference){
+@keyframes phase0{0%,4.50%,20.57%,100%{fill:#86A3BE}6.00%,19.07%{fill:#F5B544}}.phase0{animation:phase0 10s linear infinite}
+@keyframes phase1{0%,19.57%,34.49%,100%{fill:#86A3BE}21.07%,32.99%{fill:#F5B544}}.phase1{animation:phase1 10s linear infinite}
+@keyframes phase2{0%,33.49%,57.67%,100%{fill:#86A3BE}34.99%,56.17%{fill:#F5B544}}.phase2{animation:phase2 10s linear infinite}
+@keyframes phase3{0%,56.67%,72.75%,100%{fill:#86A3BE}58.17%,71.25%{fill:#F5B544}}.phase3{animation:phase3 10s linear infinite}
+@keyframes phase4{0%,71.75%,85.50%,100%{fill:#86A3BE}73.25%,84.00%{fill:#F5B544}}.phase4{animation:phase4 10s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="320" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="320" rx="6" fill="url(#grid)"/>
+<text x="40" y="44" class="display" font-size="15" font-weight="700">What the probes answer, from boot to exit</text>
+<text x="215" y="96" text-anchor="middle" class="mono dim phase0" font-size="12" font-weight="600">booting</text>
+<text x="340" y="96" text-anchor="middle" class="mono dim phase1" font-size="12" font-weight="600">listening</text>
+<text x="500" y="96" text-anchor="middle" class="mono dim phase2" font-size="12" font-weight="600">ready</text>
+<text x="665" y="96" text-anchor="middle" class="mono dim phase3" font-size="12" font-weight="600">draining</text>
+<text x="785" y="96" text-anchor="middle" class="mono dim phase4" font-size="12" font-weight="600">closed</text>
+<text x="40" y="135" class="mono" font-size="13" font-weight="600">/livez</text>
+<rect x="152" y="112" width="126" height="36" rx="2" fill="#10243D" fill-opacity="1" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="215" y="134" text-anchor="middle" class="mono dim" font-size="12">no answer</text>
+<rect x="282" y="112" width="116" height="36" rx="2" fill="#6CD4A0" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="340" y="134" text-anchor="middle" class="mono ok" font-size="12">200 ok</text>
+<rect x="402" y="112" width="196" height="36" rx="2" fill="#6CD4A0" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="500" y="134" text-anchor="middle" class="mono ok" font-size="12">200 ok</text>
+<rect x="602" y="112" width="126" height="36" rx="2" fill="#6CD4A0" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="665" y="134" text-anchor="middle" class="mono ok" font-size="12">200 ok</text>
+<rect x="732" y="112" width="106" height="36" rx="2" fill="#10243D" fill-opacity="1" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="785" y="134" text-anchor="middle" class="mono dim" font-size="12">no answer</text>
+<text x="40" y="191" class="mono" font-size="13" font-weight="600">/readyz</text>
+<rect x="152" y="168" width="126" height="36" rx="2" fill="#10243D" fill-opacity="1" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="215" y="190" text-anchor="middle" class="mono dim" font-size="12">no answer</text>
+<rect x="282" y="168" width="116" height="36" rx="2" fill="#FF7A6B" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="340" y="190" text-anchor="middle" class="mono fail" font-size="12">503</text>
+<rect x="402" y="168" width="196" height="36" rx="2" fill="#6CD4A0" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="500" y="190" text-anchor="middle" class="mono ok" font-size="12">200 ok</text>
+<rect x="602" y="168" width="126" height="36" rx="2" fill="#FF7A6B" fill-opacity="0.22" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="665" y="190" text-anchor="middle" class="mono fail" font-size="12">503</text>
+<rect x="732" y="168" width="106" height="36" rx="2" fill="#10243D" fill-opacity="1" stroke="#5FA8D3" stroke-opacity="0.5"/><text x="785" y="190" text-anchor="middle" class="mono dim" font-size="12">no answer</text>
+<path d="M280 104 V226" stroke="#5FA8D3" stroke-width="1" stroke-dasharray="3 4"/><text x="280" y="242" text-anchor="middle" class="mono accent" font-size="11">port opens</text>
+<path d="M400 104 V226" stroke="#5FA8D3" stroke-width="1" stroke-dasharray="3 4"/><text x="400" y="242" text-anchor="middle" class="mono accent" font-size="11">ready()</text>
+<path d="M600 104 V226" stroke="#5FA8D3" stroke-width="1" stroke-dasharray="3 4"/><text x="600" y="242" text-anchor="middle" class="mono accent" font-size="11">SIGTERM</text>
+<path d="M730 104 V226" stroke="#5FA8D3" stroke-width="1" stroke-dasharray="3 4"/><text x="730" y="242" text-anchor="middle" class="mono accent" font-size="11">close()</text>
+<path class="moving" d="M150 104 V212" stroke="#F5B544" stroke-width="2"><animateTransform attributeName="transform" type="translate" dur="10s" repeatCount="indefinite" values="0 0;0 0;690 0;690 0" keyTimes="0;0.050;0.850;1" calcMode="linear"/></path>
+<text x="40" y="280" class="mono dim" font-size="12">Liveness asks only isAlive(). Readiness waits for ready() and turns 503 at SIGTERM,</text>
+<text x="40" y="300" class="mono dim" font-size="12">so the pod leaves the load balancer before it stops serving. On its own port, a busy app never hides it.</text>
+</svg>
