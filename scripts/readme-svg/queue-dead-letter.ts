@@ -92,24 +92,30 @@ const plan = (start: number, run: number): Plan => ({
 				`@keyframes held{0%,${at(failArrived)}{opacity:1}${[0, 1, 2, 3, 4, 5, 6, 7].map((step) => `${at(failArrived + 0.5 + step * 0.9)}{opacity:.4}${at(failArrived + 0.95 + step * 0.9)}{opacity:1}`).join("")}${at(lastStart)},100%{opacity:1}}.${name} rect{animation-name:${name}c,held}`,
 			);
 		} else {
-			// #2: reaches the Consumer, flashes red at each failed attempt, then drops into .dead.
+			// #2: reaches the Consumer and flashes red at each failed attempt. It stays there, failed,
+			// holding its key until it is given up; a copy drops into .dead when it fails for good.
 			const toConsumer = consumerX - x;
-			const toDead = deadX - x;
-			const drop = deadTop + 12 - top;
 			const start = failArrived - moveSeconds;
-			css.push(
-				`.${name}{transform:translate(${toDead}px,${drop}px)}.${name} rect{fill:${theme.fail}}`,
-			);
+			css.push(`.${name}{opacity:0}.${name} rect{fill:${theme.fail}}`);
 			motion.push(
-				`@keyframes ${name}{0%{transform:translate(0,0);opacity:0}2%{opacity:1}${at(start)}{transform:translate(0,0)}${at(failArrived)},${at(failedForGood)}{transform:translate(${toConsumer}px,0);opacity:1}${at(deadAt)},92%{transform:translate(${toDead}px,${drop}px);opacity:1}100%{transform:translate(${toDead}px,${drop}px);opacity:0}}.${name}{animation:${name} ${period}s ease-in-out infinite}`,
+				`@keyframes ${name}{0%{transform:translateX(0);opacity:0}2%{opacity:1}${at(start)}{transform:translateX(0)}${at(failArrived)},${at(releasedAt - 0.3)}{transform:translateX(${toConsumer}px);opacity:1}${at(releasedAt)},100%{transform:translateX(${toConsumer}px);opacity:0}}.${name}{animation:${name} ${period}s ease-in-out infinite}`,
 			);
 			const flashes = Array.from({ length: attempts }, (_, attempt) => {
 				const end = failArrived + (attempt + 1) * attemptSeconds;
-				return `${at(end - 0.25)}{fill:${theme.accent}}${at(end - 0.1)},${at(end + (attempt === attempts - 1 ? 0 : 0.15))}{fill:${theme.fail}}`;
+				return `${at(end - 0.25)}{fill:${theme.accent}}${at(end - 0.1)},${at(end + (attempt === attempts - 1 ? 0 : 0.1))}{fill:${theme.fail}}`;
 			}).join("");
 			motion.push(
 				`@keyframes ${name}c{0%{fill:${theme.accent}}${flashes}${at(failedForGood + 0.05)},100%{fill:${theme.fail}}}.${name} rect{animation:${name}c ${period}s linear infinite}`,
 			);
+			const copy = `${name}copy`;
+			const drop = deadTop + 12 - top;
+			css.push(
+				`.${copy}{transform:translateY(${drop}px)}.${copy} rect{fill:${theme.fail}}`,
+			);
+			motion.push(
+				`@keyframes ${copy}{0%,${at(failedForGood)}{transform:translateY(0);opacity:0}${at(failedForGood + 0.05)}{transform:translateY(0);opacity:1}${at(deadAt)},92%{transform:translateY(${drop}px);opacity:1}100%{transform:translateY(${drop}px);opacity:0}}.${copy}{animation:${copy} ${period}s ease-in-out infinite}`,
+			);
+			body.push(chip({ index, name: copy, top, x: consumerX }));
 		}
 		body.push(chip({ index, name, top, x }));
 	});
@@ -120,13 +126,13 @@ const labelTop = (laneTops[1] ?? 0) + 44;
 const labels = [
 	...Array.from({ length: attempts }, (_, attempt) => ({
 		className: "fail",
-		from: failArrived + attempt * attemptSeconds + 0.1,
+		from: failArrived + (attempt + 1) * attemptSeconds - 0.1,
 		text: `attempt ${attempt + 1} of ${attempts} failed`,
-		until: failArrived + (attempt + 1) * attemptSeconds + 0.05,
+		until: failArrived + (attempt + 2) * attemptSeconds - 0.15,
 	})),
 	{
 		className: "fail",
-		from: deadAt - 0.3,
+		from: failedForGood + attemptSeconds - 0.1,
 		text: "failed for good: copy in .dead, key held",
 		until: releasedAt,
 	},
@@ -153,7 +159,7 @@ export default svgDocument({
 		svgText({
 			className: "display",
 			fontSize: 15,
-			text: "Five failures: a dead letter, then the key moves on",
+			text: "Five failures: a copy in .dead, and the key waits for you",
 			weight: 700,
 			x: 30,
 			y: 44,
@@ -188,7 +194,7 @@ export default svgDocument({
 		svgText({
 			className: "mono dim",
 			fontSize: 12,
-			text: "Give it up or run it again to move the key on; after 7 days the queue gives it up itself.",
+			text: "Give it up or run it again to move the key on; after 7 days the queue deletes it.",
 			x: 30,
 			y: height - 14,
 		}),
@@ -198,6 +204,6 @@ export default svgDocument({
 	motionCss: motion.join("\n"),
 	theme,
 	title:
-		"order_2's second Event fails all five attempts: a copy goes to the dead-letter queue and its key is held while order_1 carries on; once it is given up, the key moves on and #3 is handled",
+		"order_2's second Event fails all five attempts: a copy goes to <queueName>.dead and its key is held while order_1 carries on; once someone gives it up, the key moves on and #3 is handled",
 	width,
 });
