@@ -11,7 +11,7 @@ import {
 
 const theme = readmeSvgThemes.blueprint;
 const width = 880;
-const height = 440;
+const height = 410;
 const period = 10;
 const left = 200;
 const right = 840;
@@ -26,13 +26,12 @@ const steps: Step[] = [
 	{ from: 0, group: "drain", label: "/readyz 503, still serving", until: 5 },
 	{ from: 5, group: "intakes", label: "http", until: 7.5 },
 	{ from: 5, group: "intakes", label: "live", until: 6 },
-	{ from: 5, group: "intakes", label: "Consumers", until: 8.5 },
-	{ from: 8.5, group: "resources", label: "queue", until: 9.5 },
-	{ from: 9.5, group: "resources", label: "database", until: 10.3 },
-	{ from: 10.3, group: "resources", label: "health", until: 10.8 },
-	{ from: 10.8, group: "resources", label: "telemetry", until: 11.8 },
+	{ from: 7.5, group: "resources", label: "queue", until: 8.7 },
+	{ from: 8.7, group: "resources", label: "database", until: 9.6 },
+	{ from: 9.6, group: "resources", label: "health", until: 10.1 },
+	{ from: 10.1, group: "resources", label: "telemetry", until: 11.1 },
 ];
-const exitAt = 11.8;
+const exitAt = 11.1;
 
 const x = (second: number) => left + (second / seconds) * (right - left);
 const rowY = (index: number) => top + index * rowGap;
@@ -60,7 +59,7 @@ const groupColour: Record<string, string> = {
 const groupLabels = [
 	{ index: 0, text: "1 drain" },
 	{ index: 1, text: "2 intakes, together" },
-	{ index: 4, text: "3 resources, in order" },
+	{ index: 3, text: "3 resources, in order" },
 ];
 
 // Labels hang left of their line, one row apart, so the two never collide.
@@ -160,6 +159,6 @@ export default svgDocument({
 	motionCss: `${grows}\n${exitFade}`,
 	theme,
 	title:
-		"Shutdown on a 25 second timeline: a 5 second drain while /readyz answers 503, then the http, live and Consumer intakes close together, then queue, database, health and telemetry close one by one, and the process exits 0, well before the 20 second cutoff and the 25 second deadline",
+		"Shutdown on a 25 second timeline: a 5 second drain while /readyz answers 503, then the http and live intakes close together, then queue, database, health and telemetry close one by one, and the process exits 0, well before the 20 second cutoff and the 25 second deadline",
 	width,
 });

@@ -1,12 +1,12 @@
 # @n8io/baseline-shutdown
 
-**Rollouts that lose no request**: on SIGTERM, stop taking work, let running work finish, then close resources one by one, always inside the deadline.
+**Rollouts that let running work finish**: on SIGTERM, stop taking work, let running work finish, then close resources one by one, always inside the deadline.
 
 ```sh
 pnpm add @n8io/baseline-shutdown
 ```
 
-<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/shutdown-order.svg" width="880" alt="Shutdown on a 25 second timeline. A 5 second drain while /readyz answers 503, then the http, live and Consumer intakes close together, then queue, database, health and telemetry close one by one, and the process exits 0, well before the 20 second intake cutoff and the 25 second deadline."></p>
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/shutdown-order.svg" width="880" alt="Shutdown on a 25 second timeline. A 5 second drain while /readyz answers 503, then the http and live intakes close together, then queue, database, health and telemetry close one by one, and the process exits 0, well before the 20 second intake cutoff and the 25 second deadline."></p>
 
 ## Guarantees
 
@@ -23,6 +23,7 @@ pnpm add @n8io/baseline-shutdown
 ## Example
 
 ```ts
+// httpServerClose: @n8io/baseline-http; telemetryShutdown: @n8io/baseline-telemetry
 const shutdown = shutdownHandleCreate({
 	drainDelayMs: envLocal ? 0 : 5_000,
 	intakes: [

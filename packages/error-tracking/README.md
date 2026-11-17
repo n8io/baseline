@@ -23,6 +23,9 @@ pnpm add @n8io/baseline-error-tracking
 ## Example
 
 ```ts
+import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
+import { loggerErrorListen } from "@n8io/baseline-logger";
+
 const errorTracking = errorTrackingSentryCreate({
 	dsn: ENV.SENTRY_DSN,
 	environment: ENV.APP_ENV,
@@ -54,7 +57,7 @@ Tests stub `fetch` and read the envelopes it was handed; no account or network n
 
 <details><summary><b>In the Template</b></summary>
 
-`src/error-tracking-open.ts` does the wiring in the Example and adds a shutdown step named `error tracking`. `SENTRY_DSN` is optional: without it, nothing is reported, and errors are still logged. `pnpm piece-remove error-tracking` deletes the piece.
+`src/error-tracking-open.ts` does the wiring in the Example and, with a DSN, adds a shutdown step named `error tracking`. `SENTRY_DSN` is optional: without it, nothing is reported, and errors are still logged. `pnpm piece-remove error-tracking` deletes the piece.
 </details>
 
-**Needs** a DSN (the Template reads `SENTRY_DSN`), and `LOG_LEVEL` at `error` or below when reports come through `loggerErrorListen`: a level the logger turns off reaches no listener. Runs on Sentry.
+**Needs** `@opentelemetry/api` as a peer, a DSN (the Template reads `SENTRY_DSN`), and `LOG_LEVEL` at `error` or below when reports come through `loggerErrorListen`: a level the logger turns off reaches no listener. Runs on Sentry.

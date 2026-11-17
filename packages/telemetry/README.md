@@ -1,6 +1,6 @@
 # @n8io/baseline-telemetry
 
-**One trace from the request to the Consumer, with nothing to wire by hand**: a preload starts traces, metrics and logs before the app loads, and every Use case gets its own span and duration metric.
+**One trace from the request to the Consumer, with one preload and one wrapper**: the preload starts traces, metrics and logs before the app loads, and every Use case gets its own span and duration metric. `@n8io/baseline-queue` carries the trace across each Event.
 
 ```sh
 pnpm add @n8io/baseline-telemetry import-in-the-middle
@@ -10,16 +10,16 @@ pnpm add @n8io/baseline-telemetry import-in-the-middle
 
 ## Guarantees
 
-| You get                              | How                                                                                                                                                         |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Traces, metrics and logs at boot** | One preload instruments HTTP, undici, pg, Redis, pino and the Node runtime before the app's first import.                                                   |
-| **A span per Use case**              | `telemetryUseCasesTrace` names each span after its Use case and records `baseline.use_case.duration`.                                                       |
-| **Expected failures stay calm**      | An `err` result sets `error.type` and leaves the status unset; only a throw sets status Error.                                                              |
-| **No noise**                         | `/livez` and `/readyz` are never traced, and a pg or Redis call outside a trace (a queue poll, boot) makes no span.                                         |
-| **No input text leaves**             | Before export, URL query values become `REDACTED` and exception messages are dropped, keeping the type and stack frames.                                    |
-| **Routes by pattern**                | `telemetryRouterInstrumentation` names the HTTP span after the route pattern and adds a span per loader and action.                                         |
-| **Exits on time**                    | With no endpoint set, nothing exports. An exporter gives up after 1 s, and `telemetryShutdown()` never throws: a script never hangs on a missing collector. |
-| **Spans without the SDK**            | `/span` loads only the OpenTelemetry API, so a Package can add attributes or a child span with no OpenTelemetry import.                                     |
+| You get                              | How                                                                                                                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Traces, metrics and logs at boot** | One preload instruments HTTP, undici, pg, Redis, pino and the Node runtime before the app's first import.                                                                                |
+| **A span per Use case**              | `telemetryUseCasesTrace` names each span after its Use case and records `baseline.use_case.duration`.                                                                                    |
+| **Expected failures stay calm**      | An `err` result sets `error.type` and leaves the status unset; only a throw sets status Error.                                                                                           |
+| **No noise**                         | `/livez` and `/readyz` are never traced, and a pg or Redis call outside a trace (a queue poll, boot) makes no span.                                                                      |
+| **Scrubbed before export**           | Before export, URL query values become `REDACTED` and exception messages are dropped, keeping the type and stack frames.                                                                 |
+| **Routes by pattern**                | `telemetryRouterInstrumentation` names the HTTP span after the route pattern and adds a span per loader and action (API routes get theirs from `@n8io/baseline-http`'s `httpRouteName`). |
+| **Exits on time**                    | With no endpoint and no exporter set, nothing exports. An exporter gives up after 1 s, and `telemetryShutdown()` never throws: a script never hangs on a missing collector.              |
+| **Spans without the SDK**            | `/span` loads only the OpenTelemetry API, so a Package can add attributes or a child span with no OpenTelemetry import.                                                                  |
 
 ## Example
 
@@ -32,6 +32,12 @@ await import("@n8io/baseline-telemetry/register");
 ```
 
 ```ts
+import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
+import {
+	telemetrySpanAttributesSet,
+	telemetrySpanRun,
+} from "@n8io/baseline-telemetry/span";
+
 const fooUseCases = telemetryUseCasesTrace(
 	fooUseCasesCreate(fooPortsCreate(ports)),
 );
@@ -41,7 +47,7 @@ telemetrySpanAttributesSet({ "foo.count": foos.length });
 const rows = await telemetrySpanRun("foo.import", () => fooImport(file));
 ```
 
-Tests need no collector: with no `OTEL_EXPORTER_OTLP_ENDPOINT`, nothing exports, and `telemetryShutdown()` returns at once.
+Tests need no collector: with no `OTEL_EXPORTER_OTLP_ENDPOINT` and no `OTEL_*_EXPORTER`, nothing exports, and `telemetryShutdown()` returns at once.
 
 ## Reference
 
@@ -72,4 +78,4 @@ Start each process with one preload file that registers the ESM loader hook in-t
 - The batch settings `OTEL_BSP_*` and `OTEL_BLRP_*` and `OTEL_METRIC_EXPORT_INTERVAL` (default 60 s) apply as usual.
 </details>
 
-**Needs** `@opentelemetry/api` as a peer, and `import-in-the-middle` for the loader hook the preload file registers: it must resolve to the same copy `@opentelemetry/instrumentation` uses, so give it a caret range. Runs on OpenTelemetry; exports OTLP to any collector.
+**Needs** `@opentelemetry/api` as a peer, the standard `OTEL_*` variables (above), and `import-in-the-middle` for the loader hook the preload file registers: it must resolve to the same copy `@opentelemetry/instrumentation` uses, so give it a caret range. Runs on OpenTelemetry; exports OTLP to any collector.

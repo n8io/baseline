@@ -8,36 +8,39 @@ pnpm add @n8io/baseline-analytics
 
 ## Guarantees
 
-| You get                         | How                                                                                                                        |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **Fire and forget**             | `track` returns at once and never throws: a failed send is logged at warn and dropped.                                     |
-| **Bounded shutdown**            | Each send times out after 5 s, so `close()`, which waits for the sends in flight, is bounded too. `await using` calls it.  |
-| **No personal data by design**  | `properties` carry ids and counts only, never a Model, an input or personal data.                                          |
-| **No location guessed**         | Geolocation is off: the server's IP is not the Actor's.                                                                    |
-| **Malformed events are loud**   | Ingestion runs in strict mode, so a malformed event is refused and logged instead of dropped silently.                     |
-| **Data residency**              | `vendor.host` picks the ingestion host; anything but a bare host name throws, so the token never goes elsewhere.           |
-| **Works with no account**       | `analyticsLoggerCreate()` logs each event at debug instead, for development and tests.                                     |
-| **Swap the vendor in one line** | `Analytics` and `AnalyticsEvent` name no vendor: a new `analytics<Vendor>Create` adapter here and one line in the Project. |
+| You get                         | How                                                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fire and forget**             | `track` returns at once and never throws: a failed send is logged at warn and dropped.                                                            |
+| **Bounded shutdown**            | Each send times out after 5 s, so `close()`, which waits for the sends in flight, is bounded too. `await using` calls it.                         |
+| **Ids and counts only**         | The contract for `properties`: ids and counts, never a Model, an input or personal data.                                                          |
+| **No location guessed**         | Geolocation is off: the server's IP is not the Actor's.                                                                                           |
+| **Malformed events are loud**   | Ingestion runs in strict mode, so a malformed event is refused and logged instead of dropped silently.                                            |
+| **Data residency**              | `vendor.host` picks the ingestion host; anything but a bare host name throws, so the token cannot go to a URL with a path or scheme of its own.   |
+| **Works with no account**       | `analyticsLoggerCreate()` logs each event at debug instead, for development and tests.                                                            |
+| **Swap the vendor in one line** | `Analytics` and `AnalyticsEvent` name no vendor: a new `analytics<Vendor>Create` adapter here and one line in the Project; callers do not change. |
 
 ## Example
 
 ```ts
+import {
+	analyticsLoggerCreate,
+	analyticsMixpanelCreate,
+} from "@n8io/baseline-analytics";
+
 const analytics = ENV.MIXPANEL_TOKEN
 	? analyticsMixpanelCreate({ token: ENV.MIXPANEL_TOKEN })
 	: analyticsLoggerCreate();
 
-// After the change commits:
 analytics.track({
 	actorId: actor.id,
 	name: "foo.created",
 	properties: { fooId: foo.id },
 });
-
-// At shutdown:
-await analytics.close();
 ```
 
-Tests pass `analyticsLoggerCreate()`, or any object with `track` and `close` that records what it was handed.
+Call `track` after the change commits, and `await analytics.close()` at shutdown.
+
+Tests pass `analyticsLoggerCreate()`, or an `Analytics` (`track`, `close` and `Symbol.asyncDispose`) that records what it was handed.
 
 ## Reference
 
@@ -54,7 +57,7 @@ Tests pass `analyticsLoggerCreate()`, or any object with `track` and `close` tha
 
 <details><summary><b>In the Template</b></summary>
 
-`src/analytics-open.ts` picks the adapter as in the Example and adds a shutdown step named `analytics`. `MIXPANEL_TOKEN` is optional: without it, events go to the debug log and are not sent. `pnpm piece-remove analytics` deletes the piece.
+`src/analytics-open.ts` picks the adapter as in the Example and, with a token, adds a shutdown step named `analytics`. `MIXPANEL_TOKEN` is optional: without it, events go to the debug log and are not sent. `pnpm piece-remove analytics` deletes the piece.
 </details>
 
 <details><summary><b>Moving to the mixpanel SDK</b></summary>
