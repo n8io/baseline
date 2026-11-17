@@ -11,14 +11,16 @@ export const queueOrderedName = (name: string): string => `${name}.ordered`;
 
 // The keys whose job failed for good, per Consumer. Such a job stays where it failed and holds back
 // the later Events of its key until someone releases it (README, "A blocked key"). `deleteAt` is
-// when the queue's own deletion time runs out and it deletes the job, so the key moves on without
-// it; `waiting` counts the Events of the key held back behind it.
+// when the queue's own deletion time runs out: its next sweep from then (pg-boss's maintenance, at
+// most a day apart) deletes the job, so the key moves on without it. `waiting` counts the Events of
+// the key held back behind it.
 const queueOrderedBlockedKeysRead = async (
 	boss: PgBoss,
 ): Promise<
 	{
 		consumer: string;
 		deleteAt: Date;
+		id: string;
 		key: string;
 		since: Date;
 		waiting: number;
@@ -27,11 +29,12 @@ const queueOrderedBlockedKeysRead = async (
 	const { rows } = await boss
 		.getDb()
 		.executeSql(
-			"SELECT j.name, j.singleton_key AS key, j.completed_on AS since, j.completed_on + j.deletion_seconds * interval '1s' AS delete_at, (SELECT count(*)::int FROM queue.job w WHERE w.name = j.name AND w.singleton_key = j.singleton_key AND w.state IN ('created', 'retry')) AS waiting FROM queue.job j WHERE j.policy = 'key_strict_fifo' AND j.state = 'failed' ORDER BY j.name, j.singleton_key",
+			"SELECT j.id, j.name, j.singleton_key AS key, j.completed_on AS since, j.completed_on + j.deletion_seconds * interval '1s' AS delete_at, (SELECT count(*)::int FROM queue.job w WHERE w.name = j.name AND w.singleton_key = j.singleton_key AND w.state IN ('created', 'retry')) AS waiting FROM queue.job j WHERE j.policy = 'key_strict_fifo' AND j.state = 'failed' ORDER BY j.name, j.singleton_key",
 		);
 	return (
 		rows as {
 			delete_at: Date;
+			id: string;
 			key: string;
 			name: string;
 			since: Date;
@@ -40,6 +43,7 @@ const queueOrderedBlockedKeysRead = async (
 	).map((row) => ({
 		consumer: row.name.slice(0, -".ordered".length),
 		deleteAt: row.delete_at,
+		id: row.id,
 		key: row.key,
 		since: row.since,
 		waiting: row.waiting,
@@ -107,12 +111,12 @@ export const queueOrderedBlockedKeyGiveUp = async (
 	return rows.length > 0;
 };
 
-// What error tracking groups a blocked key under. Its message names no key and no Event data (they
-// go in log fields), so all blocked keys of a Consumer land in one issue.
+// What error tracking groups a blocked key under. Its message names the Consumer (its queueName) but
+// no key and no Event data, which go in log fields, so one Consumer's blocked keys read alike.
 class QueueBlockedKeyError extends Error {
 	override readonly name = "QueueBlockedKeyError";
-	constructor() {
-		super("An Event key is blocked until released");
+	constructor(consumer: string) {
+		super(`An Event key of ${consumer} is blocked until released`);
 	}
 }
 
@@ -167,9 +171,11 @@ const dayMs = 86_400_000;
 // Looks for blocked keys once a minute in a worker: an Event the queue fails by itself (a dead
 // worker or a fetch out of time, five times over) blocks its key with no log line of its own.
 // Every worker that sees a blocked key logs it at error level with an err, so it reaches error
-// tracking, and again each day it stays blocked. From a day before the queue deletes its failed
-// Event it also warns with that time, and once the queue has deleted it, it logs at error and counts
-// it. A key released by retry or give-up before then logs nothing more. Per Consumer, gauges carry
+// tracking, and again each day it stays blocked. From a day before its deleteAt it also warns, and
+// once the queue has deleted its failed Event, it logs at error and counts it. A key released by
+// retry logs nothing more, and by give-up nothing either when before deleteAt; a give-up after it
+// looks the same as the queue's deletion. Times are the database's, so a Worker's clock never skews
+// them, and a check that is still running skips the next. Per Consumer, gauges carry
 // the count, the oldest one's age and the Events waiting behind them until they are back at 0. A
 // check that fails is skipped: the poll loops already report a database that is down. `remindMs`
 // (a day) is both the repeat and the warning's lead; tests shorten it. Returns what stops the checks.
@@ -184,21 +190,32 @@ export const queueOrderedBlockedKeysWatch = (
 		{
 			consumer: string;
 			deleteAt: Date;
+			id: string;
 			key: string;
 			loggedAt: number;
+			since: Date;
 			warned: boolean;
 		}
 	>();
 	const consumers = new Set<string>();
 	const check = async (): Promise<void> => {
+		const db = boss.getDb();
+		const clock = await db.executeSql("SELECT now() AS now");
+		const now = (clock.rows[0] as { now: Date }).now.getTime();
 		const blocked = await queueOrderedBlockedKeysRead(boss);
-		const now = Date.now();
 		const totals = new Map<
 			string,
 			{ count: number; oldest: number; waiting: number }
 		>();
 		const seen = new Set<string>();
-		for (const { consumer, deleteAt, key, since, waiting } of blocked) {
+		for (const {
+			consumer,
+			deleteAt,
+			id: jobId,
+			key,
+			since,
+			waiting,
+		} of blocked) {
 			consumers.add(consumer);
 			const total = totals.get(consumer) ?? {
 				count: 0,
@@ -216,15 +233,23 @@ export const queueOrderedBlockedKeysWatch = (
 			// A new deadline is a new failure (released, then failed again between two checks).
 			const known = tracked.get(id);
 			const entry =
-				known?.deleteAt.getTime() === deleteAt.getTime()
+				known?.id === jobId && known.deleteAt.getTime() === deleteAt.getTime()
 					? known
-					: { consumer, deleteAt, key, loggedAt: -Infinity, warned: false };
+					: {
+							consumer,
+							deleteAt,
+							id: jobId,
+							key,
+							loggedAt: -Infinity,
+							since,
+							warned: false,
+						};
 			tracked.set(id, entry);
 			const fields = { deleteAt, key, queue: consumer, since };
 			if (now - entry.loggedAt >= remindMs) {
 				entry.loggedAt = now;
 				logger.error(
-					{ ...fields, err: new QueueBlockedKeyError() },
+					{ ...fields, err: new QueueBlockedKeyError(consumer) },
 					"Event key is blocked until released",
 				);
 			}
@@ -232,7 +257,7 @@ export const queueOrderedBlockedKeysWatch = (
 				entry.warned = true;
 				logger.warn(
 					fields,
-					"Event key is blocked, and its failed Event is deleted at deleteAt unless released first",
+					"Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first",
 				);
 			}
 		}
@@ -242,13 +267,22 @@ export const queueOrderedBlockedKeysWatch = (
 				continue;
 			}
 			tracked.delete(id);
-			if (now >= entry.deleteAt.getTime()) {
+			if (now < entry.deleteAt.getTime()) {
+				continue;
+			}
+			// A retried Event keeps its row; only a deleted one is gone.
+			const row = await db.executeSql(
+				"SELECT 1 FROM queue.job WHERE name = $1 AND id = $2",
+				[queueOrderedName(entry.consumer), entry.id],
+			);
+			if (row.rows.length === 0) {
 				logger.error(
 					{
 						deleteAt: entry.deleteAt,
 						err: new QueueBlockedKeyExpiredError(),
 						key: entry.key,
 						queue: entry.consumer,
+						since: entry.since,
 					},
 					"Blocked Event was deleted unreleased; its key moved on without it",
 				);
@@ -266,8 +300,17 @@ export const queueOrderedBlockedKeysWatch = (
 			waiting.record(total?.waiting ?? 0, attributes);
 		}
 	};
+	let checking = false;
 	const timer = setInterval(() => {
-		check().catch(() => undefined);
+		if (checking) {
+			return;
+		}
+		checking = true;
+		check()
+			.catch(() => undefined)
+			.finally(() => {
+				checking = false;
+			});
 	}, checkMs);
 	// Never the reason the process stays up.
 	timer.unref();

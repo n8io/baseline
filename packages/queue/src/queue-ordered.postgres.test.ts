@@ -580,8 +580,11 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		// A fresh copy of the module, so its instruments come from the meter above; its logger is a
 		// fresh copy too.
 		vi.resetModules();
-		const { queueOrderedBlockedKeyGiveUp, queueOrderedBlockedKeysWatch } =
-			await import("./queue-ordered.ts");
+		const {
+			queueOrderedBlockedKeyGiveUp,
+			queueOrderedBlockedKeyRetry,
+			queueOrderedBlockedKeysWatch,
+		} = await import("./queue-ordered.ts");
 		const { logger, loggerErrorListen } = await import("@n8io/baseline-logger");
 		// Spies that still call through, so an err reaches loggerErrorListen as in production.
 		const error = vi.spyOn(logger, "error");
@@ -593,7 +596,7 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		const name = `${consumer}.ordered`;
 		await boss.createQueue(name, { policy: "key_strict_fifo" });
 		// An Event the queue failed by itself, so no Consumer has logged it, with a deletion time of
-		// its own: foo_held has an hour and an Event waiting behind it, the other two seconds.
+		// its own: foo_held has an hour and an Event waiting behind it, the others seconds.
 		const blockedCreate = async (key: string, deletionSeconds: number) => {
 			const id = await boss.send(name, {}, { singletonKey: key });
 			await pgPool.query(
@@ -603,8 +606,9 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		};
 		await blockedCreate("foo_held", 3600);
 		await boss.send(name, {}, { singletonKey: "foo_held" });
-		await blockedCreate("foo_expiring", 2);
-		await blockedCreate("foo_given_up", 3);
+		await blockedCreate("foo_retried_late", 1);
+		await blockedCreate("foo_expiring", 4);
+		await blockedCreate("foo_given_up", 7);
 		const logs = (
 			spy: typeof error | typeof warn,
 			message: string,
@@ -618,25 +622,25 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		const expiredMessage =
 			"Blocked Event was deleted unreleased; its key moved on without it";
 		const warnMessage =
-			"Event key is blocked, and its failed Event is deleted at deleteAt unless released first";
+			"Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first";
 		const attributes = { "messaging.destination.name": consumer };
 		const last = (metric: string) => recorded.get(metric)?.mock.lastCall;
 
 		const stop = queueOrderedBlockedKeysWatch(boss, {
 			checkMs: 100,
-			remindMs: 1500,
+			remindMs: 3000,
 		});
 		try {
 			await vi.waitFor(
 				() =>
-					expect(last("baseline.queue.blocked_keys")).toEqual([3, attributes]),
+					expect(last("baseline.queue.blocked_keys")).toEqual([4, attributes]),
 				{ interval: 50, timeout: 10_000 },
 			);
-			// One report per key, under one error whose message names no key.
-			expect(reported).toHaveLength(3);
+			// One report per key, under one error whose message names the Consumer but no key.
+			expect(reported).toHaveLength(4);
 			for (const err of reported) {
 				expect(err).toMatchObject({
-					message: "An Event key is blocked until released",
+					message: `An Event key of ${consumer} is blocked until released`,
 					name: "QueueBlockedKeyError",
 				});
 			}
@@ -653,7 +657,15 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				1,
 				attributes,
 			]);
-			// The two with seconds left are warned about, the one with an hour is not.
+			// Retried after its deleteAt but before the queue's sweep: no expiry, since its row stays.
+			await sleep(1200);
+			expect(
+				await queueOrderedBlockedKeyRetry(boss, {
+					consumer,
+					key: "foo_retried_late",
+				}),
+			).toBe(true);
+			// The ones with seconds left are warned about, the one with an hour is not.
 			await vi.waitFor(
 				() => {
 					expect(logs(warn, warnMessage, "foo_expiring")).toHaveLength(1);
@@ -671,7 +683,6 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				}),
 			).toBe(true);
 			// Past its deadline, the queue's sweep deletes foo_expiring (done by hand here).
-			await sleep(2000);
 			await pgPool.query(
 				"DELETE FROM queue.job WHERE name = $1 AND singleton_key = 'foo_expiring' AND state = 'failed'",
 				[name],
@@ -684,10 +695,11 @@ describe("queueOrderedBlockedKeysWatch", () => {
 			expect(
 				recorded.get("baseline.queue.blocked_keys_expired")?.mock.calls,
 			).toEqual([[1, attributes]]);
-			expect(reported.at(-1)).toMatchObject({
-				name: "QueueBlockedKeyExpiredError",
-			});
-			await sleep(1500);
+			expect(reported).toContainEqual(
+				expect.objectContaining({ name: "QueueBlockedKeyExpiredError" }),
+			);
+			expect(logs(warn, warnMessage, "foo_retried_late")).toHaveLength(1);
+			expect(logs(error, expiredMessage, "foo_retried_late")).toHaveLength(0);
 			expect(logs(error, expiredMessage, "foo_given_up")).toHaveLength(0);
 			// Still blocked a remindMs later: logged and reported again.
 			expect(

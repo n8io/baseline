@@ -17,7 +17,7 @@ export type Queue = {
 	// timeout well under a minute.
 	isAlive(): boolean;
 	// The keys held back by an Event that failed for good, per Consumer (its queueName), since when,
-	// and when the queue deletes that Event so the key moves on without it unless it is released
+	// and from when the queue deletes that Event (its next sweep) so the key moves on without it unless released
 	// first. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
 	blockedKeys(): Promise<
 		{ consumer: string; deleteAt: Date; key: string; since: Date }[]

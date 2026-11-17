@@ -115,9 +115,9 @@ Sentinel or Cluster addressed directly needs node-redis's `createSentinel` or `c
 
 ## Alerts
 
-- A blocked Event key: `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Error tracking gets one `QueueBlockedKeyError` issue per Consumer, reported again every 24 h while a key stays blocked; log "Event key is blocked until released". Run `node src/blocked-keys.ts` and release it (Event order, above).
-- `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events held back behind blocked keys), per Consumer, as the maximum across pods. Alert on the age well before 604800 (7 days, when the queue deletes the Event), and on the waiting count for a Consumer whose backlog cannot wait that long. Both read 0 when nothing is blocked.
-- A warning "Event key is blocked, and its failed Event is deleted at deleteAt unless released first": a day is left. Release the key now.
+- A blocked Event key: `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Error tracking gets a `QueueBlockedKeyError` (its message names the Consumer, never the key), reported again every 24 h while a key stays blocked; log "Event key is blocked until released". Run `node src/blocked-keys.ts` and release it (Event order, above).
+- `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events held back behind blocked keys), per Consumer, as the maximum across pods. Alert on the age well before 604800 (7 days, after which the queue deletes the Event; `deleteAt` in the listing gives the exact time), and on the waiting count for a Consumer whose backlog cannot wait that long. Both read 0 when nothing is blocked.
+- A warning "Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first": a day is left. Release the key now.
 - `baseline.queue.blocked_keys_expired` above 0, or a `QueueBlockedKeyExpiredError` ("Blocked Event was deleted unreleased; its key moved on without it"): the queue deleted a failed Event nobody released, and the Events behind it ran without it. Find it in `<queueName>.dead` and repair its effects by hand.
 - `baseline.cache.store_errors` and `baseline.live.sends_failed` rising: Redis is down. One warning per 30 s per cache or hub on each pod, not one per call.
 - "Queue error", once per 30 s per queue per pod: Postgres is down.
