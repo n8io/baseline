@@ -18,6 +18,7 @@
 	"scripts": {
 		"api-check": "node --import ./scripts/node-version-require.ts scripts/api-check.ts",
 		"api-smoke": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts scripts/api-smoke.ts",
+		"blocked-keys": "node --import ./src/preload.ts src/blocked-keys.ts",
 		"build": "NODE_ENV=production react-router build",
 		"check": "node --import ./scripts/node-version-require.ts scripts/check.ts",
 		"ci": "pnpm check && pnpm test && pnpm test:integration && pnpm piece-check",

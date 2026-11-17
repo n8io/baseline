@@ -125,6 +125,9 @@ describe("Dockerfile", () => {
 	it("names its other entries in its comments", () => {
 		// piece-start: queue
 		expect(dockerfile).toContain('worker:  ["node", "src/worker.ts"]');
+		expect(dockerfile).toContain(
+			'blocked-keys: ["node", "src/blocked-keys.ts"]',
+		);
 		// piece-end: queue
 		expect(dockerfile).toContain('migrate: ["node", "src/migrate.ts"]');
 		expect(dockerfile).toMatch(/30 s grace period/);

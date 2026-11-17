@@ -105,7 +105,7 @@ A Redis outage or failover fails no request.
 
 Events with the same Event key run one at a time, in commit order, on any number of Workers. Other Event keys run beside them.
 
-An Event that fails five times stays failed and blocks its Event key; other keys carry on. Decide within 7 days: after that it is deleted and the key moves on without it. `queue.blockedKeys()` lists what is blocked, and the runbook (run it again, or give it up) is "A blocked key" in the `@n8io/baseline-queue` README.
+An Event that fails five times stays failed and blocks its Event key; other keys carry on. Decide within 7 days: after that it is deleted and the key moves on without it. To list and release blocked keys, run `node src/blocked-keys.ts` in a pod of the image, as the migrate entry runs: alone it lists them, and `retry <consumer> <key>` or `give-up <consumer> <key>` releases one. The runbook (run it again, or give it up) is "A blocked key" in the `@n8io/baseline-queue` README.
 
 ## Redis high availability
 

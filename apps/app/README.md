@@ -51,6 +51,7 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Model a
 | add a Domain                                  | `pnpm domain-create <name>`                     |
 | write a migration after a table change        | `pnpm codegen`                                  |
 | migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                     |
+| list or release a blocked Event key           | `pnpm blocked-keys`                             |
 | catch a breaking API change                   | `pnpm api-check`                                |
 | remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check` |
 | take a newer Template release                 | `pnpm template-upgrade`                         |

@@ -73,7 +73,7 @@ const result = await queueTestConsumerRun({
 <details><summary><b>Exports</b></summary>
 
 - `queueMigrate({ databaseUrl, queuesRemoved?, vendor? })` (`vendor`, typed `QueueMigrateVendorOptions`, takes `ssl`, `application_name` and `options` for the connection pg-boss opens to migrate): installs or upgrades the queue's tables in schema `queue` and creates `queue.inbox`. It also removes the queues an upgrade left behind (see Upgrading to 8, under Reference). Run it from the migrate entry.
-- `queueCreate({ pgPool, role, concurrency?, vendor? })`, `Queue`: starts the queue on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Consumers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health, under Reference); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since }` (see Runbook: a blocked key, under Reference); `stop()` waits up to 15 s for running jobs, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
+- `queueCreate({ pgPool, role, concurrency?, vendor? })`, `Queue`: starts the queue on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Consumers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health, under Reference); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since }`, and `blockedKeyRetry({ consumer, key })` and `blockedKeyGiveUp({ consumer, key })` release one (see Runbook: a blocked key, under Reference); `stop()` waits up to 15 s for running jobs, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
 - `Events`: how Events travel, whatever carries them: `consumersSubscribe(consumers)` (every process that publishes calls it at boot), `consumersStart(consumers)` (worker only), `publisherCreate(transaction)` and `isAlive()`. A composition root opens one and nothing else names the transport.
 - `EventsPublisher`: one per transaction. `publish({ name, data, key })` inside it, then `committed()` once it has committed; on a rollback, discard it. `key` is the Event key: the id of the entity the Event is about, never empty (see Order, under Reference).
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
@@ -158,24 +158,25 @@ An Event that fails all five attempts stays in its queue as failed, and a copy g
 
 Decide within 7 days. After that the queue deletes the failed Event, and the key moves on without it.
 
-List what is blocked with `queue.blockedKeys()`, or in SQL:
+List what is blocked with `queue.blockedKeys()`. Then release the key one of two ways, with the Consumer's `queueName` and the key as `blockedKeys()` gives them. Each resolves `true` when it released the key and `false` when that Consumer has no blocked Event for that key. Both work on a `"publisher"` Queue, so a script or an admin route can call them without a Worker.
+
+- `queue.blockedKeyRetry({ consumer, key })` runs the Event again, once the cause is fixed and deployed. It runs before the Events waiting behind it.
+- `queue.blockedKeyGiveUp({ consumer, key })` gives the Event up, so the key moves on without it. The copy in `<queueName>.dead` stays for the record; redriving that copy later runs the Event after the ones that were waiting behind it.
+
+In a Project made from the Template, run them in a pod, as the migrate entry runs: `node src/blocked-keys.ts` lists, `node src/blocked-keys.ts retry <consumer> <key>` and `node src/blocked-keys.ts give-up <consumer> <key>` release, and it exits 1 when nothing was released. Locally it is `pnpm blocked-keys`.
+
+When only psql is at hand, the same in SQL. The queue's name is the Consumer's `queueName` plus `.ordered`:
 
 ```sql
 SELECT name, singleton_key AS key, completed_on AS since
 FROM queue.job WHERE policy = 'key_strict_fifo' AND state = 'failed';
 ```
 
-Then release the key one of two ways. The queue's name is the Consumer's `queueName` plus `.ordered`.
-
-Run the Event again, once the cause is fixed and deployed. It runs before the Events waiting behind it:
-
 ```sql
 UPDATE queue.job
 SET state = 'retry', retry_limit = retry_limit + 1, completed_on = NULL, start_after = now()
 WHERE name = 'billing.order-placed.ordered' AND singleton_key = 'order_123' AND state = 'failed';
 ```
-
-Or give the Event up, so the key moves on without it. The copy in `billing.order-placed.dead` stays for the record; redriving that copy later runs the Event after the ones that were waiting behind it:
 
 ```sql
 DELETE FROM queue.job

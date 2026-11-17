@@ -75,9 +75,9 @@ Add Redis back: `git revert` the "Remove redis" commit, before you add back the 
 
 `pnpm piece-remove queue`
 
-The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, and the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and Bridges stay; a Bridge is a read port and runs in the server. A Project with Consumers removes them first; the command refuses while any is left outside a test.
+The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry), and the `blocked-keys` command (`src/blocked-keys.ts`). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and Bridges stay; a Bridge is a read port and runs in the server. A Project with Consumers removes them first; the command refuses while any is left outside a test.
 
-The command also drops the `SCHEDULE_*` overrides from `.env.schema` and takes the Worker out of `pnpm dev`. `pnpm check` then regenerates `src/env.d.ts`.
+The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
 Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts`, `spi/*-transaction.postgres.test.ts`, `spi/index-queue.test.ts` and `use-cases/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` markers in `src/worker.ts` and `src/migrate.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 

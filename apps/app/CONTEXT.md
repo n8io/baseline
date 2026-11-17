@@ -90,7 +90,7 @@ An unexpected error sent to error tracking (Sentry) for triage: its class name, 
 _Avoid_: crash report, Sentry issue
 
 **Composition root**:
-A file that starts one process: it parses config, opens connections, picks adapters, builds each domain's use cases and wires its intakes (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`). Holds no business rules.
+A file that starts one process: it parses config, opens connections, picks adapters, builds each domain's use cases and wires its intakes (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/blocked-keys.ts`). Holds no business rules.
 _Avoid_: bootstrap, main, container
 
 **Worker**:

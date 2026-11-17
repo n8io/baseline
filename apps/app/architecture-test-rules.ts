@@ -745,6 +745,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					// Opens every connection for the roots, so it reads their settings itself.
 					"src/connections.ts",
 					"src/migrate.ts",
+					"src/blocked-keys.ts",
 				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
 					? "only the composition roots, src/authn.ts and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
