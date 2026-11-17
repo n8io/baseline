@@ -1,20 +1,18 @@
-// The root README's pieces diagram, in the marquee theme: eight pieces sit on the core, then
-// `pnpm piece-remove live` types itself, the live piece lifts out, and the command's own first
-// line (apps/app/scripts/piece-remove.ts) reports that `pnpm check` passes. The resting frame
-// shows the piece already lifted, so it reads under reduced motion too.
+// The root README's pieces diagram, in the marquee theme. It says what a piece is, then plays
+// four recipes in turn: each shows its piece-remove commands, lifts those pieces off the core and
+// says what the Project is left with (apps/app/docs/agents/pieces.md). The resting frame is the
+// first recipe with its piece lifted, so it reads under reduced motion too.
 import {
 	keyframePercent,
 	readmeSvgThemes,
 	svgBox,
 	svgDocument,
 	svgText,
-	svgTypedText,
 } from "./kit.ts";
 
 const theme = readmeSvgThemes.marquee;
 const width = 880;
-const height = 300;
-const period = 10;
+const height = 428;
 // Every piece in apps/app/scripts/piece-remove.ts pieceRemovals, in the README's order.
 const pieces = [
 	"ui",
@@ -26,55 +24,165 @@ const pieces = [
 	"analytics",
 	"error-tracking",
 ];
-const removed = "live";
+const recipes = [
+	{
+		removes: ["ui"],
+		result: "The API, sign-in, live update streams and the Worker stay.",
+		title: "An API with no pages",
+	},
+	{
+		removes: ["live", "cache", "redis"],
+		result: "Postgres is the only data store; every read goes to it.",
+		title: "No Redis to run",
+	},
+	{
+		removes: ["queue"],
+		result: "One long-running process: no Worker, Events or Schedules.",
+		title: "No Worker to run",
+	},
+	{
+		removes: ["analytics", "error-tracking"],
+		result: "No product analytics or error tracking; errors are still logged.",
+		title: "No analytics or error-report vendors",
+	},
+];
+const scene = 6;
+const period = scene * recipes.length;
 const pieceWidth = 99;
 const pieceGap = 4;
 const left = 30;
-const rowTop = 128;
-const lift = 50;
-const typedFrom = 0.6;
-const typedUntil = 2.2;
-const liftAt = 2.8;
-const reportAt = 3.8;
+const rowTop = 214;
+const lift = 46;
+const commandTop = 318;
 
-const motionCss = `@keyframes lift{0%,${keyframePercent(liftAt, period)}{transform:translateY(0)}${keyframePercent(liftAt + 0.8, period)},92%{transform:translateY(-${lift}px)}97%,100%{transform:translateY(0)}}
-.lifted{animation:lift ${period}s ease-in-out infinite}
-@keyframes report{0%,${keyframePercent(reportAt, period)}{opacity:0}${keyframePercent(reportAt + 0.3, period)},92%{opacity:1}97%,100%{opacity:0}}
-.report{animation:report ${period}s linear infinite}`;
+// Within a recipe's 6 s: its text fades in at 0.2 s, its pieces lift from 1.4 s to 2 s, they
+// settle back from 5.2 s to 5.7 s, and its text fades out by 5.9 s.
+const at = (index: number, seconds: number) =>
+	keyframePercent(index * scene + seconds, period);
+
+const liftCss = pieces
+	.map((piece, pieceIndex) => {
+		const lifted = recipes.flatMap((recipe, index) =>
+			recipe.removes.includes(piece) ? [index] : [],
+		);
+		if (lifted.length === 0) return "";
+		const down = "{transform:translateY(0);opacity:1}";
+		const up = `{transform:translateY(-${lift}px);opacity:0.45}`;
+		const frames = lifted
+			.map(
+				(index) =>
+					`${at(index, 1.4)}${down}${at(index, 2)},${at(index, 5.2)}${up}${at(index, 5.7)}${down}`,
+			)
+			.join("");
+		return `@keyframes lift${pieceIndex}{0%${down}${frames}100%${down}}.lift${pieceIndex}{animation:lift${pieceIndex} ${period}s ease-in-out infinite}`;
+	})
+	.join("\n");
+
+const sceneCss = recipes
+	.map((_, index) => {
+		const hidden = "{opacity:0}";
+		const shown = "{opacity:1}";
+		const start = index === 0 ? `0%${shown}` : `0%,${at(index, 0)}${hidden}`;
+		return `@keyframes scene${index}{${start}${at(index, 0.4)},${at(index, 5.6)}${shown}${at(index, 5.9)},100%${hidden}}.scene${index}{animation:scene${index} ${period}s linear infinite}`;
+	})
+	.join("\n");
+
+const firstRemoves = recipes[0]?.removes ?? [];
+
+const pieceRow = pieces.map((piece, pieceIndex) => {
+	const box = svgBox({
+		fontSize: 11,
+		height: 44,
+		label: piece,
+		theme,
+		width: pieceWidth,
+		x: left + pieceIndex * (pieceWidth + pieceGap),
+		y: rowTop,
+	});
+	const inRecipe = recipes.some((recipe) => recipe.removes.includes(piece));
+	if (!inRecipe) return box;
+	const resting = firstRemoves.includes(piece)
+		? ` style="transform:translateY(-${lift}px);opacity:0.45"`
+		: "";
+	return `<g class="lift${pieceIndex}"${resting}>${box}</g>`;
+});
+
+const sceneMarkup = recipes.map((recipe, index) => {
+	const commands = recipe.removes.map((piece, line) =>
+		svgText({
+			className: "mono",
+			fontSize: 13,
+			text: `$ pnpm piece-remove ${piece}`,
+			x: left + 20,
+			y: commandTop + 26 + line * 20,
+		}),
+	);
+	const note =
+		recipe.removes.length > 1
+			? recipe.removes
+					.map((_, line) =>
+						svgText({
+							className: "mono dim",
+							fontSize: 12,
+							text: "# then commit",
+							x: left + 260,
+							y: commandTop + 26 + line * 20,
+						}),
+					)
+					.join("")
+			: "";
+	return `<g class="scene${index}"${index === 0 ? "" : ' style="opacity:0"'}>${svgText(
+		{
+			className: "display accent",
+			fontSize: 12,
+			text: `RECIPE ${index + 1} OF ${recipes.length}`,
+			weight: 700,
+			x: left,
+			y: 116,
+		},
+	)}${svgText({
+		className: "display",
+		fontSize: 22,
+		text: recipe.title,
+		weight: 800,
+		x: left,
+		y: 144,
+	})}${commands.join("")}${note}${svgText({
+		anchor: "end",
+		className: "display ok",
+		fontSize: 14,
+		text: recipe.result,
+		weight: 600,
+		x: width - left - 20,
+		y: commandTop + 26,
+	})}</g>`;
+});
 
 export default svgDocument({
 	body: [
 		svgText({
 			className: "display",
-			fontSize: 15,
-			text: "Take out what you do not use",
+			fontSize: 17,
+			text: "Pieces: the parts of the stack you can take out",
 			weight: 700,
 			x: left,
 			y: 44,
 		}),
 		svgText({
-			anchor: "end",
 			className: "mono dim",
 			fontSize: 12,
-			text: "8 pieces · 1 command each",
-			x: width - 30,
-			y: 44,
+			text: "A piece is its files, code blocks, packages, env vars and services. One command removes it,",
+			x: left,
+			y: 68,
 		}),
-		...pieces.map((piece, index) => {
-			const box = svgBox({
-				fontSize: 11,
-				height: 44,
-				label: piece,
-				stroke: piece === removed ? theme.accent : null,
-				theme,
-				width: pieceWidth,
-				x: left + index * (pieceWidth + pieceGap),
-				y: rowTop,
-			});
-			return piece === removed
-				? `<g class="lifted" style="transform:translateY(-${lift}px)">${box}</g>`
-				: box;
+		svgText({
+			className: "mono dim",
+			fontSize: 12,
+			text: "then runs pnpm check; git revert and pnpm install bring it back.",
+			x: left,
+			y: 86,
 		}),
+		...pieceRow,
 		svgBox({
 			fill: theme.grid,
 			fontSize: 13,
@@ -86,36 +194,13 @@ export default svgDocument({
 			x: left,
 			y: rowTop + 52,
 		}),
-		svgTypedText({
-			fontSize: 14,
-			id: "pieces-command",
-			period,
-			prompt: "$ ",
-			text: `pnpm piece-remove ${removed}`,
-			typedFrom,
-			typedUntil,
-			x: left,
-			y: 258,
-		}),
-		`<g class="report">${svgText({
-			className: "mono ok",
-			fontSize: 13,
-			text: `Removed ${removed}; pnpm check passes.`,
-			x: 290,
-			y: 258,
-		})}</g>`,
-		svgText({
-			className: "mono dim",
-			fontSize: 12,
-			text: "The pieces CI job proves each one still comes out, on every pull request that changes code.",
-			x: left,
-			y: height - 14,
-		}),
+		`<rect x="${left}" y="${commandTop}" width="${width - 2 * left}" height="84" rx="${theme.radius}" fill="${theme.panel}" stroke="${theme.line}"/>`,
+		...sceneMarkup,
 	].join("\n"),
 	height,
-	motionCss,
+	motionCss: `${liftCss}\n${sceneCss}`,
 	theme,
 	title:
-		"Eight pieces sit on the core; pnpm piece-remove live lifts the live piece out and pnpm check passes",
+		"Pieces are optional parts of the stack. Four recipes play in turn: remove the UI pages; remove live updates, the cache and Redis; remove the queue and Worker; remove analytics and error reports",
 	width,
 });
