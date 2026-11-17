@@ -105,7 +105,7 @@ A Redis outage or failover fails no request.
 
 Events with the same Event key run one at a time, in commit order, on any number of Workers. Other Event keys run beside them.
 
-An Event that fails five times stays failed and blocks its Event key; other keys carry on. Decide within 7 days: after that it is deleted and the key moves on without it. To list and release blocked keys, run `node src/blocked-keys.ts` in a pod of the image, as the migrate entry runs: alone it lists them, and `retry <consumer> <key>` or `give-up <consumer> <key>` releases one. The runbook (run it again, or give it up) is "A blocked key" in the `@n8io/baseline-queue` README.
+An Event that fails five times stays failed and blocks its Event key; other keys carry on. Decide within 7 days: after that it is deleted and the key moves on without it, with a warning a day before and an error once it is gone. To list and release blocked keys, run `node src/blocked-keys.ts` in a pod of the image, as the migrate entry runs: alone it lists them with when each is deleted, and `retry <consumer> <key>` or `give-up <consumer> <key>` releases one. The runbook (run it again, or give it up) is "A blocked key" in the `@n8io/baseline-queue` README.
 
 ## Redis high availability
 
@@ -115,7 +115,10 @@ Sentinel or Cluster addressed directly needs node-redis's `createSentinel` or `c
 
 ## Alerts
 
-- `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Log: "Event key is blocked until released".
+- A blocked Event key: `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Error tracking gets a `QueueBlockedKeyError` (its message names the Consumer, never the key), reported again every 24 h while a key stays blocked; log "Event key is blocked until released". Run `node src/blocked-keys.ts` and release it (Event order, above).
+- `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events held back behind blocked keys), per Consumer, as the maximum across pods. Alert on the age well before 604800 (7 days, after which the queue deletes the Event; `deleteAt` in the listing gives the exact time), and on the waiting count for a Consumer whose backlog cannot wait that long. Both read 0 when nothing is blocked.
+- A warning "Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first": a day is left. Release the key now.
+- `baseline.queue.blocked_keys_expired` above 0, or a `QueueBlockedKeyExpiredError` ("Blocked Event was deleted unreleased; its key moved on without it"): the queue deleted a failed Event nobody released, and the Events behind it ran without it. Find it in `<queueName>.dead` and repair its effects by hand.
 - `baseline.cache.store_errors` and `baseline.live.sends_failed` rising: Redis is down. One warning per 30 s per cache or hub on each pod, not one per call.
 - "Queue error", once per 30 s per queue per pod: Postgres is down.
 - `baseline.queue.dead_letters`, or an error log that names "dead letter": an Event or a Schedule run used up its attempts. "Job failed; will retry" is only one failed attempt.

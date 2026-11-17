@@ -30,7 +30,7 @@ const blockedKeysRun = async (
 		const blocked = await queue.blockedKeys();
 		for (const entry of blocked) {
 			console.log(
-				`${entry.consumer} ${entry.key} blocked since ${entry.since.toISOString()}`,
+				`${entry.consumer} ${entry.key} blocked since ${entry.since.toISOString()}, deleted at ${entry.deleteAt.toISOString()} unless released`,
 			);
 		}
 		console.log(`${blocked.length} blocked Event key(s)`);
