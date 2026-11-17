@@ -161,8 +161,8 @@ const absoluteReadmes = (): string[] =>
 		),
 	].filter((file) => existsSync(join(root, file)));
 
-// A Package README opts in to the Blueprint shape with a `## Guarantees` section. Then its
-// sections run title, promise, install, Guarantees, Example, Reference, and it ends on Needs.
+// Every Package README has the Blueprint shape: title, promise, install, Guarantees, Example,
+// Reference, and it ends on Needs.
 const blueprintSections = ["Guarantees", "Example", "Reference"];
 
 const blueprintViolations = (name: string, markdown: string): string[] => {
@@ -283,17 +283,25 @@ describe("README images", () => {
 });
 
 describe("Package READMEs in the Blueprint shape", () => {
-	const optedIn = readdirSync(join(root, "packages"))
+	const packages = readdirSync(join(root, "packages"))
 		.map((name) => ({ file: join(root, "packages", name, "README.md"), name }))
-		.filter(({ file }) => existsSync(file))
-		.map(({ file, name }) => ({ markdown: readFileSync(file, "utf8"), name }))
-		.filter(({ markdown }) => /^## Guarantees$/m.test(markdown));
+		.filter(({ file }) => existsSync(join(file, "..", "package.json")));
 
-	it("keeps every opted-in README to the section order", () => {
+	it("gives every Package a README", () => {
 		expect(
-			optedIn.flatMap(({ markdown, name }) =>
-				blueprintViolations(name, markdown),
-			),
+			packages.filter(({ file }) => !existsSync(file)).map(({ name }) => name),
+		).toEqual([]);
+	});
+
+	it("keeps every Package README to the section order", () => {
+		expect(
+			packages
+				.filter(({ file }) => existsSync(file))
+				.map(({ file, name }) => ({
+					markdown: readFileSync(file, "utf8"),
+					name,
+				}))
+				.flatMap(({ markdown, name }) => blueprintViolations(name, markdown)),
 		).toEqual([]);
 	});
 

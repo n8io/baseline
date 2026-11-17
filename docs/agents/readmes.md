@@ -5,7 +5,7 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
 ## Shape
 
 - **Root** (`README.md`): an animated hero (the terminal types `pnpm app-create`, then `pnpm dev`), a nine-cell grid of benefit-first headlines, the pieces animation, and the Packages as an "I need to…" table. It sells the Template.
-- **Package** (`packages/<name>/README.md`), in this order _(test, once the README has `## Guarantees`)_:
+- **Package** (`packages/<name>/README.md`), in this order _(test)_:
   1. `# @n8io/baseline-<name>`, then one sentence that opens with a **bold promise**.
   2. The `pnpm add @n8io/baseline-<name>` line.
   3. An animated diagram, only where it explains a mechanism.
@@ -14,13 +14,13 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
   6. `## Reference`: everything else, each part folded under `<details><summary>`.
   7. A last line that starts `**Needs**`: peers, env vars, the vendor it runs on.
 
-  Inside Reference, a folded part's old headings become `###` or a `<summary>`: the test reads every `##` outside code as a section. The check holds a README only once it has `## Guarantees`, until every Package is converted.
+  Inside Reference, a folded part's old headings become `###` or a `<summary>`: the test reads every `##` outside code as a section.
 - **Template** (`apps/app/README.md`): its shape is set by its own ticket (#433); the Content, Images and Diagrams rules apply.
 
 ## Content
 
 - **Nothing is lost.** Every feature, export, env var, runbook and upgrade note in the old README stays, folded into `<details>` if it is reference. Shorter at the top, never thinner overall.
-- **Examples** are 3 to 15 lines _(test: 15, in an opted-in Package README above Reference)_ of real calls that compile against the current exports. Show Zod where a caller passes a schema ([packages.md](packages.md#schemas)).
+- **Examples** are 3 to 15 lines _(test: 15, in a Package README above Reference)_ of real calls that compile against the current exports. Show Zod where a caller passes a schema ([packages.md](packages.md#schemas)).
 - **Accurate.** Check every claim against the code on main. A number appears only where a README or test already measures it.
 - **Glossary terms** from [CONTEXT.md](../../CONTEXT.md) and [apps/app/CONTEXT.md](../../apps/app/CONTEXT.md), never their `_Avoid_` aliases.
 - **Vendor names** go only in a "Runs on" column or the Needs line, never in an API description.
