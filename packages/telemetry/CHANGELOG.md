@@ -1,5 +1,15 @@
 # @n8io/baseline-telemetry
 
+## 2.0.1
+
+### Patch Changes
+
+- df8b85a: Rewrite the README: a bold promise, a Guarantees table, a short example, an animated diagram, a testing note and the full reference folded below.
+- Updated dependencies [df8b85a]
+- Updated dependencies [e1fafaf]
+  - @n8io/baseline-logger@3.1.1
+  - @n8io/baseline-result@1.1.2
+
 ## 2.0.0
 
 ### Major Changes

@@ -1,5 +1,13 @@
 # @n8io/baseline-live
 
+## 7.2.1
+
+### Patch Changes
+
+- ede01ee: Rewrite the README: a Guarantees table, a short example, an animated diagram of the fan-out and the catch-up after a Redis outage, and the reference folded below.
+- Updated dependencies [df8b85a]
+  - @n8io/baseline-logger@3.1.1
+
 ## 7.2.0
 
 ### Minor Changes

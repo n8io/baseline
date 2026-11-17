@@ -1,5 +1,13 @@
 # @n8io/baseline-http
 
+## 3.0.1
+
+### Patch Changes
+
+- ccb666a: Rewrite the README: a bold promise, a Guarantees table, a short example, and the full reference folded below.
+- Updated dependencies [df8b85a]
+  - @n8io/baseline-logger@3.1.1
+
 ## 3.0.0
 
 ### Major Changes

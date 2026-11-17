@@ -1,5 +1,13 @@
 # @n8io/baseline-redis
 
+## 1.0.1
+
+### Patch Changes
+
+- e1fafaf: Rewrite the README: a promise, an animated diagram, a Guarantees table, a short example and the reference folded below.
+- Updated dependencies [df8b85a]
+  - @n8io/baseline-logger@3.1.1
+
 ## 1.0.0
 
 ### Major Changes

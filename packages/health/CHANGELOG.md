@@ -1,5 +1,11 @@
 # @n8io/baseline-health
 
+## 2.0.2
+
+### Patch Changes
+
+- ccb666a: Rewrite the README: a bold promise, an animated diagram where it explains a mechanism, a Guarantees table, a short example, and the full reference folded below.
+
 ## 2.0.1
 
 ### Patch Changes
