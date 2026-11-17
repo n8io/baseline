@@ -1,5 +1,20 @@
 # app
 
+## 10.2.0
+
+### Minor Changes
+
+- 9d22059: New entry `src/blocked-keys.ts` (`pnpm blocked-keys` locally, `node src/blocked-keys.ts` in a pod): alone it lists the blocked Event keys, and `retry <consumer> <key>` or `give-up <consumer> <key>` releases one. It exits 1 when nothing was released. Part of the queue piece.
+
+### Patch Changes
+
+- 432ec1c: `src/blocked-keys.ts` lists when the queue deletes each blocked key's failed Event unless it is released first.
+- Updated dependencies [432ec1c]
+- Updated dependencies [9d22059]
+- Updated dependencies [2fb6d06]
+- Updated dependencies [68bd0d6]
+  - @n8io/baseline-queue@8.2.0
+
 ## 10.1.1
 
 ### Patch Changes
