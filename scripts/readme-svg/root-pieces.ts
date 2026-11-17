@@ -27,7 +27,7 @@ const pieces = [
 const recipes = [
 	{
 		removes: ["ui"],
-		result: "The API, sign-in, live streams and the Worker stay.",
+		result: "The API, sign-in, live update streams and the Worker stay.",
 		title: "An API with no pages",
 	},
 	{
@@ -37,12 +37,12 @@ const recipes = [
 	},
 	{
 		removes: ["queue"],
-		result: "One process: no Worker, Events or Schedules to run.",
+		result: "One long-running process: no Worker, Events or Schedules.",
 		title: "No Worker to run",
 	},
 	{
 		removes: ["analytics", "error-tracking"],
-		result: "Nothing goes to Mixpanel or Sentry; errors are still logged.",
+		result: "No product analytics or error tracking; errors are still logged.",
 		title: "No analytics or error-report vendors",
 	},
 ];
@@ -119,14 +119,17 @@ const sceneMarkup = recipes.map((recipe, index) => {
 	);
 	const note =
 		recipe.removes.length > 1
-			? svgText({
-					anchor: "end",
-					className: "mono dim",
-					fontSize: 11,
-					text: "commit each removal on its own",
-					x: width - left - 20,
-					y: commandTop + 50,
-				})
+			? recipe.removes
+					.map((_, line) =>
+						svgText({
+							className: "mono dim",
+							fontSize: 12,
+							text: "# then commit",
+							x: left + 260,
+							y: commandTop + 26 + line * 20,
+						}),
+					)
+					.join("")
 			: "";
 	return `<g class="scene${index}"${index === 0 ? "" : ' style="opacity:0"'}>${svgText(
 		{
@@ -175,7 +178,7 @@ export default svgDocument({
 		svgText({
 			className: "mono dim",
 			fontSize: 12,
-			text: "then runs pnpm check; git revert brings it back.",
+			text: "then runs pnpm check; git revert and pnpm install bring it back.",
 			x: left,
 			y: 86,
 		}),
