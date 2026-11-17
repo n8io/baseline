@@ -31,6 +31,20 @@ import {
 	templateFilesRender,
 } from "./template-render.ts";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(
+	[
+		"../**",
+		"../**/.*",
+		"../.*/**",
+		"!../.git/**",
+		"!../.react-router/**",
+		"!**/*.md",
+	],
+	{ query: "?raw" },
+);
+import.meta.glob(["../CONTEXT.md"], { query: "?raw" });
+
 const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const domainsUrl = new URL("src/domains/", appRoot);

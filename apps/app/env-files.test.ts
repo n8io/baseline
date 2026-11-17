@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
 import { describe, expect, it, onTestFinished } from "vitest";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./.env.*"], { query: "?raw" });
+
 const appRoot = fileURLToPath(new URL("./", import.meta.url));
 const fileRead = (name: string) => readFileSync(`${appRoot}${name}`, "utf8");
 const keys = (name: string) => Object.keys(parseEnv(fileRead(name)));

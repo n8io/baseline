@@ -9,6 +9,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./node-version-require.ts"], { query: "?raw" });
+
 const guard = new URL("./node-version-require.ts", import.meta.url).pathname;
 
 // The guard beside a package.json that asks for `node`; returns what a script preloading it does.

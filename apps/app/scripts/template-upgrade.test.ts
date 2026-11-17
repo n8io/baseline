@@ -22,6 +22,8 @@ import {
 	workspaceExcludesDedupe,
 } from "./template-upgrade.ts";
 
+// Reads and runs no file of the app, only its imports and a temporary folder.
+
 // What the run says and which package scripts it runs, in place of the console and pnpm.
 const runCapture = () => {
 	const errors: string[] = [];

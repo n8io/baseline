@@ -1,4 +1,8 @@
-import { defineConfig, type TestProjectConfiguration } from "vitest/config";
+import {
+	configDefaults,
+	defineConfig,
+	type TestProjectConfiguration,
+} from "vitest/config";
 
 const integration: TestProjectConfiguration = {
 	extends: true,
@@ -25,6 +29,17 @@ const integration: TestProjectConfiguration = {
 export default defineConfig({
 	test: {
 		expect: { requireAssertions: true },
+		// CI runs `pnpm test --changed <base>`: only the tests whose imports reach a changed file. A change
+		// to one of these reaches every test, so it runs them all.
+		forceRerunTriggers: [
+			...configDefaults.forceRerunTriggers,
+			"**/.env.schema",
+			"**/.env.test",
+			"**/.node-version",
+			"**/pnpm-lock.yaml",
+			"**/pnpm-workspace.yaml",
+			"**/tsconfig.json",
+		],
 		projects: [
 			{
 				extends: true,

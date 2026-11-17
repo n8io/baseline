@@ -7,6 +7,22 @@ import {
 } from "./agent-docs-test-rules.ts";
 import { pieceMarkersProblems } from "./scripts/piece-remove.ts";
 
+// The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(
+	[
+		"./**",
+		"./**/.*",
+		"./.*/**",
+		"!./.git/**",
+		"!./.react-router/**",
+		"!**/*.md",
+	],
+	{ query: "?raw" },
+);
+import.meta.glob(["./AGENTS.md", "./CONTEXT.md", "./docs/agents/**"], {
+	query: "?raw",
+});
+
 const appRoot = new URL("./", import.meta.url);
 
 const termOf = (name: string) => {
@@ -74,6 +90,27 @@ const structureViolations = (paths: string[], context: string): string[] => {
 	}
 	return problems;
 };
+
+// CI runs `pnpm test --changed`, which runs a unit test only when a file its imports reach changed.
+// A test that reads or runs a file of the app by its path declares the file with
+// `import.meta.glob([...], { query: "?raw" })`, so a change to it still runs the test, or says it
+// reads none. test/integration/ is exempt: CI runs it whole on every code change.
+const diskReadsUndeclared = (
+	files: { path: string; source: string }[],
+): string[] =>
+	files
+		.filter(
+			({ path, source }) =>
+				/\.test\.tsx?$/.test(path) &&
+				!path.startsWith("test/integration/") &&
+				/ from "node:(fs|child_process)(\/promises)?";/.test(source) &&
+				!source.includes("import.meta.glob(") &&
+				!source.includes("// Reads and runs no file of the app"),
+		)
+		.map(
+			({ path }) =>
+				`${path}: declare the files it reads or runs with import.meta.glob([...], { query: "?raw" }), or say "// Reads and runs no file of the app"`,
+		);
 
 // A test sits beside the file it covers (<name>.test.ts or <name>-<aspect>.test.ts) in src/ or
 // scripts/, at the app root when it checks the whole app, or in test/integration/.
@@ -263,6 +300,55 @@ describe("test placement", () => {
 			expect.stringContaining("put a test beside the file it covers"),
 		]);
 	});
+});
+
+describe("unit tests that read the disk", () => {
+	it("hold for the real tree", () => {
+		const files = appFilesList(appRoot)
+			.filter((path) => /\.test\.tsx?$/.test(path))
+			.map((path) => ({
+				path,
+				source: readFileSync(new URL(path, appRoot), "utf8"),
+			}));
+		expect(diskReadsUndeclared(files)).toEqual([]);
+	});
+
+	it.each([
+		[
+			"declares its files",
+			'import { readFileSync } from "node:fs";\nimport.meta.glob(["./a.json"], { query: "?raw" });\n',
+		],
+		[
+			"says it reads none",
+			'import { spawnSync } from "node:child_process";\n// Reads and runs no file of the app, only a temporary folder.\n',
+		],
+		["reads nothing", 'import { a } from "./a.ts";\n'],
+	])("passes a test that %s", (_name, source) => {
+		expect(diskReadsUndeclared([{ path: "src/a.test.ts", source }])).toEqual(
+			[],
+		);
+		expect(
+			diskReadsUndeclared([
+				{
+					path: "test/integration/a.test.ts",
+					source: 'import { spawn } from "node:child_process";\n',
+				},
+			]),
+		).toEqual([]);
+	});
+
+	it.each([
+		["node:fs", 'import {\n\treadFileSync,\n} from "node:fs";\n'],
+		["node:fs/promises", 'import { readFile } from "node:fs/promises";\n'],
+		["node:child_process", 'import { spawn } from "node:child_process";\n'],
+	])(
+		"fails on a test that imports %s and declares nothing",
+		(_name, source) => {
+			expect(diskReadsUndeclared([{ path: "src/a.test.ts", source }])).toEqual([
+				expect.stringContaining("declare the files it reads or runs"),
+			]);
+		},
+	);
 });
 
 describe("integration database timeout", () => {

@@ -38,8 +38,8 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
 - A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts` and the like.
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
-- A Package's test helpers come from `@n8io/baseline-<package>/testing`. Only a `*.test.ts(x)` file or a file under `test/` imports it (architecture rule A24). Use them and the Package's memory adapter; never copy a Package's internals into a test.
-- `structure.test.ts` fails on a test anywhere else. There is no `test/unit/`.
+- A Package's test helpers come from `@n8io/baseline-<package>/testing`. Only a `*.test.ts(x)` file or a file under `test/` imports it (architecture rule A24). Use them and its memory adapter; never copy its internals into a test.
+- `structure.test.ts` fails on a test anywhere else (no `test/unit/`) or one reading undeclared app files.
 - Domain test files share one import graph (`isolate: false`): keep them free of file-level state.
 - Biome reads a helper named `use<Name>` as a React hook and `before` or `after` as a test hook: name helpers otherwise.
 
@@ -76,7 +76,7 @@ One Domain per business entity, added with `pnpm domain-create`.
     - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so keep those to the rule by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 - A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.

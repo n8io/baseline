@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 
+// Reads and runs no file of the app, only its imports and a temporary folder.
+
 // A registry on localhost that answers each path 404 `misses` times (or `status` when set), then 200.
 const registryServe = async (
 	paths: Record<string, number>,
