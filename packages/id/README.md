@@ -1,6 +1,6 @@
 # @n8io/baseline-id
 
-**Ids you can read, that sort by time and never mix up.** Prefixed [TypeIDs](https://github.com/jetify-com/typeid) (`foo_01h455vb4pex5vsknk084sn02q`) backed by UUIDv7, typed by their prefix, and stored as a plain Postgres `uuid`.
+**Ids you can read, that sort by time and carry their type.** Prefixed [TypeIDs](https://github.com/jetify-com/typeid) (`foo_01h455vb4pex5vsknk084sn02q`) backed by UUIDv7, typed by their prefix, and stored as a plain Postgres `uuid`.
 
 ```sh
 pnpm add @n8io/baseline-id
@@ -10,14 +10,14 @@ pnpm add @n8io/baseline-id
 
 ## Guarantees
 
-| You get                                   | How                                                                                     |
-| ----------------------------------------- | --------------------------------------------------------------------------------------- |
-| **Ids that say what they are**            | `foo_…`: a snake_case prefix, then the UUID in 26 characters of base32.                 |
-| **A `bar` id never passes as a `foo` id** | `Id<"foo">` is a type by prefix, and `idPatternCreate("foo")` matches only that prefix. |
-| **Sorted by when they were made**         | The UUID inside is a UUIDv7: its first 48 bits are the time in milliseconds.            |
-| **16 bytes in the database**              | `idToUuid` and `idFromUuid` convert to and from a plain `uuid` column.                  |
-| **Bad input fails loudly**                | A bad prefix, id or UUID throws a `TypeError`.                                          |
-| **Any schema library**                    | The Package imports none; build your id schema from the pattern.                        |
+| You get                                   | How                                                                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Ids that say what they are**            | `foo_…`: a snake_case prefix, then the UUID in 26 characters of base32.                                              |
+| **A `bar` id never passes as a `foo` id** | `Id<"foo">` types an id by its prefix, and `idPatternCreate("foo")` matches exactly that prefix at runtime.          |
+| **Sorted by when they were made**         | The UUID inside is a UUIDv7: its first 48 bits are the time in milliseconds, so ids sort by time to the millisecond. |
+| **16 bytes in the database**              | `idToUuid` and `idFromUuid` convert to and from a plain `uuid` column.                                               |
+| **Bad input fails loudly**                | A bad prefix, id or UUID throws a `TypeError`.                                                                       |
+| **Any schema library**                    | The Package imports none; build your id schema from the pattern.                                                     |
 
 ## Example
 
@@ -33,7 +33,7 @@ import {
 const fooId: Id<"foo"> = idCreate("foo");
 idPatternCreate("foo").test(fooId); // true
 
-const uuid = idToUuid(fooId); // "0192…" for the database
+const uuid = idToUuid(fooId); // "01a1…" for the database
 idFromUuid("foo", uuid) === fooId; // true
 ```
 

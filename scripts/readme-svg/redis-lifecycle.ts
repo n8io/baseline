@@ -47,13 +47,13 @@ const barsBottom = 236;
 const capHeight = 130;
 const barHeight = (retry: number): number =>
 	(Math.min(retry * 100, 2_000) / 2_000) * capHeight;
-const barShownAt = (index: number): number => 1.6 + index * 0.2;
+const barShownAt = (index: number): number => 1.6 + index * 0.15;
 const barsClear = 8.2;
 
 const bars = Array.from({ length: retries }, (_, index) => {
-	const h = barHeight(index + 1);
+	const h = barHeight(index);
 	const x = barsLeft + index * (barWidth + barGap);
-	const color = index + 1 >= 20 ? theme.accent : theme.line;
+	const color = index >= 20 ? theme.accent : theme.line;
 	return `<rect class="bar bar${index}" x="${x}" y="${barsBottom - h}" width="${barWidth}" height="${h}" fill="${color}"/>`;
 });
 
@@ -137,7 +137,7 @@ export default svgDocument({
 		svgText({
 			className: "mono dim",
 			fontSize: 11,
-			text: "wait before retry n: min(n × 100 ms, 2 s)",
+			text: "wait after n failed tries: min(n × 100 ms, 2 s)",
 			x: barsLeft,
 			y: barsBottom + 20,
 		}),

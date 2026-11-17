@@ -1,6 +1,6 @@
 # @n8io/baseline-redis
 
-**The one Redis connection a process shares, with the parts every app gets wrong already right.** An unreachable Redis fails startup at once instead of retrying forever, a connection dropped later reconnects for good, and the client's `error` event is always listened to, since node-redis exits the process on an unlistened one.
+**The one Redis connection a process shares, with the parts every app gets wrong already right.** An unreachable Redis fails startup at once instead of retrying forever, a connection dropped later reconnects for good, and the client's `error` event is always listened to, so an error never exits the process.
 
 ```sh
 pnpm add @n8io/baseline-redis
@@ -10,15 +10,15 @@ pnpm add @n8io/baseline-redis
 
 ## Guarantees
 
-| You get                                 | How                                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------------------- |
-| **Startup fails fast**                  | The connect, handshake included, gives up after 3 s and never retries.                  |
-| **Reconnects for good once up**         | A dropped connection retries every min(retries × 100 ms, 2 s), for as long as it takes. |
-| **The process survives an error event** | The client's `error` event is always listened to and logged at error.                   |
-| **No password in your logs**            | Errors are logged without the URL, which may carry one.                                 |
-| **No command stuck waiting to be sent** | A command waits at most 1 s to be sent.                                                 |
-| **One connection for cache and live**   | `cacheStoreRedisCreate` and `liveHubRedisCreate` both take the client it resolves with. |
-| **Closed with its block**               | `await using` calls `close()` when the block ends.                                      |
+| You get                                 | How                                                                                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Startup fails fast**                  | The connect, handshake included, gives up after 3 s and never retries.                                                                    |
+| **Reconnects for good once up**         | A dropped connection retries every min(retries × 100 ms, 2 s), for as long as it takes.                                                   |
+| **The process survives an error event** | The client's `error` event is always listened to and logged at error.                                                                     |
+| **Its logs never carry the password**   | Errors are logged without the URL, which may carry one.                                                                                   |
+| **No command stuck waiting to be sent** | A command waits at most 1 s to be sent.                                                                                                   |
+| **One client for cache and live**       | `cacheStoreRedisCreate` and `liveHubRedisCreate` both take the client it resolves with; the live hub duplicates it for its subscriptions. |
+| **Closed with its block**               | `await using` calls `close()` when the block ends.                                                                                        |
 
 ## Example
 
@@ -38,7 +38,7 @@ await liveHub.close();
 await redisClient.close();
 ```
 
-Unit tests need no Redis: build the cache and live hub on their memory stores instead. The Package's own `pnpm test` runs every test; the `*.redis.test.ts` files start a Redis container, so they need Docker.
+Unit tests need no Redis: build them on `cacheStoreMemoryCreate()` and `liveHubMemoryCreate()` instead. The Package's own `pnpm test` runs every test; the `*.redis.test.ts` files start a Redis container, so they need Docker.
 
 ## Reference
 

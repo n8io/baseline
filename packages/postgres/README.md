@@ -1,6 +1,6 @@
 # @n8io/baseline-postgres
 
-**One pool, transactions that follow your Result, and migrations that run once, however many pods start.** Plus prefixed ids stored as `uuid`, keyset paging, advisory locks, and a helper that forces the interleaving a race test needs.
+**One pool, transactions that follow your Result, and migrations that run once, however many processes start.** Plus prefixed ids stored as `uuid`, keyset paging, advisory locks, and a helper that forces the interleaving a race test needs.
 
 ```sh
 pnpm add @n8io/baseline-postgres
@@ -10,17 +10,17 @@ pnpm add @n8io/baseline-postgres
 
 ## Guarantees
 
-| You get                                  | How                                                                                                                                            |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A pool that cannot hang**              | `postgresPoolCreate` defaults: 10 connections, a 3 s connect timeout, a query rejects after 15 s, and an idle connection is probed after 10 s. |
-| **Transactions that follow your Result** | `postgresTransactionRun` commits on `ok`, rolls back on `err` or a throw, and Postgres ends it after 5 s.                                      |
-| **No query outside its transaction**     | The client it hands your work throws on any use once the transaction has ended.                                                                |
-| **Each migration applied once**          | `postgresMigrate` runs under an advisory lock, waits up to 60 s for it, and refuses a connection pooler before it changes anything.            |
-| **Prefixed ids in a `uuid` column**      | `postgresIdColumnCreate("foo")` stores 16 bytes and reads back `Id<"foo">`.                                                                    |
-| **Unique violations as data**            | `postgresUniqueViolationIs` and `postgresUniqueViolationRead` find one anywhere in the `cause` chain.                                          |
-| **Paging that never skips a row**        | `postgresKeysetCreate` pages on `(sort column, id)` for text, numbers, integers and dates.                                                     |
-| **A lock with no row to lock**           | `postgresAdvisoryLockTake` takes a transaction-scoped lock on a string.                                                                        |
-| **Race tests that prove the lock**       | `postgresTestInterleave` pauses one transaction mid-flight and reports whether the second waited.                                              |
+| You get                                  | How                                                                                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **A pool that does not wait forever**    | `postgresPoolCreate` defaults: 10 connections, a 3 s connect timeout, a query rejects after 15 s, and an idle connection is probed after 10 s.         |
+| **Transactions that follow your Result** | `postgresTransactionRun` commits on `ok`, rolls back on `err` or a throw, and Postgres ends it after 5 s.                                              |
+| **No query outside its transaction**     | The client it hands your work throws on any use once the transaction has ended.                                                                        |
+| **Each migration applied once**          | `postgresMigrate` runs under an advisory lock, waits up to 60 s for it, and refuses a connection pooler before it changes anything.                    |
+| **Prefixed ids in a `uuid` column**      | `postgresIdColumnCreate("foo")` stores 16 bytes and reads back `Id<"foo">`.                                                                            |
+| **Unique violations as data**            | `postgresUniqueViolationIs` and `postgresUniqueViolationRead` find one anywhere in the `cause` chain.                                                  |
+| **Stable keyset paging**                 | `postgresKeysetCreate` pages on `(sort column, id)` for text, numbers, integers and dates; the sort column must be `NOT NULL` (see Exports for dates). |
+| **A lock with no row to lock**           | `postgresAdvisoryLockTake` takes a transaction-scoped lock on a string.                                                                                |
+| **Race tests that prove the lock**       | `postgresTestInterleave` pauses one transaction mid-flight and reports whether the second waited.                                                      |
 
 ## Example
 
@@ -46,7 +46,7 @@ const result = await postgresTransactionRun({
 });
 ```
 
-Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` (see Race tests below). Its own tests need Docker: `pnpm test` starts a Postgres container and, for the migrate tests, PgBouncer.
+Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` (see Race tests below). The Package's own tests need Docker: `pnpm test` starts a Postgres container and, for the migrate tests, a connection pooler.
 
 ## Reference
 
@@ -56,6 +56,7 @@ Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing`
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
 - `postgresTransactionRun({ pgPool, work, timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresMigrate({ databaseUrl, migrationsFolder, lockWaitMs?, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. A run waits up to `lockWaitMs` (default 60 s) for the lock, then fails with an error that names it. The lock belongs to the session, so `databaseUrl` must reach Postgres itself: through a connection pooler such as PgBouncer the run refuses before it changes anything. Queries here have no time limit. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
+- Types for the options and results above: `PostgresPoolOptions`, `PostgresPoolVendorOptions`, `PostgresMigrateVendorOptions`, `PostgresKeysetKind`, `PostgresKeysetOptions`, `PostgresUniqueViolation`, `PostgresExecutor`; from `/testing`, `PostgresTestInterleaveOptions` and `PostgresTestInterleavePool`.
 - `@n8io/baseline-postgres/testing`: `postgresTestInterleave` for race tests (below). Import it from tests only.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.
@@ -161,4 +162,4 @@ By the Template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`),
 
 </details>
 
-**Needs** peers `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`; `DATABASE_URL`; Postgres 17 or newer. Runs on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team).
+**Needs** peers `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`; `DATABASE_URL` by the Template's convention; Postgres 17 or newer. Runs on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team).

@@ -18,6 +18,8 @@ pnpm add @n8io/baseline-result
 ## Example
 
 ```ts
+import { err, ok, type Result } from "@n8io/baseline-result";
+
 class FooNotFoundError extends Error {
 	readonly type = "FooNotFound";
 }

@@ -1,6 +1,6 @@
 # @n8io/baseline-cache
 
-**A typed cache that never takes your app down with it.** Every read is checked by the schema you give it, an entry in an older shape reads as a miss, and a store that fails reads as a miss too.
+**A typed cache that, by default, never takes your app down with it.** Every read is checked by the schema you give it, an entry in an older shape reads as a miss, and a store that fails reads as a miss too.
 
 ```sh
 pnpm add @n8io/baseline-cache
@@ -10,15 +10,15 @@ pnpm add @n8io/baseline-cache
 
 ## Guarantees
 
-| You get                                   | How                                                                                                                                                    |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Typed reads**                           | Each `get` runs the stored JSON through your schema; the cache's type is the schema's output.                                                          |
-| **Old entries are misses, not crashes**   | A value the schema refuses, such as one an older version of your app wrote, reads as `undefined`.                                                      |
-| **Any schema library**                    | Any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. The Package imports none.                        |
-| **Up while the store is down**            | By default `get` misses and `set` and `delete` resolve. Each failure counts on `baseline.cache.store_errors`, with one warning log per 30 s per cache. |
-| **Never serves what it tried to replace** | After a failed `set` or `delete`, this process reads that id as a miss for `ttlMs`.                                                                    |
-| **Bounded staleness**                     | Entries expire after `ttlMs`, 60 s by default.                                                                                                         |
-| **One store, many caches**                | Open one `CacheStore` per process; keys are `<prefix>:<id>`. Swapping the backend touches one file.                                                    |
+| You get                                                | How                                                                                                                                                            |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Typed reads**                                        | Each `get` runs the stored JSON through your schema; the cache's type is the schema's output.                                                                  |
+| **Old entries are misses, not crashes**                | A value the schema refuses, such as one an older version of your app wrote, reads as `undefined`.                                                              |
+| **Any schema library**                                 | Any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. The Package imports none.                                |
+| **Up while the store is down**                         | By default `get` misses and `set` and `delete` resolve. Each failure counts on `baseline.cache.store_errors`, with one warning log per 30 s per cache.         |
+| **This process never serves what it tried to replace** | By default, after a failed `set` or `delete` this process reads that id as a miss for `ttlMs`. Other processes may still serve the old entry until it expires. |
+| **Bounded staleness**                                  | Entries expire after `ttlMs`, 60 s by default.                                                                                                                 |
+| **One store, many caches**                             | Open one `CacheStore` per process; keys are `<prefix>:<id>`. Swapping the backend touches one file.                                                            |
 
 ## Example
 
@@ -48,6 +48,7 @@ Entries are JSON, so a `Date` comes back as a string: `z.coerce.date()` turns it
 - `cacheCreate(store, { prefix, schema, keyOf?, ttlMs?, onStoreError? })`: a cache on a store. Keys are `<prefix>:<id>` and entries expire after `ttlMs` (default 60 s). `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. With `keyOf: (value) => id` (the result is a `CacheKeyed<T>`: the same, with `set(value)`), for values that carry their own id, `set(value)` takes the value alone (`get(id)` and `delete(id)` are unchanged), so no wrapper is needed. A stored value that fails the schema reads as a miss. It keeps working when the store does not: see "When the store is down".
 - `CacheStore`: where entries live, as JSON strings by key with a TTL. Open one per process and build every cache on it; a new backend is one more `CacheStore`.
 - `cacheStoreRedisCreate({ redisClient })`: a store on a connected node-redis client. Each call fails after 1 s without an answer, which the cache on top treats like any other store failure.
+- `CacheOptions`, `CacheKeyedOptions`: the options types for `cacheCreate`, without and with `keyOf`.
 - `cacheStoreMemoryCreate()`: a store in process, for unit tests and `memory://`. Caches on one store share its keys, as on Redis, so give each its own `prefix`.
 
 </details>
@@ -130,4 +131,4 @@ By the Template's convention: `CACHE_URL` (`redis://` or `rediss://`, or `memory
 
 </details>
 
-**Needs** peer `@opentelemetry/api` for the counter (it does nothing until your app registers a meter provider); `CACHE_URL` by the Template's convention. Runs on Redis (via `@n8io/baseline-redis`) or in memory.
+**Needs** peer `@opentelemetry/api` for the counter (it does nothing until your app registers a meter provider); `CACHE_URL` by the Template's convention. Runs on Redis (any connected node-redis client, such as `@n8io/baseline-redis`'s) or in memory.
