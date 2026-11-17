@@ -431,6 +431,7 @@ describe("a blocked key", () => {
 		expect(await publisher.blockedKeys()).toEqual([
 			{
 				consumer: names.queueName,
+				deleteAt: expect.any(Date),
 				key: "foo_poison",
 				since: expect.any(Date),
 			},
@@ -439,6 +440,10 @@ describe("a blocked key", () => {
 		expect(blocked?.since.getTime()).toBeGreaterThanOrEqual(
 			before.getTime() - 1000,
 		);
+		// The queue's own deletion time, which the package leaves at pg-boss's 7 days.
+		expect(
+			(blocked?.deleteAt.getTime() ?? 0) - (blocked?.since.getTime() ?? 0),
+		).toBe(7 * 86_400_000);
 		await handledWait(names.queueName, 4);
 		expect(await handled(names.queueName, "foo_fine")).toEqual([1, 2, 3]);
 		expect(await handled(names.queueName, "foo_poison")).toEqual([1]);
@@ -512,7 +517,7 @@ describe("a blocked key", () => {
 
 	it("the README's listing is what blockedKeys() reads", () => {
 		expect(readme).toContain(
-			"SELECT name, singleton_key AS key, completed_on AS since\nFROM queue.job WHERE policy = 'key_strict_fifo' AND state = 'failed';",
+			"SELECT name, singleton_key AS key, completed_on AS since,\n  completed_on + deletion_seconds * interval '1s' AS delete_at\nFROM queue.job WHERE policy = 'key_strict_fifo' AND state = 'failed';",
 		);
 	});
 });
@@ -561,67 +566,163 @@ describe("concurrency", () => {
 });
 
 describe("queueOrderedBlockedKeysWatch", () => {
-	it("logs each blocked key once and reports the count per Consumer until it is back at 0", async () => {
-		const record = vi.fn();
+	it("reports each blocked key to error tracking, again after remindMs, warns before the deletion, and logs and counts a key the queue let go", async () => {
+		const recorded = new Map<string, ReturnType<typeof vi.fn>>();
+		const instrument = (name: string) => {
+			const record = vi.fn();
+			recorded.set(name, record);
+			return { add: record, record };
+		};
 		const getMeter = vi.spyOn(metrics, "getMeter").mockReturnValue({
-			createGauge: () => ({ record }),
+			createCounter: instrument,
+			createGauge: instrument,
 		} as unknown as ReturnType<typeof metrics.getMeter>);
-		// A fresh copy of the module, so its gauge is taken from the meter above; its logger is a
+		// A fresh copy of the module, so its instruments come from the meter above; its logger is a
 		// fresh copy too.
 		vi.resetModules();
-		const { queueOrderedBlockedKeysWatch } = await import("./queue-ordered.ts");
-		const { logger } = await import("@n8io/baseline-logger");
-		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		const { queueOrderedBlockedKeyGiveUp, queueOrderedBlockedKeysWatch } =
+			await import("./queue-ordered.ts");
+		const { logger, loggerErrorListen } = await import("@n8io/baseline-logger");
+		// Spies that still call through, so an err reaches loggerErrorListen as in production.
+		const error = vi.spyOn(logger, "error");
+		const warn = vi.spyOn(logger, "warn");
+		const reported: unknown[] = [];
+		const listenStop = loggerErrorListen((err) => reported.push(err));
 		const boss = queueBossGet(publisher);
-		const name = "audit.foo-expired.ordered";
-		// An Event the queue failed by itself: no Consumer ran, so nothing has logged it.
+		const consumer = "audit.foo-watched";
+		const name = `${consumer}.ordered`;
 		await boss.createQueue(name, { policy: "key_strict_fifo" });
-		await boss.send(name, {}, { singletonKey: "foo_expired" });
-		await pgPool.query(
-			"UPDATE queue.job SET state = 'failed', completed_on = now() WHERE name = $1",
-			[name],
-		);
-		const attributes = { "messaging.destination.name": "audit.foo-expired" };
-		const blockedLogs = () =>
-			error.mock.calls.filter(
-				(call: unknown[]) => call[1] === "Event key is blocked until released",
+		// An Event the queue failed by itself, so no Consumer has logged it, with a deletion time of
+		// its own: foo_held has an hour and an Event waiting behind it, the other two seconds.
+		const blockedCreate = async (key: string, deletionSeconds: number) => {
+			const id = await boss.send(name, {}, { singletonKey: key });
+			await pgPool.query(
+				"UPDATE queue.job SET state = 'failed', completed_on = now() - interval '10 seconds', deletion_seconds = $2 + 10 WHERE id = $1",
+				[id, deletionSeconds],
 			);
+		};
+		await blockedCreate("foo_held", 3600);
+		await boss.send(name, {}, { singletonKey: "foo_held" });
+		await blockedCreate("foo_expiring", 2);
+		await blockedCreate("foo_given_up", 3);
+		const logs = (
+			spy: typeof error | typeof warn,
+			message: string,
+			key: string,
+		) =>
+			spy.mock.calls.filter(
+				(call: unknown[]) =>
+					call[1] === message && (call[0] as { key: string }).key === key,
+			);
+		const blockedMessage = "Event key is blocked until released";
+		const expiredMessage =
+			"Blocked Event was deleted unreleased; its key moved on without it";
+		const warnMessage =
+			"Event key is blocked, and its failed Event is deleted at deleteAt unless released first";
+		const attributes = { "messaging.destination.name": consumer };
+		const last = (metric: string) => recorded.get(metric)?.mock.lastCall;
 
-		const stop = queueOrderedBlockedKeysWatch(boss, 100);
+		const stop = queueOrderedBlockedKeysWatch(boss, {
+			checkMs: 100,
+			remindMs: 1500,
+		});
 		try {
 			await vi.waitFor(
-				() => expect(record.mock.calls.length).toBeGreaterThan(3),
-				{
-					interval: 50,
-					timeout: 10_000,
-				},
+				() =>
+					expect(last("baseline.queue.blocked_keys")).toEqual([3, attributes]),
+				{ interval: 50, timeout: 10_000 },
 			);
-			expect(record).toHaveBeenLastCalledWith(1, attributes);
-			expect(blockedLogs()).toEqual([
-				[
-					{
-						key: "foo_expired",
-						queue: "audit.foo-expired",
-						since: expect.any(Date),
-					},
-					"Event key is blocked until released",
-				],
+			// One report per key, under one error whose message names no key.
+			expect(reported).toHaveLength(3);
+			for (const err of reported) {
+				expect(err).toMatchObject({
+					message: "An Event key is blocked until released",
+					name: "QueueBlockedKeyError",
+				});
+			}
+			expect(logs(error, blockedMessage, "foo_held")[0]?.[0]).toMatchObject({
+				deleteAt: expect.any(Date),
+				key: "foo_held",
+				queue: consumer,
+				since: expect.any(Date),
+			});
+			expect(
+				last("baseline.queue.blocked_key_age")?.[0],
+			).toBeGreaterThanOrEqual(10);
+			expect(last("baseline.queue.blocked_key_waiting")).toEqual([
+				1,
+				attributes,
 			]);
+			// The two with seconds left are warned about, the one with an hour is not.
+			await vi.waitFor(
+				() => {
+					expect(logs(warn, warnMessage, "foo_expiring")).toHaveLength(1);
+					expect(logs(warn, warnMessage, "foo_given_up")).toHaveLength(1);
+				},
+				{ interval: 50, timeout: 10_000 },
+			);
+			expect(logs(warn, warnMessage, "foo_held")).toHaveLength(0);
+
+			// Given up in time: nothing more about it.
+			expect(
+				await queueOrderedBlockedKeyGiveUp(boss, {
+					consumer,
+					key: "foo_given_up",
+				}),
+			).toBe(true);
+			// Past its deadline, the queue's sweep deletes foo_expiring (done by hand here).
+			await sleep(2000);
+			await pgPool.query(
+				"DELETE FROM queue.job WHERE name = $1 AND singleton_key = 'foo_expiring' AND state = 'failed'",
+				[name],
+			);
+			await vi.waitFor(
+				() =>
+					expect(logs(error, expiredMessage, "foo_expiring")).toHaveLength(1),
+				{ interval: 50, timeout: 10_000 },
+			);
+			expect(
+				recorded.get("baseline.queue.blocked_keys_expired")?.mock.calls,
+			).toEqual([[1, attributes]]);
+			expect(reported.at(-1)).toMatchObject({
+				name: "QueueBlockedKeyExpiredError",
+			});
+			await sleep(1500);
+			expect(logs(error, expiredMessage, "foo_given_up")).toHaveLength(0);
+			// Still blocked a remindMs later: logged and reported again.
+			expect(
+				logs(error, blockedMessage, "foo_held").length,
+			).toBeGreaterThanOrEqual(2);
 
 			await pgPool.query("DELETE FROM queue.job WHERE name = $1", [name]);
 			await vi.waitFor(
-				() => expect(record).toHaveBeenLastCalledWith(0, attributes),
+				() => {
+					expect(last("baseline.queue.blocked_keys")).toEqual([0, attributes]);
+					expect(last("baseline.queue.blocked_key_age")).toEqual([
+						0,
+						attributes,
+					]);
+					expect(last("baseline.queue.blocked_key_waiting")).toEqual([
+						0,
+						attributes,
+					]);
+				},
 				{ interval: 50, timeout: 10_000 },
 			);
+			// foo_held was deleted before its deadline, as a give-up would: no expiry.
+			expect(logs(error, expiredMessage, "foo_held")).toHaveLength(0);
 		} finally {
 			stop();
+			listenStop();
 			getMeter.mockRestore();
 			error.mockRestore();
+			warn.mockRestore();
 		}
 		// A check that was under way when the watch stopped may still report.
+		const keys = recorded.get("baseline.queue.blocked_keys");
 		await sleep(300);
-		const calls = record.mock.calls.length;
+		const calls = keys?.mock.calls.length;
 		await sleep(300);
-		expect(record.mock.calls.length).toBe(calls);
+		expect(keys?.mock.calls.length).toBe(calls);
 	});
 });

@@ -16,9 +16,12 @@ export type Queue = {
 	// never reports a worker dead. A poll must fail and not hang for that: give `pgPool` a query
 	// timeout well under a minute.
 	isAlive(): boolean;
-	// The keys held back by an Event that failed for good, per Consumer (its queueName), and since
-	// when. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
-	blockedKeys(): Promise<{ consumer: string; key: string; since: Date }[]>;
+	// The keys held back by an Event that failed for good, per Consumer (its queueName), since when,
+	// and when the queue deletes that Event so the key moves on without it unless it is released
+	// first. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
+	blockedKeys(): Promise<
+		{ consumer: string; deleteAt: Date; key: string; since: Date }[]
+	>;
 	// Releases a blocked key by running its failed Event again, before the Events waiting behind
 	// it. true when it released the key; false when that Consumer has no blocked Event for the key.
 	blockedKeyRetry(blocked: { consumer: string; key: string }): Promise<boolean>;

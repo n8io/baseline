@@ -81,6 +81,10 @@ describe("src/blocked-keys.ts on Postgres", { timeout: 60_000 }, () => {
 		expect(listed.code).toBe(0);
 		expect(listed.output).toContain("audit.sample-blocked");
 		expect(listed.output).toContain("sample_1");
+		const [listedKey] = await queue.blockedKeys();
+		expect(listed.output).toContain(
+			`deleted at ${listedKey?.deleteAt.toISOString()} unless released`,
+		);
 
 		const wrong = ["retry", "audit.sample-blocked", "sample_2"];
 		expect((await blockedKeysRun(databaseUrl, wrong)).code).toBe(1);
