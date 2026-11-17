@@ -8,7 +8,7 @@ A piece's code sits mostly in whole files: `src/connections.ts` opens each piece
 
 1. Start clean: `git status` shows nothing to commit. The command refuses otherwise.
 2. Run `pnpm piece-remove <piece>` from the Project root, with the piece named under its heading below. It deletes the piece's files and blocks (and a test file left with no test), edits the files that cannot hold markers, removes its packages and the unused imports, runs `pnpm check`, and never commits. It refuses an order that cannot work and says what to remove first.
-3. Run `pnpm test` and `pnpm build`. Both must pass.
+3. Run `pnpm test` and `pnpm build`. Both must pass. Then drop what `README.md` says about the piece: the command does not edit Markdown.
 4. Commit as "Remove <piece>", alone, so the commit can be reverted later.
 
 ## If it fails
