@@ -6,7 +6,7 @@
 pnpm add @n8io/baseline-queue
 ```
 
-<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/queue-order.svg" width="880" alt="Three Event keys feed one Consumer. Each key's Events reach it one at a time; when order_2's second Event fails five times its key is blocked, and the other keys carry on."></p>
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/queue-order.svg" width="880" alt="Three Event keys feed one Consumer. Each key's Events reach it one at a time; order_2's second Event fails once and #3 waits behind it until the retry succeeds, while the other keys carry on. Every Event ends handled, in order."></p>
 
 ## Guarantees
 
@@ -151,8 +151,6 @@ Every publish names an Event key: the id of the entity the Event is about. Each 
 </details>
 
 <details><summary><b>Runbook: a blocked key</b></summary>
-
-<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/queue-order.svg" width="660" alt="Three Event keys feed one Consumer; order_2's second Event failed five times, so its key is blocked while order_1 and order_3 carry on."></p>
 
 An Event that fails all five attempts stays in its queue as failed, and a copy goes to `<queueName>.dead`. Strict order means the later Events of that key now wait until someone decides; every other key carries on. The worker logs it at error level ("its key is blocked until released") with the queue and the key, and counts it on `baseline.queue.dead_letters`. An Event the queue fails itself (a dead worker or a fetch out of time, five times over) blocks its key without that log line or count. So every worker also looks once a minute: it logs each blocked key it has not logged yet at error level ("Event key is blocked until released") and sets the gauge `baseline.queue.blocked_keys` to the number of blocked keys per Consumer (`messaging.destination.name`). Every worker reports the same count, so alert on its maximum across workers being above 0, not on a sum.
 
