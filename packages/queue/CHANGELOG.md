@@ -1,5 +1,17 @@
 # @n8io/baseline-queue
 
+## 8.2.0
+
+### Minor Changes
+
+- 432ec1c: A blocked Event key is now hard to miss. The once-a-minute watch in every Worker logs a blocked key at error level with an `err` (`QueueBlockedKeyError`, whose message names the Consumer but never a key), so it reaches error tracking, and logs it again every 24 hours while it stays blocked. From 24 hours before the queue deletes the failed Event it warns with that time, and when the queue has deleted it unreleased it logs at error (`QueueBlockedKeyExpiredError`) and adds to the counter `baseline.queue.blocked_keys_expired`. Two new gauges per Consumer: `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events waiting behind blocked keys). `blockedKeys()` also returns `deleteAt`, when the queue deletes the failed Event unless it is released first.
+- 9d22059: `queue.blockedKeyRetry({ consumer, key })` and `queue.blockedKeyGiveUp({ consumer, key })` release a blocked Event key without SQL: the first runs the failed Event again before the Events waiting behind it, the second gives it up so the key moves on (its copy in `<queueName>.dead` stays). Both resolve `false` when that Consumer has no blocked Event for that key, and both work on a `"publisher"` Queue. The README runbook leads with them; the SQL stays as a fallback for when only psql is at hand.
+
+### Patch Changes
+
+- 2fb6d06: The README's blocked-key runbook has a diagram again: an Event that fails all five attempts goes to `.dead`, its key is held while other keys carry on, and once it is given up the key moves on.
+- 68bd0d6: The README's order diagram now shows a retry that succeeds: a failed Event holds its key's later Events until its retry, then every Event is handled in order.
+
 ## 8.1.1
 
 ### Patch Changes
