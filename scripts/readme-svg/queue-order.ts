@@ -42,6 +42,7 @@ const motion: string[] = [];
 const body: string[] = [];
 let retryFrom = 0;
 let retryUntil = 0;
+let retryRan = 0;
 
 keys.forEach((key, lane) => {
 	const top = laneTop + lane * laneGap;
@@ -49,7 +50,7 @@ keys.forEach((key, lane) => {
 		svgText({ text: key.name, x: 30, y: top + 20 }),
 		`<line x1="120" y1="${top + 15}" x2="${consumerX - 50}" y2="${top + 15}" stroke="${theme.line}" stroke-dasharray="3 5"/>`,
 	);
-	// Each Event starts once the one before it has left the Consumer.
+	// Each Event starts once the one before it has been handled.
 	let start = key.start;
 	slotX.forEach((x, index) => {
 		const name = `e${lane}${index}`;
@@ -69,6 +70,7 @@ keys.forEach((key, lane) => {
 		if (retried) {
 			retryFrom = failed;
 			retryUntil = failed + retryWait;
+			retryRan = ran;
 			motion.push(
 				`@keyframes ${name}c{0%,${at(failed - 0.1)}{fill:${theme.accent}}${at(failed)},${at(retryUntil - 0.1)}{fill:${theme.fail}}${at(retryUntil)},${at(ran)}{fill:${theme.accent}}${at(left)},100%{fill:${theme.ok}}}.${name} rect{animation:${name}c ${period}s linear infinite}`,
 			);
@@ -87,7 +89,7 @@ keys.forEach((key, lane) => {
 const retryTop = laneTop + retryLane * laneGap;
 motion.push(
 	`@keyframes retrying{0%,${at(retryFrom)}{opacity:0}${at(retryFrom + 0.2)},${at(retryUntil)}{opacity:1}${at(retryUntil + 0.2)},100%{opacity:0}}.retrying{animation:retrying ${period}s linear infinite}`,
-	`@keyframes held{0%,${at(retryFrom)}{opacity:1}${at(retryFrom + 0.4)}{opacity:.4}${at(retryFrom + 0.8)}{opacity:1}${at(retryFrom + 1.2)}{opacity:.4}${at(retryUntil)},100%{opacity:1}}.e${retryLane}${retryIndex + 1} rect{animation-name:e${retryLane}${retryIndex + 1}c,held}`,
+	`@keyframes held{0%,${at(retryFrom)}{opacity:1}${at(retryFrom + 0.4)}{opacity:.4}${at(retryFrom + 0.8)}{opacity:1}${at(retryFrom + 1.2)}{opacity:.4}${at(retryFrom + 1.6)}{opacity:1}${at(retryFrom + 2)}{opacity:.4}${at(retryRan)},100%{opacity:1}}.e${retryLane}${retryIndex + 1} rect{animation-name:e${retryLane}${retryIndex + 1}c,held}`,
 );
 
 export default svgDocument({
@@ -119,7 +121,7 @@ export default svgDocument({
 			y: laneTop - 22,
 		}),
 		...body,
-		`<g class="retrying"><rect x="${consumerX + 50}" y="${retryTop + 33}" width="300" height="22" rx="${theme.radius}" fill="${theme.panel}" stroke="${theme.fail}"/>${svgText({ className: "mono fail", fontSize: 11, text: "#2 failed: retry soon, #3 waits behind it", x: consumerX + 62, y: retryTop + 48 })}</g>`,
+		`<g class="retrying"><rect x="${consumerX + 50}" y="${retryTop + 33}" width="300" height="22" rx="${theme.radius}" fill="${theme.panel}" stroke="${theme.fail}"/>${svgText({ className: "mono fail", fontSize: 11, text: "#2 failed: it retries; #3 waits behind it", x: consumerX + 62, y: retryTop + 48 })}</g>`,
 		svgText({
 			className: "mono dim",
 			fontSize: 12,
