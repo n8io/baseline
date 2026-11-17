@@ -15,7 +15,7 @@ const theme = readmeSvgThemes.marquee;
 const width = 880;
 const height = 300;
 const period = 10;
-// apps/app/scripts/piece-remove.ts pieceRemovals, in the order docs/agents/pieces.md lists them.
+// Every piece in apps/app/scripts/piece-remove.ts pieceRemovals, in the README's order.
 const pieces = [
 	"ui",
 	"api-reference",

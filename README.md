@@ -11,7 +11,7 @@ pnpm app-create   # a new Project: rendered, on GitHub, CI started on main
 pnpm dev          # Postgres, Redis, migrations, seed, the Worker and the dev server
 ```
 
-Run `pnpm app-create` from a clone of this repo after `fnm use && pnpm install`, then `pnpm dev` inside the new Project. Needs Node 26, pnpm 12, Docker and a logged-in [GitHub CLI](https://cli.github.com), which creates the Project's repo (`--no-github` skips it).
+Run `pnpm app-create` from a clone of this repo after `fnm use && pnpm install`, then `pnpm dev` inside the new Project. Needs Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12, Docker and a logged-in [GitHub CLI](https://cli.github.com), which creates the Project's repo (`--no-github` skips it).
 
 <details><summary><b>What the two commands do</b></summary>
 
@@ -26,6 +26,7 @@ pnpm app-create
 It asks two questions; pass them as flags instead with `--name --description [--owner]`. [`docs/agents/project-create.md`](docs/agents/project-create.md) walks through it, including `--no-github` and `--github-only`.
 
 **`pnpm dev`** starts Postgres 18 and Redis 8, migrates, seeds, then runs the Worker and the dev server. Open the URL it prints. The Worker restarts when a file it imports changes. Development uses a memory sign-in, so no identity provider is needed.
+
 </details>
 
 ## What's inside
@@ -42,7 +43,7 @@ It asks two questions; pass them as flags instead with `--name --description [--
 <td valign="top"><b>See every hop</b><br>One trace from the request through each Event it publishes, plus logs, error reports and analytics. Grafana runs locally behind one compose profile.</td>
 </tr>
 <tr>
-<td valign="top"><b>Ready for production</b><br>Liveness and readiness probes, graceful shutdown in order, a small Alpine image and a Kubernetes guide.</td>
+<td valign="top"><b>Ready for production</b><br>Liveness and readiness probes, graceful shutdown in order, an Alpine image held to a size budget, and a Kubernetes guide.</td>
 <td valign="top"><b>Secrets in one place</b><br>A typed env schema; values from 1Password, or plain env vars in production.</td>
 <td valign="top"><b>Never left behind</b><br><code>pnpm template-upgrade</code> 3-way merges the newest Template release into your Project.</td>
 </tr>
@@ -61,12 +62,12 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | I need to…                                                                 | Package                                     | Runs on            |
 | -------------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
 | save an aggregate in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
-| tell another Domain something happened, or run on a timer                  | [`queue`](packages/queue)                   | pg-boss            |
+| tell another Domain something happened, or run on a Schedule               | [`queue`](packages/queue)                   | pg-boss            |
 | refresh open pages when data changes                                       | [`live`](packages/live)                     | SSE, Redis pub/sub |
 | skip a slow read, and keep working when the store is down                  | [`cache`](packages/cache)                   | Redis or memory    |
-| share one Redis connection between the cache and live updates              | [`redis`](packages/redis)                   | node-redis         |
+| share one connection between the cache and live updates                    | [`redis`](packages/redis)                   | node-redis         |
 | know who is calling: OIDC sign-in, JWT checks and the Actor                | [`authn`](packages/authn)                   | any OIDC provider  |
-| return an expected business error without throwing                         | [`result`](packages/result)                 |                    |
+| return an expected business error as `err(…)`, not a throw                 | [`result`](packages/result)                 |                    |
 | give an entity a prefixed id no other entity's id can pass for             | [`id`](packages/id)                         | TypeID, UUIDv7     |
 | shape API errors and add the API helpers                                   | [`http`](packages/http)                     | Hono               |
 | see a request across processes                                             | [`telemetry`](packages/telemetry)           | OpenTelemetry      |
@@ -142,6 +143,7 @@ The README diagrams are generated: edit `scripts/readme-svg/<name>.ts`, run `pnp
 
 > [!WARNING]
 > `app-ci.yml@v<major>` follows the Template's major, and older majors stay frozen. A major never gains a check that can fail on Projects that passed before, and never adds, renames or removes a job (a required check); a change like that ships with the next Template major.
+
 </details>
 
 ## License

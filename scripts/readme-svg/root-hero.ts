@@ -1,6 +1,7 @@
 // The root README's hero, in the marquee theme: the wordmark and its promise beside a terminal
 // that types `pnpm app-create`, then `pnpm dev`, each followed by the lines it really prints
-// (scripts/app-create.ts, Vite's dev server). The release reads x.y.z so the file never goes stale.
+// (scripts/app-create.ts, Vite's dev server), except the dim `#` line, which sums up the steps
+// `pnpm dev` runs before the server starts. The release reads x.y.z so the file never goes stale.
 import {
 	keyframePercent,
 	readmeSvgThemes,
@@ -37,7 +38,7 @@ const lines: Line[] = [
 	},
 	{
 		className: "dim",
-		text: "Rendering app@x.y.z into ~/code/acme",
+		text: "Rendering app@x.y.z into /Users/you/code/acme",
 		typedFrom: 3.2,
 		typedUntil: 3.4,
 	},
@@ -113,7 +114,7 @@ export default svgDocument({
 		svgText({
 			className: "display",
 			fontSize: 17,
-			text: "tested app in minutes.",
+			text: "tested app in two commands.",
 			weight: 600,
 			x: 34,
 			y: 214,
