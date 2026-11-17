@@ -69,9 +69,9 @@ describe("ci.yml runs", () => {
 		expect(automerge).not.toContain("actions:");
 	});
 
-	it("the Template's run never starts on push, which a private Project pays for", () => {
+	it("the Template's run never starts on push, which a private Project pays for, and runs every test nightly", () => {
 		expect(read("apps/app/.github/workflows/ci.yml")).toContain(
-			"\non: [pull_request, workflow_dispatch]\n",
+			'\non:\n  pull_request:\n  schedule:\n    - cron: "17 7 * * *"\n  workflow_dispatch:\n',
 		);
 	});
 
