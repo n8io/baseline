@@ -51,9 +51,22 @@ It asks two questions; pass them as flags instead with `--name --description [--
 
 ## Pieces
 
-<p><img src="docs/readme/root-pieces.svg" width="880" alt="Eight pieces sit on the core; pnpm piece-remove live types itself, the live piece lifts out, and the command reports that pnpm check passes."></p>
+A Project starts with everything, and most Projects don't need all of it. A **piece** is an optional part of the stack: its files, the code blocks marked for it, its Packages, env vars and Docker services. `pnpm piece-remove <piece>` takes all of that out in one step, then runs `pnpm check`. If the check fails, it undoes the removal. Commit each removal on its own, and `git revert` brings the piece back.
 
-Don't need UI pages, live updates, the cache, Redis, the queue, analytics, error reports or the API reference? `pnpm piece-remove <piece>` takes each one out: its files, blocks, packages and the imports nothing uses, then runs `pnpm check`. The `pieces` CI job proves each one still can. [Pieces guide](apps/app/docs/agents/pieces.md)
+<p><img src="docs/readme/root-pieces.svg" width="880" alt="Pieces are optional parts of the stack. Four recipes play in turn: remove ui for an API with no pages; remove live, cache and redis to run no Redis; remove queue to run no Worker; remove analytics and error-tracking to send nothing to Mixpanel or Sentry."></p>
+
+| Piece            | What goes                                                          | What you're left with                                         |
+| ---------------- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `ui`             | React Router pages, their components and the Vite dev server       | The API, sign-in, live streams and the Worker, served by Hono |
+| `api-reference`  | The interactive reference at `/api/v1/docs`                        | The OpenAPI document at `/api/v1/openapi.json`                |
+| `live`           | Live update streams to open pages                                  | Pages that show data as of their load                         |
+| `cache`          | The read-through cache on each Domain's get                        | Every get reads Postgres                                      |
+| `redis`          | The Redis connection and its Docker service (after live and cache) | Postgres as the only data store                               |
+| `queue`          | Events, Schedules and the Worker process                           | One process; plain Postgres transactions                      |
+| `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                             |
+| `error-tracking` | Error reports and `SENTRY_DSN`                                     | Errors still logged                                           |
+
+`pnpm domain-create` leaves a removed piece out of every new Domain, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
 
 ## Packages
 
