@@ -53,14 +53,14 @@ await transaction.orderEvents.publish({
 - Each Consumer gets the Events of one Event key one at a time, in the order their transactions committed, however many workers run. Events with different Event keys run beside each other, so never rely on order across entities.
 - The port types `key` as the Domain's own id (`Id<"order">`), so a publish without one, or with another Domain's id, does not compile.
 - While an Event waits for a retry, the later Events of its Event key wait behind it. Keep a Consumer's Use case short, and let it return `err` for an outcome you expect: only a throw is retried.
-- An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on. The worker logs it at error level, `queue.blockedKeys()` lists it, and the runbook is "A blocked key" in the `@n8io/baseline-queue` README.
+- An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on. The worker logs it at error level, `queue.blockedKeys()` lists it, `queue.blockedKeyRetry({ consumer, key })` or `queue.blockedKeyGiveUp({ consumer, key })` releases it, and in a pod `node src/blocked-keys.ts` does both (`pnpm blocked-keys` locally). The runbook is "A blocked key" in the `@n8io/baseline-queue` README.
 
 ### Where order stops
 
 Order holds per Event key and per Consumer. Plan for the three places it does not reach:
 
 - **Across Event keys.** `score.posted` (key: the score) can reach a Consumer before `tournament.started` (key: the tournament) has been handled by another. When a Consumer needs a row another key's Event creates, create it on demand: upsert the row it needs (`INSERT ... ON CONFLICT DO NOTHING`, then read it), and let the later Event fill in the rest. Never wait or retry until the other Event lands: a throw holds this key back through five attempts, then blocks it until someone releases it. Do not return `err` for the missing row either: `err` completes the Event and it never runs again.
-- **A redriven Event.** Releasing a blocked key by giving its Event up, then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it (runbook: "A blocked key" in the `@n8io/baseline-queue` README). Retrying it in place keeps its turn.
+- **A redriven Event.** Releasing a blocked key by giving its Event up (`blockedKeyGiveUp`), then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it (runbook: "A blocked key" in the `@n8io/baseline-queue` README). Retrying it in place (`blockedKeyRetry`) keeps its turn.
 - **A stale Event.** Where a late or repeated Event must not undo a newer state, put a version or sequence on the Event (one the publisher keeps on its row, or the source feed's sequence number) and keep the last one applied on the row. The Use case compares it inside its transaction, skips an Event whose version is not newer and returns `ok`. The inbox already skips an exact repeat; the guard covers a redriven or out-of-band one.
 
 ## Consumers that write a shared Aggregate

@@ -26,6 +26,52 @@ export const queueOrderedBlockedKeysList = async (
 	}));
 };
 
+// The failed Event that holds back `key` for `consumer` (its queueName), if there is one.
+const queueOrderedBlockedEventId = async (
+	boss: PgBoss,
+	{ consumer, key }: { consumer: string; key: string },
+): Promise<string | undefined> => {
+	const { rows } = await boss
+		.getDb()
+		.executeSql(
+			"SELECT id FROM queue.job WHERE name = $1 AND singleton_key = $2 AND policy = 'key_strict_fifo' AND state = 'failed'",
+			[queueOrderedName(consumer), key],
+		);
+	return (rows as { id: string }[])[0]?.id;
+};
+
+// How many jobs a pg-boss command changed: its responses carry `affected`, which its types leave out.
+const queueOrderedAffected = (response: unknown): number =>
+	(response as { affected?: number }).affected ?? 0;
+
+// Releases a blocked key by running its failed Event again. The Event keeps its place, so it runs
+// before the Events waiting behind it. false when the Consumer has no blocked Event for that key.
+export const queueOrderedBlockedKeyRetry = async (
+	boss: PgBoss,
+	blocked: { consumer: string; key: string },
+): Promise<boolean> => {
+	const id = await queueOrderedBlockedEventId(boss, blocked);
+	if (id === undefined) {
+		return false;
+	}
+	const response = await boss.retry(queueOrderedName(blocked.consumer), id);
+	return queueOrderedAffected(response) > 0;
+};
+
+// Releases a blocked key by deleting its failed Event, so the key moves on without it. The copy in
+// `<queueName>.dead` stays. false when the Consumer has no blocked Event for that key.
+export const queueOrderedBlockedKeyGiveUp = async (
+	boss: PgBoss,
+	blocked: { consumer: string; key: string },
+): Promise<boolean> => {
+	const id = await queueOrderedBlockedEventId(boss, blocked);
+	if (id === undefined) {
+		return false;
+	}
+	const response = await boss.deleteJob(queueOrderedName(blocked.consumer), id);
+	return queueOrderedAffected(response) > 0;
+};
+
 let blockedKeys: Gauge | undefined;
 
 // Taken on first use, after the telemetry preload has registered the meter provider.

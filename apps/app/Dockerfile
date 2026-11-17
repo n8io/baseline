@@ -3,6 +3,7 @@
 #   server:  the CMD below (build/server/index.js)
 # piece-start: queue
 #   worker:  ["node", "src/worker.ts"]
+#   blocked-keys: ["node", "src/blocked-keys.ts"], run by hand to list or release a blocked Event key
 # piece-end: queue
 #   migrate: ["node", "src/migrate.ts"]
 # NODE_OPTIONS preloads src/preload.ts (secrets, then tracing) for every entry.

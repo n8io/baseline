@@ -3,6 +3,8 @@ import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
 import {
+	queueOrderedBlockedKeyGiveUp,
+	queueOrderedBlockedKeyRetry,
 	queueOrderedBlockedKeysList,
 	queueOrderedBlockedKeysWatch,
 } from "./queue-ordered.ts";
@@ -15,8 +17,17 @@ export type Queue = {
 	// timeout well under a minute.
 	isAlive(): boolean;
 	// The keys held back by an Event that failed for good, per Consumer (its queueName), and since
-	// when. Empty when nothing is blocked. README, "A blocked key", says how to release one.
+	// when. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
 	blockedKeys(): Promise<{ consumer: string; key: string; since: Date }[]>;
+	// Releases a blocked key by running its failed Event again, before the Events waiting behind
+	// it. true when it released the key; false when that Consumer has no blocked Event for the key.
+	blockedKeyRetry(blocked: { consumer: string; key: string }): Promise<boolean>;
+	// Releases a blocked key by deleting its failed Event, so the key moves on without it; the copy
+	// in `<queueName>.dead` stays. true when it released the key; false as for blockedKeyRetry.
+	blockedKeyGiveUp(blocked: {
+		consumer: string;
+		key: string;
+	}): Promise<boolean>;
 	// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
 	// the composition root closes it after.
 	stop(): Promise<void>;
@@ -264,6 +275,8 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 		return boss.stop({ graceful: true, timeout: 15_000 });
 	};
 	const queue: Queue = {
+		blockedKeyGiveUp: (blocked) => queueOrderedBlockedKeyGiveUp(boss, blocked),
+		blockedKeyRetry: (blocked) => queueOrderedBlockedKeyRetry(boss, blocked),
 		blockedKeys: () => queueOrderedBlockedKeysList(boss),
 		isAlive: () => {
 			if (!worker) {

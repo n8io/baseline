@@ -376,7 +376,8 @@ describe("order at publish", () => {
 });
 
 describe("a blocked key", () => {
-	// The statements an operator runs, taken from the README so the runbook is what is tested.
+	// The statements an operator runs when only psql is at hand, taken from the README so the
+	// fallback is what is tested.
 	const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 	const release = (verb: "UPDATE" | "DELETE", key: string): string => {
 		const statement = new RegExp(`^${verb}[^;]+;`, "m").exec(readme)?.[0];
@@ -384,23 +385,40 @@ describe("a blocked key", () => {
 			throw new Error(`The README has no ${verb} statement`);
 		}
 		return statement
-			.replace("billing.order-placed.ordered", "audit.foo-poisoned.ordered")
+			.replace("billing.order-placed.ordered", "audit.foo-psql.ordered")
 			.replace("order_123", key);
 	};
 
-	it("a poison Event blocks only its key, shows in blockedKeys(), and each documented release unblocks it", async () => {
-		const names = {
-			eventName: "foo.poisoned",
-			queueName: "audit.foo-poisoned",
-		};
-		let poisoned = true;
+	// A Consumer whose second Event of every key but foo_fine fails while `poison.on` is true, on a
+	// worker that retries at once.
+	const poisonedStart = async (names: {
+		eventName: string;
+		queueName: string;
+	}): Promise<{ poison: { on: boolean }; queue: Queue }> => {
+		const poison = { on: true };
 		const consumer = consumerCreate({
 			...names,
-			fail: ({ key, seq }) => poisoned && key !== "foo_fine" && seq === 2,
+			fail: ({ key, seq }) => poison.on && key !== "foo_fine" && seq === 2,
 		});
 		const queue = await worker();
 		await queueEventsCreate(queue).consumersStart([consumer]);
 		await retryFast(names.queueName, 1);
+		return { poison, queue };
+	};
+
+	const blockedWait = (queue: Queue, keys: string[]): Promise<void> =>
+		vi.waitFor(
+			async () =>
+				expect((await queue.blockedKeys()).map(({ key }) => key)).toEqual(keys),
+			{ interval: 100, timeout: 30_000 },
+		);
+
+	it("a poison Event blocks only its key, shows in blockedKeys(), and a publisher releases it with blockedKeyRetry or blockedKeyGiveUp", async () => {
+		const names = {
+			eventName: "foo.poisoned",
+			queueName: "audit.foo-poisoned",
+		};
+		const { poison, queue } = await poisonedStart(names);
 
 		const before = new Date();
 		for (const seq of [1, 2, 3]) {
@@ -409,17 +427,14 @@ describe("a blocked key", () => {
 				{ key: "foo_fine", seq },
 			]);
 		}
-		await vi.waitFor(
-			async () =>
-				expect(await queue.blockedKeys()).toEqual([
-					{
-						consumer: names.queueName,
-						key: "foo_poison",
-						since: expect.any(Date),
-					},
-				]),
-			{ interval: 100, timeout: 30_000 },
-		);
+		await blockedWait(queue, ["foo_poison"]);
+		expect(await publisher.blockedKeys()).toEqual([
+			{
+				consumer: names.queueName,
+				key: "foo_poison",
+				since: expect.any(Date),
+			},
+		]);
 		const [blocked] = await queue.blockedKeys();
 		expect(blocked?.since.getTime()).toBeGreaterThanOrEqual(
 			before.getTime() - 1000,
@@ -430,32 +445,69 @@ describe("a blocked key", () => {
 		const boss = queueBossGet(queue);
 		expect(await boss.findJobs("audit.foo-poisoned.dead")).toHaveLength(1);
 
+		// A key that is not blocked, or a Consumer that has no such key, releases nothing.
+		const notBlocked = [
+			{ consumer: names.queueName, key: "foo_fine" },
+			{ consumer: "audit.foo-unknown", key: "foo_poison" },
+		];
+		for (const release of notBlocked) {
+			expect(await publisher.blockedKeyRetry(release)).toBe(false);
+			expect(await publisher.blockedKeyGiveUp(release)).toBe(false);
+		}
+		await sleep(500);
+		expect(await handled(names.queueName, "foo_poison")).toEqual([1]);
+		expect((await publisher.blockedKeys()).map(({ key }) => key)).toEqual([
+			"foo_poison",
+		]);
+
 		// Fixed and deployed: run it again. It runs before the Event waiting behind it.
-		poisoned = false;
-		const retried = await pgPool.query(release("UPDATE", "foo_poison"));
-		expect(retried.rowCount).toBe(1);
+		poison.on = false;
+		const poisoned = { consumer: names.queueName, key: "foo_poison" };
+		expect(await publisher.blockedKeyRetry(poisoned)).toBe(true);
+		expect(await publisher.blockedKeyRetry(poisoned)).toBe(false);
 		await handledWait(names.queueName, 6);
 		expect(await handled(names.queueName, "foo_poison")).toEqual([1, 2, 3]);
 		expect(await queue.blockedKeys()).toEqual([]);
 
-		// Or give it up: the key moves on without it.
-		poisoned = true;
+		// Or give it up: the key moves on without it, and the copy in the dead letter queue stays.
+		poison.on = true;
 		for (const seq of [1, 2, 3]) {
 			await publish(names.eventName, [{ key: "foo_given_up", seq }]);
 		}
-		await vi.waitFor(
-			async () =>
-				expect((await queue.blockedKeys()).map((key) => key.key)).toEqual([
-					"foo_given_up",
-				]),
-			{ interval: 100, timeout: 30_000 },
-		);
-		const discarded = await pgPool.query(release("DELETE", "foo_given_up"));
-		expect(discarded.rowCount).toBe(1);
+		await blockedWait(queue, ["foo_given_up"]);
+		const givenUp = { consumer: names.queueName, key: "foo_given_up" };
+		expect(await publisher.blockedKeyGiveUp(givenUp)).toBe(true);
+		expect(await publisher.blockedKeyGiveUp(givenUp)).toBe(false);
 		await handledWait(names.queueName, 8);
 		expect(await handled(names.queueName, "foo_given_up")).toEqual([1, 3]);
 		expect(await queue.blockedKeys()).toEqual([]);
 		expect(await boss.findJobs("audit.foo-poisoned.dead")).toHaveLength(2);
+	});
+
+	it("the README's SQL fallback releases a blocked key either way", async () => {
+		const names = { eventName: "foo.psql", queueName: "audit.foo-psql" };
+		const { poison, queue } = await poisonedStart(names);
+		for (const seq of [1, 2, 3]) {
+			await publish(names.eventName, [{ key: "foo_retried", seq }]);
+		}
+		await blockedWait(queue, ["foo_retried"]);
+
+		poison.on = false;
+		const retried = await pgPool.query(release("UPDATE", "foo_retried"));
+		expect(retried.rowCount).toBe(1);
+		await handledWait(names.queueName, 3);
+		expect(await handled(names.queueName, "foo_retried")).toEqual([1, 2, 3]);
+
+		poison.on = true;
+		for (const seq of [1, 2, 3]) {
+			await publish(names.eventName, [{ key: "foo_given_up", seq }]);
+		}
+		await blockedWait(queue, ["foo_given_up"]);
+		const discarded = await pgPool.query(release("DELETE", "foo_given_up"));
+		expect(discarded.rowCount).toBe(1);
+		await handledWait(names.queueName, 5);
+		expect(await handled(names.queueName, "foo_given_up")).toEqual([1, 3]);
+		expect(await queue.blockedKeys()).toEqual([]);
 	});
 
 	it("the README's listing is what blockedKeys() reads", () => {
