@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 240" width="880" height="240" role="img" aria-label="README kit sample: a dot passes three boxes, each lights up, and a command types itself">
+<title>README kit sample: a dot passes three boxes, each lights up, and a command types itself</title>
+<style>
+.display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
+.dim{fill:#86A3BE}
+.accent{fill:#F5B544}
+.ok{fill:#6CD4A0}
+.fail{fill:#FF7A6B}
+@media (prefers-reduced-motion: no-preference){
+@keyframes glow0{0%,0.00%,7.50%,100%{stroke:#5FA8D3}0.00%{stroke:#F5B544}}.glow0 rect{animation:glow0 8s linear infinite}
+@keyframes glow1{0%,36.25%,47.50%,100%{stroke:#5FA8D3}40.00%{stroke:#F5B544}}.glow1 rect{animation:glow1 8s linear infinite}
+@keyframes glow2{0%,76.25%,87.50%,100%{stroke:#5FA8D3}80.00%{stroke:#F5B544}}.glow2 rect{animation:glow2 8s linear infinite}
+}
+@media (prefers-reduced-motion: reduce){.typed{clip-path:none}.moving{display:none}}
+</style>
+<rect width="880" height="240" rx="6" fill="#0C1C30"/>
+<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="240" fill="url(#grid)"/>
+<text x="40" y="44" class="display" font-size="15" font-weight="700">README kit sample</text>
+<path d="M150 98 H730" fill="none" stroke="#5FA8D3" stroke-width="1.5" stroke-dasharray="4 5"/>
+<g class="glow0"><rect x="40" y="70" width="220" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="150" y="103" text-anchor="middle" class="display" font-size="14" font-weight="600">pnpm readme-svg</text></g>
+<g class="glow1"><rect x="330" y="70" width="220" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="440" y="103" text-anchor="middle" class="display" font-size="14" font-weight="600">docs/readme/*.svg</text></g>
+<g class="glow2"><rect x="620" y="70" width="220" height="56" rx="2" fill="#10243D" stroke="#5FA8D3" stroke-width="1.5"/><text x="730" y="103" text-anchor="middle" class="display" font-size="14" font-weight="600">README.md</text></g>
+<circle class="moving" r="7" fill="#F5B544"><animateMotion dur="8s" repeatCount="indefinite" path="M150 98 H730" keyPoints="0;1;1" keyTimes="0;0.8;1" calcMode="linear"/></circle>
+<clipPath id="sample-command"><rect x="40" y="170" width="0" height="22"><animate attributeName="width" dur="8s" repeatCount="indefinite" values="0;0;141;141;0;0" keyTimes="0.000;0.037;0.225;0.920;0.970;1.000"/></rect></clipPath><text x="40" y="186" class="typed mono " font-size="13" clip-path="url(#sample-command)"><tspan class="accent">$ </tspan>pnpm readme-svg</text>
+<text x="40" y="222" class="mono dim" font-size="12">One file per diagram; the test checks the committed SVG equals its generator.</text>
+</svg>

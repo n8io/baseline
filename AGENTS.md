@@ -44,6 +44,7 @@ Tests assert with `expect()` only: `expect.requireAssertions` does not count cha
 This doc loads only when the task needs it. Read it before you start.
 
 - Working in `packages/` (a factory, an option, a schema, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
+- Writing a README or a README diagram: [docs/agents/readmes.md](docs/agents/readmes.md)
 
 ## Walkthroughs
 
