@@ -1,12 +1,56 @@
 # @n8io/baseline-postgres
 
-Postgres on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team): one pool, Result-aware transactions, migrations under a lock, columns that store prefixed ids as `uuid`, keyset paging, advisory locks, and a helper that forces the interleaving a race test needs.
+**One pool, transactions that follow your Result, and migrations that run once, however many pods start.** Plus prefixed ids stored as `uuid`, keyset paging, advisory locks, and a helper that forces the interleaving a race test needs.
 
 ```sh
 pnpm add @n8io/baseline-postgres
 ```
 
-## Exports
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/postgres-transaction.svg" width="880" alt="postgresTransactionRun: a run passes BEGIN and the work; when the work returns ok it commits, and when it returns err or throws it rolls back."></p>
+
+## Guarantees
+
+| You get                                  | How                                                                                                                                            |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A pool that cannot hang**              | `postgresPoolCreate` defaults: 10 connections, a 3 s connect timeout, a query rejects after 15 s, and an idle connection is probed after 10 s. |
+| **Transactions that follow your Result** | `postgresTransactionRun` commits on `ok`, rolls back on `err` or a throw, and Postgres ends it after 5 s.                                      |
+| **No query outside its transaction**     | The client it hands your work throws on any use once the transaction has ended.                                                                |
+| **Each migration applied once**          | `postgresMigrate` runs under an advisory lock, waits up to 60 s for it, and refuses a connection pooler before it changes anything.            |
+| **Prefixed ids in a `uuid` column**      | `postgresIdColumnCreate("foo")` stores 16 bytes and reads back `Id<"foo">`.                                                                    |
+| **Unique violations as data**            | `postgresUniqueViolationIs` and `postgresUniqueViolationRead` find one anywhere in the `cause` chain.                                          |
+| **Paging that never skips a row**        | `postgresKeysetCreate` pages on `(sort column, id)` for text, numbers, integers and dates.                                                     |
+| **A lock with no row to lock**           | `postgresAdvisoryLockTake` takes a transaction-scoped lock on a string.                                                                        |
+| **Race tests that prove the lock**       | `postgresTestInterleave` pauses one transaction mid-flight and reports whether the second waited.                                              |
+
+## Example
+
+```ts
+export const fooTable = pgTable("foo", {
+	id: postgresIdColumnCreate("foo")().primaryKey(),
+	name: text().notNull(),
+});
+```
+
+```ts
+const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
+
+const result = await postgresTransactionRun({
+	pgPool,
+	work: async (pgClient) => {
+		const [foo] = await drizzle({ client: pgClient })
+			.insert(fooTable)
+			.values({ id: idCreate("foo"), name })
+			.returning();
+		return foo ? ok(foo) : err({ type: "FooNotCreated" as const });
+	},
+});
+```
+
+Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` (see Race tests below). Its own tests need Docker: `pnpm test` starts a Postgres container and, for the migrate tests, PgBouncer.
+
+## Reference
+
+<details><summary><b>Exports</b></summary>
 
 - `postgresPoolCreate({ databaseUrl, max?, connectTimeoutMs?, queryTimeoutMs?, vendor? })`: the process's one pool (10 connections, 3 s connect timeout). A query that takes longer than `queryTimeoutMs` (default 15 s, `null` for no limit) rejects with `Query read timeout`, so a server that stops answering cannot hold a request or a pool slot forever. The pool closes that connection; inside `postgresTransactionRun` it is closed once the rollback has been tried, which can take one more `queryTimeoutMs`. The timer runs in this process and sends no cancel: a server that is slow, not gone, may still finish the query, a write included, so treat the rejection as "unknown", not "did not happen". The limit is per query, inside a transaction too. An idle connection is probed after 10 s (TCP keep-alive). `vendor` takes pg's own pool settings, such as `ssl` or `idleTimeoutMillis`, and passes them through. The named options win: `vendor` throws on the keys they set, on `host`, `port`, `database`, `user` and `password` (pg lets the URL win, so put them in `databaseUrl`), and on `ssl` when the URL carries an `ssl*` parameter. It is outside the contract: nothing in it is tested here, and moving off pg deletes it.
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
@@ -19,38 +63,11 @@ pnpm add @n8io/baseline-postgres
 - `postgresKeysetCreate({ after?, descending, idColumn, kind, sortColumn })`: keyset paging on `(sortColumn, idColumn)`. Returns `{ where, orderBy }` for a Drizzle `select`; `where` is `undefined` on the first page. `after` is the last row of the previous page, `{ id, value }`, with `id` written through `idColumn` (a prefixed id works). `kind` says how the sort compares: `text` by byte order (`COLLATE "C"`, the same in every locale, so give the column a `COLLATE "C"` index); `number` as the column's own type, so its index is used (for `integer`, `real` and `double precision` columns; a `numeric` or `bigint` column reads as a string or a bigint and is not supported); `integer` the same, for an `integer` or `serial` column only (any other column throws), taking only a whole number from -2147483648 to 2147483647; `date` as an instant, with `value` an ISO string with an offset (`toISOString()`). The sort column must be `NOT NULL`, because a NULL never compares, and a `date` column must hold no more than milliseconds (`timestamp({ precision: 3, withTimezone: true })`, or written only from a JS `Date`): a cursor made from a `Date` drops the microseconds a `now()` default stores, and pages would repeat or skip rows. A `value` of the wrong type for `kind`, a date that is not an ISO instant, or a number an `integer` or `smallint` sort column cannot hold (a fraction, or past its range), throws a `TypeError`: decode and check a cursor before you pass it.
 - `postgresAdvisoryLockTake(db, key)`: waits for and takes a transaction-scoped advisory lock on the string `key`; Postgres drops it at COMMIT or ROLLBACK. Use it to serialize work that has no row to lock, such as counting a League's Teams before inserting one. `db` is anything with Drizzle's `execute` (`PostgresExecutor`). Call it inside `postgresTransactionRun`: outside a transaction the lock ends with the statement.
 
-## Example
+The example above imports `postgresIdColumnCreate`, `postgresPoolCreate` and `postgresTransactionRun` from this Package, `idCreate` from `@n8io/baseline-id`, `err` and `ok` from `@n8io/baseline-result`, `drizzle` from `drizzle-orm/node-postgres`, and `pgTable` and `text` from `drizzle-orm/pg-core`.
 
-```ts
-import {
-	postgresIdColumnCreate,
-	postgresPoolCreate,
-	postgresTransactionRun,
-} from "@n8io/baseline-postgres";
-import { err, ok } from "@n8io/baseline-result";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { pgTable, text } from "drizzle-orm/pg-core";
+</details>
 
-export const fooTable = pgTable("foo", {
-	id: postgresIdColumnCreate("foo")().primaryKey(),
-	name: text().notNull(),
-});
-
-const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
-
-const result = await postgresTransactionRun({
-	pgPool,
-	work: async (pgClient) => {
-		const rows = await drizzle({ client: pgClient })
-			.insert(fooTable)
-			.values(foo)
-			.returning();
-		return rows[0] ? ok(rows[0]) : err({ type: "FooNotCreated" as const });
-	},
-});
-```
-
-## Keyset paging
+<details><summary><b>Keyset paging</b></summary>
 
 ```ts
 import { postgresKeysetCreate } from "@n8io/baseline-postgres";
@@ -76,7 +93,9 @@ const nextCursor =
 		: null;
 ```
 
-## Advisory locks
+</details>
+
+<details><summary><b>Advisory locks</b></summary>
 
 ```ts
 import { postgresAdvisoryLockTake } from "@n8io/baseline-postgres";
@@ -89,7 +108,9 @@ const [counted] = await db
 	.where(eq(teamTable.leagueId, leagueId));
 ```
 
-## Race tests
+</details>
+
+<details><summary><b>Race tests</b></summary>
 
 `@n8io/baseline-postgres/testing` exports `postgresTestInterleave({ first, second, pgPool, timeoutMs? })`, for tests only. `first(pause)` runs until it awaits `pause()`, typically right after it read and locked what it will write. Then `second()` starts, and `first` resumes once `second` waits on a lock (`pg_stat_activity`) or has finished. It returns `{ first, second, secondWaited }`; `secondWaited` is false when no lock made `second` wait. It fails when `first` never pauses, or when `second` neither waits nor finishes within `timeoutMs` (default 5 s). A connection that already waited on a lock before `second` started does not count; any other one in the same database does, so keep other work off that database while it runs. It needs three connections from `pgPool` at once: `first`'s, `second`'s, and one to watch `pg_stat_activity`.
 
@@ -126,15 +147,18 @@ expect(result.secondWaited).toBe(true);
 
 A race test must fail with the lock removed. Before you trust one, take the lock out (`FOR UPDATE`, the advisory lock), see the test go red for the right reason, and put it back. A plain `Promise.all` of two writes usually passes either way, because one finishes before the other starts.
 
-## Needs
+</details>
 
-- Peers: `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`.
-- Env, by the template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`), `DATABASE_POOL_MAX` for `max`, and `DATABASE_MIGRATE_URL` for `postgresMigrate` where `DATABASE_URL` goes through a pooler. Transactions use `transaction_timeout`, so Postgres 17 or newer.
-
-## Sizing the pool
+<details><summary><b>Sizing the pool</b></summary>
 
 Every process opens up to `max` connections, and Postgres refuses new ones past its `max_connections`. Keep the sum over every process (`max` times the number of processes, counting the extra ones a rollout starts) under that limit, with a few left for migrate and for people. Behind a pooler, keep it under the pooler's limit instead.
 
-## Tests
+</details>
 
-`pnpm test` needs Docker: it starts a Postgres container and, for the migrate tests, PgBouncer.
+<details><summary><b>Env</b></summary>
+
+By the Template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`), `DATABASE_POOL_MAX` for `max`, and `DATABASE_MIGRATE_URL` for `postgresMigrate` where `DATABASE_URL` goes through a pooler. Transactions use `transaction_timeout`, so Postgres 17 or newer.
+
+</details>
+
+**Needs** peers `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`; `DATABASE_URL`; Postgres 17 or newer. Runs on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team).

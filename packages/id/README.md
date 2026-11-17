@@ -1,20 +1,23 @@
 # @n8io/baseline-id
 
-Prefixed [TypeIDs](https://github.com/jetify-com/typeid) (`foo_01h455vb4pex5vsknk084sn02q`) backed by UUIDv7, and their conversion to and from a Postgres `uuid`.
+**Ids you can read, that sort by time and never mix up.** Prefixed [TypeIDs](https://github.com/jetify-com/typeid) (`foo_01h455vb4pex5vsknk084sn02q`) backed by UUIDv7, typed by their prefix, and stored as a plain Postgres `uuid`.
 
 ```sh
 pnpm add @n8io/baseline-id
 ```
 
-## Exports
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/id-anatomy.svg" width="880" alt="A prefixed id types itself; idToUuid turns it into the UUIDv7 a Postgres uuid column stores, and idFromUuid turns it back."></p>
 
-- `Id<P>`: the type of an id with prefix `P`, so a `bar` id never passes as a `foo` id.
-- `idCreate(prefix)`: a new id with a time-ordered UUIDv7 inside.
-- `idPatternCreate(prefix)`: a `RegExp` that matches only ids with exactly that prefix. Give it to your schema library to build an id schema.
-- `idToUuid(id)`: the bare UUID, for a `uuid` column.
-- `idFromUuid(prefix, uuid)`: the id back from a UUID.
+## Guarantees
 
-Prefixes are snake_case. A bad prefix, id or UUID throws a `TypeError`.
+| You get                                   | How                                                                                     |
+| ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Ids that say what they are**            | `foo_…`: a snake_case prefix, then the UUID in 26 characters of base32.                 |
+| **A `bar` id never passes as a `foo` id** | `Id<"foo">` is a type by prefix, and `idPatternCreate("foo")` matches only that prefix. |
+| **Sorted by when they were made**         | The UUID inside is a UUIDv7: its first 48 bits are the time in milliseconds.            |
+| **16 bytes in the database**              | `idToUuid` and `idFromUuid` convert to and from a plain `uuid` column.                  |
+| **Bad input fails loudly**                | A bad prefix, id or UUID throws a `TypeError`.                                          |
+| **Any schema library**                    | The Package imports none; build your id schema from the pattern.                        |
 
 ## Example
 
@@ -34,7 +37,23 @@ const uuid = idToUuid(fooId); // "0192…" for the database
 idFromUuid("foo", uuid) === fooId; // true
 ```
 
-### An id schema with Zod
+In tests, make ids with `idCreate`: they need no fake, and each one is new.
+
+## Reference
+
+<details><summary><b>Exports</b></summary>
+
+- `Id<P>`: the type of an id with prefix `P`, so a `bar` id never passes as a `foo` id.
+- `idCreate(prefix)`: a new id with a time-ordered UUIDv7 inside.
+- `idPatternCreate(prefix)`: a `RegExp` that matches only ids with exactly that prefix. Give it to your schema library to build an id schema.
+- `idToUuid(id)`: the bare UUID, for a `uuid` column.
+- `idFromUuid(prefix, uuid)`: the id back from a UUID.
+
+Prefixes are snake_case. A bad prefix, id or UUID throws a `TypeError`.
+
+</details>
+
+<details><summary><b>An id schema with Zod</b></summary>
 
 The package imports no schema library, so build the schema in yours from the pattern. With Zod, as the Template's `src/id-schema.ts` does:
 
@@ -55,6 +74,6 @@ FooParams.parse({ fooId }); // { fooId: Id<"foo"> }
 
 The pattern also shows up in an OpenAPI document generated from the schema.
 
-## Needs
+</details>
 
-No peers and no env.
+**Needs** nothing: no peers and no env.
