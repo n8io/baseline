@@ -1,22 +1,26 @@
 # @n8io/baseline-error-tracking
 
-Error reports: an unexpected error, with its class name, stack frames, cause chain and trace id, sent to error tracking (Sentry today) for triage. Never its message, which can hold input text, the same rule the logger follows. `ErrorTracking` names no vendor, so moving to another one means a new `errorTracking<Vendor>Create` adapter here and one line in the Project that picks it; callers do not change. `report` returns at once, so a slow or failing Sentry never slows or fails a request; `close()` waits about 2 s at most for the reports in flight.
+**Every error you log becomes an Error report, linked to its trace and never carrying its message**, sent without ever slowing or failing a request.
 
 ```sh
 pnpm add @n8io/baseline-error-tracking
 ```
 
-## Exports
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/error-tracking-report.svg" width="880" alt="One logger.error call with a DatabaseError whose message holds an email address. The log line goes to stdout; loggerErrorListen hands the same error to an Error report with its class, error.code and error.constraint tags, stack frames and trace id. The message is struck out of both."></p>
 
-- `ErrorTracking`: `report(error)` and `close()`; `await using` calls `close()` when its block ends. `report` never throws: a report that cannot be sent is dropped, and one Sentry refuses is logged at warn. Inside an active span, the report carries its trace id and span id, so it links to its trace.
-- `errorTrackingSentryCreate({ dsn, environment, vendor? })`: reports to Sentry's ingestion API with `@sentry/core`'s `ServerRuntimeClient` and `fetch`, with a 5 s timeout per send. It throws on a `dsn` that is not a Sentry DSN, so a mistyped one does not look like a working setup. The report is built from `loggerErrSerialize`, the logger's safe shape, so the error itself never reaches Sentry; `code` and `constraint` become the `error.code` and `error.constraint` tags. An allowlist drops anything else the SDK adds, such as the host name. It installs nothing global: no process handler, module hook or tracer provider.
-- `ErrorTrackingSentryVendorOptions`: `vendor`, Sentry's own `release`, `dist` and `sampleRate`, outside the contract. Any other key throws: it would do nothing here, or send more than an Error report carries.
+## Guarantees
 
-It does not use `@sentry/node`: that one depends on `@sentry/bundler-plugins`, which installs the Sentry CLI (licensed FSL-1.1-Apache-2.0, 22 MB, with a native parser) in every production install, and installs module hooks that `@n8io/baseline-telemetry` already owns. `@sentry/core` is MIT, Sentry's own, and is what `@sentry/node` is built on.
+| You get                         | How                                                                                                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Report by logging**           | Wired to `loggerErrorListen`, every error logged at error or fatal is reported. Callers keep calling `logger.error`.                                   |
+| **No message, ever**            | The report is built from the logger's safe shape: class names, stack frames, cause chain, `code` and `constraint`. The error itself is never sent.     |
+| **Linked to its trace**         | Inside an active span, the report carries its trace id and span id.                                                                                    |
+| **Never in the way**            | `report` returns at once and never throws. Each send times out after 5 s; `close()` waits about 2 s at most for the reports in flight.                 |
+| **Only what a report needs**    | An allowlist drops anything else the SDK adds, such as the host name. Nothing global is installed: no process handler, module hook or tracer provider. |
+| **A wrong DSN fails at boot**   | A `dsn` that is not a valid DSN throws, so a typo does not look like a working setup.                                                                  |
+| **Swap the vendor in one line** | `ErrorTracking` names no vendor: a new `errorTracking<Vendor>Create` adapter here and one line in the Project, and callers do not change.              |
 
 ## Example
-
-Report every error the logger logs at error or fatal, so callers keep calling `logger.error` and nothing else:
 
 ```ts
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
@@ -33,7 +37,27 @@ stop();
 await errorTracking.close();
 ```
 
-## Needs
+Tests stub `fetch` and read the envelopes it was handed; no account or network needed.
 
-- A Sentry project's DSN. The Template reads it from `SENTRY_DSN`, which is optional: without it, nothing is reported, and errors are still logged.
-- `LOG_LEVEL` at `error` or below, when reports come through `loggerErrorListen`: a level the logger turns off reaches no listener.
+## Reference
+
+<details><summary><b>Exports</b></summary>
+
+| Export                                                                                   | Does                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ErrorTracking`                                                                          | `report(error)` and `close()`; `await using` calls `close()` when its block ends. `report` never throws: a report that cannot be sent is dropped, and one Sentry refuses is logged at warn. Nothing is sent after `close()`.                                                                                                |
+| `errorTrackingSentryCreate({ dsn, environment, vendor? })`, `ErrorTrackingSentryOptions` | Reports to Sentry's ingestion API with `@sentry/core`'s `ServerRuntimeClient` and `fetch`, with a 5 s timeout per send. It throws on a `dsn` that is not a Sentry DSN. The report is built from `loggerErrSerialize`, the logger's safe shape; `code` and `constraint` become the `error.code` and `error.constraint` tags. |
+| `ErrorTrackingSentryVendorOptions`                                                       | `vendor`: Sentry's own `release`, `dist` and `sampleRate`, outside the contract. Any other key throws: it would do nothing here, or send more than an Error report carries.                                                                                                                                                 |
+</details>
+
+<details><summary><b>Why not <code>@sentry/node</code></b></summary>
+
+`@sentry/node` depends on `@sentry/bundler-plugins`, which installs the Sentry CLI (licensed FSL-1.1-Apache-2.0, 22 MB, with a native parser) in every production install, and installs module hooks that `@n8io/baseline-telemetry` already owns. `@sentry/core` is MIT, Sentry's own, and is what `@sentry/node` is built on.
+</details>
+
+<details><summary><b>In the Template</b></summary>
+
+`src/error-tracking-open.ts` does the wiring in the Example and, with a DSN, adds a shutdown step named `error tracking`. `SENTRY_DSN` is optional: without it, nothing is reported, and errors are still logged. `pnpm piece-remove error-tracking` deletes the piece.
+</details>
+
+**Needs** `@opentelemetry/api` as a peer, a DSN (the Template reads `SENTRY_DSN`), and `LOG_LEVEL` at `error` or below when reports come through `loggerErrorListen`: a level the logger turns off reaches no listener. Runs on Sentry.
