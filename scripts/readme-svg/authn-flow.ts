@@ -43,7 +43,7 @@ const lanes: Lane[] = [
 	},
 	{
 		boxes: [
-			{ label: "Machine client", sublabel: "client credentials", x: 40 },
+			{ label: "API caller", sublabel: "client or script", x: 40 },
 			{ label: "Bearer token", sublabel: "Authorization", x: 274 },
 			{ label: "Middleware", sublabel: 'source: "bearer"', x: 508 },
 		],
@@ -177,6 +177,6 @@ export default svgDocument({
 	motionCss: [...boxGlows, actorGlow].join("\n"),
 	theme,
 	title:
-		"Authn: a page signs in through the provider and gets sealed cookies, a machine client sends a bearer token, and the middleware turns either into one Actor",
+		"Authn: a page signs in through the provider and gets sealed cookies, an API caller sends a bearer token, and the middleware turns either into one Actor",
 	width,
 });

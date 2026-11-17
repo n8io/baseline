@@ -17,19 +17,19 @@ pnpm add @n8io/baseline-http
 
 ## Guarantees
 
-| You get                              | How                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One error shape**                  | Validation failures, Domain errors, refused requests and crashes all answer `application/problem+json`: `status`, `title`, `code`, `traceId`.                 |
-| **No leaked text**                   | A body never carries an error message or the caller's input. A crash is a logged 500 `InternalError`.                                                         |
-| **Errors you can find**              | `traceId` is the request's trace, so a caller's report leads straight to its spans and logs.                                                                  |
-| **Pointers to bad input**            | A failed request validation is 400 `ValidationFailed` with one JSON Pointer per issue.                                                                        |
-| **Docs that match the code**         | `httpErrorResponsesCreate` declares a route's error responses from the same table it answers with; a Domain error missing from the table fails type-checking. |
-| **New error codes are not breaking** | Codes are an `x-extensible-enum`, so the API diff accepts a new code on a status a route already declares.                                                    |
-| **Secure headers and a nonce CSP**   | HSTS, `nosniff`, `Referrer-Policy` and an enforced CSP whose `script-src` takes a fresh nonce per request.                                                    |
-| **CSRF refused on cookie routes**    | A cross-site form, multipart or text POST answers 403; JSON and bearer requests pass. Works behind a TLS proxy.                                               |
-| **No 502s from the load balancer**   | Idle connections stay open 65 s, longer than a balancer's usual 60 s.                                                                                         |
-| **A close that finishes requests**   | `httpServerClose` stops accepting connections and resolves once open requests finish.                                                                         |
-| **Spans named after routes**         | `POST /api/v1/foos`, not `POST`.                                                                                                                              |
+| You get                                       | How                                                                                                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One error shape**                           | Validation failures, Domain errors, refused requests and crashes all answer `application/problem+json`: `status`, `title`, `code`, `traceId`.                       |
+| **No leaked text**                            | A body never carries a thrown error's message or the caller's input; validation details name only what the schema expects. A crash is a logged 500 `InternalError`. |
+| **Errors you can find**                       | `traceId` is the request's trace, so a caller's report leads straight to its spans and logs.                                                                        |
+| **Pointers to bad input**                     | A failed request validation is 400 `ValidationFailed` with one JSON Pointer per issue.                                                                              |
+| **Docs that match the code**                  | `httpErrorResponsesCreate` declares a route's error responses from the same table it answers with; a Domain error missing from the table fails type-checking.       |
+| **New error codes are not breaking**          | Codes are an `x-extensible-enum`, so the API diff accepts a new code on a status a route already declares.                                                          |
+| **Secure headers and a nonce CSP**            | HSTS, `nosniff`, `Referrer-Policy` and an enforced CSP whose `script-src` takes a fresh nonce per request.                                                          |
+| **CSRF refused on cookie routes**             | A cross-site form, multipart or text POST answers 403; JSON and bearer requests pass. Works behind a TLS proxy.                                                     |
+| **No 502s from stale keep-alive connections** | Idle connections stay open 65 s, longer than a balancer's usual 60 s.                                                                                               |
+| **A close that finishes requests**            | `httpServerClose` stops accepting connections and resolves once open requests finish.                                                                               |
+| **Spans named after routes**                  | `POST /api/v1/foos`, not `POST`.                                                                                                                                    |
 
 ## Example
 
