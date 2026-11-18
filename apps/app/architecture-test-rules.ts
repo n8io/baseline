@@ -846,4 +846,21 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			reason: (m) =>
 				`${m[0]} reads the system time in a Use case; read <domain>Clock.now() from the ports, so a test sets the time`,
 		}),
+
+	// An expected outcome is part of the return type, so every caller sees it. Only adapters (spi/,
+	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw.
+	// Comments are blanked first, so a comment that says "throws" never counts.
+	A27: (files) =>
+		textCheck({
+			files: files.map((f) => ({
+				...f,
+				source: f.source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""),
+			})),
+			fileIs: (f) =>
+				["rules", "use-cases"].includes(layerOf(f.path) ?? "") &&
+				!testIs(f.path),
+			pattern: /\bthrow\b|\btry\s*\{|\bcatch\b|\bPromise\.reject\(/g,
+			reason: (m, f) =>
+				`${m[0].replace(/\s*\{$/, "")} in a ${layerOf(f.path) === "rules" ? "Rule" : "Use case"}; return err(new <Name>Error()) and add the error to the Use case's error union (and the port's, when a port returns it). An error a port can return is never unreachable: pass it on with err()`,
+		}),
 };

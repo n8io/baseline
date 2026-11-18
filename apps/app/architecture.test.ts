@@ -150,6 +150,24 @@ describe("architecture", () => {
 		expect(architectureRules.A26?.([useCase])).toEqual([]);
 	});
 
+	it("A27 skips comments, tests and adapters", async () => {
+		const files = await Promise.all([
+			architectureFileCreate(
+				"src/domains/bar/use-cases/bar-get.ts",
+				"// The repository throws only for the unexpected.\n/* never throw here */\nexport const barGet = () => 1;\n",
+			),
+			architectureFileCreate(
+				"src/domains/bar/use-cases/bar-get.test.ts",
+				'it("x", () => { throw new Error("x"); });\n',
+			),
+			architectureFileCreate(
+				"src/domains/bar/spi/bar-repository-postgres.ts",
+				"export const x = () => { try { return 1; } catch { throw new Error(); } };\n",
+			),
+		]);
+		expect(architectureRules.A27?.(files)).toEqual([]);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(
