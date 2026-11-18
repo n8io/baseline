@@ -18,6 +18,7 @@
 	"@sentry/core": "reports errors to Sentry (error-tracking)",
 	"@standard-schema/spec": "the schema type callers pass, from any schema library (cache, queue)",
 	"@types/pg": "types for the pg client a caller passes (postgres)",
+	"commander": "parses command line arguments and builds help (cli)",
 	"drizzle-orm": "SQL queries and table schemas on Postgres (postgres)",
 	"hono": "the HTTP framework (http, authn)",
 	"jose": "verifies JWTs (authn)",
