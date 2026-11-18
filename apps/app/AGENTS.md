@@ -4,7 +4,7 @@ The glossary is [CONTEXT.md](CONTEXT.md). Use its terms for every name. The next
 
 @CONTEXT.md
 
-Run with Node 26 (`.node-version`) and the pnpm in `packageManager`.
+Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
 
 ## Verify
 
@@ -81,6 +81,7 @@ One Domain per business entity, added with `pnpm domain-create`.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 - A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.
 - A Use case reads the time from its Domain's clock port, never `new Date()` or `Date.now()` (A26).
+- Use cases return `err()`; they and Rules never throw or catch (A27).
 - A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`), whatever it is named, needs that Domain's `deleted` Consumer (A14). `api/` never calls `.openapi(` on a model it imports; build its own schema (A25).
 
 ### Stop and ask
@@ -138,7 +139,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 - Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
 - Paths and queries never carry personal data. Path parameters are ids.
-- Card numbers never enter the app. Accepting card data is a stop-and-ask.
+- Card numbers never enter the app.
 
 ## Read when
 
@@ -156,7 +157,7 @@ Read the one that matches before you start.
 - Running a Project on Kubernetes or on more than one instance (probes, PgBouncer, rollouts): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Adding or changing a route, a field, a query parameter or an error under `/api/v1` (oasdiff, statuses): [docs/agents/api.md](docs/agents/api.md)
-- Adding a dependency, handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
+- Adding a dependency, a Dependabot PR, or an update walkthrough: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - Adding a script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
