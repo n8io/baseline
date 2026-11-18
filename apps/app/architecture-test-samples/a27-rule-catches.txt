@@ -1,0 +1,10 @@
+// A27: a Use case returns err() for an expected outcome; neither it nor a Rule throws or catches
+// expect: src/domains/bar/rules/bar-name-valid-is.ts:2: try in a Rule; move the call that throws behind a port
+// @file src/domains/bar/rules/bar-name-valid-is.ts
+export const barNameValidIs = (name: string): boolean => {
+	try {
+		return new RegExp(name).test(name);
+	} catch {
+		return false;
+	}
+};

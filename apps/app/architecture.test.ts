@@ -150,6 +150,62 @@ describe("architecture", () => {
 		expect(architectureRules.A26?.([useCase])).toEqual([]);
 	});
 
+	it("A27 skips comments, tests and adapters", async () => {
+		const files = await Promise.all([
+			architectureFileCreate(
+				"src/domains/bar/use-cases/bar-get.ts",
+				"// The repository throws only for the unexpected.\n/* never throw here */\nexport const barGet = () => 1;\n",
+			),
+			architectureFileCreate(
+				"src/domains/bar/use-cases/bar-get.test.ts",
+				'it("x", () => { throw new Error("x"); });\n',
+			),
+			architectureFileCreate(
+				"src/domains/bar/spi/bar-repository-postgres.ts",
+				"export const x = () => { try { return 1; } catch { throw new Error(); } };\n",
+			),
+		]);
+		expect(architectureRules.A27?.(files)).toEqual([]);
+	});
+
+	const a27Why =
+		"// unreachable: only the closed flag changes, so no key breaks.";
+	it.each([
+		{ body: `${a27Why}\nthrow new Error("unreachable");`, found: 0 },
+		{ body: 'const s = "cannot throw; we catch nothing";', found: 0 },
+		{ body: "const k = { catch: 1, throw: 2 };\ngen.throw(1);", found: 0 },
+		{ body: "// unreachable: a bug\nthrow new Error();", found: 1 },
+		{ body: `${a27Why}\nthrow new BarNotFoundError();`, found: 1 },
+		{ body: `${a27Why}\n\nthrow new Error();`, found: 1 },
+		{
+			body: `const s = "${a27Why.slice(1, -1)}";\nthrow new Error();`,
+			found: 1,
+		},
+		{ body: 'const u = "http://x"; throw new Error(u);', found: 1 },
+		{ body: 'const g = "/*";\nthrow new Error();\nconst h = "*/";', found: 1 },
+		{ body: `${a27Why}\ntry {\n\tx();\n} finally {\n\ty();\n}`, found: 1 },
+		{ body: "p.catch(() => 1);", found: 1 },
+		{ body: "return Promise .reject(e);", found: 1 },
+	])("A27 finds $found in: $body", async ({ body, found }) => {
+		const file = await architectureFileCreate(
+			"src/domains/bar/use-cases/bar-close.ts",
+			body,
+		);
+		expect(architectureRules.A27?.([file])).toHaveLength(found);
+	});
+
+	it("A27 tells a Rule to return a plain value", async () => {
+		const rule = await architectureFileCreate(
+			"src/domains/bar/rules/bar-open-can.ts",
+			'export const barOpenCan = () => {\n\tthrow new Error("closed");\n};\n',
+		);
+		expect(architectureRules.A27?.([rule])).toEqual([
+			expect.stringContaining(
+				"bar-open-can.ts:2: throw in a Rule; a Rule returns a plain value",
+			),
+		]);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(

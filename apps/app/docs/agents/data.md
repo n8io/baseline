@@ -28,6 +28,7 @@ A transaction alone does not stop a lost write: two transactions can read the sa
 - A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<domain>:<owner id>")` first, then count and insert.
 - Change a counter with one statement (``set({ count: sql`${table.count} + 1` })``), never read, add and write back.
 - A write that finds its row gone (deleted since the read) returns the Domain's NotFound error, never throws: the route answers 404, not 500.
+- A repository error the Use case knows cannot happen (a roster save that changes no unique column) is a bug, not an outcome: `throw new Error(...)` directly under a one-line `// unreachable: <why>`, the one throw A27 allows. The request then fails with a 500 and a Consumer's Event retries and holds its key; an `err` would complete the Event with nothing changed.
 - Postgres takes at most 65,535 bind parameters per statement: chunk a fan-out insert (rows × columns) under it.
 - A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<domain>-update.postgres.test.ts` that `pnpm domain-create` writes).
 
