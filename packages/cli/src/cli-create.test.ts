@@ -1,5 +1,12 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,6 +83,55 @@ describe("cliCreate", () => {
 			{ name_prefix: "ab" },
 			{ baseUrl: url },
 		]);
+	});
+
+	it("orders path, body and query as the SDK takes them, with typed values", async () => {
+		const flags = await cliRun(
+			[
+				"foo",
+				"update",
+				"--id",
+				"f",
+				"--ids",
+				"4",
+				"5",
+				"--note",
+				"123",
+				"--no-dry",
+			],
+			{ ACME_APP_URL: url },
+		);
+		expect(JSON.parse(flags.stdout).args).toEqual([
+			"f",
+			{ ids: [4, 5], note: "123" },
+			{ dry: false },
+			{ baseUrl: url },
+		]);
+		const queryOnly = await cliRun(["foo", "update", "--id", "f", "--dry"], {
+			ACME_APP_URL: url,
+		});
+		// The fake answers with JSON, where an undefined body slot reads as null.
+		expect(JSON.parse(queryOnly.stdout).args).toEqual([
+			"f",
+			null,
+			{ dry: true },
+			{ baseUrl: url },
+		]);
+	});
+
+	it("sends a --data array as it is, and refuses body flags on top of one", async () => {
+		const array = await cliRun(["foo", "create", "--data", '["a"]'], {
+			ACME_APP_URL: url,
+		});
+		expect(JSON.parse(array.stdout).args[0]).toEqual(["a"]);
+		const mixed = await cliRun(
+			["foo", "create", "--data", '["a"]', "--name", "x"],
+			{ ACME_APP_URL: url },
+		);
+		expect(mixed).toMatchObject({
+			code: 1,
+			stderr: "--data is not a JSON object, so body flags cannot add to it.\n",
+		});
 	});
 
 	it("sends --data as the body, from JSON or a file, under the flags", async () => {
@@ -222,15 +278,48 @@ describe("login", () => {
 		expect(JSON.parse(elsewhere.stdout).args[1]).toEqual({ baseUrl: url });
 	});
 
-	it("reads the client secret from stdin", async () => {
-		await cliRun(
-			["login", "--client-id", "ci"],
-			{ ACME_APP_URL: base },
-			"piped\n",
+	it("reads the client secret from a shell pipe, and never waits on an open stdin", async () => {
+		// cliRun's stdin is a socket the parent holds: login must not read it.
+		await cliRun(["login", "--client-id", "ci"], { ACME_APP_URL: base }, "x");
+		expect(
+			new URLSearchParams(requests.at(-1)?.body).has("client_secret"),
+		).toBe(false);
+		await promisify(execFile)(
+			"sh",
+			[
+				"-c",
+				`printf 'piped\\n' | "$0" "$1" login --client-id ci`,
+				process.execPath,
+				app,
+			],
+			{ env: { ACME_APP_URL: base, XDG_CONFIG_HOME: config } },
 		);
 		expect(
 			new URLSearchParams(requests.at(-1)?.body).get("client_secret"),
 		).toBe("piped");
+	});
+
+	it("sends no expired token, and logs in only over https or to this machine", async () => {
+		const home = join(config, "expired");
+		const file = join(home, "acme-app", "login.json");
+		await mkdir(join(file, ".."), { recursive: true });
+		await writeFile(
+			file,
+			JSON.stringify({ expiresAt: "2020-01-01T00:00:00Z", token: "old", url }),
+		);
+		const get = await cliRun(["foo", "get", "--id", "1"], {
+			ACME_APP_URL: url,
+			XDG_CONFIG_HOME: home,
+		});
+		expect(JSON.parse(get.stdout).args[1]).toEqual({ baseUrl: url });
+		const plain = await cliRun(["login", "--client-id", "ci"], {
+			ACME_APP_URL: "http://example.com",
+		});
+		expect(plain).toMatchObject({
+			code: 1,
+			stderr:
+				"login failed: http://example.com is not https, so the client secret would travel in the clear\n",
+		});
 	});
 
 	it("exits 1 and stores nothing new when the app refuses the client", async () => {

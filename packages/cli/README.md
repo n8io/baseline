@@ -1,6 +1,6 @@
 # @n8io/baseline-cli
 
-**A command line client for your API in about 20 lines**: `cliCreate` reads the Project's OpenAPI document and turns every operation into a command that calls the generated SDK, so `fooCreate` under the tag `foo` is `acme foo create --name x`.
+**A command line client for your API from one call**: `cliCreate` reads the Project's OpenAPI document and turns every operation into a command that calls the generated SDK, so `fooCreate` under the tag `foo` is `acme foo create --name x`.
 
 ```sh
 pnpm add @n8io/baseline-cli
@@ -14,7 +14,7 @@ pnpm add @n8io/baseline-cli
 | **Flags for every field**           | Path, query and JSON body fields become kebab-case flags (`customerId` is `--customer-id`); `--data '<json>'` or `--data @file.json` sends a whole body.   |
 | **Output scripts can read**         | A response prints its JSON to stdout. A Problem prints `title: code` to stderr and exits 1, so `&&` and `set -e` stop on it.                               |
 | **Secrets kept off the screen**     | `login` reads the client secret from `<NAME>_CLIENT_SECRET` or stdin, never a flag, and stores the token in the OS config directory with mode 600.         |
-| **A token only where it came from** | The stored login is sent only to the URL it was issued by, and only until it expires.                                                                      |
+| **A token only where it came from** | The stored login is sent only to the URL it was issued by, and only until it expires; `login` refuses plain `http://` except to this machine.              |
 | **A document it can name**          | `cliCreate` throws at once on an operation without exactly one tag that its operationId starts with, or with no SDK function, instead of on a user's call. |
 
 ## Example
@@ -56,7 +56,7 @@ Test it as its users run it: start the CLI as a child process over a fixture doc
 The arguments are, in order:
 
 1. each path field, in the order the path names them;
-2. the body, if the operation has one: `--data` first, then each body flag over it;
+2. the body, if the operation has one (`undefined` when none is set): `--data` first, then each body flag over it. A `--data` that is not a JSON object (an array, a string) goes as it is, and body flags on top of it exit 1;
 3. the query object, if the operation has query fields (`undefined` when none is set);
 4. a `CliRequest`, `{ baseUrl, token }`, for the SDK's fetch to read.
 
@@ -67,8 +67,8 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 <details><summary><b>Flags and values</b></summary>
 
 - A path field is a required flag. A body field that the schema requires is marked required in its help but may come from `--data` instead.
-- `integer` and `number` fields are parsed as numbers, `boolean` fields are flags without a value, `array` fields take several values (`--tags a b`), and any other field takes JSON (falling back to the text).
-- `--url`, `--token`, `--data` and `--help` belong to the CLI; `cliCreate` throws on a field with one of those names, or on two fields with the same flag.
+- `integer` and `number` fields are parsed as numbers; a `boolean` field is `--flag` for true and `--no-flag` for false; an `array` field takes several values (`--ids 4 5`), each parsed by its item type; any other field takes JSON (falling back to the text). A field's type is read through `anyOf` and `oneOf`, so a nullable string stays text, and a string `enum` is text.
+- `--url`, `--token`, `--data` and `--help` belong to the CLI, and so do the commands `login` and `help`; `cliCreate` throws on a field or command with one of those names, or on two fields with the same flag. An operation's parameter replaces the path item's one with the same name.
 - `$ref`s inside the document are followed.
 
 </details>
@@ -77,8 +77,8 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 
 - The base URL is `--url`, else `<NAME>_URL`. Without one, a command exits 1 and says so.
 - The token is `--token`, else `<NAME>_TOKEN`, else the stored login for that base URL.
-- `<name> login --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else piped stdin, else none (the Template's development issuer needs none).
-- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere: the folder is mode 700 and the file 600.
+- `<name> login --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`.
+- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere: the folder is mode 700 and the file 600, written to a new file and renamed into place.
 
 </details>
 

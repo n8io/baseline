@@ -16,6 +16,7 @@ describe("cliCommandsRead", () => {
 			"fooList: foo list",
 			"fooCreate: foo create",
 			"fooGet: foo get",
+			"fooUpdate: foo update",
 			"invoiceLineCustomerAssign: invoice-line customer-assign",
 		]);
 	});
@@ -50,6 +51,7 @@ describe("cliCommandsRead", () => {
 			{
 				flag: "tags",
 				in: "body",
+				itemKind: "string",
 				kind: "array",
 				name: "tags",
 				required: false,
@@ -58,7 +60,10 @@ describe("cliCommandsRead", () => {
 	});
 
 	it("puts path fields first, in path order, including the path item's own", () => {
-		const [, , get, assign] = cliCommandsRead(cliTestDocument);
+		const [, , get, update, assign] = cliCommandsRead(cliTestDocument);
+		expect(
+			update?.fields.map(({ in: where, name }) => `${where} ${name}`),
+		).toEqual(["path id", "query dry", "body ids", "body note"]);
 		expect(get?.fields.map(({ name }) => name)).toEqual(["id"]);
 		expect(assign?.fields.map(({ name }) => name)).toEqual([
 			"invoiceLineId",
@@ -95,6 +100,45 @@ describe("cliCommandsRead", () => {
 				operationDocument(body({ a_b: { type: "string" }, aB: {} })),
 			),
 		).toThrow("both --a-b");
+	});
+});
+
+describe("cliCommandsRead field kinds", () => {
+	it("reads a nullable anyOf as its one type, a string enum as text and an array's items", () => {
+		const update = cliCommandsRead(cliTestDocument).find(
+			(command) => command.operationId === "fooUpdate",
+		);
+		expect(
+			update?.fields.map(({ itemKind, kind, name }) => ({
+				itemKind,
+				kind,
+				name,
+			})),
+		).toEqual([
+			{ itemKind: undefined, kind: "string", name: "id" },
+			{ itemKind: undefined, kind: "boolean", name: "dry" },
+			{ itemKind: "number", kind: "array", name: "ids" },
+			{ itemKind: undefined, kind: "string", name: "note" },
+		]);
+	});
+});
+
+describe("cliCommandsRead refusals", () => {
+	it("refuses a command the CLI keeps for itself and a header parameter", () => {
+		expect(() =>
+			cliCommandsRead(
+				operationDocument({ operationId: "loginGet", tags: ["login"] }),
+			),
+		).toThrow('would be the command "login get"');
+		expect(() =>
+			cliCommandsRead(
+				operationDocument({
+					operationId: "fooCreate",
+					parameters: [{ in: "header", name: "x-tenant" }],
+					tags: ["foo"],
+				}),
+			),
+		).toThrow("fooCreate has a header parameter, x-tenant");
 	});
 });
 

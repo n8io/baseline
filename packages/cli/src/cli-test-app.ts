@@ -49,6 +49,34 @@ export const cliTestDocument: CliDocument = {
 		},
 		"/api/v1/foos/{id}": {
 			get: { operationId: "fooGet", summary: "Read a foo", tags: ["foo"] },
+			patch: {
+				operationId: "fooUpdate",
+				parameters: [
+					// Replaces the path item's id, as OpenAPI allows.
+					{
+						in: "path",
+						name: "id",
+						required: true,
+						schema: { type: "string" },
+					},
+					{ in: "query", name: "dry", schema: { type: "boolean" } },
+				],
+				requestBody: {
+					content: {
+						"application/json": {
+							schema: {
+								properties: {
+									ids: { items: { type: "integer" }, type: "array" },
+									note: { anyOf: [{ type: "string" }, { type: "null" }] },
+								},
+								type: "object",
+							},
+						},
+					},
+				},
+				summary: "Change a foo",
+				tags: ["foo"],
+			},
 			parameters: [
 				{ in: "path", name: "id", required: true, schema: { type: "string" } },
 			],
@@ -83,6 +111,7 @@ export const cliTestOperations: Record<string, CliOperation> = {
 				}
 			: ok(args),
 	fooGet: async (...args: unknown[]) => ok(args),
+	fooUpdate: async (...args: unknown[]) => ok(args),
 	fooList: async (...args: unknown[]) => ok(args),
 	invoiceLineCustomerAssign: async (...args: unknown[]) => ok(args),
 };

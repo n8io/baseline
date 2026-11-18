@@ -35,25 +35,29 @@ type Options = Record<string, unknown>;
 const attributeOf = (field: CliField): string =>
 	field.flag.replace(/-(\w)/g, (_, letter: string) => letter.toUpperCase());
 
-const valueParse = (field: CliField) => (value: string, previous: unknown) => {
-	if (field.kind === "number" || field.kind === "array") {
-		const parsed = field.kind === "number" ? Number(value) : value;
+const valueRead = (kind: CliField["kind"] | undefined, value: string) => {
+	if (kind === "number") {
+		const parsed = Number(value);
 		if (Number.isNaN(parsed)) {
 			throw new InvalidArgumentError(`${value} is not a number.`);
 		}
-		return field.kind === "array"
-			? [...(Array.isArray(previous) ? previous : []), parsed]
-			: parsed;
+		return parsed;
 	}
-	if (field.kind === "json") {
-		try {
-			return JSON.parse(value);
-		} catch {
-			return value;
-		}
+	if (kind !== "json") return value;
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
 	}
-	return value;
 };
+
+const valueParse = (field: CliField) => (value: string, previous: unknown) =>
+	field.kind === "array"
+		? [
+				...(Array.isArray(previous) ? previous : []),
+				valueRead(field.itemKind, value),
+			]
+		: valueRead(field.kind, value);
 
 const optionAdd = (command: Command, field: CliField): void => {
 	const flags =
@@ -62,7 +66,7 @@ const optionAdd = (command: Command, field: CliField): void => {
 			: `--${field.flag} <${field.kind === "array" ? "values..." : "value"}>`;
 	const description = `${field.name} (${field.in}${field.required ? ", required" : ""})`;
 	if (field.kind === "boolean") {
-		command.option(flags, description);
+		command.option(flags, description).option(`--no-${field.flag}`);
 	} else if (field.in === "path") {
 		command.requiredOption(flags, description, valueParse(field));
 	} else {
@@ -97,10 +101,21 @@ const argsBuild = async ({
 		);
 	const fromData = await dataRead(options.data);
 	const bodyFields = picked("body");
+	const flagged = Object.keys(bodyFields).length > 0;
+	const dataIsObject =
+		typeof fromData === "object" &&
+		fromData !== null &&
+		!Array.isArray(fromData);
+	if (flagged && fromData !== undefined && !dataIsObject) {
+		throw new Error(
+			"--data is not a JSON object, so body flags cannot add to it.",
+		);
+	}
+	// A body that is not an object (an array, a string) goes as --data gave it.
 	const body =
-		fromData === undefined && Object.keys(bodyFields).length === 0
-			? undefined
-			: { ...(fromData as Options | undefined), ...bodyFields };
+		flagged || dataIsObject
+			? { ...(fromData as Options), ...bodyFields }
+			: fromData;
 	const query = picked("query");
 	return [
 		...Object.values(picked("path")),

@@ -21,6 +21,8 @@ export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 export type CliField = {
 	flag: string;
 	in: "body" | "path" | "query";
+	/** An array's item kind. */
+	itemKind?: CliFieldKind;
 	kind: CliFieldKind;
 	name: string;
 	required: boolean;
@@ -43,6 +45,9 @@ const methods = ["delete", "get", "head", "options", "patch", "post", "put"];
 
 // Flags the CLI keeps for itself, on every command.
 const reservedFlags = new Set(["data", "help", "token", "url"]);
+
+// Top-level commands the CLI keeps for itself.
+const reservedCommands = new Set(["help", "login"]);
 
 const nodeIs = (value: unknown): value is Node =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -69,14 +74,38 @@ const refResolve = (document: CliDocument, value: unknown): Node => {
 	return node;
 };
 
-const kindOf = (document: CliDocument, schema: unknown): CliFieldKind => {
+// The one non-null type a schema allows, looking through `anyOf` and `oneOf` (Zod's nullable).
+const typeOf = (document: CliDocument, schema: Node): unknown => {
+	const types = new Set(
+		[
+			schema.type,
+			...[schema.anyOf, schema.oneOf]
+				.flatMap((members) => (Array.isArray(members) ? members : []))
+				.map((member) => refResolve(document, member).type),
+		]
+			.flat()
+			.filter((type) => typeof type === "string" && type !== "null"),
+	);
+	if (types.size === 0 && Array.isArray(schema.enum)) {
+		return schema.enum.every((value) => typeof value === "string")
+			? "string"
+			: undefined;
+	}
+	return types.size === 1 ? [...types][0] : undefined;
+};
+
+const kindsOf = (
+	document: CliDocument,
+	schema: unknown,
+): Pick<CliField, "itemKind" | "kind"> => {
 	const node = refResolve(document, schema);
-	const type = [node.type]
-		.flat()
-		.find((entry) => typeof entry === "string" && entry !== "null");
-	if (type === "integer" || type === "number") return "number";
-	if (type === "string" || type === "boolean" || type === "array") return type;
-	return "json";
+	const type = typeOf(document, node);
+	if (type === "array") {
+		return { itemKind: kindsOf(document, node.items).kind, kind: "array" };
+	}
+	if (type === "integer" || type === "number") return { kind: "number" };
+	if (type === "string" || type === "boolean") return { kind: type };
+	return { kind: "json" };
 };
 
 // Path fields come first, in the order the path names them: the SDK's argument order.
@@ -91,21 +120,34 @@ const fieldsRead = ({
 	path: string;
 	pathItem: Node;
 }): CliField[] => {
+	// An operation's parameter replaces the path item's one with the same `in` and name.
 	const parameters = [
-		...(Array.isArray(pathItem.parameters) ? pathItem.parameters : []),
-		...(Array.isArray(operation.parameters) ? operation.parameters : []),
-	]
-		.map((parameter) => refResolve(document, parameter))
-		.filter(
-			(parameter) =>
-				typeof parameter.name === "string" &&
-				(parameter.in === "path" || parameter.in === "query"),
-		)
+		...new Map(
+			[
+				...(Array.isArray(pathItem.parameters) ? pathItem.parameters : []),
+				...(Array.isArray(operation.parameters) ? operation.parameters : []),
+			]
+				.map((parameter) => refResolve(document, parameter))
+				.map((parameter) => [`${parameter.in} ${parameter.name}`, parameter]),
+		).values(),
+	];
+	const other = parameters.find(
+		(parameter) => parameter.in !== "path" && parameter.in !== "query",
+	);
+	if (other !== undefined) {
+		throw new Error(
+			`cliCreate: ${String(operation.operationId)} has a ${String(other.in)} parameter, ${String(other.name)}; the CLI sends only path, query and body fields`,
+		);
+	}
+	const parameterFields = parameters
 		.map(
 			(parameter): CliField => ({
 				flag: cliKebab(String(parameter.name)),
 				in: parameter.in === "path" ? "path" : "query",
-				kind: kindOf(document, parameter.schema),
+				// A path parameter without a schema is still text.
+				...(parameter.schema === undefined && parameter.in === "path"
+					? { kind: "string" }
+					: kindsOf(document, parameter.schema)),
 				name: String(parameter.name),
 				required: parameter.required === true,
 			}),
@@ -127,12 +169,12 @@ const fieldsRead = ({
 		([name, property]): CliField => ({
 			flag: cliKebab(name),
 			in: "body",
-			kind: kindOf(document, property),
+			...kindsOf(document, property),
 			name,
 			required: required.includes(name),
 		}),
 	);
-	return [...parameters, ...bodyFields];
+	return [...parameterFields, ...bodyFields];
 };
 
 const fieldPlace = (path: string, field: CliField): number =>
@@ -165,6 +207,13 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 						`cliCreate: ${where} needs one tag and an operationId that starts with it (tag foo, operationId fooCreate), not tags ${JSON.stringify(tags)} and operationId "${operationId}"`,
 					);
 				}
+				const group = cliKebab(tag);
+				const name = cliKebab(operationId.slice(tag.length));
+				if (reservedCommands.has(group) || name === "help") {
+					throw new Error(
+						`cliCreate: ${operationId} would be the command "${group} ${name}", but the CLI keeps login and help for itself; rename its tag or operationId`,
+					);
+				}
 				const fields = fieldsRead({ document, operation, path, pathItem });
 				const flags = fields.map((field) => field.flag);
 				const clash = flags.find(
@@ -181,8 +230,8 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 					body: operation.requestBody !== undefined,
 					description: textRead(operation.description) || summary,
 					fields,
-					group: cliKebab(tag),
-					name: cliKebab(operationId.slice(tag.length)),
+					group,
+					name,
 					operationId,
 					query: fields.some((field) => field.in === "query"),
 					summary,
