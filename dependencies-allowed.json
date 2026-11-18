@@ -1,6 +1,6 @@
 {
 	"@hono/zod-openapi": "Hono routes with OpenAPI from Zod schemas (http)",
-	"@opentelemetry/api": "the tracing API every Package sets span attributes through",
+	"@opentelemetry/api": "the tracing API Packages set span attributes through (authn, cache, error-tracking, http, live, queue, telemetry)",
 	"@opentelemetry/core": "W3C trace context propagation for Events (queue)",
 	"@opentelemetry/exporter-logs-otlp-proto": "exports logs over OTLP (telemetry)",
 	"@opentelemetry/exporter-metrics-otlp-proto": "exports metrics over OTLP (telemetry)",
@@ -25,8 +25,8 @@
 	"pg": "the Postgres driver (postgres)",
 	"pg-boss": "queue on Postgres (queue)",
 	"pino": "structured JSON logs (logger)",
-	"react": "client hooks for a React UI, optional peer (live)",
+	"react": "client hooks for a React UI, optional peer (authn, live)",
 	"react-router": "middleware and loaders for a React Router UI, optional peer (authn, live)",
 	"redis": "the Redis client (redis, live)",
-	"zod": "schemas inside a Package, never in its exports (authn, http)"
+	"zod": "schemas inside authn; http's peer, as @hono/zod-openapi needs it (authn, http)"
 }

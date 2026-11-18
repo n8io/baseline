@@ -69,6 +69,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # main runs every task, so its cache holds them all.
       - run: pnpm turbo run check test build ${{ github.ref != 'refs/heads/main' && '--affected' || '' }}
+      # --affected skips the root tests on a diff only inside packages/, such as a new optional peer
+      # that leaves the lockfile alone; this one reads every Package's package.json.
+      - if: github.ref != 'refs/heads/main'
+        run: pnpm exec vitest run test/dependencies-allowed.test.ts
       # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
       # On main there are no added lines to read.
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}

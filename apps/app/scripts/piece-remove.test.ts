@@ -452,12 +452,12 @@ describe("pieceFilesRemove", () => {
 
 	it("drops a removed piece's packages from dependencies-allowed.json in a rendered tree", () => {
 		using folder = projectCreate({
-			"dependencies-allowed.json": `${JSON.stringify({ "swagger-ui-dist": "docs", zod: "schemas" }, null, "\t")}\n`,
+			"dependencies-allowed.json": `${JSON.stringify({ react: "ui", "swagger-ui-dist": "docs", zod: "schemas" }, null, "\t")}\n`,
 		});
-		piecesRemoveFromTree(folder.path, ["api-reference"]);
+		piecesRemoveFromTree(folder.path, ["api-reference", "ui"]);
 		expect(
 			JSON.parse(read(folder.path, "dependencies-allowed.json")) as object,
-		).toEqual({ zod: "schemas" });
+		).toEqual({ "@hono/node-server": "serves Hono on Node", zod: "schemas" });
 	});
 
 	it("turns the ui-less server into one that serves itself, once", () => {

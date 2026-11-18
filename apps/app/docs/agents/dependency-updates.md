@@ -11,7 +11,7 @@ Read when adding a dependency, handling a Dependabot pull request, a major updat
 
 ## Adding a dependency
 
-Adding one is a stop-and-ask (`AGENTS.md`). Every runtime dependency (`dependencies`, `peerDependencies`, `optionalDependencies`) also needs an entry in `dependencies-allowed.json`: its name and a one-line reason, such as `"pg": "the Postgres driver"`. `dependencies-allowed.test.ts` fails on one without, and on an entry no runtime dependency uses. Only an established, industry-standard library qualifies, and never a second one for a job a listed one does (a retry helper, a Result type, another schema library). `@n8io/baseline-*` packages need no entry; `pnpm piece-remove` drops a removed piece's entries. A version update changes no entry.
+Adding one is a stop-and-ask (`AGENTS.md`). Every runtime dependency (`dependencies`, `peerDependencies`, `optionalDependencies`) also needs an entry in `dependencies-allowed.json`: its name and a one-line reason, such as `"pg": "the Postgres driver"`. `dependencies-allowed.test.ts` fails on one without, and on an entry no runtime dependency uses. Only an established, industry-standard library qualifies, and never a second one for a job a listed one does (a retry helper, a Result type, another schema library). `@n8io/baseline-*` packages need no entry; `pnpm piece-remove` drops a removed piece's entries, and removing `ui` adds `@hono/node-server`. A version update changes no entry.
 
 ## Steps
 
