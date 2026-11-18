@@ -168,6 +168,26 @@ describe("architecture", () => {
 		expect(architectureRules.A27?.(files)).toEqual([]);
 	});
 
+	it("A27 lets a broken invariant throw under an unreachable line, and nothing else", async () => {
+		const barCloseFile = (body: string) =>
+			architectureFileCreate(
+				"src/domains/bar/use-cases/bar-close.ts",
+				`export const barClose = (saved: { ok: boolean }) => {\n${body}\n};\n`,
+			);
+		const allowed = await barCloseFile(
+			'\tif (!saved.ok) {\n\t\t// unreachable: only the closed flag changes, so no unique key can break.\n\t\tthrow new Error("unreachable");\n\t}',
+		);
+		expect(architectureRules.A27?.([allowed])).toEqual([]);
+		const noReason = await barCloseFile(
+			'\t// unreachable:\n\tthrow new Error("unreachable");',
+		);
+		expect(architectureRules.A27?.([noReason])).toHaveLength(1);
+		const caught = await barCloseFile(
+			"\t// unreachable: a bug\n\ttry {\n\t\treturn 1;\n\t} finally {\n\t\treturn 2;\n\t}",
+		);
+		expect(architectureRules.A27?.([caught])).toHaveLength(1);
+	});
+
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {
 		expect(expected).not.toBe("");
 		expect(architectureRules[rule]?.(files)).toContainEqual(

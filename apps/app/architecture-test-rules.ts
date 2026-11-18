@@ -848,19 +848,37 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		}),
 
 	// An expected outcome is part of the return type, so every caller sees it. Only adapters (spi/,
-	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw.
-	// Comments are blanked first, so a comment that says "throws" never counts.
+	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw. A
+	// broken invariant (a bug) may throw under a `// unreachable: <why>` line, so the throw retries
+	// an Event or fails a request loudly. Comments are blanked first, keeping offsets, so a comment
+	// that says "throws" never counts.
 	A27: (files) =>
-		textCheck({
-			files: files.map((f) => ({
-				...f,
-				source: f.source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""),
-			})),
-			fileIs: (f) =>
-				["rules", "use-cases"].includes(layerOf(f.path) ?? "") &&
-				!testIs(f.path),
-			pattern: /\bthrow\b|\btry\s*\{|\bcatch\b|\bPromise\.reject\(/g,
-			reason: (m, f) =>
-				`${m[0].replace(/\s*\{$/, "")} in a ${layerOf(f.path) === "rules" ? "Rule" : "Use case"}; return err(new <Name>Error()) and add the error to the Use case's error union (and the port's, when a port returns it). An error a port can return is never unreachable: pass it on with err()`,
-		}),
+		files
+			.filter(
+				(f) =>
+					["rules", "use-cases"].includes(layerOf(f.path) ?? "") &&
+					!testIs(f.path),
+			)
+			.flatMap((f) => {
+				const code = f.source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, (c) =>
+					c.replace(/[^\n]/g, " "),
+				);
+				const kind = layerOf(f.path) === "rules" ? "Rule" : "Use case";
+				return [
+					...code.matchAll(
+						/\bthrow\b|\btry\s*\{|\bcatch\b|\bPromise\.reject\(/g,
+					),
+				].flatMap((m) => {
+					const word = m[0].replace(/\s*\{$/, "");
+					const above = f.source
+						.slice(0, m.index)
+						.split("\n")
+						.slice(-2)
+						.join("\n");
+					if (word === "throw" && /\/\/ unreachable: \S/.test(above)) return [];
+					return [
+						`${f.path}: ${word} in a ${kind}; return err(new <Name>Error()) and add the error to the Use case's error union (and the port's, when a port returns it). Only a broken invariant throws, under a "// unreachable: <why>" line`,
+					];
+				});
+			}),
 };
