@@ -111,7 +111,9 @@ describe("env files", () => {
 			.split("\n")
 			.map((line) => line.trim())
 			.filter((line) => line !== "" && !line.startsWith("#"))
-			.filter((line) => !/^[A-Z][A-Z0-9_]*=infisical\(\)$/.test(line))
+			.filter(
+				(line) => !/^[A-Z][A-Z0-9_]*=infisical\((?:"[^"]+")?\)$/.test(line),
+			)
 			.map((line) => line.split("=")[0]);
 		expect(notReferences).toEqual([]);
 	});

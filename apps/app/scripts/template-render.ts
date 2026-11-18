@@ -718,10 +718,15 @@ export const templateFinish = (
 				options: { cwd: directory },
 			});
 		} catch (error) {
-			// A render across a secret-store swap names a varlock plugin these tools lack. It keeps the
-			// release's own src/env.d.ts, which pnpm check regenerates once the install has the plugin.
-			if (!/Plugin "[^"]+" unable to resolve/.test((error as Error).message))
-				throw error;
+			// A render across a secret-store swap names a varlock plugin these tools lack. The render
+			// keeps its src/env.d.ts as it is; pnpm check regenerates it once the install has the plugin.
+			const plugin = /Plugin "([^"]+)" unable to resolve/.exec(
+				(error as Error).message,
+			)?.[1];
+			if (plugin === undefined) throw error;
+			console.warn(
+				`templateFinish: src/env.d.ts not regenerated, ${plugin} is not installed here`,
+			);
 		}
 	} finally {
 		if (linked) rmSync(modules);

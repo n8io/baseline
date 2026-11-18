@@ -2,7 +2,7 @@
 
 Read when deploying a Project or changing how it runs.
 
-- Secrets: either give each entry `INFISICAL_PROJECT_ID`, `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET` (a machine identity with Universal Auth and read access), `INFISICAL_SITE_URL` for a self-hosted Infisical, and outbound HTTPS to that address, which fetches them at boot from the `prod` environment, or set every variable `.env.production` names in the runner's environment, which needs no identity and never calls Infisical.
+- Secrets: either give each entry `INFISICAL_PROJECT_ID`, `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET` (a machine identity with Universal Auth and read access), `INFISICAL_SITE_URL` for a self-hosted Infisical, and outbound HTTPS to Infisical, which fetches them at boot from the `prod` environment, or set every variable `.env.production` names in the runner's environment, which needs no identity and never calls Infisical.
 - On a CI platform, the Infisical plugin can sign in with OIDC (`identityId`) instead of a client secret. Another secret store is a plugin swap in `.env.schema`'s header.
 - Use 5 to 15 minute access tokens.
 - Use `parentbased_traceidratio` sampling for busy services.
