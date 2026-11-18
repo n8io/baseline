@@ -451,9 +451,14 @@ describe("pieceFilesRemove", () => {
 	});
 
 	it("drops a removed piece's packages from dependencies-allowed.json in a rendered tree", () => {
-		using folder = projectCreate({
+		// A rendered tree has no .git, which piecesRemoveFromTree would walk.
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-tree-"));
+		for (const [path, text] of Object.entries({
 			"dependencies-allowed.json": `${JSON.stringify({ react: "ui", "swagger-ui-dist": "docs", zod: "schemas" }, null, "\t")}\n`,
-		});
+			"package.json": `${JSON.stringify(manifest, null, "\t")}\n`,
+		})) {
+			writeFileSync(join(folder.path, path), text);
+		}
 		piecesRemoveFromTree(folder.path, ["api-reference", "ui"]);
 		expect(
 			JSON.parse(read(folder.path, "dependencies-allowed.json")) as object,
