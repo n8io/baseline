@@ -11,11 +11,17 @@ type GlossaryAlias = { alias: string; term: string };
 
 type GlossaryHit = GlossaryAlias & { file: string; line: number };
 
-// Every `_Avoid_:` alias with the `**Term**:` it belongs to, from both sections.
+// Every `_Avoid_:` alias with the `**Term**:` it belongs to, from both sections. An alias an
+// `_Allowed until <when>_:` line names is left out: old words the code still uses while it moves.
 export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 	const aliases: GlossaryAlias[] = [];
+	const allowed = new Set<string>();
 	let term: string | undefined;
 	for (const line of context.split("\n")) {
+		const allow = /^_Allowed until [^_]+_:\s*(.+)$/.exec(line);
+		for (const alias of allow?.[1]?.split(",") ?? []) {
+			allowed.add(alias.trim().toLowerCase());
+		}
 		const heading = /^\*\*(.+)\*\*:\s*$/.exec(line);
 		if (heading?.[1] !== undefined) term = heading[1];
 		const avoid = /^_Avoid_:\s*(.+)$/.exec(line);
@@ -25,7 +31,7 @@ export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 			if (trimmed !== "") aliases.push({ alias: trimmed, term });
 		}
 	}
-	return aliases;
+	return aliases.filter((a) => !allowed.has(a.alias.toLowerCase()));
 };
 
 // The added lines of a unified diff, with their file and line number in the new version.

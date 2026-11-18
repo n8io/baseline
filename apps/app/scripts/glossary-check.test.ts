@@ -47,6 +47,24 @@ describe("glossary-check", () => {
 		]);
 	});
 
+	it("leaves out the aliases an _Allowed until_ line names", () => {
+		const moving = [
+			"_Allowed until #1 (2026-01-01)_: Tome, Old ledger",
+			"",
+			"**Book**:",
+			"A bound record.",
+			"_Avoid_: tome, volume",
+			"",
+			"**Ledger**:",
+			"Lists entries.",
+			"_Avoid_: Old ledger, tally",
+		].join("\n");
+		expect(glossaryAliasesRead(moving)).toEqual([
+			{ alias: "volume", term: "Book" },
+			{ alias: "tally", term: "Ledger" },
+		]);
+	});
+
 	it("numbers added lines as they are in the new file", () => {
 		expect(glossaryDiffAddedLines(diff).slice(0, 3)).toEqual([
 			{ file: "src/a.ts", line: 4, text: "// Sends a Push to every item." },
