@@ -1,3 +1,4 @@
+import { existsSync, readdirSync } from "node:fs";
 import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -187,6 +188,41 @@ describe("server wiring", { timeout: 30_000 }, () => {
 		it("serves the OpenAPI document without a token", async () => {
 			const res = await request("/api/v1/openapi.json");
 			expect(res.status).toBe(200);
+		});
+
+		// SDK methods and CLI commands are named from these two fields (docs/agents/api.md).
+		it("names every operation after its Use case and tags it with its Domain", async () => {
+			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
+				paths: Record<
+					string,
+					Record<string, { operationId?: string; tags?: string[] }>
+				>;
+			};
+			const folder = new URL("../../src/domains", import.meta.url);
+			const domains = (
+				existsSync(folder) ? readdirSync(folder, { withFileTypes: true }) : []
+			)
+				.filter((entry) => entry.isDirectory())
+				.map(({ name }) =>
+					name.replace(/-(.)/g, (_, c: string) => c.toUpperCase()),
+				);
+			const operations = Object.entries(doc.paths).flatMap(([path, methods]) =>
+				Object.entries(methods).map(([method, operation]) => ({
+					at: `${method.toUpperCase()} ${path}`,
+					...operation,
+				})),
+			);
+			for (const { at, operationId, tags } of operations) {
+				expect(tags, at).toHaveLength(1);
+				const tag = tags?.[0] ?? "";
+				expect(domains, at).toContain(tag);
+				expect(operationId?.startsWith(tag), `${at}: ${operationId}`).toBe(
+					true,
+				);
+				expect(operationId?.charAt(tag.length) ?? "", at).toMatch(/[A-Z]/);
+			}
+			const ids = operations.map(({ operationId }) => operationId);
+			expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
 		});
 
 		it("declares the bearer scheme and requires it on every operation", async () => {

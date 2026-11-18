@@ -1,6 +1,6 @@
 // pnpm api-check: fails when this change breaks the API a client already uses. It builds the
 // OpenAPI document of origin/main and of the working tree, the way CI's `check` job does, and runs
-// `oasdiff breaking --fail-on ERR` on the pair. docs/agents/api.md says what oasdiff allows.
+// `oasdiff breaking --fail-on ERR` on the pair, with a removed operationId or tag raised to an error. docs/agents/api.md says what oasdiff allows.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +8,10 @@ import { join } from "node:path";
 
 const installLine =
 	"oasdiff is not on PATH. Install it with `brew install oasdiff`, or download v1.35.0 from https://github.com/oasdiff/oasdiff/releases.";
+
+// oasdiff scores a renamed or removed operationId or tag as info, but SDK methods and CLI
+// commands are named after them, so a client breaks: raise both to errors.
+const severityLevels = "api-operation-id-removed err\napi-tag-removed err\n";
 
 const step = ({
 	args,
@@ -130,7 +134,9 @@ const main = async () => {
 	const base = join(scratch, "main");
 	const baseFile = join(scratch, "base.json");
 	const revisionFile = join(scratch, "revision.json");
+	const levelsFile = join(scratch, "levels.txt");
 	try {
+		writeFileSync(levelsFile, severityLevels);
 		await documentSave({ directory: ".", file: revisionFile, port: 3100 });
 		step({
 			args: ["worktree", "add", "--detach", base, "origin/main"],
@@ -153,7 +159,15 @@ const main = async () => {
 			prepare: (document) => securityBearerDeclare(problemCodesOpen(document)),
 		});
 		step({
-			args: ["breaking", baseFile, revisionFile, "--fail-on", "ERR"],
+			args: [
+				"breaking",
+				baseFile,
+				revisionFile,
+				"--fail-on",
+				"ERR",
+				"--severity-levels",
+				levelsFile,
+			],
 			command: "oasdiff",
 			cwd: ".",
 		});
