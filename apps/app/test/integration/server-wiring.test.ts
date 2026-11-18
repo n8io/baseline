@@ -199,9 +199,13 @@ describe("server wiring", { timeout: 30_000 }, () => {
 				>;
 			};
 			const folder = new URL("../../src/domains", import.meta.url);
-			const domains = (existsSync(folder) ? readdirSync(folder) : []).map(
-				(kebab) => kebab.replace(/-(.)/g, (_, c: string) => c.toUpperCase()),
-			);
+			const domains = (
+				existsSync(folder) ? readdirSync(folder, { withFileTypes: true }) : []
+			)
+				.filter((entry) => entry.isDirectory())
+				.map(({ name }) =>
+					name.replace(/-(.)/g, (_, c: string) => c.toUpperCase()),
+				);
 			const operations = Object.entries(doc.paths).flatMap(([path, methods]) =>
 				Object.entries(methods).map(([method, operation]) => ({
 					at: `${method.toUpperCase()} ${path}`,
@@ -212,7 +216,10 @@ describe("server wiring", { timeout: 30_000 }, () => {
 				expect(tags, at).toHaveLength(1);
 				const tag = tags?.[0] ?? "";
 				expect(domains, at).toContain(tag);
-				expect(operationId, at).toMatch(new RegExp(`^${tag}[A-Z]`));
+				expect(operationId?.startsWith(tag), `${at}: ${operationId}`).toBe(
+					true,
+				);
+				expect(operationId?.charAt(tag.length) ?? "", at).toMatch(/[A-Z]/);
 			}
 			const ids = operations.map(({ operationId }) => operationId);
 			expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);

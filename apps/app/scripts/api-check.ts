@@ -1,6 +1,6 @@
 // pnpm api-check: fails when this change breaks the API a client already uses. It builds the
 // OpenAPI document of origin/main and of the working tree, the way CI's `check` job does, and runs
-// `oasdiff breaking --fail-on ERR` on the pair. docs/agents/api.md says what oasdiff allows.
+// `oasdiff breaking --fail-on ERR` on the pair, with a removed operationId or tag raised to an error. docs/agents/api.md says what oasdiff allows.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -135,8 +135,8 @@ const main = async () => {
 	const baseFile = join(scratch, "base.json");
 	const revisionFile = join(scratch, "revision.json");
 	const levelsFile = join(scratch, "levels.txt");
-	writeFileSync(levelsFile, severityLevels);
 	try {
+		writeFileSync(levelsFile, severityLevels);
 		await documentSave({ directory: ".", file: revisionFile, port: 3100 });
 		step({
 			args: ["worktree", "add", "--detach", base, "origin/main"],
