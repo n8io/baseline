@@ -245,7 +245,7 @@ describe("templateUpgradeRun", () => {
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
 		expect(run.errors.join("\n")).toContain("conflicts in src/a.ts");
-		expect(run.scripts).toEqual([]);
+		expect(run.scripts).toEqual(["exec biome format --write .template.json"]);
 	});
 
 	it("renders a release with that release's own render code", async () => {

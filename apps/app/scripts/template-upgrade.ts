@@ -305,6 +305,13 @@ export const templateUpgradeRun = async ({
 		`Template changes up to ${to} (apply foo changes to your domains by hand):\n\n${result.changelog || "(no changelog entries)"}\n`,
 	);
 	if (result.conflicts.length > 0) {
+		// The format step below never runs, so give .template.json Biome's layout now; the files
+		// with conflict markers cannot be formatted until they are resolved.
+		try {
+			pnpm(["exec", "biome", "format", "--write", ".template.json"]);
+		} catch {
+			// The message below asks for pnpm check, which reports what is left.
+		}
 		logError(
 			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run pnpm install, pnpm check and pnpm test. If the install answers 404 for an @n8io/baseline-* tarball, npm is still publishing the release: wait a few minutes and run it again.`,
 		);
