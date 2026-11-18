@@ -4,6 +4,7 @@ import {
 	glossaryDiffAddedLines,
 	glossaryHitFormat,
 	glossaryHitsFind,
+	glossaryTermsRead,
 } from "./glossary-check.ts";
 
 const context = [
@@ -63,6 +64,31 @@ describe("glossary-check", () => {
 			{ alias: "volume", term: "Book" },
 			{ alias: "tally", term: "Ledger" },
 		]);
+	});
+
+	it("finds no alias inside a longer glossary term", () => {
+		const terms = [
+			"**Book**:",
+			"A bound record.",
+			"_Avoid_: tome",
+			"",
+			"**Tome shelf**:",
+			"Where books stand.",
+		].join("\n");
+		const added = [
+			"+++ b/src/a.ts",
+			"@@ -0,0 +1,2 @@",
+			"+// Put it on the tome shelf.",
+			"+// Read the tome.",
+		].join("\n");
+		expect(
+			glossaryHitsFind({
+				aliases: glossaryAliasesRead(terms),
+				diff: added,
+				terms: glossaryTermsRead(terms),
+				textRead: () => "// Put it on the tome shelf.\n// Read the tome.\n",
+			}).map((hit) => hit.line),
+		).toEqual([2]);
 	});
 
 	it("numbers added lines as they are in the new file", () => {

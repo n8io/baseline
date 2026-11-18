@@ -2,8 +2,8 @@
 
 ## Architecture
 
-The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)). Code still uses the old words until the move to them lands; `glossary-check` lets these pass until then:
-_Allowed until n8io/baseline#473 (2026-11-18)_: Domain, Model, Rule, API layer, SPI, Consumer, Bridge, Outcome Events
+The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)). Code, paths and `CONTEXT-MAP.md` keep the old words and shape until the tickets that move them land; `glossary-check` lets the old words pass until then:
+_Allowed until n8io/baseline#473 (added 2026-11-18)_: Domain, Model, Rule, API layer, SPI, Consumer, Bridge, Outcome Events
 
 **Bounded context**:
 The scope of one model and its language, holding one or more Aggregates grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward.
@@ -16,7 +16,7 @@ The kind of business area a bounded context serves: core, supporting or generic.
 `CONTEXT-MAP.md`: each bounded context, its subdomain type, and its relationships to the others: upstream or downstream, anti-corruption layer, Published language, Shared kernel.
 
 **Shared kernel**:
-What every bounded context shares and changes together: the result, id and authn Packages. They are the only imports `domain/` may take from outside itself.
+What every bounded context shares and changes together: the result, id and authn Packages. Their types are the only imports `domain/` may take from outside itself.
 
 **Aggregate**:
 An Aggregate root with the entities and value objects it owns, saved and loaded as one unit through one Repository. Every change to it goes through a transition in its `domain/` file, so a Use case cannot save one that breaks an invariant. One Aggregate per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
@@ -46,19 +46,17 @@ Logic over several Aggregates that belongs to none of them, as a pure function i
 
 **Use case**:
 One operation a bounded context performs, in `application/`, such as creating a foo (`fooCreate`). It loads an Aggregate through its ports, calls a transition, saves the result and publishes. Each gets its ports from a factory: `fooCreate(ports)` returns the function.
-_Avoid_: Application service, interactor
+_Avoid_: Service, interactor
 
 **Module**:
 Anything with an interface and an implementation, at any scale: a function, a file, a Package or a bounded context. A bounded context is one deep module: a lot of behaviour behind a small interface.
-_Avoid_: component
 
 **Interface**:
-Everything a caller must know to use a module correctly: its types, and also its invariants, ordering, errors and required configuration. A bounded context's interface is its `index.ts`: `<context>ContextCreate(...)` and its Published language. Outside code imports nothing else from a context, and tests go through it.
+Everything a caller must know to use a module correctly: its types, and also its invariants, ordering, errors and required configuration. A bounded context's interface is its `index.ts`: `<context>ContextCreate(...)` and its Published language. Outside code imports nothing else from a context, and Use case tests go through it.
 _Avoid_: signature
 
 **Seam**:
 A place where behaviour can change without editing that place: where a module's interface lives.
-_Avoid_: boundary
 
 **Adapter**:
 A concrete thing that satisfies an interface at a seam, named for the slot it fills, not for what is inside it.
@@ -80,7 +78,7 @@ An adapter that a bounded context drives through a port, with real technology or
 _Avoid_: SPI, Infrastructure, providers, drivers
 
 **Clock**:
-The port a bounded context reads the current time from (`fooClock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
+The port a bounded context reads the current time from (`<context>Clock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
 _Avoid_: Time provider, now function
 
 **Actor**:
@@ -121,7 +119,7 @@ A translation inside a downstream bounded context that reads an upstream context
 _Avoid_: Bridge, integration, connector, facade
 
 **Saga**:
-A business process across bounded contexts carried by Domain events (choreographed): each context's Event handler acts on one Domain event and publishes the next, including the outcome a waiting context needs.
+A business process across bounded contexts carried by Domain events (choreographed): an Event handler in each context calls a Use case that acts on one Domain event and publishes the next, including the outcome a waiting context needs.
 _Avoid_: Outcome Events
 
 **Projection**:
