@@ -245,7 +245,30 @@ describe("templateUpgradeRun", () => {
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
 		expect(run.errors.join("\n")).toContain("conflicts in src/a.ts");
-		expect(run.scripts).toEqual([]);
+		expect(run.scripts).toEqual(["exec biome format --write .template.json"]);
+		expect(run.errors.join("\n")).not.toContain("pnpm format");
+	});
+
+	it("asks for pnpm format when Biome cannot format .template.json on a conflict", async () => {
+		using folder = projectCreate("one\ntwo\nthree\nFOUR\nfive\n");
+		const app = folder.path;
+		const run = runCapture();
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				tools,
+				...run,
+				pnpm: () => {
+					throw new Error("biome.json holds conflict markers");
+				},
+			}),
+		).toBe(1);
+		expect(run.errors.join("\n")).toContain("conflicts in src/a.ts");
+		expect(run.errors.join("\n")).toContain(
+			"pnpm install, pnpm format, pnpm check and pnpm test",
+		);
 	});
 
 	it("renders a release with that release's own render code", async () => {
