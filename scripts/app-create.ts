@@ -66,22 +66,14 @@ export const contextLanguageWrite = (text: string, terms: GlossaryTerm[]) => {
 	return `${text.trimEnd()}\n\n${entries.join("\n")}`;
 };
 
-// A fresh AUTHN_SECRET for development, and the project's own 1Password vault in production.
-export const envFilesWrite = (directory: string, name: string): void => {
+// A fresh AUTHN_SECRET for development.
+export const envFilesWrite = (directory: string): void => {
 	const development = join(directory, ".env.development");
 	writeFileSync(
 		development,
 		readFileSync(development, "utf8").replace(
 			/^AUTHN_SECRET=.*$/m,
 			`AUTHN_SECRET=${randomBytes(32).toString("base64url")}`,
-		),
-	);
-	const production = join(directory, ".env.production");
-	writeFileSync(
-		production,
-		readFileSync(production, "utf8").replaceAll(
-			/op:\/\/[^/]+\//g,
-			`op://${name}-production/`,
 		),
 	);
 };
@@ -101,7 +93,7 @@ export const answersWrite = ({
 		context,
 		contextLanguageWrite(readFileSync(context, "utf8"), terms),
 	);
-	envFilesWrite(directory, answers.name);
+	envFilesWrite(directory);
 	writeFileSync(
 		join(directory, ".template.json"),
 		`${JSON.stringify(

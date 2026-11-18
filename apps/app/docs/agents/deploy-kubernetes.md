@@ -59,12 +59,12 @@ Worked example, 12 pods: 8 Servers and 4 Workers, `maxSurge: 25%` (2 and 1 more)
 
 ## Secrets
 
-`.env.production` holds `op()` references. A variable already set in the environment wins and is never fetched. Two ways to boot:
+`.env.production` holds `infisical()` references, each read from the secret of the same name in the Infisical project's `prod` environment. A variable already set in the environment wins and is never fetched. Two ways to boot:
 
-- **1Password at boot** (a few pods). Set `OP_SERVICE_ACCOUNT_TOKEN` and allow outbound HTTPS to 1Password. Every boot reads every reference, so a crash loop across many pods can use up the service account's read limit (1,000 an hour on 1Password Teams), and then no pod can boot or restart. A 1Password outage blocks scale-up and rescheduling too.
-- **Kubernetes Secret** (a fleet). Let External Secrets or the 1Password Operator sync the vault into a Secret whose keys are the names in `.env.production`, and load it with `envFrom`. Set no token: boot never calls 1Password. varlock still checks every value and redacts it in logs.
+- **Infisical at boot** (a few pods). Set `INFISICAL_PROJECT_ID`, `INFISICAL_CLIENT_ID` and `INFISICAL_CLIENT_SECRET`, plus `INFISICAL_SITE_URL` for a self-hosted Infisical, which must be reachable from the pods, and allow outbound HTTPS to it. Every boot reads every reference, so an Infisical outage blocks scale-up and rescheduling.
+- **Kubernetes Secret** (a fleet). Let the Infisical Kubernetes Operator or External Secrets sync the project into a Secret whose keys are the names in `.env.production`, and load it with `envFrom`. Set no identity: boot never calls Infisical. varlock still checks every value and redacts it in logs.
 
-With no token, a reference that is not set fails the boot with `Invalid env vars: <NAME>`. A changed secret reaches a pod only when it restarts, either way.
+With no identity, a reference that is not set fails the boot with `Invalid env vars: <NAME>`. A changed secret reaches a pod only when it restarts, either way.
 
 ## Graceful shutdown
 

@@ -87,7 +87,7 @@ Add the queue and the Worker back: `git revert` the "Remove queue" commit. For e
 
 Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Domain's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
 
-`MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=op(op://<project>-production/mixpanel/token)` to `.env.production`.
+`MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 
 Add analytics back: `git revert` the "Remove analytics" commit. For each Domain created after it, copy every `piece-start: analytics` block and `use-cases/*-use-cases-analytics.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
 
@@ -99,7 +99,7 @@ Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracki
 
 It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the composition root has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
 
-`SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=op(op://<project>-production/sentry/dsn)` to `.env.production`.
+`SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=infisical()` to `.env.production` and a `SENTRY_DSN` secret to the Infisical project.
 
 Add error tracking back: `git revert` the "Remove error-tracking" commit.
 

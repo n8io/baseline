@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempDisposableSync,
+	readdirSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { domainsPairsFill } from "./domain-create.ts";
 import {
@@ -16,6 +24,7 @@ import {
 	run,
 	templateFileRender,
 	templateFilesRender,
+	templateFinish,
 } from "./template-render.ts";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
@@ -519,5 +528,32 @@ describe.runIf(template)("the template's own files", () => {
 				domainsPairsFill({ project: rendered, template: text, path }),
 			).toBe(linesRemove(text, fooBlocksFind(text, path)));
 		}
+	});
+});
+
+describe("templateFinish", () => {
+	const treeCreate = (schema: string) => {
+		const folder = mkdtempDisposableSync(join(tmpdir(), "template-finish-"));
+		writeFileSync(join(folder.path, ".env.schema"), schema);
+		writeFileSync(join(folder.path, "env.d.ts"), "// the release's own\n");
+		return folder;
+	};
+	const tools = new URL(".", appRoot).pathname;
+
+	it("keeps the release's env types when the schema names a plugin these tools lack", () => {
+		using folder = treeCreate(
+			"# @plugin(@varlock/absent-plugin)\n# @generateTsTypes(path=env.d.ts)\n# ---\nA=1\n",
+		);
+		templateFinish(folder.path, tools);
+		expect(readFileSync(join(folder.path, "env.d.ts"), "utf8")).toBe(
+			"// the release's own\n",
+		);
+	});
+
+	it("fails on any other codegen error", () => {
+		using folder = treeCreate("# @defaultSensitive=false\n# ---\nA=1\n");
+		expect(() => templateFinish(folder.path, tools)).toThrow(
+			/No code-generation decorator/,
+		);
 	});
 });
