@@ -2,7 +2,7 @@
 
 <p align="center"><b><a href="#start">Start</a> · <a href="#whats-inside">What's inside</a> · <a href="#pieces">Pieces</a> · <a href="#packages">Packages</a> · <a href="#in-a-project">In a Project</a> · <a href="#for-ai-agents">For AI agents</a></b></p>
 
-A Template, fifteen Packages and one CI for TypeScript apps. Each Project gets a domain-driven Hono API and React Router pages in one process, a Worker for Events and Schedules, Postgres, Redis, OpenTelemetry and 1Password secrets.
+A Template, fifteen Packages and one CI for TypeScript apps. Each Project gets a domain-driven Hono API and React Router pages in one process, a Worker for Events and Schedules, Postgres, Redis, OpenTelemetry and Infisical secrets.
 
 ## Start
 
@@ -44,7 +44,7 @@ It asks two questions; pass them as flags instead with `--name --description [--
 </tr>
 <tr>
 <td valign="top"><b>Ready for production</b><br>Liveness and readiness probes, graceful shutdown in order, an Alpine image held to a size budget, and a Kubernetes guide.</td>
-<td valign="top"><b>Secrets in one place</b><br>A typed env schema; values from 1Password, or plain env vars in production.</td>
+<td valign="top"><b>Secrets in one place</b><br>A typed env schema; values from Infisical, or plain env vars in production.</td>
 <td valign="top"><b>Never left behind</b><br><code>pnpm template-upgrade</code> 3-way merges the newest Template release into your Project.</td>
 </tr>
 </table>

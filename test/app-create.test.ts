@@ -37,10 +37,6 @@ const projectCreate = (): DisposableTempDir => {
 		"APP_ENV=development\nAUTHN_SECRET=template-secret\nPORT=3000\n",
 	);
 	writeFileSync(
-		join(directory, ".env.production"),
-		"# References only.\nDATABASE_URL=op(op://app-production/database/url)\nAUTHN_SECRET=op(op://app-production/authn/secret)\n",
-	);
-	writeFileSync(
 		join(directory, "CONTEXT.md"),
 		"# Invoices.\n\n## Architecture\n\n**Domain**:\nOne entity.\n\n## Language\n",
 	);
@@ -299,21 +295,18 @@ describe("app-create", () => {
 		);
 	});
 
-	it("writes a fresh AUTHN_SECRET and the project's own production vault", () => {
+	it("writes a fresh AUTHN_SECRET for development", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
-		envFilesWrite(directory, "invoicing");
+		envFilesWrite(directory);
 		const secret = /^AUTHN_SECRET=(.*)$/m.exec(
 			read(directory, ".env.development"),
 		)?.[1];
 
 		expect(secret).toMatch(/^[\w-]{43}$/);
 		expect(read(directory, ".env.development")).toContain("PORT=3000\n");
-		expect(read(directory, ".env.production")).toBe(
-			"# References only.\nDATABASE_URL=op(op://invoicing-production/database/url)\nAUTHN_SECRET=op(op://invoicing-production/authn/secret)\n",
-		);
 		using second = projectCreate();
-		envFilesWrite(second.path, "invoicing");
+		envFilesWrite(second.path);
 		expect(read(second.path, ".env.development")).not.toContain(
 			`AUTHN_SECRET=${secret}`,
 		);
@@ -338,9 +331,6 @@ describe("app-create", () => {
 		});
 		expect(read(directory, "CONTEXT.md")).toContain(
 			"## Language\n\n**Invoice line**:\nA charge.\n",
-		);
-		expect(read(directory, ".env.production")).toContain(
-			"op://invoicing-production/",
 		);
 	});
 

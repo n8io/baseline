@@ -20,7 +20,7 @@ declare module "vitest" {
 // Only INTEGRATION_* URLs count, so a DATABASE_URL set for something else is never dropped into. Without
 // them, the compose.yaml services on this Project's host ports (CI's service containers use the defaults).
 // This Project's host ports: the shell's, else the defaults in .env.schema (not loaded through varlock, so
-// a .env.development.local with op() references cannot stop the run).
+// a .env.development.local with infisical() references cannot stop the run).
 const schemaPorts = parseEnv(
 	readFileSync(new URL("../../.env.schema", import.meta.url), "utf8"),
 );

@@ -82,7 +82,7 @@ const projectFiles: Record<string, string> = {
 		"SENTRY_DSN=",
 		"",
 	].join("\n"),
-	".env.production": "PORT=3000\nMIXPANEL_TOKEN=op(op://app/mixpanel/token)\n",
+	".env.production": "PORT=3000\nMIXPANEL_TOKEN=infisical()\n",
 	".env.test": "CACHE_URL=memory://\nPORT=3000\n",
 	"biome.json": `${JSON.stringify({ css: {}, files: { includes: ["**", "!.react-router"] } }, null, "\t")}\n`,
 	"compose.yaml": `services:\n${block({ body: "  redis:\n    image: redis", comment: "#", piece: "redis" })}\n  postgres:\n    image: postgres\n`,

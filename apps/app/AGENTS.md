@@ -99,7 +99,7 @@ Stop and ask the user when:
 - the app would accept card data;
 - the app would start a child process at runtime;
 - an OpenTelemetry instrumentation would be added;
-- a secret cannot come from `.env.schema` and 1Password.
+- a secret cannot come from `.env.schema` and Infisical.
 
 For several Domains at once, one approved plan answers the Domain, term, verb and Event questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
 
@@ -129,7 +129,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 ## Env and secrets
 
 - Declare every variable in `.env.schema`. Secrets are `@sensitive` by default.
-- A secret's production value is an `op()` reference in `.env.production`. Never put a value in a committed file.
+- In `.env.production` a secret is an `infisical()` reference. Never put a value in a committed file.
 - Read `ENV` from `#env`. Never read `process.env`.
 - Put dev and test values in `.env.development` and `.env.test`.
 - `memory://` URLs are allowed only in development and test.

@@ -711,11 +711,23 @@ export const templateFinish = (
 			args: ["check", "--write", "."],
 			options: { cwd: directory },
 		});
-		run({
-			command: bin("varlock"),
-			args: ["codegen"],
-			options: { cwd: directory },
-		});
+		try {
+			run({
+				command: bin("varlock"),
+				args: ["codegen"],
+				options: { cwd: directory },
+			});
+		} catch (error) {
+			// A render across a secret-store swap names a varlock plugin these tools lack. The render
+			// keeps its src/env.d.ts as it is; pnpm check regenerates it once the install has the plugin.
+			const plugin = /Plugin "([^"]+)" unable to resolve/.exec(
+				(error as Error).message,
+			)?.[1];
+			if (plugin === undefined) throw error;
+			console.warn(
+				`templateFinish: src/env.d.ts not regenerated, ${plugin} is not installed here`,
+			);
+		}
 	} finally {
 		if (linked) rmSync(modules);
 	}

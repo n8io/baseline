@@ -11,8 +11,8 @@
 # run the migrate entry once before rollout; the other entries may then start in any order, and each
 # runs as many instances as you need (docs/agents/deploy-kubernetes.md);
 # the load balancer must speak HTTP/2 and allow long-lived responses (SSE);
-# secrets: give every entry OP_SERVICE_ACCOUNT_TOKEN and outbound HTTPS to 1Password, which fetches them at
-# boot, or set every variable .env.production names in the environment, which needs no token.
+# secrets: give every entry the INFISICAL_* variables and outbound HTTPS to Infisical, which fetches them at
+# boot, or set every variable .env.production names in the environment, which needs no identity.
 # Alpine (musl) in both stages, so native packages install their musl builds; its shell is BusyBox sh.
 # Build: docker build .
 

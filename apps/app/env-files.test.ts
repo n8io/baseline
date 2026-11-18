@@ -45,8 +45,8 @@ const varlockLoad = (
 		},
 	);
 
-// A value of the right type for every item .env.production fetches from 1Password, as a runner
-// that syncs the vault into its own secret store sets them.
+// A value of the right type for every item .env.production fetches from Infisical, as a runner
+// that syncs the Infisical project into its own secret store sets them.
 const productionSet = () => {
 	const values = parseEnv(fileRead(".env.test"));
 	return Object.fromEntries(
@@ -78,15 +78,15 @@ describe("env files", () => {
 		});
 	});
 
-	// No OP_SERVICE_ACCOUNT_TOKEN in either test, so 1Password cannot be asked.
-	it("load production with no 1Password token when every reference is already set", () => {
+	// No Infisical identity in either test, so Infisical cannot be asked.
+	it("load production with no Infisical identity when every reference is already set", () => {
 		const set = productionSet();
 		expect(Object.values(set)).not.toContain(undefined);
 		const { status, stderr, stdout } = varlockLoad("production", { set });
 		expect({ status, stderr, stdout }).toMatchObject({ status: 0 });
 	});
 
-	it("fail to load production with no 1Password token when one reference is not set", () => {
+	it("fail to load production with no Infisical identity when one reference is not set", () => {
 		const { AUTHN_SECRET: _, ...set } = productionSet();
 		const { status, stderr } = varlockLoad("production", { set });
 		expect({ status, stderr }).toMatchObject({
@@ -106,12 +106,14 @@ describe("env files", () => {
 	});
 
 	// Shows only the text before "=", never a value.
-	it("give production only op() references", () => {
+	it("give production only infisical() references", () => {
 		const notReferences = fileRead(".env.production")
 			.split("\n")
 			.map((line) => line.trim())
 			.filter((line) => line !== "" && !line.startsWith("#"))
-			.filter((line) => !/^[A-Z][A-Z0-9_]*=op\(op:\/\/[^)\s]+\)$/.test(line))
+			.filter(
+				(line) => !/^[A-Z][A-Z0-9_]*=infisical\((?:"[^"]+")?\)$/.test(line),
+			)
 			.map((line) => line.split("=")[0]);
 		expect(notReferences).toEqual([]);
 	});
