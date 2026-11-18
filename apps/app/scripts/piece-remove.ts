@@ -65,6 +65,31 @@ const manifestEdit = (directory: string, edit: (m: Manifest) => void) =>
 		},
 	});
 
+// dependencies-allowed.json lists the Project's runtime dependencies, so a removed package leaves it too.
+const dependenciesAllowedEdit = (
+	directory: string,
+	edit: (allowed: Record<string, string>) => Record<string, string>,
+) =>
+	textEdit({
+		directory,
+		path: "dependencies-allowed.json",
+		edit: (text) =>
+			`${JSON.stringify(edit(JSON.parse(text) as Record<string, string>), null, "\t")}\n`,
+	});
+
+// Drops the piece's packages; without the UI, Hono serves itself through @hono/node-server.
+const dependenciesAllowedPieceRemove = (directory: string, piece: string) =>
+	dependenciesAllowedEdit(directory, (allowed) => {
+		for (const name of pieceRemovals[piece]?.packages ?? []) {
+			delete allowed[name];
+		}
+		if (piece !== "ui") return allowed;
+		allowed["@hono/node-server"] = "serves Hono on Node";
+		return Object.fromEntries(
+			Object.entries(allowed).sort(([a], [b]) => (a < b ? -1 : 1)),
+		);
+	});
+
 export const packagesInstalled = (directory: string): Set<string> => {
 	const manifest = JSON.parse(
 		readFileSync(join(directory, "package.json"), "utf8"),
@@ -527,6 +552,7 @@ export const piecesRemoveFromTree = (directory: string, removed: string[]) => {
 				delete manifest.devDependencies?.[name];
 			}
 		});
+		dependenciesAllowedPieceRemove(directory, piece);
 	}
 };
 
@@ -631,6 +657,7 @@ export const pieceRemove = (
 		if (piece === "ui" && !installed.has("@hono/node-server")) {
 			pnpm(["add", "@hono/node-server@^2.1.6"]);
 		}
+		dependenciesAllowedPieceRemove(directory, piece);
 		// Removing an unused import is an unsafe fix in Biome, so it runs on its own.
 		toolRun(directory, [
 			"exec",

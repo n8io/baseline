@@ -15,6 +15,10 @@ Never return the vendor's client from a neutral handle. The Project's side of th
 
 A Package may use Zod inside, as a regular dependency. A caller never needs it: no export names a Zod type, and `zod` is never a peer dependency. Where a caller passes a schema, take any Standard Schema (`StandardSchemaV1` from `@standard-schema/spec`, as `cacheCreate` and `queueConsumerCreate` do), and show a Zod example in the README. `@n8io/baseline-http` is the one exception: it is built on `@hono/zod-openapi`.
 
+## Dependencies
+
+Every runtime dependency of a Package (`dependencies`, `peerDependencies`, `optionalDependencies`) needs an entry in the root `dependencies-allowed.json`: its name and a one-line reason naming the Packages that use it. `test/dependencies-allowed.test.ts` fails on one without, and on an entry no Package uses. Add one only for an established, industry-standard library that no listed one already covers, and ask first. `@n8io/baseline-*` packages need no entry. The Template's own list is `apps/app/dependencies-allowed.json` ([apps/app/docs/agents/dependency-updates.md](../../apps/app/docs/agents/dependency-updates.md)).
+
 ## Test exports
 
 A Package exports two things for tests, and no mocks, spies or fixtures:

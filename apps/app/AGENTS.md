@@ -157,7 +157,7 @@ Read the one that matches before you start.
 - Running a Project on Kubernetes or on more than one instance (probes, PgBouncer, rollouts): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)
 - Running a Template upgrade, or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
 - Adding or changing a route, a field, a query parameter or an error under `/api/v1` (oasdiff, statuses): [docs/agents/api.md](docs/agents/api.md)
-- Handling a Dependabot pull request, or walking someone through updates: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
+- Adding a dependency, a Dependabot PR, or an update walkthrough: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - Adding a script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)

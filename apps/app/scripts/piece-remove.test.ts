@@ -18,6 +18,7 @@ import {
 	pieceRemove,
 	pieceRemoveRefusal,
 	pieceSettingsRead,
+	piecesRemoveFromTree,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
 
@@ -449,6 +450,21 @@ describe("pieceFilesRemove", () => {
 		);
 	});
 
+	it("drops a removed piece's packages from dependencies-allowed.json in a rendered tree", () => {
+		// A rendered tree has no .git, which piecesRemoveFromTree would walk.
+		using folder = mkdtempDisposableSync(join(tmpdir(), "piece-tree-"));
+		for (const [path, text] of Object.entries({
+			"dependencies-allowed.json": `${JSON.stringify({ react: "ui", "swagger-ui-dist": "docs", zod: "schemas" }, null, "\t")}\n`,
+			"package.json": `${JSON.stringify(manifest, null, "\t")}\n`,
+		})) {
+			writeFileSync(join(folder.path, path), text);
+		}
+		piecesRemoveFromTree(folder.path, ["api-reference", "ui"]);
+		expect(
+			JSON.parse(read(folder.path, "dependencies-allowed.json")) as object,
+		).toEqual({ "@hono/node-server": "serves Hono on Node", zod: "schemas" });
+	});
+
 	it("turns the ui-less server into one that serves itself, once", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
@@ -706,6 +722,20 @@ describe("pieceRemove", () => {
 				).toBe("");
 			},
 		);
+
+		it("drops the piece's packages from dependencies-allowed.json and lists @hono/node-server once ui is gone", () => {
+			using folder = projectCreate({
+				"dependencies-allowed.json": `${JSON.stringify({ react: "ui", "react-router": "ui", zod: "schemas" }, null, "\t")}\n`,
+				"package.json": `${JSON.stringify({ dependencies: { react: "^19.0.0", "react-router": "^7.0.0", zod: "^4.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
+			});
+			using _fake = pnpmFake();
+			expect(pieceRemove(folder.path, "ui")).toBeUndefined();
+			expect(
+				Object.keys(
+					JSON.parse(read(folder.path, "dependencies-allowed.json")) as object,
+				),
+			).toEqual(["@hono/node-server", "zod"]);
+		});
 
 		it("still blames the piece when only the check fails", () => {
 			using folder = projectCreate({

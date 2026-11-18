@@ -1,0 +1,21 @@
+{
+	"@hono/zod-openapi": "Hono routes with OpenAPI from Zod schemas",
+	"@opentelemetry/api": "peer of the @n8io/baseline-* Packages; app code sets spans through telemetry (A8)",
+	"@react-router/node": "React Router on Node (ui)",
+	"@varlock/infisical-plugin": "varlock reads secrets from Infisical",
+	"class-variance-authority": "variants for shadcn/ui components (ui)",
+	"cn": "merges Tailwind class names for shadcn/ui components (ui)",
+	"drizzle-orm": "SQL queries and table schemas on Postgres",
+	"hono": "the HTTP framework",
+	"import-in-the-middle": "lets OpenTelemetry patch ES modules (src/preload.ts)",
+	"lucide-react": "icons (ui)",
+	"pg": "the Postgres driver, peer of @n8io/baseline-postgres",
+	"radix-ui": "accessible primitives under shadcn/ui (ui)",
+	"react": "renders the UI (ui)",
+	"react-dom": "renders the UI in the browser (ui)",
+	"react-router": "routes, loaders and server rendering (ui)",
+	"react-router-hono-server": "serves React Router from Hono (ui)",
+	"swagger-ui-dist": "Swagger UI at /api/v1/docs (api-reference)",
+	"varlock": "the env schema, its checks and secret loading",
+	"zod": "schemas for routes, env and Use case input"
+}
