@@ -7,7 +7,7 @@ One of the shared `@n8io/baseline-*` libraries in `packages/`, versioned and pub
 _Avoid_: lib, shared module, shared code
 
 **Template**:
-`apps/app`, the app every Project is made from, with Foo as its example Domain. Its versions are the `app@x.y.z` tags.
+`apps/app`, the app every Project is made from, with `foo` as its example bounded context. Its versions are the `app@x.y.z` tags.
 _Avoid_: boilerplate, scaffold, skeleton
 
 **Project**:

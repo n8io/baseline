@@ -2,7 +2,8 @@
 // (default CONTEXT.md) in lines added against origin/main under the tree (default "."). Baseline runs
 // it over the monorepo with its root CONTEXT.md. Only prose counts: comments and string literals in
 // code files, every line of other text files; migrations, JSON and a string that is the value of
-// `kind:` are skipped. Warnings only: the agent judges each hit, so it always exits 0.
+// `kind:` are skipped. A glossary term on the line is blanked first, so "Domain event" is no hit for
+// "Domain"; an `_Allowed until <when>_:` line in the glossary lists aliases not checked yet. Warnings only: the agent judges each hit, so it always exits 0.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { codeFileIs, modesRead, run } from "./template-render.ts";
@@ -11,11 +12,17 @@ type GlossaryAlias = { alias: string; term: string };
 
 type GlossaryHit = GlossaryAlias & { file: string; line: number };
 
-// Every `_Avoid_:` alias with the `**Term**:` it belongs to, from both sections.
+// Every `_Avoid_:` alias with the `**Term**:` it belongs to, from both sections. An alias an
+// `_Allowed until <when>_:` line names is left out: old words the code still uses while it moves.
 export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 	const aliases: GlossaryAlias[] = [];
+	const allowed = new Set<string>();
 	let term: string | undefined;
 	for (const line of context.split("\n")) {
+		const allow = /^_Allowed until [^_]+_:\s*(.+)$/.exec(line);
+		for (const alias of allow?.[1]?.split(",") ?? []) {
+			allowed.add(alias.trim().toLowerCase());
+		}
 		const heading = /^\*\*(.+)\*\*:\s*$/.exec(line);
 		if (heading?.[1] !== undefined) term = heading[1];
 		const avoid = /^_Avoid_:\s*(.+)$/.exec(line);
@@ -25,8 +32,15 @@ export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 			if (trimmed !== "") aliases.push({ alias: trimmed, term });
 		}
 	}
-	return aliases;
+	return aliases.filter((a) => !allowed.has(a.alias.toLowerCase()));
 };
+
+// Every `**Term**:` heading, longest first, so a term that holds an alias ("Domain event") is
+// blanked before the alias ("Domain") is matched.
+export const glossaryTermsRead = (context: string): string[] =>
+	[...context.matchAll(/^\*\*(.+)\*\*:\s*$/gm)]
+		.map((m) => m[1] ?? "")
+		.sort((a, b) => b.length - a.length);
 
 // The added lines of a unified diff, with their file and line number in the new version.
 export const glossaryDiffAddedLines = (
@@ -130,12 +144,17 @@ export const glossaryProseLines = ({
 export const glossaryHitsFind = ({
 	aliases,
 	diff,
+	terms,
 	textRead,
 }: {
 	aliases: GlossaryAlias[];
 	diff: string;
+	terms?: string[] | null;
 	textRead: (file: string) => string;
 }): GlossaryHit[] => {
+	const termPatterns = (terms ?? []).map(
+		(term) => new RegExp(`(?<![\\w-])${RegExp.escape(term)}(?![\\w-])`, "gi"),
+	);
 	const patterns = aliases.map((a) => ({
 		...a,
 		// Not inside a word or a path: test/integration, test:integration and
@@ -168,6 +187,9 @@ export const glossaryHitsFind = ({
 			if (lines === null) continue;
 			prose = lines[added.line - 1] ?? "";
 		}
+		for (const termPattern of termPatterns) {
+			prose = prose.replace(termPattern, (term) => " ".repeat(term.length));
+		}
 		for (const { alias, term, pattern } of patterns) {
 			if (pattern.test(prose)) {
 				hits.push({ alias, file: added.file, line: added.line, term });
@@ -189,7 +211,8 @@ const main = (
 	[glossary = "CONTEXT.md", tree = "."] = process.argv.slice(2),
 ) => {
 	try {
-		const aliases = glossaryAliasesRead(readFileSync(glossary, "utf8"));
+		const context = readFileSync(glossary, "utf8");
+		const aliases = glossaryAliasesRead(context);
 		const diff = run({
 			command: "git",
 			args: ["diff", "--unified=0", "--no-color", "origin/main", "--", tree],
@@ -201,6 +224,7 @@ const main = (
 		const hits = glossaryHitsFind({
 			aliases,
 			diff,
+			terms: glossaryTermsRead(context),
 			textRead: (file) => readFileSync(join(root, file), "utf8"),
 		});
 		const actions = process.env.GITHUB_ACTIONS === "true";

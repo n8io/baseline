@@ -4,6 +4,7 @@ import {
 	glossaryDiffAddedLines,
 	glossaryHitFormat,
 	glossaryHitsFind,
+	glossaryTermsRead,
 } from "./glossary-check.ts";
 
 const context = [
@@ -45,6 +46,49 @@ describe("glossary-check", () => {
 			{ alias: "real-time event", term: "Live update" },
 			{ alias: "item", term: "Invoice line" },
 		]);
+	});
+
+	it("leaves out the aliases an _Allowed until_ line names", () => {
+		const moving = [
+			"_Allowed until #1 (2026-01-01)_: Tome, Old ledger",
+			"",
+			"**Book**:",
+			"A bound record.",
+			"_Avoid_: tome, volume",
+			"",
+			"**Ledger**:",
+			"Lists entries.",
+			"_Avoid_: Old ledger, tally",
+		].join("\n");
+		expect(glossaryAliasesRead(moving)).toEqual([
+			{ alias: "volume", term: "Book" },
+			{ alias: "tally", term: "Ledger" },
+		]);
+	});
+
+	it("finds no alias inside a longer glossary term", () => {
+		const terms = [
+			"**Book**:",
+			"A bound record.",
+			"_Avoid_: tome",
+			"",
+			"**Tome shelf**:",
+			"Where books stand.",
+		].join("\n");
+		const added = [
+			"+++ b/src/a.ts",
+			"@@ -0,0 +1,2 @@",
+			"+// Put it on the tome shelf.",
+			"+// Read the tome.",
+		].join("\n");
+		expect(
+			glossaryHitsFind({
+				aliases: glossaryAliasesRead(terms),
+				diff: added,
+				terms: glossaryTermsRead(terms),
+				textRead: () => "// Put it on the tome shelf.\n// Read the tome.\n",
+			}).map((hit) => hit.line),
+		).toEqual([2]);
 	});
 
 	it("numbers added lines as they are in the new file", () => {
