@@ -1,6 +1,6 @@
 # Walkthrough: dependency updates
 
-Read when handling a Dependabot pull request, a major update or a security alert, or when someone asks to be walked through how updates land. To start one, ask your agent: "Walk me through this dependency update with docs/agents/dependency-updates.md."
+Read when adding a dependency, handling a Dependabot pull request, a major update or a security alert, or when someone asks to be walked through how updates land. To start one, ask your agent: "Walk me through this dependency update with docs/agents/dependency-updates.md."
 
 ## How to guide
 
@@ -8,6 +8,10 @@ Read when handling a Dependabot pull request, a major update or a security alert
 - After each step, show what changed and how to tell it worked. Stop at the first failure and explain it before you try anything else.
 - Ask before merging a major update: it is the one kind a person decides on.
 - End by summarising what was updated and anything left for later.
+
+## Adding a dependency
+
+Adding one is a stop-and-ask (`AGENTS.md`). Every runtime dependency (`dependencies`, `peerDependencies`, `optionalDependencies`) also needs an entry in `dependencies-allowed.json`: its name and a one-line reason, such as `"pg": "the Postgres driver"`. `dependencies-allowed.test.ts` fails on one without, and on an entry no runtime dependency uses. Only an established, industry-standard library qualifies, and never a second one for a job a listed one does (a retry helper, a Result type, another schema library). `@n8io/baseline-*` packages need no entry; `pnpm piece-remove` drops a removed piece's entries. A version update changes no entry.
 
 ## Steps
 

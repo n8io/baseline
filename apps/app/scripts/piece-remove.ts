@@ -65,6 +65,29 @@ const manifestEdit = (directory: string, edit: (m: Manifest) => void) =>
 		},
 	});
 
+// dependencies-allowed.json lists the Project's runtime dependencies, so a removed package leaves it too.
+const dependenciesAllowedEdit = (
+	directory: string,
+	edit: (allowed: Record<string, string>) => void,
+) =>
+	textEdit({
+		directory,
+		path: "dependencies-allowed.json",
+		edit: (text) => {
+			const allowed = JSON.parse(text) as Record<string, string>;
+			edit(allowed);
+			const sorted = Object.fromEntries(
+				Object.entries(allowed).sort(([a], [b]) => (a < b ? -1 : 1)),
+			);
+			return `${JSON.stringify(sorted, null, "\t")}\n`;
+		},
+	});
+
+const dependenciesAllowedRemove = (directory: string, packages: string[]) =>
+	dependenciesAllowedEdit(directory, (allowed) => {
+		for (const name of packages) delete allowed[name];
+	});
+
 export const packagesInstalled = (directory: string): Set<string> => {
 	const manifest = JSON.parse(
 		readFileSync(join(directory, "package.json"), "utf8"),
@@ -527,6 +550,7 @@ export const piecesRemoveFromTree = (directory: string, removed: string[]) => {
 				delete manifest.devDependencies?.[name];
 			}
 		});
+		dependenciesAllowedRemove(directory, packages);
 	}
 };
 
@@ -627,9 +651,13 @@ export const pieceRemove = (
 		);
 		if (packages !== undefined && packages.length > 0) {
 			pnpm(["remove", ...packages]);
+			dependenciesAllowedRemove(directory, packages);
 		}
 		if (piece === "ui" && !installed.has("@hono/node-server")) {
 			pnpm(["add", "@hono/node-server@^2.1.6"]);
+			dependenciesAllowedEdit(directory, (allowed) => {
+				allowed["@hono/node-server"] = "serves Hono on Node";
+			});
 		}
 		// Removing an unused import is an unsafe fix in Biome, so it runs on its own.
 		toolRun(directory, [
