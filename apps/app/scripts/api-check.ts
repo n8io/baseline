@@ -9,6 +9,10 @@ import { join } from "node:path";
 const installLine =
 	"oasdiff is not on PATH. Install it with `brew install oasdiff`, or download v1.35.0 from https://github.com/oasdiff/oasdiff/releases.";
 
+// oasdiff scores a renamed or removed operationId or tag as info, but SDK methods and CLI
+// commands are named after them, so a client breaks: raise both to errors.
+const severityLevels = "api-operation-id-removed err\napi-tag-removed err\n";
+
 const step = ({
 	args,
 	command,
@@ -130,6 +134,8 @@ const main = async () => {
 	const base = join(scratch, "main");
 	const baseFile = join(scratch, "base.json");
 	const revisionFile = join(scratch, "revision.json");
+	const levelsFile = join(scratch, "levels.txt");
+	writeFileSync(levelsFile, severityLevels);
 	try {
 		await documentSave({ directory: ".", file: revisionFile, port: 3100 });
 		step({
@@ -153,7 +159,15 @@ const main = async () => {
 			prepare: (document) => securityBearerDeclare(problemCodesOpen(document)),
 		});
 		step({
-			args: ["breaking", baseFile, revisionFile, "--fail-on", "ERR"],
+			args: [
+				"breaking",
+				baseFile,
+				revisionFile,
+				"--fail-on",
+				"ERR",
+				"--severity-levels",
+				levelsFile,
+			],
 			command: "oasdiff",
 			cwd: ".",
 		});

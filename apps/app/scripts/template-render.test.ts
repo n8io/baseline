@@ -94,6 +94,7 @@ describe("fooRename", () => {
 			`redirect(\`/foos/\${foo.id}\`); app.route("/live/foo", r);`,
 			"process.env.SCHEDULE_FOO_STALE_ARCHIVE; /^foo_/;",
 			`throw new Error(\`Foo \${id} not found\`); "foos"; "FooNotFound";`,
+			'operationId: "fooGet", tags: ["foo"],',
 		].join("\n");
 
 		expect(
@@ -107,6 +108,7 @@ describe("fooRename", () => {
 			`redirect(\`/invoice-lines/\${invoiceLine.id}\`); app.route("/live/invoice_line", r);`,
 			"process.env.SCHEDULE_INVOICE_LINE_STALE_ARCHIVE; /^invoice_line_/;",
 			`throw new Error(\`Invoice line \${id} not found\`); "invoice-lines"; "InvoiceLineNotFound";`,
+			'operationId: "invoiceLineGet", tags: ["invoiceLine"],',
 		]);
 	});
 

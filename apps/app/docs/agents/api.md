@@ -36,6 +36,7 @@ Give a route its error list inline, or declare it `as const`: `httpErrorResponse
 
 ## Route conventions
 
+- Every route sets `operationId` to the name of the Use case its handler calls (`invoiceCreate`) and exactly one tag, its Domain in camelCase (`tags: ["invoice"]`). Generated SDK methods and CLI commands take their names from both, so a renamed or removed operationId or tag is breaking: `pnpm api-check` fails on it. `test/integration/server-wiring.test.ts` checks every operation, and `domain-create` writes both for a new Domain.
 - A business verb beyond create, update and delete is a command route: `POST /<things>/{<thing>Id}/<verb>` (`POST /trades/{tradeId}/accept`). It answers 200 with the changed resource.
 - A request that names another Domain's id that does not exist answers 422 (the request is well formed, its reference is not). 404 is only for the resource in the path.
 - An upsert (`PUT` that creates or replaces) answers 200 either way, so a caller that retries sees one status.

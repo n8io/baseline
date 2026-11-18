@@ -241,6 +241,8 @@ const formPick = ({
 	}
 	if (text.slice(start - 9, start) === "baseline.") return "snake";
 	if (text.slice(start - 6, start) === "/live/") return "snake";
+	// An OpenAPI tag is the prefix of its operationIds: tags: ["invoiceLine"] beside "invoiceLineGet".
+	if (text.slice(start - 8, start) === 'tags: ["') return "camel";
 	const quoted = /["'`]/.test(previous) && next === previous;
 	if (quoted) return token.endsWith("s") ? "kebab" : "snake";
 	if (/[.:]/.test(next) && /[a-z]/.test(text[end + 1] ?? "")) return "kebab";

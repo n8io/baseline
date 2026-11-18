@@ -41,6 +41,7 @@ import { fooScopes } from "#domains/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
 import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
+import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
@@ -148,7 +149,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearer", {
 	type: "http",
 });
 app.doc31("/api/v1/openapi.json", {
-	info: { title: "app", version: "1" },
+	info: { title: packageJson.name, version: "1" },
 	openapi: "3.1.0",
 	security: [{ bearer: [] }],
 });

@@ -74,7 +74,11 @@ const json = <S extends z.ZodType>(schema: S, description: string) => ({
 	description,
 });
 
+// Each operation is named after the Use case it calls and tagged with its Domain; SDK methods
+// and CLI commands take their names from both (docs/agents/api.md).
 const fooCreateRoute = createRoute({
+	operationId: "fooCreate",
+	tags: ["foo"],
 	method: "post",
 	path: "/",
 	request: {
@@ -91,6 +95,8 @@ const fooCreateRoute = createRoute({
 });
 
 const fooListRoute = createRoute({
+	operationId: "fooList",
+	tags: ["foo"],
 	method: "get",
 	path: "/",
 	request: { query: FooListQuery },
@@ -98,6 +104,8 @@ const fooListRoute = createRoute({
 });
 
 const fooGetRoute = createRoute({
+	operationId: "fooGet",
+	tags: ["foo"],
 	method: "get",
 	path: "/{fooId}",
 	request: { params: FooParams },
@@ -108,6 +116,8 @@ const fooGetRoute = createRoute({
 });
 
 const fooUpdateRoute = createRoute({
+	operationId: "fooUpdate",
+	tags: ["foo"],
 	method: "patch",
 	path: "/{fooId}",
 	request: {
@@ -129,6 +139,8 @@ const fooUpdateRoute = createRoute({
 });
 
 const fooDeleteRoute = createRoute({
+	operationId: "fooDelete",
+	tags: ["foo"],
 	method: "delete",
 	path: "/{fooId}",
 	request: { params: FooParams },
