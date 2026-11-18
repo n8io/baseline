@@ -1,5 +1,5 @@
-// A27: a Use case or Rule returns err() for an expected outcome; it never throws or catches
-// expect: src/domains/bar/use-cases/bar-get.ts: throw in a Use case; return err(new <Name>Error())
+// A27: a Use case returns err() for an expected outcome; neither it nor a Rule throws or catches
+// expect: src/domains/bar/use-cases/bar-get.ts:6: throw in a Use case; return err(new <Name>Error())
 // @file src/domains/bar/use-cases/bar-get.ts
 import { ok } from "@n8io/baseline-result";
 

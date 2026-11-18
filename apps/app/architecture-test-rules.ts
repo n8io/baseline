@@ -849,9 +849,10 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 
 	// An expected outcome is part of the return type, so every caller sees it. Only adapters (spi/,
 	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw. A
-	// broken invariant (a bug) may throw under a `// unreachable: <why>` line, so the throw retries
-	// an Event or fails a request loudly. Comments are blanked first, keeping offsets, so a comment
-	// that says "throws" never counts.
+	// bug that cannot happen may `throw new Error(...)` directly under a one-line
+	// `// unreachable: <why>`, so a request fails loudly and a Consumer's Event retries: an err would
+	// complete the Event. Strings are blanked first and then comments, keeping offsets, so neither
+	// hides code from the other and the word "throw" in either never counts.
 	A27: (files) =>
 		files
 			.filter(
@@ -860,24 +861,42 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					!testIs(f.path),
 			)
 			.flatMap((f) => {
-				const code = f.source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, (c) =>
-					c.replace(/[^\n]/g, " "),
+				const blank = (c: string) => c.replace(/[^\n]/g, " ");
+				const noStrings = f.source.replace(
+					/\/\*[\s\S]*?\*\/|\/\/.*$|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\[\s\S]|[^`\\])*`/gm,
+					(c) => (c.startsWith("/") ? c : blank(c)),
 				);
+				const code = noStrings.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, blank);
 				const kind = layerOf(f.path) === "rules" ? "Rule" : "Use case";
+				const lines = noStrings.split("\n");
 				return [
 					...code.matchAll(
-						/\bthrow\b|\btry\s*\{|\bcatch\b|\bPromise\.reject\(/g,
+						/(?<!\.)\bthrow\b(?!\s*[:(])|\btry\s*\{|\bcatch\b(?!\s*:)|\bPromise\s*\.\s*reject\b/g,
 					),
 				].flatMap((m) => {
-					const word = m[0].replace(/\s*\{$/, "");
-					const above = f.source
-						.slice(0, m.index)
-						.split("\n")
-						.slice(-2)
-						.join("\n");
-					if (word === "throw" && /\/\/ unreachable: \S/.test(above)) return [];
+					const word = m[0].replace(/\s*\{$/, "").replace(/\s+/g, "");
+					const line = code.slice(0, m.index).split("\n").length;
+					if (
+						word === "throw" &&
+						/^throw\s+new\s+Error\(/.test(code.slice(m.index)) &&
+						/^\s*\/\/ unreachable: \S+(\s+\S+){2,}\s*$/.test(
+							lines[line - 2] ?? "",
+						)
+					) {
+						return [];
+					}
+					const where = `${f.path}:${line}: ${word} in a ${kind}`;
+					if (word !== "throw") {
+						return [
+							`${where}; move the call that throws behind a port in spi/, which returns its failure as a Result`,
+						];
+					}
+					const instead =
+						kind === "Rule"
+							? "a Rule returns a plain value (a boolean or a reason) and the Use case turns it into err(...)"
+							: "return err(new <Name>Error()) and add the error to the Use case's error union";
 					return [
-						`${f.path}: ${word} in a ${kind}; return err(new <Name>Error()) and add the error to the Use case's error union (and the port's, when a port returns it). Only a broken invariant throws, under a "// unreachable: <why>" line`,
+						`${where}; ${instead}. Only a bug that cannot happen throws (never not-found, forbidden, conflict or validation): throw new Error(...) directly under a one-line "// unreachable: <why, in a few words>"`,
 					];
 				});
 			}),

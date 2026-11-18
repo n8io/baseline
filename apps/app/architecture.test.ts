@@ -168,24 +168,42 @@ describe("architecture", () => {
 		expect(architectureRules.A27?.(files)).toEqual([]);
 	});
 
-	it("A27 lets a broken invariant throw under an unreachable line, and nothing else", async () => {
-		const barCloseFile = (body: string) =>
-			architectureFileCreate(
-				"src/domains/bar/use-cases/bar-close.ts",
-				`export const barClose = (saved: { ok: boolean }) => {\n${body}\n};\n`,
-			);
-		const allowed = await barCloseFile(
-			'\tif (!saved.ok) {\n\t\t// unreachable: only the closed flag changes, so no unique key can break.\n\t\tthrow new Error("unreachable");\n\t}',
+	const a27Why =
+		"// unreachable: only the closed flag changes, so no key breaks.";
+	it.each([
+		{ body: `${a27Why}\nthrow new Error("unreachable");`, found: 0 },
+		{ body: 'const s = "cannot throw; we catch nothing";', found: 0 },
+		{ body: "const k = { catch: 1, throw: 2 };\ngen.throw(1);", found: 0 },
+		{ body: "// unreachable: a bug\nthrow new Error();", found: 1 },
+		{ body: `${a27Why}\nthrow new BarNotFoundError();`, found: 1 },
+		{ body: `${a27Why}\n\nthrow new Error();`, found: 1 },
+		{
+			body: `const s = "${a27Why.slice(1, -1)}";\nthrow new Error();`,
+			found: 1,
+		},
+		{ body: 'const u = "http://x"; throw new Error(u);', found: 1 },
+		{ body: 'const g = "/*";\nthrow new Error();\nconst h = "*/";', found: 1 },
+		{ body: `${a27Why}\ntry {\n\tx();\n} finally {\n\ty();\n}`, found: 1 },
+		{ body: "p.catch(() => 1);", found: 1 },
+		{ body: "return Promise .reject(e);", found: 1 },
+	])("A27 finds $found in: $body", async ({ body, found }) => {
+		const file = await architectureFileCreate(
+			"src/domains/bar/use-cases/bar-close.ts",
+			body,
 		);
-		expect(architectureRules.A27?.([allowed])).toEqual([]);
-		const noReason = await barCloseFile(
-			'\t// unreachable:\n\tthrow new Error("unreachable");',
+		expect(architectureRules.A27?.([file])).toHaveLength(found);
+	});
+
+	it("A27 tells a Rule to return a plain value", async () => {
+		const rule = await architectureFileCreate(
+			"src/domains/bar/rules/bar-open-can.ts",
+			'export const barOpenCan = () => {\n\tthrow new Error("closed");\n};\n',
 		);
-		expect(architectureRules.A27?.([noReason])).toHaveLength(1);
-		const caught = await barCloseFile(
-			"\t// unreachable: a bug\n\ttry {\n\t\treturn 1;\n\t} finally {\n\t\treturn 2;\n\t}",
-		);
-		expect(architectureRules.A27?.([caught])).toHaveLength(1);
+		expect(architectureRules.A27?.([rule])).toEqual([
+			expect.stringContaining(
+				"bar-open-can.ts:2: throw in a Rule; a Rule returns a plain value",
+			),
+		]);
 	});
 
 	it.each(samples)("$name fails $rule", ({ expected, files, rule }) => {

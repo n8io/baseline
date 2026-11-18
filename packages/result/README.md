@@ -1,6 +1,6 @@
 # @n8io/baseline-result
 
-**Expected failures as values, so the type tells every caller what can go wrong.** `Result`, `ok` and `err`: Use cases return expected business errors and never throw; only adapters throw, for the unexpected.
+**Expected failures as values, so the type tells every caller what can go wrong.** `Result`, `ok` and `err`: Use cases return expected business errors and never throw for them; adapters throw for the unexpected.
 
 ```sh
 pnpm add @n8io/baseline-result

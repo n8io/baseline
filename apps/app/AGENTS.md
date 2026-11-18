@@ -81,7 +81,7 @@ One Domain per business entity, added with `pnpm domain-create`.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 - A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.
 - A Use case reads the time from its Domain's clock port, never `new Date()` or `Date.now()` (A26).
-- Use cases and Rules never throw or catch; return `err(...)` (A27).
+- Use cases return `err()`; they and Rules never throw or catch (A27).
 - A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`), whatever it is named, needs that Domain's `deleted` Consumer (A14). `api/` never calls `.openapi(` on a model it imports; build its own schema (A25).
 
 ### Stop and ask
