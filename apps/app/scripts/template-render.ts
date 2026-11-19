@@ -622,17 +622,31 @@ const sdkFileRender = (
 		info: { title: string };
 		paths: Record<string, unknown>;
 	};
-	// A schema of foo's context that names foo only inside (Bar's, with its fooId) goes too.
 	const fooless = (record: Record<string, unknown>) =>
 		Object.fromEntries(
-			Object.entries(record).filter(
-				([key, value]) => !fooLineIs(key) && !fooLineIs(JSON.stringify(value)),
-			),
+			Object.entries(record).filter(([key]) => !fooLineIs(key)),
 		);
 	document.info.title = answers.name;
 	document.paths = fooless(document.paths);
-	if (document.components?.schemas !== undefined) {
-		document.components.schemas = fooless(document.components.schemas);
+	// Only the schemas the remaining operations reach stay: foo's context's go, Bar's too, whose
+	// names do not say foo.
+	const schemas = document.components?.schemas;
+	if (document.components !== undefined && schemas !== undefined) {
+		const reached = new Set<string>();
+		const refsFind = (value: unknown) => {
+			for (const [, name = ""] of JSON.stringify(value).matchAll(
+				/"#\/components\/schemas\/([^"]+)"/g,
+			)) {
+				if (!reached.has(name)) {
+					reached.add(name);
+					refsFind(schemas[name]);
+				}
+			}
+		};
+		refsFind(document.paths);
+		document.components.schemas = Object.fromEntries(
+			Object.entries(schemas).filter(([name]) => reached.has(name)),
+		);
 	}
 	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
 	return { path, text: JSON.stringify(document) };
