@@ -1070,6 +1070,32 @@ export const contextReadsFind = ({
 
 // The files a new Aggregate adds or changes in a context made with context-create, from the
 // template's files and the project's. `parts` null copies every part (no --bare).
+// drizzle-kit refuses two exported schemas of one name, so only a context's first table exports
+// its pgSchema; a later Aggregate's table keeps its own copy unexported, as Bar's does.
+const schemaExportDrop = ({
+	appDirectory,
+	file,
+}: {
+	appDirectory: string;
+	file: TemplateFile;
+}): TemplateFile => {
+	const folder =
+		/^(src\/contexts\/[^/]+\/adapters\/outbound)\/[^/]+-table\.ts$/.exec(
+			file.path,
+		)?.[1];
+	const exported = /^export (const \w+ = pgSchema\()/m;
+	if (folder === undefined || !existsSync(join(appDirectory, folder)))
+		return file;
+	const tables = readdirSync(join(appDirectory, folder)).filter((name) =>
+		name.endsWith("-table.ts"),
+	);
+	return tables.some((name) =>
+		exported.test(readFileSync(join(appDirectory, folder, name), "utf8")),
+	)
+		? { ...file, text: file.text.replace(exported, "$1") }
+		: file;
+};
+
 export const aggregateFilesCreate = ({
 	aggregate,
 	appDirectory,
@@ -1183,7 +1209,7 @@ export const aggregateFilesCreate = ({
 			}),
 		});
 	}
-	return files;
+	return files.map((file) => schemaExportDrop({ appDirectory, file }));
 };
 
 // Formats what context-create or aggregate-create wrote. A part or piece left out leaves imports

@@ -673,6 +673,13 @@ describe.runIf(template)(
 			expect(ports).toContain("invoiceLineRepository: InvoiceLineRepository;");
 			expect(ports).toContain("invoiceNoteRepository: InvoiceNoteRepository;");
 			expect(ports.match(/billingClock: Clock;/g)).toHaveLength(1);
+			// drizzle-kit refuses a second exported schema of one name.
+			expect(
+				read("src/contexts/billing/adapters/outbound/invoice-line-table.ts"),
+			).toContain('export const invoiceLineSchema = pgSchema("billing");');
+			expect(
+				read("src/contexts/billing/adapters/outbound/invoice-note-table.ts"),
+			).toMatch(/^const invoiceNoteSchema = pgSchema\("billing"\);$/m);
 			const state = read(
 				"src/contexts/billing/adapters/outbound/billing-transaction.memory.ts",
 			);
