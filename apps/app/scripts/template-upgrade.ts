@@ -14,6 +14,7 @@ import { parseArgs } from "node:util";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import {
 	pieceRemovals,
+	pieceSign,
 	piecesGoneFind,
 	piecesRemoveFromTree,
 } from "./piece-remove.ts";
@@ -218,7 +219,7 @@ export const secretKeep = ({
 
 const sdkGeneratedPaths = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
 
-// A piece whose package the Project's own release did not have yet is new, not removed: it arrives.
+// A piece whose package (or folder) the Project's own release did not have yet is new, not removed: it arrives.
 const pieceInRelease = (files: TemplateFile[]) => {
 	const manifest = JSON.parse(
 		files.find((f) => f.path === "package.json")?.text ?? "{}",
@@ -227,7 +228,12 @@ const pieceInRelease = (files: TemplateFile[]) => {
 		...Object.keys(manifest.dependencies ?? {}),
 		...Object.keys(manifest.devDependencies ?? {}),
 	]);
-	return (piece: string) => names.has(pieceRemovals[piece]?.packages[0] ?? "");
+	return (piece: string) => {
+		const folder = pieceRemovals[piece]?.folder;
+		return folder === undefined
+			? names.has(pieceSign(piece))
+			: files.some((f) => f.path.startsWith(`${folder}/`));
+	};
 };
 
 export const templateUpgrade = async ({
