@@ -103,17 +103,25 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 ## Tests
 
 - The repository method: one case in `<domain>-repository.contract.ts`, so the memory and Postgres adapters agree on the boundary.
-- The Use case: build the Domain's memory ports, put rows due and not due in place, run it, and check which rows changed.
-- The Schedule: build the Domain's Use cases on memory ports, call `run()`, and check the result and the rows. That is also how to run a Schedule on demand in any test: never wait for the cron.
+- The Use case: build the context through its interface on memory connections with a memory clock ([tests.md](tests.md)), create rows at times due and not due, move the clock, run it, and read which rows changed.
+- The Schedule: take it from the context's `schedules`, call `run()`, and check the result and a later read. That is also how to run a Schedule on demand in any test: never wait for the cron.
 
 ```ts
 // src/contexts/baz/adapters/inbound/baz-schedule.test.ts
-const schedule = bazScheduleCreate(bazUseCasesCreate(ports));
-
+const clock = clockMemoryCreate(new Date("2020-01-01T00:00:00Z"));
+const connected = { ...connections, clock };
+const { schedules, useCases } = contextsCreate(connected).bazContext;
+const created = await useCases.bazCreate(owner, { name: "old" });
+if (!created.ok) throw created.error;
+const bazId = created.value.id;
+clock.set(new Date("2026-06-01T00:00:00Z"));
+const schedule = schedules.find((s) => s.name === "baz.stale-archive");
 expect(schedule).toMatchObject(bazSchedule);
-expect(await schedule.run()).toEqual(ok(1));
-expect(state.bazs.get(id)?.archivedAt).toBeInstanceOf(Date);
-expect(await schedule.run()).toEqual(ok(0));
+
+expect(await schedule?.run()).toEqual(ok(1));
+const archived = await useCases.bazGet(owner, { bazId });
+expect(archived.ok && archived.value.archivedAt).toBeInstanceOf(Date);
+expect(await schedule?.run()).toEqual(ok(0));
 ```
 
 The Worker refuses `DATABASE_URL=memory://`, so no Schedule or Consumer runs in memory mode. To watch one run, set `SCHEDULE_<NAME>="* * * * *"` and restart `pnpm dev`: it runs migrate on Postgres before it starts the Worker.

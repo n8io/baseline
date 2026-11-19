@@ -1,21 +1,30 @@
+import type { AnalyticsEvent } from "@n8io/baseline-analytics";
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
-import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
-import { fooUseCasesCreate } from "./foo-use-cases.ts";
+import { connectionsOpen } from "../../../connections.ts";
+import { contextsCreate } from "../../../use-cases.ts";
 
 // The analytics events the use cases track after commit; the analytics piece owns this file.
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
+// The context on an analytics connection that keeps what it was given.
 const setup = () => {
-	const { ports, state } = fooPortsMemoryCreate();
-	return {
-		tracked: state.fooAnalyticsTracked,
-		useCases: fooUseCasesCreate(ports),
-	};
+	const tracked: AnalyticsEvent[] = [];
+	const { useCases } = contextsCreate({
+		...connections,
+		analytics: {
+			...connections.analytics,
+			track: (event) => {
+				tracked.push(event);
+			},
+		},
+	}).fooContext;
+	return { tracked, useCases };
 };
 
 describe("foo analytics", () => {
-	it("tracks foo.created with the Actor's id after commit", async () => {
+	it("tracks foo.created with the Actor's id", async () => {
 		const { tracked, useCases } = setup();
 
 		const created = await useCases.fooCreate(owner, { name: "alpha" });
@@ -24,9 +33,8 @@ describe("foo analytics", () => {
 		expect(tracked).toEqual([
 			{
 				actorId: owner.id,
-				committed: true,
-				fooId: created.value.id,
 				name: "foo.created",
+				properties: { fooId: created.value.id },
 			},
 		]);
 	});

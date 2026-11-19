@@ -1,5 +1,5 @@
 // The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
-// analytics and error tracking while the Project has those pieces. Each context's adapters/outbound/index.ts picks its adapters
+// analytics and error tracking while the Project has those pieces, and the clock. Each context's adapters/outbound/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
@@ -7,6 +7,7 @@ import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { ENV } from "#env";
 import { analyticsOpen } from "./analytics-open.ts";
 import { cacheStoreOpen } from "./cache-store-open.ts";
+import { clockSystemCreate } from "./clock.ts";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
@@ -85,6 +86,8 @@ export const connectionsOpen = async ({
 		// piece-start: cache
 		cacheStore: cacheStoreOpen({ redis }),
 		// piece-end: cache
+		// The time every context reads. A test replaces it with clockMemoryCreate to set the time.
+		clock: clockSystemCreate(),
 		database,
 		intakes,
 		// piece-start: live

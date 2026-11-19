@@ -1,7 +1,6 @@
 import { cacheCreate } from "@n8io/baseline-cache";
 import type { Events } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { clockSystemCreate } from "../../../../clock.ts";
 import type { Connections } from "../../../../connections.ts";
 import type { FooPorts } from "../../application/ports.ts";
 import { barRepositoryPostgresCreate } from "./bar-repository.postgres.ts";
@@ -66,7 +65,7 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 		barReadRepository: repositories.barReadRepository,
 		fooReadRepository: repositories.fooReadRepository,
 		// wiring: ports
-		fooClock: clockSystemCreate(),
+		fooClock: connections.clock,
 		fooTransaction: repositories.fooTransaction,
 	};
 };

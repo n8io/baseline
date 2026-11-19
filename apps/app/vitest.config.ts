@@ -67,10 +67,13 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
+					// Every context test opens connections: keep analytics and error tracking local too.
 					env: {
 						APP_ENV: "test",
 						CACHE_URL: "memory://",
 						DATABASE_URL: "memory://",
+						MIXPANEL_TOKEN: "",
+						SENTRY_DSN: "",
 					},
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					hookTimeout: 20_000,

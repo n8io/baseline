@@ -5,9 +5,7 @@ import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { fooUseCasesCreate } from "../../application/foo-use-cases.ts";
-import { fooPortsCreate } from "../outbound/index.ts";
-import { fooLiveRoutesCreate } from "./foo-live.ts";
+import { contextsCreate } from "../../../../use-cases.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 
@@ -23,9 +21,10 @@ const setup = (
 ) => {
 	const liveHub = liveHubMemoryCreate();
 	closers.push(() => liveHub.close());
-	const useCases = fooUseCasesCreate(
-		fooPortsCreate({ ...connections, liveHub }),
-	);
+	const { routes, useCases } = contextsCreate({
+		...connections,
+		liveHub,
+	}).fooContext;
 	const app = httpRouterCreate();
 	app.onError(httpErrorHandle);
 	app.use(async (c, next) => {
@@ -33,7 +32,8 @@ const setup = (
 		c.set("authnExpiresAt", options.expiresAt);
 		await next();
 	});
-	app.route("/live/foo", fooLiveRoutesCreate(useCases, liveHub));
+	// Mounted where the Server mounts them.
+	for (const { path, router } of routes) app.route(path, router);
 	return { app, useCases };
 };
 
