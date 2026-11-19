@@ -191,7 +191,13 @@ export const barRemove = (files: TemplateFile[]): TemplateFile[] =>
 	files
 		.filter((file) => !barPathIs(file.path))
 		.map((file) => {
-			if (!file.text.split("\n").some(barLineIs)) return file;
+			// Bar lives in src/; scripts and tests elsewhere may say bar for something else.
+			if (
+				!file.path.startsWith("src/") ||
+				!file.text.split("\n").some(barLineIs)
+			) {
+				return file;
+			}
 			const text = importsExplode(file.text);
 			return {
 				path: file.path,
@@ -450,7 +456,7 @@ const pairsMatch = ({
 	const sourcePairs = domainsPairsFind(source.join("\n"), path);
 	if (pairs.length !== sourcePairs.length) {
 		throw new Error(
-			`${path}: has ${pairs.length} domains-start/domains-end pairs, the template ${sourcePairs.length}`,
+			`${path}: has ${pairs.length} contexts-start/contexts-end pairs, the template ${sourcePairs.length}`,
 		);
 	}
 	return pairs.map(([start, end], k) => {
@@ -1048,7 +1054,7 @@ export const contextReadsFind = ({
 	if (!existsSync(ports)) return [];
 	const prefix = camelFromKebab(context);
 	const picked =
-		/export type \w+Readers = Pick<\w+,\s*([^>]+)>/.exec(
+		/export type \w+Readers = Pick<\s*\w+,\s*([^>]+)>/.exec(
 			readFileSync(ports, "utf8"),
 		)?.[1] ?? "";
 	return [...picked.matchAll(/"(\w+)Reader"/g)].map(([, field = ""]) =>

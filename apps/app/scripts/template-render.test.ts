@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { domainsPairsFill } from "./aggregate-create.ts";
+import { contextsPairsFill } from "./aggregate-create.ts";
 import {
 	domainsPairsFind,
 	filesRead,
@@ -47,8 +47,8 @@ const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const answers = { description: "Invoices for small shops.", name: "invoicing" };
 const domainsUrl = new URL("src/contexts/", appRoot);
-// The template itself: foo is its only domain. A project, or this tree after a
-// domain-create, skips these tests.
+// The template itself: foo is its only context. A project, or this tree after a
+// context-create, skips these tests.
 const template =
 	existsSync(domainsUrl) &&
 	readdirSync(domainsUrl)
@@ -172,7 +172,7 @@ describe("fooBlocksFind", () => {
 			");",
 			"const scopes = [", // 8
 			"\t...fooScopes,",
-			"\t// domain-create: scopes",
+			"\t// wiring: scopes",
 			"];",
 			"await db.query(", // 12
 			"\t`UPDATE foo.foo",
@@ -223,7 +223,7 @@ describe("fooBlocksFind", () => {
 			"# schedule overrides",
 			"# @sensitive=false @required=false",
 			"SCHEDULE_FOO_STALE_ARCHIVE=",
-			"# domain-create: schedules",
+			"# wiring: schedules",
 		].join("\n");
 
 		expect(fooBlocksFind(text, ".env.schema")).toEqual([[1, 2]]);
@@ -515,7 +515,7 @@ describe.runIf(template)("the template's own files", () => {
 		expect(readme).toContain(`[app@${version}]`);
 	});
 
-	it("empty every domains-start/domains-end pair, which domainsPairsFill fills back exactly", () => {
+	it("empty every contexts-start/contexts-end pair, which contextsPairsFill fills back exactly", () => {
 		const paired = files.filter((f) => domainsPairsFind(f.text, f.path).length);
 
 		expect(paired.map((f) => f.path)).toEqual([
@@ -532,7 +532,12 @@ describe.runIf(template)("the template's own files", () => {
 
 			expect(pairs.every(([start, end]) => end === start + 1)).toBe(true);
 			expect(
-				domainsPairsFill({ project: rendered, template: text, path }),
+				contextsPairsFill({
+					pairWanted: () => true,
+					path,
+					project: rendered,
+					template: text,
+				}),
 			).toBe(linesRemove(text, fooBlocksFind(text, path)));
 		}
 	});

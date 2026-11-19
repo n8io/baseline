@@ -66,13 +66,13 @@ describe.each(agentDocs)("%s", (path) => {
 		).toEqual({ path, text });
 	});
 
-	// domain-create would wire into a file with a marker line, and piece-remove would cut it.
-	it("holds no domain-create or piece marker line", () => {
+	// aggregate-create would wire into a file with a marker line, and piece-remove would cut it.
+	it("holds no wiring or piece marker line", () => {
 		expect(
 			text
 				.split("\n")
 				.filter((line) =>
-					/^\s*(\/\/|#) (domain-create|piece-(start|end)):/.test(line),
+					/^\s*(\/\/|#) (wiring|piece-(start|end)):/.test(line),
 				),
 		).toEqual([]);
 	});

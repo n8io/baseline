@@ -1,6 +1,6 @@
 # Schedules
 
-Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `bar` Domain whose Schedule archives stale bars; a Domain made by `pnpm domain-create` starts with the same files under its own name.
+Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `bar` Domain whose Schedule archives stale bars; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
 
 ## The file pair
 
@@ -32,12 +32,12 @@ export const barScheduleCreate = (u: BarUseCases) =>
 
 ## Wiring
 
-`pnpm domain-create` wires a new Domain's first Schedule. For another one, add the same four things by hand:
+`pnpm aggregate-create` wires a new Aggregate's first Schedule. For another one, add the same four things by hand:
 
 1. Export the pair from the Domain's `adapters/inbound/index.ts`, inside its `piece-start: queue` block.
-2. Add `barSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// domain-create: schedules`.
+2. Add `barSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// wiring: schedules`.
 3. Add `barScheduleCreate(useCases.barUseCases),` to the `schedules` list that `src/worker.ts` passes to `queueSchedulesStart`, above the same marker.
-4. Declare its override in `.env.schema`, above `# domain-create: schedules`, with the decorator line, or boot fails while it is unset:
+4. Declare its override in `.env.schema`, above `# wiring: schedules`, with the decorator line, or boot fails while it is unset:
 
 ```text
 # @sensitive=false @required=false

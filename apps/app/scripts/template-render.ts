@@ -342,10 +342,8 @@ const lineDepths = (
 // Line ranges [start, end] (inclusive) holding foo, or the lines `lineIs` picks. In code files a
 // range grows to the whole bracket-balanced statement; in .env files it takes the item's `# @`
 // decorator lines.
-export const fooBlocksFind = (
-	text: string,
-	path: string,
-): [number, number][] => linesBlocksFind({ lineIs: fooLineIs, path, text });
+export const fooBlocksFind = (text: string, path: string): [number, number][] =>
+	linesBlocksFind({ lineIs: fooLineIs, path, text });
 
 export const linesBlocksFind = ({
 	lineIs,

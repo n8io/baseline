@@ -74,7 +74,7 @@ const projectFiles: Record<string, string> = {
 		"# schedule overrides: a cron string or off",
 		"# @sensitive=false @required=false",
 		"SCHEDULE_INVOICE_STALE_ARCHIVE=",
-		"# domain-create: schedules",
+		"# wiring: schedules",
 		"# Mixpanel project token",
 		"# @required=forEnv(production)",
 		"MIXPANEL_TOKEN=",
@@ -462,7 +462,7 @@ describe("pieceFilesRemove", () => {
 			),
 		).toBe(true);
 		expect(read(directory, ".env.schema")).not.toContain("SCHEDULE_");
-		expect(read(directory, ".env.schema")).not.toContain("domain-create");
+		expect(read(directory, ".env.schema")).not.toContain("wiring: schedules");
 		const dev = (JSON.parse(read(directory, "package.json")) as typeof manifest)
 			.scripts.dev;
 		expect(dev).toBe(

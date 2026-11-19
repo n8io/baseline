@@ -11,23 +11,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-	type DomainPart,
-	domainFilesCreate,
-	domainNameRefusal,
-	domainParts,
-	domainReadsApply,
-	domainReadsRefusal,
-	domainsPairsFill,
-	domainTerm,
+	type AggregatePart,
+	aggregateFilesCreate,
+	aggregateLineIs,
+	aggregateParts,
+	aggregateRefusal,
+	barLineIs,
+	contextAggregateRename,
+	contextReadsFind,
+	contextsPairsFill,
+	nameRefusal,
+	nameTerm,
 	nextStepsText,
 	pieceBlocksRemove,
 	piecesRemovedFind,
+	readsApply,
+	readsRefusal,
 	templateWithoutPieces,
 	wiringInsert,
-} from "./domain-create.ts";
+} from "./aggregate-create.ts";
+import { contextFilesCreate } from "./context-create.ts";
 import {
 	filesRead,
 	filesWrite,
+	fooRename,
+	type TemplateFile,
 	templateFilesRender,
 } from "./template-render.ts";
 
@@ -47,17 +55,18 @@ import.meta.glob(["../CONTEXT.md"], { query: "?raw" });
 
 const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
-const domainsUrl = new URL("src/contexts/", appRoot);
-// The template itself: foo is its only domain. A project, or this tree after a
-// domain-create, skips these tests.
+const billing = { kebab: "billing", plural: "billings" };
+const contextsUrl = new URL("src/contexts/", appRoot);
+// The template itself: foo is its only context. A project, or this tree after a context-create,
+// skips these tests.
 const template =
-	existsSync(domainsUrl) &&
-	readdirSync(domainsUrl)
+	existsSync(contextsUrl) &&
+	readdirSync(contextsUrl)
 		.filter((name) => !name.startsWith("."))
 		.join() === "foo";
 
 const appCreate = (context: string): DisposableTempDir => {
-	const folder = mkdtempDisposableSync(join(tmpdir(), "domain-create-"));
+	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
 	const directory = folder.path;
 	writeFileSync(join(directory, "CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
@@ -76,106 +85,293 @@ const appCreate = (context: string): DisposableTempDir => {
 	return folder;
 };
 
-describe("domainNameRefusal", () => {
+describe("nameRefusal and aggregateRefusal", () => {
 	it("accepts a kebab-case name the glossary defines", () => {
 		using folder = appCreate("**Invoice line**:\nOne line.\n");
 		const app = folder.path;
+		mkdirSync(join(app, "src/contexts/billing"), { recursive: true });
+		writeFileSync(join(app, "src/contexts/billing/index.ts"), "");
 
-		expect(domainTerm("invoice-line")).toBe("Invoice line");
-		expect(domainNameRefusal(names, app)).toBeUndefined();
+		expect(nameTerm("invoice-line")).toBe("Invoice line");
+		expect(
+			nameRefusal({ appDirectory: app, kebab: "invoice-line" }),
+		).toBeUndefined();
+		expect(
+			aggregateRefusal({
+				aggregate: names,
+				appDirectory: app,
+				context: "billing",
+			}),
+		).toBeUndefined();
 	});
 
 	it.each([
 		[{ kebab: "InvoiceLine", plural: "invoice-lines" }, "not kebab-case"],
 		[{ kebab: "invoice-line", plural: "invoice_lines" }, "not kebab-case"],
-		[{ kebab: "foo-bar", plural: "foo-bars" }, "contains foo"],
+		[{ kebab: "foo-thing", plural: "foo-things" }, "contains foo"],
 		[{ kebab: "sheep", plural: "sheep" }, "must differ"],
+		[{ kebab: "doc", plural: "docs" }, "API reference"],
 		[{ kebab: "customer", plural: "customers" }, "no **Customer**: entry"],
-	])("refuses %j", (refused, reason) => {
+	])("refuses the Aggregate %j", (refused, reason) => {
 		using folder = appCreate("**Invoice line**:\nOne line.\n**Sheep**:\nA.\n");
 		const app = folder.path;
+		mkdirSync(join(app, "src/contexts/billing"), { recursive: true });
+		writeFileSync(join(app, "src/contexts/billing/index.ts"), "");
 
-		expect(domainNameRefusal(refused, app)).toContain(reason);
+		expect(
+			aggregateRefusal({
+				aggregate: refused,
+				appDirectory: app,
+				context: "billing",
+			}),
+		).toContain(reason);
+	});
+
+	it("refuses a context that does not exist, and an Aggregate it already holds", () => {
+		using folder = appCreate("**Invoice line**:\nOne line.\n");
+		const app = folder.path;
+		const refusal = () =>
+			aggregateRefusal({
+				aggregate: names,
+				appDirectory: app,
+				context: "billing",
+			});
+
+		expect(refusal()).toContain("make it with pnpm context-create billing");
+		mkdirSync(join(app, "src/contexts/billing/domain"), { recursive: true });
+		writeFileSync(join(app, "src/contexts/billing/index.ts"), "");
+		writeFileSync(join(app, "src/contexts/billing/domain/invoice-line.ts"), "");
+		expect(refusal()).toContain("domain/invoice-line.ts already exists");
+	});
+});
+
+describe("contextAggregateRename", () => {
+	it("spells the context where foo is the context and the Aggregate everywhere else", () => {
+		const text = [
+			'import type { FooPorts } from "../application/ports.ts";',
+			'import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";',
+			'import { fooDeleteCan } from "#contexts/foo/domain/foo-delete-can.ts";',
+			"export const fooDelete = (ports: FooPorts) => ports.fooTransaction(async (t) => t.fooRepository);",
+			'const key = "foo.deleted";',
+		].join("\n");
+
+		expect(
+			contextAggregateRename({
+				aggregate: names,
+				context: billing,
+				path: "src/contexts/foo/application/foo-delete.ts",
+				text,
+			}).split("\n"),
+		).toEqual([
+			'import type { BillingPorts } from "../application/ports.ts";',
+			'import { billingPortsMemoryCreate } from "../adapters/outbound/billing-ports.memory.ts";',
+			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line-delete-can.ts";',
+			"export const invoiceLineDelete = (ports: BillingPorts) => ports.billingTransaction(async (t) => t.invoiceLineRepository);",
+			'const key = "invoice-line.deleted";',
+		]);
+	});
+
+	it("tells a line of the Aggregate from a line of the context, and finds Bar's", () => {
+		expect(aggregateLineIs("\tfooClock: Clock;")).toBe(false);
+		expect(
+			aggregateLineIs("\tfooTransaction: fooTransactionMemoryCreate(state),"),
+		).toBe(false);
+		expect(aggregateLineIs("\tfooReadRepository: FooReadRepository;")).toBe(
+			true,
+		);
+		expect(
+			aggregateLineIs(
+				'app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));',
+			),
+		).toBe(true);
+		expect(barLineIs("\tbarRepository: BarRepository;")).toBe(true);
+		expect(barLineIs("// a toolbar and a barrier")).toBe(false);
 	});
 });
 
 describe("wiringInsert", () => {
+	const rename = (text: string) =>
+		contextAggregateRename({
+			aggregate: names,
+			context: billing,
+			path: "src/server.ts",
+			text,
+		});
 	const templateText = [
 		'import { fooRoutesCreate } from "#contexts/foo/adapters/inbound/index.ts";',
 		'import { ENV } from "#env";',
 		"",
-		'app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));',
-		"// domain-create: routes",
+		'app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));',
+		"// wiring: routes",
 	].join("\n");
 
-	it("adds the renamed lines above the same marker and after the imports", () => {
+	it("adds the renamed lines above the same marker and after the imports, once", () => {
 		const project = [
-			'import { barRoutesCreate } from "#contexts/bar/adapters/inbound/index.ts";',
+			'import { customerRoutesCreate } from "#contexts/customer/adapters/inbound/index.ts";',
 			'import { ENV } from "#env";',
 			"",
-			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
-			"// domain-create: routes",
+			'app.route("/api/v1/customers", customerRoutesCreate(useCases.customerUseCases));',
+			"// wiring: routes",
 		].join("\n");
+		const inserted = wiringInsert({
+			blockIs: aggregateLineIs,
+			path: "src/server.ts",
+			project,
+			rename,
+			template: templateText,
+		});
 
+		expect(inserted.split("\n")).toEqual([
+			'import { customerRoutesCreate } from "#contexts/customer/adapters/inbound/index.ts";',
+			'import { ENV } from "#env";',
+			'import { invoiceLineRoutesCreate } from "#contexts/billing/adapters/inbound/index.ts";',
+			"",
+			'app.route("/api/v1/customers", customerRoutesCreate(useCases.customerUseCases));',
+			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(useCases.billingUseCases));',
+			"// wiring: routes",
+		]);
 		expect(
 			wiringInsert({
-				project,
-				template: templateText,
+				blockIs: aggregateLineIs,
 				path: "src/server.ts",
-				names,
-				pairsFill: false,
-			}).split("\n"),
-		).toEqual([
-			'import { barRoutesCreate } from "#contexts/bar/adapters/inbound/index.ts";',
-			'import { ENV } from "#env";',
-			'import { invoiceLineRoutesCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";',
-			"",
-			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
-			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(invoiceLineUseCases));',
-			"// domain-create: routes",
-		]);
+				project: inserted,
+				rename,
+				template: templateText,
+			}),
+		).toBe(inserted);
 	});
 
 	it("stops and names the file when the project lost a marker", () => {
 		expect(() =>
 			wiringInsert({
-				project: 'import { ENV } from "#env";\n',
-				template: templateText,
+				blockIs: aggregateLineIs,
 				path: "src/server.ts",
-				names,
-				pairsFill: false,
+				project: 'import { ENV } from "#env";\n',
+				rename,
+				template: templateText,
 			}),
-		).toThrow('src/server.ts: missing marker "// domain-create: routes"');
+		).toThrow('src/server.ts: missing marker "// wiring: routes"');
 	});
 
-	it("adds no line at a marker of a part the domain leaves out", () => {
+	it("adds no line at a marker of a part the Aggregate leaves out", () => {
 		const template = [
 			'import { fooLiveRoutesCreate } from "#contexts/foo/adapters/inbound/index.ts";',
 			"",
-			'app.route("/live/foo", fooLiveRoutesCreate(fooUseCases));',
-			"// domain-create: live",
+			'app.route("/live/foo", fooLiveRoutesCreate(useCases.fooUseCases));',
+			"// wiring: live",
 		].join("\n");
-		const project = "// domain-create: live";
 
 		expect(
 			wiringInsert({
-				project,
-				template,
-				path: "src/server.ts",
-				names,
-				pairsFill: false,
+				blockIs: aggregateLineIs,
 				partsLeftOut: ["live"],
+				path: "src/server.ts",
+				project: "// wiring: live",
+				rename,
+				template,
 			}).split("\n"),
 		).toEqual([
-			'import { invoiceLineLiveRoutesCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";',
-			"// domain-create: live",
+			'import { invoiceLineLiveRoutesCreate } from "#contexts/billing/adapters/inbound/index.ts";',
+			"// wiring: live",
+		]);
+	});
+
+	it("in a context file, takes a block's comment and piece lines to the next marker down", () => {
+		const template = [
+			'import { cacheCreate } from "@n8io/baseline-cache";',
+			"export const fooPortsCreate = (): FooPorts => ({",
+			"\t// piece-start: cache",
+			"\t// The read-through cache.",
+			"\tfooCache: cacheCreate(store),",
+			"\t// piece-end: cache",
+			"\tfooReadRepository: repositories.fooReadRepository,",
+			"\t// wiring: ports",
+			"\tfooClock: clockSystemCreate(),",
+			"});",
+		].join("\n");
+		const project = [
+			"export const billingPortsCreate = (): BillingPorts => ({",
+			"\t// wiring: ports",
+			"\tbillingClock: clockSystemCreate(),",
+			"});",
+		].join("\n");
+
+		expect(
+			wiringInsert({
+				blockIs: aggregateLineIs,
+				path: "src/contexts/foo/adapters/outbound/index.ts",
+				project,
+				rename,
+				template,
+			}).split("\n"),
+		).toEqual([
+			'import { cacheCreate } from "@n8io/baseline-cache";',
+			"",
+			"export const billingPortsCreate = (): BillingPorts => ({",
+			"\t// piece-start: cache",
+			"\t// The read-through cache.",
+			"\tinvoiceLineCache: cacheCreate(store),",
+			"\t// piece-end: cache",
+			"\tinvoiceLineReadRepository: repositories.invoiceLineReadRepository,",
+			"\t// wiring: ports",
+			"\tbillingClock: clockSystemCreate(),",
+			"});",
 		]);
 	});
 });
 
-describe("domainReadsRefusal", () => {
-	it("refuses a target that is missing, itself, named twice or already reading the new domain", () => {
-		using folder = appCreate("**Invoice line**:\nA line.\n");
+describe("contextsPairsFill", () => {
+	it("fills the pairs a command wants without foo's lines, and imports what the render dropped", () => {
+		const template = [
+			'import { a, type B } from "./a.ts";',
+			'import { foo } from "./foo.ts";',
+			"// wiring: contexts-start",
+			"const b: B = a(foo);",
+			"const c = a();",
+			"// wiring: contexts-end",
+		].join("\n");
+		const project = [
+			"// wiring: contexts-start",
+			"// wiring: contexts-end",
+		].join("\n");
+
+		expect(
+			contextsPairsFill({
+				pairWanted: (part) => part === undefined,
+				path: "x.ts",
+				project,
+				template,
+			}).split("\n"),
+		).toEqual([
+			'import { a } from "./a.ts";',
+			'import { type B } from "./a.ts";',
+			"",
+			"// wiring: contexts-start",
+			"const c = a();",
+			"// wiring: contexts-end",
+		]);
+		expect(
+			contextsPairsFill({
+				pairWanted: () => false,
+				path: "x.ts",
+				project,
+				template,
+			}),
+		).not.toContain("const c");
+		expect(() =>
+			contextsPairsFill({
+				pairWanted: () => true,
+				path: "x.ts",
+				project: "",
+				template,
+			}),
+		).toThrow("x.ts: has 0 contexts-start/contexts-end pairs, the template 1");
+	});
+});
+
+describe("readsRefusal and contextReadsFind", () => {
+	it("refuses a target that is missing, itself, named twice or already reading the new context", () => {
+		using folder = appCreate("**Billing**:\nA context.\n");
 		const app = folder.path;
 		mkdirSync(join(app, "src/contexts/customer/application"), {
 			recursive: true,
@@ -183,17 +379,34 @@ describe("domainReadsRefusal", () => {
 		const ports = join(app, "src/contexts/customer/application/ports.ts");
 		writeFileSync(ports, "export type CustomerPorts = {};\n");
 		const refusal = (reads: string[]) =>
-			domainReadsRefusal({ appDirectory: app, names, reads });
+			readsRefusal({ appDirectory: app, names: billing, reads });
 
 		expect(refusal(["customer"])).toBeUndefined();
 		expect(refusal(["vendor"])).toContain("no src/contexts/vendor/");
-		expect(refusal(["invoice-line"])).toContain("cannot read itself");
+		expect(refusal(["billing"])).toContain("cannot read itself");
 		expect(refusal(["foo"])).toContain("contains foo");
 		expect(refusal(["../customer"])).toContain("is not kebab-case");
 		expect(refusal(["customer", "customer"])).toContain("twice");
-		writeFileSync(ports, "export type CustomerInvoiceLineReader = {};\n");
-		expect(refusal(["customer"])).toContain(
-			"customer already reads invoice-line",
+		writeFileSync(ports, "export type CustomerBillingReader = {};\n");
+		expect(refusal(["customer"])).toContain("customer already reads billing");
+	});
+
+	it("reads back the contexts a context's ports read", () => {
+		using folder = appCreate("");
+		const app = folder.path;
+		mkdirSync(join(app, "src/contexts/billing/application"), {
+			recursive: true,
+		});
+		writeFileSync(
+			join(app, "src/contexts/billing/application/ports.ts"),
+			'export type BillingReaders = Pick<\n\tBillingPorts,\n\t"billingCustomerReader" | "billingInvoiceLineReader"\n>;\n',
+		);
+
+		expect(contextReadsFind({ appDirectory: app, context: "billing" })).toEqual(
+			["customer", "invoice-line"],
+		);
+		expect(contextReadsFind({ appDirectory: app, context: "vendor" })).toEqual(
+			[],
 		);
 	});
 });
@@ -201,22 +414,23 @@ describe("domainReadsRefusal", () => {
 describe("nextStepsText", () => {
 	it("names the codegen step only before a migration exists, and only the parts copied", () => {
 		const bare = nextStepsText({
+			aggregate: names,
+			context: "billing",
 			migrated: false,
-			names,
 			parts: ["seed"],
-			reads: ["customer"],
 		});
 		expect(bare).toContain("pnpm codegen --name invoice_line_create");
-		expect(bare).toContain("src/bridges/invoice-line-customer-reader.ts");
-		expect(bare).toContain("invoice-line-seed.ts");
+		expect(bare).toContain(
+			"src/contexts/billing/adapters/inbound/invoice-line-seed.ts",
+		);
 		expect(bare).not.toContain("Schedule");
 		expect(bare).not.toContain("pages");
 
 		const full = nextStepsText({
+			aggregate: names,
+			context: "billing",
 			migrated: true,
-			names,
 			parts: null,
-			reads: [],
 		});
 		expect(full).not.toContain("codegen");
 		expect(full).toContain("Schedule");
@@ -224,8 +438,8 @@ describe("nextStepsText", () => {
 	});
 });
 
-describe("the domain-create command", () => {
-	const script = new URL("./domain-create.ts", import.meta.url).pathname;
+describe("the aggregate-create command", () => {
+	const script = new URL("./aggregate-create.ts", import.meta.url).pathname;
 	const command = (...args: string[]) =>
 		spawnSync(process.execPath, [script, ...args], {
 			cwd: appRoot,
@@ -236,22 +450,24 @@ describe("the domain-create command", () => {
 		for (const flag of ["--help", "-h"]) {
 			const run = command(flag);
 			expect(run.status).toBe(0);
-			expect(run.stdout).toContain("Usage: pnpm domain-create <name>");
-			expect(run.stdout).toContain("--reads <domain>");
+			expect(run.stdout).toContain(
+				"Usage: pnpm aggregate-create <context> <aggregate>",
+			);
 			expect(run.stderr).toBe("");
 		}
 	});
 
-	it("prints its usage and exits 1 on an unknown flag, with no stack trace", () => {
-		const run = command("invoice-line", "--nope");
-		expect(run.status).toBe(1);
-		expect(run.stderr).toContain("Unknown option '--nope'");
-		expect(run.stderr).toContain("Usage:");
-		expect(run.stderr).not.toMatch(/\n\s+at /);
+	it("prints its usage and exits 1 on an unknown flag or a missing name, with no stack trace", () => {
+		for (const args of [["billing", "invoice-line", "--nope"], ["billing"]]) {
+			const run = command(...args);
+			expect(run.status).toBe(1);
+			expect(run.stderr).toContain("Usage:");
+			expect(run.stderr).not.toMatch(/\n\s+at /);
+		}
 	});
 
 	it("refuses a part flag without --bare", () => {
-		const run = command("invoice-line", "--schedule");
+		const run = command("billing", "invoice-line", "--schedule");
 		expect(run.status).toBe(1);
 		expect(run.stderr).toContain("--schedule picks parts for --bare");
 	});
@@ -282,388 +498,409 @@ describe("pieceBlocksRemove", () => {
 	});
 });
 
-describe("domainsPairsFill", () => {
-	it("fills an emptied pair without foo's lines and imports what the render dropped", () => {
-		const template = [
-			'import { a, type B } from "./a.ts";',
-			'import { foo } from "./foo.ts";',
-			"// domain-create: domains-start",
-			"const b: B = a(foo);",
-			"const c = a();",
-			"// domain-create: domains-end",
-		].join("\n");
-		const project = [
-			"// domain-create: domains-start",
-			"// domain-create: domains-end",
-		].join("\n");
-
-		expect(
-			domainsPairsFill({ project, template, path: "x.ts" }).split("\n"),
-		).toEqual([
-			'import { a } from "./a.ts";',
-			'import { type B } from "./a.ts";',
-			"",
-			"// domain-create: domains-start",
-			"const c = a();",
-			"// domain-create: domains-end",
-		]);
-		expect(() =>
-			domainsPairsFill({ project: "", template, path: "x.ts" }),
-		).toThrow("x.ts: has 0 domains-start/domains-end pairs, the template 1");
-	});
-});
-
-describe.runIf(template)("domainFilesCreate on the template", () => {
-	const files = template
-		? domainFilesCreate({
-				templateFull: filesRead(appRoot.pathname),
-				appDirectory: appRoot.pathname,
-				names,
-			})
-		: [];
-	const file = (path: string) => files.find((f) => f.path === path)?.text ?? "";
-
-	it("refuses to overwrite a file the project already has", () => {
-		using folder = appCreate("**Bar**:\nA thing.\n");
-		const app = folder.path;
-		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
-		writeFileSync(join(app, "src/ui/routes/invoice-line-list.tsx"), "mine\n");
-
-		expect(() =>
-			domainFilesCreate({
-				templateFull: filesRead(appRoot.pathname),
-				appDirectory: app,
-				names,
-			}),
-		).toThrow("src/ui/routes/invoice-line-list.tsx already exists");
-	});
-
-	it("copies the foo domain and both pages, renamed", () => {
-		const paths = files.map((f) => f.path);
-
-		expect(paths).toContain("src/contexts/invoice-line/domain/invoice-line.ts");
-		expect(paths).toContain(
-			"src/contexts/invoice-line/adapters/inbound/invoice-line-routes.ts",
-		);
-		expect(paths).toContain("src/ui/routes/invoice-line-list.tsx");
-		expect(paths).toContain("src/ui/routes/invoice-line-detail.tsx");
-		expect(paths.filter((p) => /foo/.test(p))).toEqual([]);
-	});
-
-	it("copies both page tests, renamed, and the home test only with a first domain", () => {
-		const paths = files.map((f) => f.path);
-
-		expect(paths).toContain("src/ui/routes/invoice-line-list.test.ts");
-		expect(paths).toContain("src/ui/routes/invoice-line-detail.test.ts");
-		expect(file("src/ui/routes/invoice-line-list.test.ts")).toContain(
-			'from "#ui/routes/invoice-line-list.tsx"',
-		);
-		expect(paths).not.toContain("src/ui/routes/home.test.ts");
-		expect(paths).not.toContain("src/ui/routes/home.tsx");
-
-		// The first domain with pages (an empty / route pair) brings home.tsx back with its test.
-		using folder = appCreate("**Invoice line**:\nA line.\n");
-		const app = folder.path;
-		mkdirSync(join(app, "src/ui/routes"), { recursive: true });
-		writeFileSync(join(app, "src/ui/routes/home.test.ts"), "mine\n");
-		writeFileSync(
-			join(app, "src/ui/routes.ts"),
-			"// domain-create: domains-start\n// domain-create: domains-end\n",
-		);
-		expect(() =>
-			domainFilesCreate({
-				templateFull: filesRead(appRoot.pathname),
-				appDirectory: app,
-				names,
-			}),
-		).toThrow("src/ui/routes/home.test.ts already exists");
-	});
-
-	it("wires no Markdown file, even one that quotes a marker on its own line", () => {
-		const created = domainFilesCreate({
-			templateFull: [
-				...filesRead(appRoot.pathname),
-				{ path: "CHANGELOG.md", text: "\t// domain-create: use-cases\n" },
-			],
-			appDirectory: appRoot.pathname,
-			names,
-		});
-
-		expect(created.map((f) => f.path)).not.toContain("CHANGELOG.md");
-	});
-
-	it("puts the new schedule item at its marker in .env.schema", () => {
-		expect(file(".env.schema")).toContain(
-			"# @sensitive=false @required=false\nSCHEDULE_INVOICE_LINE_STALE_ARCHIVE=\n# domain-create: schedules",
-		);
-	});
-
-	it("builds the use cases in src/use-cases.ts and hands them to each composition root", () => {
-		expect(file("src/use-cases.ts")).toMatch(
-			/telemetryUseCasesTrace\(\s*invoiceLineUseCasesCreate\(invoiceLinePortsCreate\(connections\)\),\s*\);\n\t\/\/ domain-create: use-cases\n/,
-		);
-		expect(file("src/use-cases.ts")).toContain(
-			"invoiceLineUseCases,\n\t\t// domain-create: use-cases-returned",
-		);
-		expect(file("src/server.ts")).toContain(
-			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(useCases.invoiceLineUseCases));\n// domain-create: routes',
-		);
-		for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
-			expect(file(root)).not.toContain("PortsCreate(");
-		}
-		expect(file("src/worker.ts")).toContain(
-			"invoiceLineScheduleCreate(useCases.invoiceLineUseCases),\n\t\t// domain-create: schedules",
-		);
-		expect(file("src/ui/context.ts")).toContain(
-			"[invoiceLineUseCasesContext, useCases.invoiceLineUseCases],",
-		);
-		expect(file("src/ui/routes.ts")).toContain(
-			'route("invoice-lines/:invoiceLineId", "routes/invoice-line-detail.tsx"),',
-		);
-	});
-
-	// One file or line that only each part brings. Imports do not count: the unused-imports pass
-	// drops the ones a left-out part leaves behind.
-	const importsDrop = (created: typeof files) =>
-		created.map((f) => ({
-			path: f.path,
-			text: f.text.replaceAll(/^import [\s\S]*?;$/gm, ""),
-		}));
-	const partSigns: Record<DomainPart, (created: typeof files) => boolean> = {
-		analytics: (created) =>
-			created.some((f) => f.text.includes("invoiceLineAnalytics")),
-		cache: (created) =>
-			created.some((f) => f.path.endsWith("/invoice-line-cached.ts")),
-		live: (created) =>
-			created.some(
-				(f) =>
-					f.path.endsWith("/invoice-line-live.ts") ||
-					/"\/live\/invoice[-_]line"/.test(f.text),
-			),
-		pages: (created) =>
-			created.some(
-				(f) =>
-					f.path.startsWith("src/ui/routes/invoice-line-") ||
-					/invoice-?[lL]ine/.test(f.path.startsWith("src/ui/") ? f.text : ""),
-			),
-		schedule: (created) =>
-			created.some(
-				(f) =>
-					/StaleArchive|archiveStale|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
-						f.text,
-					) || /stale|schedule/.test(f.path),
-			),
-		seed: (created) =>
-			created.some(
-				(f) =>
-					f.path.includes("-seed") ||
-					f.text.includes("invoiceLineSeed") ||
-					(f.path === "src/seed.ts" && f.text.includes("invoiceLine")),
-			),
-	};
-	const bareCreate = (parts: DomainPart[]) =>
-		domainFilesCreate({
-			templateFull: filesRead(appRoot.pathname),
-			appDirectory: appRoot.pathname,
-			names,
-			parts,
-		});
-
-	it("copies a --bare domain with no file or line of any part", () => {
-		const bare = bareCreate([]);
-
-		expect(
-			domainParts.filter((part) => partSigns[part](importsDrop(bare))),
-		).toEqual([]);
-		expect(bare.map((f) => f.path)).toEqual(
-			expect.arrayContaining([
-				"src/contexts/invoice-line/domain/invoice-line.ts",
-				"src/contexts/invoice-line/adapters/outbound/invoice-line-repository.contract.ts",
-				"src/contexts/invoice-line/adapters/outbound/invoice-line-transaction.postgres.ts",
-				"src/contexts/invoice-line/application/invoice-line-update.ts",
-				"src/contexts/invoice-line/adapters/inbound/invoice-line-routes.ts",
-			]),
-		);
-		expect(
-			bare.filter((f) => /domain-create-(start|end)/.test(f.text)),
-		).toEqual([]);
-	});
-
-	it.each(domainParts)(
-		"brings only its own files and lines with --bare --%s",
-		(part) => {
-			const created = bareCreate([part]);
-
-			expect(
-				domainParts.filter((p) => partSigns[p](importsDrop(created))),
-			).toEqual([part]);
-		},
-	);
-
-	it("copies with --bare and every part what it copies without --bare", () => {
-		expect(bareCreate([...domainParts])).toEqual(files);
-	});
-
-	it("writes the reader, its fake, the Bridge and its wiring for --reads", () => {
-		const created = domainFilesCreate({
-			templateFull: filesRead(appRoot.pathname),
-			appDirectory: appRoot.pathname,
-			names,
-			parts: [],
-			reads: ["customer"],
-		});
-		const text = (path: string) =>
-			created.find((f) => f.path === path)?.text ?? "";
-
-		expect(text("src/contexts/invoice-line/application/ports.ts")).toContain(
-			'export type InvoiceLineReaders = Pick<InvoiceLinePorts, "invoiceLineCustomerReader">;',
-		);
-		expect(
-			text("src/contexts/invoice-line/adapters/outbound/index.ts"),
-		).toContain("\treaders: InvoiceLineReaders,\n): InvoiceLinePorts =>");
-		expect(
-			text("src/contexts/invoice-line/adapters/outbound/index.ts"),
-		).toContain(
-			'export { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";',
-		);
-		expect(
-			text("src/contexts/invoice-line/adapters/outbound/index.test.ts"),
-		).toContain(
-			"{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() })",
-		);
-		expect(text("src/bridges/invoice-line-customer-reader.ts")).toContain(
-			'id: "invoice-line-customer-reader"',
-		);
-		expect(text("src/use-cases.ts")).toContain(
-			"invoiceLineCustomerReader: invoiceLineCustomerReaderCreate(customerUseCases)",
-		);
-		expect(text("src/use-cases.ts")).toContain(
-			'import { invoiceLineCustomerReaderCreate } from "#bridges/invoice-line-customer-reader.ts";',
-		);
-		// Every call of the ports factory passes the readers, so none is left with one argument.
-		expect(
-			created.filter((f) =>
-				/invoiceLinePortsCreate\((connections|\{[^}]*\})\)/.test(f.text),
-			),
-		).toEqual([]);
-	});
-
-	it("fills a first --bare domain's wiring only for its parts, and a later domain's for the parts it brings", () => {
-		using folder = mkdtempDisposableSync(join(tmpdir(), "domain-create-"));
-		const app = folder.path;
-		const templateFull = filesRead(appRoot.pathname);
-		filesWrite(
-			app,
+// A Project rendered from this template, with the billing context made by context-create, then
+// the Aggregates added in order, each written before the next is made.
+const projectBuild = ({
+	aggregates,
+	reads = [],
+	removed = [],
+}: {
+	aggregates: { names: typeof names; parts?: AggregatePart[] | null }[];
+	reads?: string[];
+	removed?: string[];
+}) => {
+	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
+	const app = folder.path;
+	const templateFull = filesRead(appRoot.pathname);
+	filesWrite(
+		app,
+		templateWithoutPieces(
 			templateFilesRender(templateFull, { description: "d", name: "n" }),
-		);
-		const text = (created: typeof files, path: string) =>
-			created.find((f) => f.path === path)?.text ?? "";
-
-		const first = domainFilesCreate({
-			templateFull,
-			appDirectory: app,
-			names,
-			parts: [],
-		});
-		expect(text(first, "src/server.ts")).toContain(
-			"const useCases = domainsUseCasesCreate(connections);",
-		);
-		expect(text(first, "src/server.ts")).not.toContain("seedsRun(useCases)");
-		expect(text(first, "src/server.ts")).not.toMatch(/^\s*useCases,$/m);
-		expect(text(first, "src/seed.ts")).not.toContain("devSeedActor");
-		expect(text(first, "src/worker.ts")).not.toContain(
-			"domainsUseCasesCreate(",
-		);
-		expect(text(first, "src/ui/context.ts")).not.toContain(
-			"useCases: DomainsUseCases",
-		);
-		expect(first.map((f) => f.path)).not.toContain("src/ui/routes/home.tsx");
-
-		filesWrite(app, first);
-		const later = domainFilesCreate({
-			templateFull,
-			appDirectory: app,
-			names: { kebab: "customer", plural: "customers" },
-			parts: ["pages", "schedule", "seed"],
-		});
-		expect(text(later, "src/server.ts")).toContain("seedsRun(useCases)");
-		expect(text(later, "src/server.ts")).toMatch(/^\s*useCases,$/m);
-		expect(text(later, "src/seed.ts")).toContain("...customerScopes");
-		expect(text(later, "src/worker.ts")).toContain(
-			"const useCases = domainsUseCasesCreate(connections);",
-		);
-		expect(text(later, "src/ui/context.ts")).toContain(
-			"useCases: DomainsUseCases",
-		);
-		expect(text(later, "src/ui/routes.ts")).toContain(
-			'index("routes/home.tsx")',
-		);
-		expect(later.map((f) => f.path)).toContain("src/ui/routes/home.tsx");
-	});
-
-	it("leaves foo's files alone when it reads nothing", () => {
-		const template = filesRead(appRoot.pathname);
-
-		expect(domainReadsApply({ files: template, reads: [] })).toBe(template);
-	});
-
-	it("counts redis as removed once its package is gone", () => {
-		using folder = appCreate("**Invoice line**:\nA line.\n");
-		writeFileSync(
-			join(folder.path, "package.json"),
-			JSON.stringify({ dependencies: { "@n8io/baseline-cache": "1" } }),
-		);
-		expect(piecesRemovedFind(folder.path)).toContain("redis");
-		expect(piecesRemovedFind(folder.path)).not.toContain("cache");
-	});
-
-	it("leaves out the pieces a Project removed, which have no package left", () => {
-		using folder = appCreate("**Invoice line**:\nA line.\n");
-		const app = folder.path;
-		filesWrite(
-			app,
-			templateWithoutPieces(filesRead(appRoot.pathname), [
-				"analytics",
-				"api-reference",
-				"cache",
-				"error-tracking",
-				"live",
-				"queue",
-				"redis",
-				"ui",
-			]),
-		);
+			removed,
+		),
+	);
+	if (removed.length > 0) {
 		writeFileSync(
 			join(app, "package.json"),
 			JSON.stringify({ dependencies: {} }),
 		);
-
-		const created = domainFilesCreate({
-			templateFull: filesRead(appRoot.pathname),
-			appDirectory: app,
-			names,
+	}
+	for (const target of reads) {
+		mkdirSync(join(app, "src/contexts", target, "application"), {
+			recursive: true,
 		});
-		const paths = created.map((f) => f.path);
-		expect(paths).toContain("src/contexts/invoice-line/application/ports.ts");
-		expect(
-			paths.filter((p) =>
-				/^src\/(ui\/|worker\.ts)|-analytics\.|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test/.test(
-					p,
-				),
-			),
-		).toEqual([]);
-		expect(
-			created.filter((f) =>
-				/piece-(start|end): (analytics|api-reference|cache|error-tracking|live|queue|redis|ui)|SCHEDULE_|Analytics/.test(
-					f.text,
-				),
-			),
-		).toEqual([]);
-		const server = created.find((f) => f.path === "src/server.ts")?.text;
-		expect(server).toContain(
-			"invoiceLineRoutesCreate(useCases.invoiceLineUseCases)",
+		writeFileSync(
+			join(app, "src/contexts", target, "application/ports.ts"),
+			"",
 		);
-		// The import stays for domain-create's unused-imports pass to remove.
-		expect(server).not.toContain("invoiceLineLiveRoutesCreate(");
+	}
+	const shell = contextFilesCreate({
+		appDirectory: app,
+		context: "billing",
+		reads,
+		templateFull,
+	});
+	filesWrite(app, shell);
+	const steps = aggregates.map(({ names: aggregate, parts = null }) => {
+		const created = aggregateFilesCreate({
+			aggregate,
+			appDirectory: app,
+			context: "billing",
+			parts,
+			templateFull,
+		});
+		filesWrite(app, created);
+		return created;
+	});
+	return { app, folder, shell, steps };
+};
+
+const textOf = (files: TemplateFile[], path: string) =>
+	files.find((f) => f.path === path)?.text ?? "";
+
+describe.runIf(template)(
+	"context-create and aggregate-create on the template",
+	() => {
+		const built = template
+			? projectBuild({ aggregates: [{ names }] })
+			: undefined;
+		const files = built?.steps[0] ?? [];
+		const file = (path: string) => textOf(files, path);
+
+		it("copies Foo and both pages into the context, renamed, and never Bar", () => {
+			const paths = files.map((f) => f.path);
+
+			expect(paths).toContain("src/contexts/billing/domain/invoice-line.ts");
+			expect(paths).toContain(
+				"src/contexts/billing/adapters/inbound/invoice-line-routes.ts",
+			);
+			expect(paths).toContain(
+				"src/contexts/billing/invoice-line-error-status.ts",
+			);
+			expect(paths).toContain("src/ui/routes/invoice-line-list.tsx");
+			expect(paths).toContain("src/ui/routes/invoice-line-detail.tsx");
+			expect(paths.filter((p) => /foo|bar/.test(p))).toEqual([]);
+			expect(
+				files.filter((f) =>
+					/\b(foo|Foo)|(?<![A-Za-z])[Bb]ar(?![a-z])/.test(f.text),
+				),
+			).toEqual([]);
+		});
+
+		it("names the context where foo was the context", () => {
+			expect(
+				file("src/contexts/billing/application/invoice-line-create.ts"),
+			).toContain("(ports: BillingPorts)");
+			expect(
+				file("src/contexts/billing/application/billing-use-cases.ts"),
+			).toContain("invoiceLineCreate: invoiceLineCreate(ports),");
+			expect(file("src/contexts/billing/application/ports.ts")).toContain(
+				"invoiceLineRepository: InvoiceLineRepository;",
+			);
+		});
+
+		it("refuses to overwrite a file the project already has", () => {
+			if (!built) return;
+			expect(() =>
+				aggregateFilesCreate({
+					aggregate: names,
+					appDirectory: built.app,
+					context: "billing",
+					templateFull: filesRead(appRoot.pathname),
+				}),
+			).toThrow("already exists; move it aside first");
+		});
+
+		it("wires no Markdown file, even one that quotes a marker on its own line", () => {
+			using project = projectBuild({ aggregates: [] }).folder;
+			const created = aggregateFilesCreate({
+				aggregate: names,
+				appDirectory: project.path,
+				context: "billing",
+				templateFull: [
+					...filesRead(appRoot.pathname),
+					{ path: "CHANGELOG.md", text: "\t// wiring: use-cases\n" },
+				],
+			});
+
+			expect(created.map((f) => f.path)).not.toContain("CHANGELOG.md");
+		});
+
+		it("puts the new schedule item at its marker in .env.schema", () => {
+			expect(file(".env.schema")).toContain(
+				"# @sensitive=false @required=false\nSCHEDULE_INVOICE_LINE_STALE_ARCHIVE=\n# wiring: schedules",
+			);
+		});
+
+		it("builds the context's use cases in src/use-cases.ts and hands them to each composition root", () => {
+			const shell = built?.shell ?? [];
+			expect(textOf(shell, "src/use-cases.ts")).toMatch(
+				/telemetryUseCasesTrace\(\s*billingUseCasesCreate\(billingPortsCreate\(connections\)\),\s*\);\n\t\/\/ wiring: use-cases\n/,
+			);
+			expect(textOf(shell, "src/use-cases.ts")).toContain(
+				"billingUseCases,\n\t\t// wiring: use-cases-returned",
+			);
+			expect(file("src/server.ts")).toContain(
+				'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(useCases.billingUseCases));\n// wiring: routes',
+			);
+			for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
+				expect(file(root)).not.toContain("PortsCreate(");
+			}
+			expect(file("src/worker.ts")).toContain(
+				"invoiceLineScheduleCreate(useCases.billingUseCases),\n\t\t// wiring: schedules",
+			);
+			expect(file("src/ui/context.ts")).toContain(
+				"[billingUseCasesContext, useCases.billingUseCases],",
+			);
+			expect(file("src/ui/routes.ts")).toContain(
+				'route("invoice-lines/:invoiceLineId", "routes/invoice-line-detail.tsx"),',
+			);
+		});
+
+		it("gives the context's files a second Aggregate's lines beside the first's, and the UI key once", () => {
+			using second = projectBuild({
+				aggregates: [
+					{ names },
+					{ names: { kebab: "invoice-note", plural: "invoice-notes" } },
+				],
+			}).folder;
+			const read = (path: string) =>
+				filesRead(second.path).find((f) => f.path === path)?.text ?? "";
+
+			const ports = read("src/contexts/billing/application/ports.ts");
+			expect(ports).toContain("invoiceLineRepository: InvoiceLineRepository;");
+			expect(ports).toContain("invoiceNoteRepository: InvoiceNoteRepository;");
+			expect(ports.match(/billingClock: Clock;/g)).toHaveLength(1);
+			const state = read(
+				"src/contexts/billing/adapters/outbound/billing-transaction.memory.ts",
+			);
+			expect(state).toContain(
+				"invoiceLines: structuredClone(state.invoiceLines),",
+			);
+			expect(state).toContain(
+				"invoiceNotes: structuredClone(state.invoiceNotes),",
+			);
+			expect(
+				read("src/ui/context.ts").match(/export const billingUseCasesContext/g),
+			).toHaveLength(1);
+			expect(read("src/server.ts")).toContain(
+				'app.route("/api/v1/invoice-notes", invoiceNoteRoutesCreate(useCases.billingUseCases));',
+			);
+		});
+
+		// One file or line that only each part brings. Imports do not count: the unused-imports pass
+		// drops the ones a left-out part leaves behind.
+		const importsDrop = (created: TemplateFile[]) =>
+			created.map((f) => ({
+				path: f.path,
+				text: f.text.replaceAll(/^import [\s\S]*?;$/gm, ""),
+			}));
+		const partSigns: Record<
+			AggregatePart,
+			(created: TemplateFile[]) => boolean
+		> = {
+			analytics: (created) =>
+				created.some((f) => f.text.includes("invoiceLineAnalytics")),
+			cache: (created) =>
+				created.some((f) => f.path.endsWith("/invoice-line-cached.ts")),
+			live: (created) =>
+				created.some(
+					(f) =>
+						f.path.endsWith("/invoice-line-live.ts") ||
+						/"\/live\/invoice[-_]line"/.test(f.text),
+				),
+			pages: (created) =>
+				created.some(
+					(f) =>
+						f.path.startsWith("src/ui/routes/invoice-line-") ||
+						/invoice-?[lL]ine/.test(f.path.startsWith("src/ui/") ? f.text : ""),
+				),
+			schedule: (created) =>
+				created.some(
+					(f) =>
+						/StaleArchive|archiveStale|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
+							f.text,
+						) || /stale|schedule/.test(f.path),
+				),
+			seed: (created) =>
+				created.some(
+					(f) =>
+						f.path.includes("-seed") ||
+						f.text.includes("invoiceLineSeed") ||
+						(f.path === "src/seed.ts" && f.text.includes("invoiceLine")),
+				),
+		};
+
+		it.each([[], ...aggregateParts.map((part) => [part])] as AggregatePart[][])(
+			"brings only the files and lines of the parts named with --bare %j",
+			(...parts) => {
+				const step = projectBuild({ aggregates: [{ names, parts }] });
+				using _folder = step.folder;
+				const created = step.steps[0] ?? [];
+
+				expect(
+					aggregateParts.filter((p) => partSigns[p](importsDrop(created))),
+				).toEqual(parts);
+				expect(
+					created.filter((f) => /aggregate-create-(start|end)/.test(f.text)),
+				).toEqual([]);
+			},
+		);
+
+		it("copies with --bare and every part what it copies without --bare", () => {
+			const step = projectBuild({
+				aggregates: [{ names, parts: [...aggregateParts] }],
+			});
+			using _folder = step.folder;
+
+			expect(step.steps[0]).toEqual(files);
+		});
+
+		it("writes the reader, its fake, the Bridge and its wiring for --reads, and passes the readers to a later Aggregate's tests", () => {
+			const step = projectBuild({
+				aggregates: [{ names, parts: [] }],
+				reads: ["customer"],
+			});
+			using _folder = step.folder;
+			const shell = (path: string) => textOf(step.shell, path);
+
+			expect(shell("src/contexts/billing/application/ports.ts")).toContain(
+				'export type BillingReaders = Pick<BillingPorts, "billingCustomerReader">;',
+			);
+			expect(
+				shell("src/contexts/billing/adapters/outbound/index.ts"),
+			).toContain("\treaders: BillingReaders,\n): BillingPorts =>");
+			expect(
+				shell("src/contexts/billing/adapters/outbound/index.ts"),
+			).toContain(
+				'export { billingCustomerReaderMemoryCreate } from "./billing-customer-reader.memory.ts";',
+			);
+			expect(shell("src/bridges/billing-customer-reader.ts")).toContain(
+				'id: "billing-customer-reader"',
+			);
+			expect(shell("src/use-cases.ts")).toContain(
+				"billingCustomerReader: billingCustomerReaderCreate(customerUseCases)",
+			);
+			expect(
+				textOf(
+					step.steps[0] ?? [],
+					"src/contexts/billing/adapters/outbound/index-invoice-line.test.ts",
+				),
+			).toContain(
+				"{ billingCustomerReader: billingCustomerReaderMemoryCreate() })",
+			);
+			// Every call of the ports factory passes the readers, so none is left with one argument.
+			expect(
+				[...step.shell, ...(step.steps[0] ?? [])].filter((f) =>
+					/billingPortsCreate\((connections|\{[^}]*\})\)/.test(f.text),
+				),
+			).toEqual([]);
+		});
+
+		it("fills a first --bare Aggregate's wiring only for its parts, and a later one's for the parts it brings", () => {
+			const step = projectBuild({
+				aggregates: [
+					{ names, parts: [] },
+					{
+						names: { kebab: "invoice-note", plural: "invoice-notes" },
+						parts: ["pages", "schedule", "seed"],
+					},
+				],
+			});
+			using _folder = step.folder;
+			const [first = [], later = []] = step.steps;
+
+			expect(textOf(step.shell, "src/server.ts")).toContain(
+				"const useCases = domainsUseCasesCreate(connections);",
+			);
+			expect(textOf(first, "src/server.ts")).not.toContain(
+				"seedsRun(useCases)",
+			);
+			expect(textOf(first, "src/server.ts")).not.toMatch(/^\s*useCases,$/m);
+			expect(textOf(first, "src/seed.ts")).not.toContain("devSeedActor");
+			expect(textOf(first, "src/worker.ts")).not.toContain(
+				"domainsUseCasesCreate(",
+			);
+			expect(first.map((f) => f.path)).not.toContain("src/ui/routes/home.tsx");
+
+			expect(textOf(later, "src/server.ts")).toContain("seedsRun(useCases)");
+			expect(textOf(later, "src/server.ts")).toMatch(/^\s*useCases,$/m);
+			expect(textOf(later, "src/seed.ts")).toContain("...invoiceNoteScopes");
+			expect(textOf(later, "src/worker.ts")).toContain(
+				"const useCases = domainsUseCasesCreate(connections);",
+			);
+			expect(textOf(later, "src/ui/context.ts")).toContain(
+				"useCases: DomainsUseCases",
+			);
+			expect(textOf(later, "src/ui/routes.ts")).toContain(
+				'index("routes/home.tsx")',
+			);
+			expect(later.map((f) => f.path)).toContain("src/ui/routes/home.tsx");
+		});
+
+		it("leaves foo's files alone when it reads nothing", () => {
+			const files = filesRead(appRoot.pathname);
+
+			expect(readsApply({ files, reads: [] })).toBe(files);
+		});
+
+		it("counts redis as removed once its package is gone", () => {
+			using folder = appCreate("**Invoice line**:\nA line.\n");
+			writeFileSync(
+				join(folder.path, "package.json"),
+				JSON.stringify({ dependencies: { "@n8io/baseline-cache": "1" } }),
+			);
+			expect(piecesRemovedFind(folder.path)).toContain("redis");
+			expect(piecesRemovedFind(folder.path)).not.toContain("cache");
+		});
+
+		it("leaves out the pieces a Project removed, which have no package left", () => {
+			const step = projectBuild({
+				aggregates: [{ names }],
+				removed: [
+					"analytics",
+					"api-reference",
+					"cache",
+					"error-tracking",
+					"live",
+					"queue",
+					"redis",
+					"ui",
+				],
+			});
+			using _folder = step.folder;
+			const created = [...step.shell, ...(step.steps[0] ?? [])];
+			const paths = created.map((f) => f.path);
+
+			expect(paths).toContain("src/contexts/billing/application/ports.ts");
+			expect(
+				paths.filter((p) =>
+					/^src\/(ui\/|worker\.ts)|-analytics\.|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test|-queue\.test/.test(
+						p,
+					),
+				),
+			).toEqual([]);
+			expect(
+				created.filter((f) =>
+					/piece-(start|end): (analytics|api-reference|cache|error-tracking|live|queue|redis|ui)|SCHEDULE_|Analytics/.test(
+						f.text,
+					),
+				),
+			).toEqual([]);
+			const server = textOf(step.steps[0] ?? [], "src/server.ts");
+			expect(server).toContain(
+				"invoiceLineRoutesCreate(useCases.billingUseCases)",
+			);
+			// The import stays for the unused-imports pass to remove.
+			expect(server).not.toContain("invoiceLineLiveRoutesCreate(");
+		});
+	},
+);
+
+describe("fooRename", () => {
+	it("is what the two-name rename falls back to for a context file", () => {
+		expect(
+			fooRename({ names: billing, path: "x.ts", text: "fooPortsCreate" }),
+		).toBe("billingPortsCreate");
 	});
 });

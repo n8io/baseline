@@ -19,7 +19,7 @@ import { run } from "./template-render.ts";
 type PieceRemoval = {
 	// Pieces that must go first, when installed.
 	after?: string[];
-	// The packages it removes; the first one is how domain-create and this script tell it is gone.
+	// The packages it removes; the first one is how aggregate-create and this script tell it is gone.
 	packages: string[];
 	// Paths from the Project root, deleted when present.
 	paths: string[];
@@ -175,9 +175,9 @@ const cacheUrlLines = /^(#.*\n)*CACHE_URL=.*\n/m;
 const mixpanelTokenLines = /^(# Mixpanel.*\n)?(# @.*\n)*MIXPANEL_TOKEN=.*\n/m;
 // SENTRY_DSN, its comment and its decorators.
 const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
-// The SCHEDULE_* overrides and the marker domain-create adds them at.
+// The SCHEDULE_* overrides and the marker aggregate-create adds them at.
 const scheduleLines =
-	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# domain-create: schedules\n)*/m;
+	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# wiring: schedules\n)*/m;
 // REDIS_HOST_PORT, its decorator, and the unit tests' CACHE_URL.
 const redisHostPortLines =
 	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;

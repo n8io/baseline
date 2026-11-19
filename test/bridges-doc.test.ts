@@ -1,13 +1,27 @@
-import { existsSync, readFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempDisposableSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { domainFilesCreate } from "../apps/app/scripts/aggregate-create.ts";
-import { filesRead } from "../apps/app/scripts/template-render.ts";
+import { aggregateFilesCreate } from "../apps/app/scripts/aggregate-create.ts";
+import { contextFilesCreate } from "../apps/app/scripts/context-create.ts";
+import {
+	filesRead,
+	filesWrite,
+	templateFilesRender,
+} from "../apps/app/scripts/template-render.ts";
 
-// apps/app/docs/agents/bridges.md quotes the render test's invoice-line Domain. Each ts block
+// apps/app/docs/agents/bridges.md quotes the render test's invoice-line context. Each ts block
 // starts with `// <path>` and must appear in that file: in the second-domain fixture's files when
 // the fixture adds the file, in one hunk of its wiring.patch when it changes a generated one, or
-// else in what `domain-create invoice-line --bare --reads customer` writes. Whitespace and
+// else in what `context-create invoice-line --reads customer` and then
+// `aggregate-create invoice-line invoice-line --bare` write. Whitespace and
 // trailing commas are ignored: Biome reformats both the quoted block and the generated code.
 const doc = new URL("../apps/app/docs/agents/bridges.md", import.meta.url);
 const fixture = new URL("render/second-domain/", import.meta.url);
@@ -33,13 +47,41 @@ const formatDrop = (text: string): string =>
 	text.replaceAll(/\s+/g, "").replaceAll(/,(?=[)\]}>])/g, "");
 
 const app = fileURLToPath(new URL("../apps/app/", import.meta.url));
-const generated = domainFilesCreate({
-	appDirectory: app,
-	names: { kebab: "invoice-line", plural: "invoice-lines" },
-	parts: [],
-	reads: ["customer"],
-	templateFull: filesRead(app),
-});
+// A rendered Project with a customer context to read, then the two commands, in a scratch folder.
+const generated = (() => {
+	using folder = mkdtempDisposableSync(join(tmpdir(), "bridges-doc-"));
+	const project = folder.path;
+	const templateFull = filesRead(app);
+	filesWrite(
+		project,
+		templateFilesRender(templateFull, { description: "d", name: "n" }),
+	);
+	mkdirSync(join(project, "src/contexts/customer/application"), {
+		recursive: true,
+	});
+	writeFileSync(
+		join(project, "src/contexts/customer/application/ports.ts"),
+		"",
+	);
+	const shell = contextFilesCreate({
+		appDirectory: project,
+		context: "invoice-line",
+		reads: ["customer"],
+		templateFull,
+	});
+	filesWrite(project, shell);
+	const aggregate = aggregateFilesCreate({
+		aggregate: { kebab: "invoice-line", plural: "invoice-lines" },
+		appDirectory: project,
+		context: "invoice-line",
+		parts: [],
+		templateFull,
+	});
+	return [
+		...shell.filter((f) => !aggregate.some((a) => a.path === f.path)),
+		...aggregate,
+	];
+})();
 
 const sourcesRead = (path: string): string[] => {
 	const added = new URL(`files/${path}`, fixture);

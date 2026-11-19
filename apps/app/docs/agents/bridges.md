@@ -4,14 +4,14 @@ Read when one Domain reads another (a Bridge), or when a Domain waits on what an
 
 ## Bridge
 
-A Bridge fills a reader port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains: a write is an Event. `pnpm domain-create <name> --reads <target>` writes everything below (the reader port, the readers argument, the memory fake, the Bridge and its test, and the wiring); you then change what the reader returns. The code is what it writes in baseline's render test, where invoice lines read a customer's name; a test fails when this page and that code differ.
+A Bridge fills a reader port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains: a write is an Event. `pnpm context-create <name> --reads <target>` writes everything below (the reader port, the readers argument, the memory fake, the Bridge and its test, and the wiring); you then change what the reader returns. The code is what it writes in baseline's render test, where invoice lines read a customer's name; a test fails when this page and that code differ.
 
 The reading Domain declares the reader in `application/ports.ts`, adds it to its ports, and names the ports Bridges fill:
 
 ```ts
 // src/contexts/invoice-line/application/ports.ts
-// What invoice lines read about a customer. The Bridge in
-// src/bridges/invoice-line-customer-reader.ts fills it from the customer Domain.
+// What the context reads about a customer. The Bridge in
+// src/bridges/invoice-line-customer-reader.ts fills it from the customer context.
 export type InvoiceLineCustomerReader = {
 	get(id: Id<"customer">): Promise<{ name: string } | undefined>;
 };
@@ -47,7 +47,7 @@ const invoiceLineCustomerReaderActor: Actor = {
 	scopes: [],
 };
 
-// The only file that knows both Domains: invoice lines read a customer through customerGet.
+// The only file that knows both contexts: invoice line reads a customer through customerGet.
 export const invoiceLineCustomerReaderCreate = (
 	customer: Pick<CustomerUseCases, "customerGet">,
 ): InvoiceLineCustomerReader => ({

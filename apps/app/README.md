@@ -33,30 +33,30 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 A Domain is one business entity: a folder in `src/contexts/` with the API, Use cases, Rules, ports and SPI in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The Domains are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
 
 ```sh
-pnpm domain-create invoice --bare   # the core only; pnpm domain-create --help lists the parts
+pnpm context-create invoice && pnpm aggregate-create invoice invoice --bare   # the core only; --help lists the parts
 pnpm codegen --name invoice_create  # its migration, after you shape the Model and its table
 ```
 
 ## Commands
 
-| I want to…                                    | Run                                             |
-| --------------------------------------------- | ----------------------------------------------- |
-| run the app, the Worker and their services    | `pnpm dev`                                      |
-| wipe the local database and cache data        | `pnpm dev:reset`                                |
-| lint, check formatting and typecheck          | `pnpm check`                                    |
-| format                                        | `pnpm format`                                   |
-| run the unit tests, on memory adapters        | `pnpm test`                                     |
-| run the integration tests (`pnpm dev` first)  | `pnpm test:integration`                         |
-| run most of CI before I push                  | `pnpm run ci`                                   |
-| add a Domain                                  | `pnpm domain-create <name>`                     |
-| write a migration after a table change        | `pnpm codegen`                                  |
-| migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                     |
-| list or release a blocked Event key           | `pnpm blocked-keys`                             |
-| catch a breaking API change                   | `pnpm api-check`                                |
-| remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check` |
-| take a newer Template release                 | `pnpm template-upgrade`                         |
-| find glossary aliases                         | `pnpm glossary-check`                           |
-| build for production                          | `pnpm build`                                    |
+| I want to…                                    | Run                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| run the app, the Worker and their services    | `pnpm dev`                                                                     |
+| wipe the local database and cache data        | `pnpm dev:reset`                                                               |
+| lint, check formatting and typecheck          | `pnpm check`                                                                   |
+| format                                        | `pnpm format`                                                                  |
+| run the unit tests, on memory adapters        | `pnpm test`                                                                    |
+| run the integration tests (`pnpm dev` first)  | `pnpm test:integration`                                                        |
+| run most of CI before I push                  | `pnpm run ci`                                                                  |
+| add a context, then an Aggregate              | `pnpm context-create <context>`, `pnpm aggregate-create <context> <aggregate>` |
+| write a migration after a table change        | `pnpm codegen`                                                                 |
+| migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                                                    |
+| list or release a blocked Event key           | `pnpm blocked-keys`                                                            |
+| catch a breaking API change                   | `pnpm api-check`                                                               |
+| remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check`                                |
+| take a newer Template release                 | `pnpm template-upgrade`                                                        |
+| find glossary aliases                         | `pnpm glossary-check`                                                          |
+| build for production                          | `pnpm build`                                                                   |
 
 ## For AI agents
 

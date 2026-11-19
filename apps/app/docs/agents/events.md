@@ -4,7 +4,7 @@ Read when adding a Consumer, an Event or a repository. A Domain that reads anoth
 
 ## Consumer with the inbox
 
-A Consumer lives in the reacting Domain's `adapters/inbound/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// domain-create: consumers`.
+A Consumer lives in the reacting Domain's `adapters/inbound/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// wiring: consumers`.
 
 ```ts
 // src/contexts/billing/adapters/inbound/billing-order-placed-handler.ts
@@ -69,6 +69,7 @@ Two Events with different Event keys run at once, on one worker or several. When
 
 - Lock the root before reading it, inside the transaction: `findByIdForUpdate(id)` (Drizzle's `.for("update")`). The second Consumer waits for the first to commit, then reads the new state.
 - Or make the write one atomic statement (`UPDATE standing SET points = points + $1 WHERE id = $2`), when the change does not depend on what else the row holds.
+- One transaction writes one Aggregate. Two of the same context's Aggregates may share one only for an invariant that needs both, named in a `// invariant: <what>` comment above it (A28); across contexts, publish an Event and let the other context react.
 - Several roots in one transaction: lock them in id order (`ORDER BY id ... FOR UPDATE`), on every path that locks them, Use cases and Schedules too. Two paths that lock the same rows in different orders deadlock, and Postgres aborts one.
 - A race test proves it: force the interleaving with `postgresTestInterleave` (`@n8io/baseline-postgres/testing`) and see the test fail with the lock removed.
 

@@ -1,10 +1,10 @@
 # UI pages
 
-Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `bar` Domain; a Domain made by `pnpm domain-create` starts with the same two pages, `<domain>-list.tsx` and `<domain>-detail.tsx`, under its own name.
+Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `bar` Domain; an Aggregate made by `pnpm aggregate-create` starts with the same two pages, `<domain>-list.tsx` and `<domain>-detail.tsx`, under its own name.
 
 ## A page
 
-One React Router route module per page, `src/ui/routes/<domain>-<view>.tsx`, listed in `src/ui/routes.ts` above `// domain-create: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a Domain only through its `index.ts` (A10).
+One React Router route module per page, `src/ui/routes/<domain>-<view>.tsx`, listed in `src/ui/routes.ts` above `// wiring: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a Domain only through its `index.ts` (A10).
 
 ## Loader
 
@@ -26,7 +26,7 @@ export const loader = async (args: Route.LoaderArgs) => {
 };
 ```
 
-- Each Domain's Use cases are one context key, `<domain>UseCasesContext` in `src/ui/context.ts`. `pnpm domain-create` adds the key and its entry in `uiLoadContextCreate`.
+- Each Domain's Use cases are one context key, `<domain>UseCasesContext` in `src/ui/context.ts`. `pnpm aggregate-create` adds the key and its entry in `uiLoadContextCreate`.
 - A Use case error the page cannot go on from (not found, forbidden) is thrown as `data(...)` with its status from the Domain's exported `barErrorStatus`, keyed by the error's `type` (the same table the API uses). Never write a status literal for a Use case's error.
 - Show a control only when the Actor may use it: call the Domain's exported "can" predicates in the loader and return booleans. The Use case still checks; the predicate only hides what it would refuse.
 

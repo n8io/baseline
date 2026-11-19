@@ -63,7 +63,7 @@ describe("architecture", () => {
 		);
 	});
 
-	// The regex checks of A11 and A14 also pass the corrected sample.
+	// The regex checks of A11, A14 and A28 also pass the corrected sample.
 	it.each([
 		{
 			from: "\tensure: (name) => u.bazCreate(actor, { name }),\n",
@@ -74,6 +74,11 @@ describe("architecture", () => {
 			from: '"baz.created"',
 			name: "a14-column-without-handler.txt",
 			to: '"baz.deleted"',
+		},
+		{
+			from: "=>\n\tports.billingTransaction(",
+			name: "a28-transaction-two-aggregates.txt",
+			to: "=>\n\t// invariant: an invoice closes with its lines.\n\tports.billingTransaction(",
 		},
 	])("$name passes once fixed", async ({ from, name, to }) => {
 		const sample = samples.find((s) => s.name === name);
@@ -112,6 +117,39 @@ describe("architecture", () => {
 		expect(
 			architectureRules.A14?.([...(sample?.files ?? []), handler]),
 		).toEqual([]);
+	});
+
+	it("A14 needs no handler for an id of the context's own Aggregate, and one for another context's Aggregate", async () => {
+		const own = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("billing").table("invoice_line", { invoiceId: text("invoice_id") });\n',
+		);
+		const invoice = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-table.ts",
+			'import { pgSchema } from "drizzle-orm/pg-core";\nexport const t = pgSchema("billing").table("invoice", {});\n',
+		);
+		const shipping = await architectureFileCreate(
+			"src/contexts/shipping/adapters/outbound/parcel-table.ts",
+			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("shipping").table("parcel", { invoiceId: text("invoice_id") });\n',
+		);
+		expect(architectureRules.A14?.([own, invoice])).toEqual([]);
+		expect(architectureRules.A14?.([own, invoice, shipping])).toEqual([
+			'src/contexts/shipping/adapters/outbound/parcel-table.ts: a column holding a invoice id needs src/contexts/shipping/adapters/inbound/shipping-invoice-deleted-handler.ts handling "invoice.deleted", so rows never point at a deleted invoice',
+		]);
+	});
+
+	it("A23 lets a context's export start with one of its Aggregates' names", async () => {
+		const table = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			"",
+		);
+		const useCase = await architectureFileCreate(
+			"src/contexts/billing/application/invoice-line-create.ts",
+			"export const invoiceLineCreate = () => 1;\nexport const noteCreate = () => 1;\n",
+		);
+		expect(architectureRules.A23?.([table, useCase])).toEqual([
+			expect.stringContaining("noteCreate is exported from billing"),
+		]);
 	});
 
 	it("A14 counts only the longest context name a column matches", async () => {
