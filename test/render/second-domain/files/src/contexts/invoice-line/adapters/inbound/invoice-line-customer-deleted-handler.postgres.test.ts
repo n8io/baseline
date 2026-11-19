@@ -11,6 +11,7 @@ import {
 } from "@n8io/baseline-queue";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
+import { clockSystemCreate } from "../../../../clock.ts";
 import { invoiceLineUseCasesCreate } from "../../application/invoice-line-use-cases.ts";
 import {
 	invoiceLineCustomerReaderMemoryCreate,
@@ -47,6 +48,7 @@ describe("the customer.deleted consumer on Postgres", () => {
 				// piece-start: cache
 				cacheStore: cacheStoreMemoryCreate(),
 				// piece-end: cache
+				clock: clockSystemCreate(),
 				database: pgPool,
 				events: queueEventsCreate(queue),
 				intakes: [],
