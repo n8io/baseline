@@ -1,6 +1,6 @@
 # Publishing the SDK and the command line tool
 
-For a Project that has the `sdk` piece (and maybe `cli`; [pieces.md](pieces.md)). On every push to main, `.github/workflows/clients-release.yml` runs `scripts/clients-release.ts`, which publishes `clients/sdk` as `@<scope>/<project>-sdk` and `clients/cli` as `@<scope>/<project>-cli` when they changed. Both go with the `sdk` piece: `pnpm piece-remove sdk` deletes them. Until the repository variable `CLIENTS_NPM_SCOPE` is set, the workflow's `off` job passes and says why.
+For a Project that has the `sdk` piece (and maybe `cli`; [pieces.md](pieces.md)). On every push to main, `.github/workflows/clients-release.yml` runs `scripts/clients-release.ts`, which publishes `clients/sdk` as `@<scope>/<project>-sdk` and `clients/cli` as `@<scope>/<project>-cli` when they changed. The workflow and the script go with the `sdk` piece: `pnpm piece-remove sdk` deletes them. After `pnpm piece-remove cli`, only the SDK publishes. Until the repository variable `CLIENTS_NPM_SCOPE` is set, the workflow's `off` job passes and says why.
 
 ## Versions
 

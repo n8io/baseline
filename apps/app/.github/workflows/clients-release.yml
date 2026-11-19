@@ -9,7 +9,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One publish at a time, none cancelled: each reads the version the one before published.
+# One publish at a time, never cancelled mid-run. A run still waiting gives way to a newer one,
+# which compares against what is published, so nothing is lost.
 concurrency:
   group: clients-release
   cancel-in-progress: false
@@ -26,7 +27,8 @@ jobs:
       - run: echo "::notice::CLIENTS_NPM_SCOPE is not set, so nothing is published. docs/agents/clients.md says how to turn publishing on."
 
   publish:
-    if: vars.CLIENTS_NPM_SCOPE != ''
+    # Only main publishes: the trusted publisher names the workflow, not the branch it ran on.
+    if: vars.CLIENTS_NPM_SCOPE != '' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # id-token: npm trusted publishing (OIDC), so no npm token is stored.

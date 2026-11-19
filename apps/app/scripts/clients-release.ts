@@ -21,7 +21,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
-// A client's path ("sdk/sdk.ts") to the text that decides its version.
+// A package's path ("sdk/sdk.ts") to the text that decides its version.
 type Files = Readonly<Record<string, string>>;
 type Manifest = {
 	bin?: Record<string, string>;
@@ -40,8 +40,10 @@ const manifestRead = (folder: string): Manifest =>
 
 const unscoped = (name: string): string => name.replace(/^@[^/]+\//, "");
 
-// The source files of each client in `directory` (clients/ or an unpacked release), and the
+// The source files of each package in `directory` (clients/ or an unpacked release), and the
 // dependencies each installs. The CLI's dependency on the SDK is left out: it is the version itself.
+// Every file counts, so a file npm leaves out of a tarball (.npmrc, package-lock.json) must not
+// sit in clients/: it would differ on every run and publish a patch each time.
 export const clientsFilesRead = (directory: string): Files => {
 	const files: Record<string, string> = {};
 	for (const client of clients) {
@@ -54,7 +56,9 @@ export const clientsFilesRead = (directory: string): Files => {
 			if (statSync(file).isFile())
 				files[`${client}/${path}`] = readFileSync(file, "utf8");
 		}
-		const sdk = unscoped(manifestRead(join(directory, "sdk")).name);
+		const sdk = existsSync(join(directory, "sdk/package.json"))
+			? unscoped(manifestRead(join(directory, "sdk")).name)
+			: "";
 		const { [sdk]: _, ...dependencies } =
 			manifestRead(folder).dependencies ?? {};
 		files[`${client}/package.json`] = JSON.stringify(dependencies);
@@ -106,6 +110,22 @@ const versionLatest = (name: string, major: number): string | undefined => {
 		.at(-1);
 };
 
+// Waits, up to 3 minutes, until npm shows each new version: npm lists one about a minute after
+// the publish, and the next run (runs go one at a time) would otherwise pick the same version.
+const registryWait = (specs: string[]): void => {
+	for (const spec of specs) {
+		for (
+			let tries = 0;
+			npm(["view", spec, "version"]).stdout.trim() === "";
+			tries++
+		) {
+			if (tries === 18)
+				throw new Error(`npm does not show ${spec} after 3 minutes`);
+			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
+		}
+	}
+};
+
 const run = ([command = "", ...args]: string[], cwd?: string): void => {
 	const result = spawnSync(command, args, { cwd, stdio: "inherit" });
 	if (result.status !== 0) {
@@ -143,7 +163,7 @@ const recordMap = <T>(
 
 // The manifest npm gets: scoped, versioned and public, pointing at the built JavaScript, with the
 // SDK dependency as an npm alias of the SDK published beside it.
-const manifestPublish = ({
+export const clientsManifestPublish = ({
 	client,
 	manifest,
 	scope,
@@ -242,7 +262,7 @@ export const clientsRelease = ({
 			filter: (path) => !["dist", "node_modules"].includes(basename(path)),
 			recursive: true,
 		});
-		const manifest = manifestPublish({
+		const manifest = clientsManifestPublish({
 			client,
 			manifest: manifestRead(stage),
 			scope,
@@ -293,6 +313,7 @@ export const clientsRelease = ({
 			);
 		}
 	}
+	if (!dryRun) registryWait(names.map((n) => `${scope}/${n}@${version}`));
 };
 
 if (import.meta.main) {
