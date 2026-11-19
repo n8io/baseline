@@ -5,6 +5,7 @@ import { clockMemoryCreate } from "../../../../clock.ts";
 import { connectionsOpen } from "../../../../connections.ts";
 import { contextsCreate } from "../../../../use-cases.ts";
 import { fooSchedules } from "../../index.ts";
+import { fooSchedule } from "./foo-schedule.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });
@@ -26,7 +27,7 @@ describe("foo's schedule", () => {
 		const fooId = created.value.id;
 		clock.set(new Date("2026-06-01T00:00:00Z"));
 		const schedule = schedules.find((s) => s.name === "foo.stale-archive");
-		expect(schedule).toMatchObject(fooSchedules[0] ?? {});
+		expect(schedule).toMatchObject(fooSchedule);
 
 		expect(await schedule?.run()).toEqual(ok(1));
 		const archived = await useCases.fooGet(owner, { fooId });
