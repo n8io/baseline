@@ -1,4 +1,4 @@
-// Hands each domain's use cases to loaders and actions. Type-only imports from domains.
+// Hands each context's Use cases to loaders and actions. Type-only imports from contexts.
 import {
 	actorContext,
 	authnExpiryContext,
@@ -10,7 +10,7 @@ import {
 	RouterContextProvider,
 } from "react-router";
 import type { FooUseCases } from "#contexts/foo/index.ts";
-import type { DomainsUseCases } from "../use-cases.ts";
+import type { Contexts } from "../use-cases.ts";
 
 // The request's CSP nonce, for every inline script the server renders.
 export const cspNonceContext: RouterContext<string | undefined> = createContext<
@@ -23,7 +23,7 @@ export const fooUseCasesContext: RouterContext<FooUseCases> =
 export const uiLoadContextCreate = (
 	c: Context,
 	// wiring: contexts-start
-	useCases: DomainsUseCases,
+	contexts: Contexts,
 	// wiring: contexts-end
 ): RouterContextProvider =>
 	new RouterContextProvider(
@@ -31,7 +31,7 @@ export const uiLoadContextCreate = (
 			[actorContext, c.var.actor],
 			[authnExpiryContext, c.var.authnExpiresAt],
 			[cspNonceContext, c.var.secureHeadersNonce],
-			[fooUseCasesContext, useCases.fooUseCases],
+			[fooUseCasesContext, contexts.fooContext.useCases],
 			// wiring: context
 		]),
 	);

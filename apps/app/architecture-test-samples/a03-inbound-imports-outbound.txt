@@ -1,7 +1,7 @@
-// A3: adapters/inbound/ imports the context index.ts, domain/ and application/ types, never adapters/outbound/
+// A3: adapters/inbound/ imports domain/, application/ types and the files beside index.ts, never adapters/outbound/
 // expect: src/contexts/bar/adapters/inbound/bar-routes.ts imports ../outbound/index.ts: adapters/inbound/ never imports adapters/outbound/
 // @file src/contexts/bar/adapters/inbound/bar-routes.ts
-import { barUseCasesCreate } from "../../index.ts";
+import { barUseCasesCreate } from "../../application/bar-use-cases.ts";
 import { barPortsCreate } from "../outbound/index.ts";
 
 export const barRoutesCreate = () => barUseCasesCreate(barPortsCreate());

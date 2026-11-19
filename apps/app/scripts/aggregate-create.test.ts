@@ -315,24 +315,24 @@ describe("wiringInsert", () => {
 
 	it("adds no line at a marker of a part the Aggregate leaves out", () => {
 		const template = [
-			'import { fooLiveRoutesCreate } from "#contexts/foo/adapters/inbound/index.ts";',
+			'import { fooScopes } from "#contexts/foo/index.ts";',
 			"",
-			'app.route("/live/foo", fooLiveRoutesCreate(useCases.fooUseCases));',
-			"// wiring: live",
+			"\t...fooScopes,",
+			"// wiring: scopes",
 		].join("\n");
 
 		expect(
 			wiringInsert({
 				blockIs: aggregateLineIs,
-				partsLeftOut: ["live"],
-				path: "src/server.ts",
-				project: "// wiring: live",
+				partsLeftOut: ["seed"],
+				path: "src/seed.ts",
+				project: "// wiring: scopes",
 				rename,
 				template,
 			}).split("\n"),
 		).toEqual([
-			'import { invoiceLineLiveRoutesCreate } from "#contexts/billing/adapters/inbound/index.ts";',
-			"// wiring: live",
+			'import { invoiceLineScopes } from "#contexts/billing/index.ts";',
+			"// wiring: scopes",
 		]);
 	});
 
@@ -692,25 +692,40 @@ describe.runIf(template)(
 			);
 		});
 
-		it("builds the context's use cases in src/use-cases.ts and hands them to each composition root", () => {
+		it("builds the context in src/use-cases.ts, with each Aggregate's routes, schedules and seeds in its index.ts", () => {
 			const shell = built?.shell ?? [];
-			expect(textOf(shell, "src/use-cases.ts")).toMatch(
-				/telemetryUseCasesTrace\(\s*billingUseCasesCreate\(billingPortsCreate\(connections\)\),\s*\);\n\t\/\/ wiring: use-cases\n/,
+			expect(textOf(shell, "src/contexts/billing/index.ts")).toMatch(
+				/telemetryUseCasesTrace\(\s*billingUseCasesCreate\(billingPortsCreate\(connections\)\),\s*\);/,
 			);
 			expect(textOf(shell, "src/use-cases.ts")).toContain(
-				"billingUseCases,\n\t\t// wiring: use-cases-returned",
+				"const billingContext = billingContextCreate({ connections });\n\t// wiring: contexts\n",
 			);
-			expect(file("src/server.ts")).toContain(
-				'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(useCases.billingUseCases));\n// wiring: routes',
+			expect(textOf(shell, "src/use-cases.ts")).toContain(
+				"billingContext,\n\t\t// wiring: contexts-returned",
+			);
+			const index = file("src/contexts/billing/index.ts");
+			expect(index).toContain(
+				'{ path: "/api/v1/invoice-lines", router: invoiceLineRoutesCreate(useCases) },',
+			);
+			expect(index).toContain(
+				"invoiceLineScheduleCreate(useCases),\n\t\t\t// wiring: schedules",
+			);
+			expect(index).toContain(
+				"(actor: Actor) => invoiceLineSeed(useCases, actor),\n\t\t\t// wiring: seeds",
+			);
+			expect(index).toContain(
+				"\tinvoiceLineSchedule,\n\t// wiring: schedule-definitions",
+			);
+			expect(file("src/migrate.ts")).not.toContain("invoiceLineSchedule");
+			expect(textOf(shell, "src/migrate.ts")).toContain(
+				"...billingSchedules,\n\t\t// wiring: schedules",
 			);
 			for (const root of ["src/server.ts", "src/worker.ts", "src/seed.ts"]) {
 				expect(file(root)).not.toContain("PortsCreate(");
+				expect(file(root)).not.toContain("#contexts/billing/adapters/");
 			}
-			expect(file("src/worker.ts")).toContain(
-				"invoiceLineScheduleCreate(useCases.billingUseCases),\n\t\t// wiring: schedules",
-			);
 			expect(file("src/ui/context.ts")).toContain(
-				"[billingUseCasesContext, useCases.billingUseCases],",
+				"[billingUseCasesContext, contexts.billingContext.useCases],",
 			);
 			expect(file("src/ui/routes.ts")).toContain(
 				'route("invoice-lines/:invoiceLineId", "routes/invoice-line-detail.tsx"),',
@@ -750,9 +765,10 @@ describe.runIf(template)(
 			expect(
 				read("src/ui/context.ts").match(/export const billingUseCasesContext/g),
 			).toHaveLength(1);
-			expect(read("src/server.ts")).toContain(
-				'app.route("/api/v1/invoice-notes", invoiceNoteRoutesCreate(useCases.billingUseCases));',
-			);
+			const index = read("src/contexts/billing/index.ts");
+			expect(index).toContain("router: invoiceLineRoutesCreate(useCases)");
+			expect(index).toContain("router: invoiceNoteRoutesCreate(useCases)");
+			expect(index.match(/billingContextCreate = /g)).toHaveLength(1);
 		});
 
 		// One file or line that only each part brings. Imports do not count: the unused-imports pass
@@ -846,7 +862,16 @@ describe.runIf(template)(
 				'id: "billing-customer-reader"',
 			);
 			expect(shell("src/use-cases.ts")).toContain(
-				"billingCustomerReader: billingCustomerReaderCreate(customerUseCases)",
+				"billingCustomerReader: billingCustomerReaderCreate(customerContext.useCases)",
+			);
+			expect(shell("src/contexts/billing/index.ts")).toContain(
+				"\tupstream: BillingReaders;\n",
+			);
+			expect(shell("src/contexts/billing/index.ts")).toContain(
+				"billingPortsCreate(connections, upstream)",
+			);
+			expect(shell("src/contexts/billing/index.ts")).toContain(
+				'export type { BillingCustomerReader } from "./application/ports.ts";',
 			);
 			expect(
 				textOf(
@@ -878,26 +903,28 @@ describe.runIf(template)(
 			const [first = [], later = []] = step.steps;
 
 			expect(textOf(step.shell, "src/server.ts")).toContain(
-				"const useCases = domainsUseCasesCreate(connections);",
+				"const contexts = contextsCreate(connections);",
 			);
-			expect(textOf(first, "src/server.ts")).not.toContain(
-				"seedsRun(useCases)",
+			expect(textOf(step.shell, "src/worker.ts")).toContain(
+				"...Object.values(contextsCreate(connections)),",
 			);
-			expect(textOf(first, "src/server.ts")).not.toMatch(/^\s*useCases,$/m);
-			expect(textOf(first, "src/seed.ts")).not.toContain("devSeedActor");
-			expect(textOf(first, "src/worker.ts")).not.toContain(
-				"domainsUseCasesCreate(",
+			expect(textOf(first, "src/server.ts")).not.toMatch(/^\s*contexts,$/m);
+			expect(textOf(first, "src/seed.ts")).not.toContain(
+				"...invoiceLineScopes",
+			);
+			// Imports aside: the unused-imports pass drops them.
+			expect(textOf(first, "src/contexts/billing/index.ts")).not.toMatch(
+				/invoiceLineSeed\(|invoiceLineScheduleCreate\(|^\s*invoiceLineSchedule,/m,
 			);
 			expect(first.map((f) => f.path)).not.toContain("src/ui/routes/home.tsx");
 
-			expect(textOf(later, "src/server.ts")).toContain("seedsRun(useCases)");
-			expect(textOf(later, "src/server.ts")).toMatch(/^\s*useCases,$/m);
+			expect(textOf(later, "src/server.ts")).toMatch(/^\s*contexts,$/m);
 			expect(textOf(later, "src/seed.ts")).toContain("...invoiceNoteScopes");
-			expect(textOf(later, "src/worker.ts")).toContain(
-				"const useCases = domainsUseCasesCreate(connections);",
+			expect(textOf(later, "src/contexts/billing/index.ts")).toContain(
+				"invoiceNoteScheduleCreate(useCases),",
 			);
 			expect(textOf(later, "src/ui/context.ts")).toContain(
-				"useCases: DomainsUseCases",
+				"contexts: Contexts",
 			);
 			expect(textOf(later, "src/ui/routes.ts")).toContain(
 				'index("routes/home.tsx")',
@@ -967,12 +994,13 @@ describe.runIf(template)(
 					),
 				),
 			).toEqual([]);
-			const server = textOf(step.steps[0] ?? [], "src/server.ts");
-			expect(server).toContain(
-				"invoiceLineRoutesCreate(useCases.billingUseCases)",
+			const index = textOf(
+				step.steps[0] ?? [],
+				"src/contexts/billing/index.ts",
 			);
+			expect(index).toContain("router: invoiceLineRoutesCreate(useCases)");
 			// The import stays for the unused-imports pass to remove.
-			expect(server).not.toContain("invoiceLineLiveRoutesCreate(");
+			expect(index).not.toContain("invoiceLineLiveRoutesCreate(");
 		});
 	},
 );

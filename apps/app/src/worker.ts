@@ -7,10 +7,9 @@ import {
 	shutdownHandleCreate,
 } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
-import { fooScheduleCreate } from "#contexts/foo/adapters/inbound/index.ts";
 import { ENV } from "#env";
 import { connectionsOpen } from "./connections.ts";
-import { domainsUseCasesCreate } from "./use-cases.ts";
+import { type ContextMounts, contextsCreate } from "./use-cases.ts";
 
 let shutdown: ShutdownHandle | undefined;
 const connections = await connectionsOpen({ role: "worker" }).catch((error) => {
@@ -31,21 +30,19 @@ const health = healthServerCreate({
 	port: ENV.HEALTH_PORT,
 });
 
-// wiring: contexts-start
-const useCases = domainsUseCasesCreate(connections);
-// wiring: contexts-end
+// Every context, built in order; the Worker runs each one's handlers and schedules.
+const mounts: ContextMounts[] = [
+	// wiring: contexts-start
+	...Object.values(contextsCreate(connections)),
+	// wiring: contexts-end
+];
 
-await events.consumersStart([
-	// wiring: consumers
-]);
+await events.consumersStart(mounts.flatMap((m) => m.handlers));
 // Starts the Schedules migrate has synced; it changes none of them.
 await queueSchedulesStart({
 	env: ENV,
 	queue,
-	schedules: [
-		fooScheduleCreate(useCases.fooUseCases),
-		// wiring: schedules
-	],
+	schedules: mounts.flatMap((m) => m.schedules),
 });
 
 shutdown = shutdownHandleCreate({

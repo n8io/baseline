@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-list.tsx";
 import { connectionsOpen } from "../../connections.ts";
-import { domainsUseCasesCreate } from "../../use-cases.ts";
+import { contextsCreate } from "../../use-cases.ts";
 import { routeArgs, routerContextCreate } from "./router-test-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -11,7 +11,7 @@ const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = (actor: Actor | null = owner) => {
-	const useCases = domainsUseCasesCreate(connections).fooUseCases;
+	const useCases = contextsCreate(connections).fooContext.useCases;
 	const context = routerContextCreate(actor ?? undefined, [
 		[fooUseCasesContext, useCases],
 	]);

@@ -108,9 +108,10 @@ export const architectureSrcRead = async (
 const contextOf = (p: string): string | undefined =>
 	/^src\/contexts\/([^/]+)\//.exec(p)?.[1];
 const partsOf = (p: string): string[] => p.split("/").slice(3);
-// A layer is "root" (index.ts), "domain", "application", "adapters/inbound" or "adapters/outbound".
+// A layer is "interface" (index.ts, which builds the context from all the others), "root" (the
+// other files beside it), "domain", "application", "adapters/inbound" or "adapters/outbound".
 const layerOfParts = (parts: string[]): string | undefined => {
-	if (parts.length === 1) return "root";
+	if (parts.length === 1) return parts[0] === "index.ts" ? "interface" : "root";
 	return parts[0] === "adapters" && parts.length > 2
 		? `adapters/${parts[1]}`
 		: parts[0];
@@ -146,7 +147,8 @@ const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
 			: [];
 	});
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
-// Where Use cases are built: domainsUseCasesCreate, and any composition root that still does.
+// Where Use cases must not be built bare: contextsCreate and the composition roots (a context's
+// index.ts is checked too).
 const useCasesBuilders = [...roots, "src/use-cases.ts"];
 
 // One message per offending import: `check` returns the reason, or undefined when allowed.
@@ -337,8 +339,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			files,
 			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
 			check: ({ context, imp }) => {
-				return sameContextParts(imp, context)?.[0] === "adapters"
-					? "business code never imports adapters/; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let the composition roots wire the adapter"
+				const parts = sameContextParts(imp, context);
+				if (parts?.join("/") === "index.ts") {
+					return "business code never imports its context's index.ts, which imports every adapter (and so this file back); import the domain/ or application/ file itself";
+				}
+				return parts?.[0] === "adapters"
+					? "business code never imports adapters/; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
 					: undefined;
 			},
 		}),
@@ -365,16 +371,16 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (!parts) return undefined;
 				const layer = layerOfParts(parts);
 				if (layer === "adapters/outbound") {
-					return "adapters/inbound/ never imports adapters/outbound/; the composition roots pass use cases built on the adapters";
+					return "adapters/inbound/ never imports adapters/outbound/; index.ts passes it Use cases built on the adapters";
 				}
 				const allowed =
-					parts.join("/") === "index.ts" ||
+					layer === "root" ||
 					layer === "domain" ||
 					layer === "adapters/inbound" ||
 					(layer === "application" && imp.typeOnly);
 				return allowed
 					? undefined
-					: "adapters/inbound/ reaches the context only through its index.ts, domain/ and Use case types";
+					: "adapters/inbound/ imports from its context only domain/, the files beside index.ts and Use case types; index.ts builds the context from the adapters, so importing it is a cycle";
 			},
 		}),
 	],
@@ -406,14 +412,9 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			check: ({ imp }) => {
 				const target = contextOf(imp.target);
 				if (!target) return undefined;
-				const entry = partsOf(imp.target).join("/");
-				return [
-					"index.ts",
-					"adapters/inbound/index.ts",
-					"adapters/outbound/index.ts",
-				].includes(entry)
+				return partsOf(imp.target).join("/") === "index.ts"
 					? undefined
-					: `outside a context, import only src/contexts/${target}/index.ts, adapters/inbound/index.ts or adapters/outbound/index.ts; export what you need from one of them`;
+					: `outside a context, import only src/contexts/${target}/index.ts, its one interface: build it with ${camel(target)}ContextCreate, or export the Published language you need from it`;
 			},
 		}),
 
@@ -540,7 +541,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => contextOf(f.path) !== undefined,
 			check: ({ imp }) =>
 				imp.target.startsWith("src/bridges/")
-					? "no context imports a bridge; the composition roots pass the bridge in as the context's read port"
+					? "no context imports a bridge; src/use-cases.ts passes the bridge to <context>ContextCreate as its upstream"
 					: undefined,
 		});
 		return [...messages, ...contextImports];
@@ -564,7 +565,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>PortsCreate through src/use-cases.ts`,
+				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>ContextCreate through src/use-cases.ts`,
 		}),
 		...textCheck({
 			files,
@@ -758,20 +759,27 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 
 	A18: (files) => {
 		const contexts = contextsOf(files);
-		const server = files.find((f) => f.path === "src/server.ts");
-		const mounted = contexts
+		// Comments aside, so a commented-out context counts as missing.
+		const builder = (
+			files.find((f) => f.path === "src/use-cases.ts")?.source ?? ""
+		).replaceAll(/\/\/.*$/gm, "");
+		// The roots mount what contextsCreate returns, so a context built only for a Bridge is lost.
+		const returned = /return\s*\{([^}]*)\}/.exec(builder)?.[1] ?? "";
+		const unbuilt = contexts
 			.filter(
 				(d) =>
-					!server?.imports.some((imp) =>
-						imp.target.startsWith(`src/contexts/${d}/`),
-					),
+					!new RegExp(`\\b${camel(d)}ContextCreate\\(`).test(builder) ||
+					!new RegExp(`\\b${camel(d)}Context\\b`).test(returned),
 			)
 			.map(
 				(d) =>
-					`src/server.ts: never imports src/contexts/${d}; mount its routes there, with its use cases from src/use-cases.ts`,
+					`src/use-cases.ts: never builds and returns ${camel(d)}Context; build every context in contextsCreate with ${camel(d)}ContextCreate, after the contexts it reads, and return it`,
 			);
 		const unwrapped = files
-			.filter((f) => useCasesBuilders.includes(f.path))
+			.filter(
+				(f) =>
+					useCasesBuilders.includes(f.path) || layerOf(f.path) === "interface",
+			)
 			.flatMap((f) =>
 				contexts.flatMap((d) =>
 					[
@@ -787,7 +795,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					),
 				),
 			);
-		return [...mounted, ...unwrapped];
+		return [...unbuilt, ...unwrapped];
 	},
 
 	A19: (files) =>

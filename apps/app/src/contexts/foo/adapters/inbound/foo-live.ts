@@ -5,7 +5,9 @@ import {
 	httpRouterCreate,
 } from "@n8io/baseline-http";
 import { type LiveHub, liveStreamCreate } from "@n8io/baseline-live";
-import { FooGetInput, type FooUseCases, fooErrorStatus } from "../../index.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
+import { FooGetInput } from "../../domain/foo.ts";
+import { fooErrorStatus } from "../../foo-error-status.ts";
 
 // Live updates for one foo: the stream opens only if fooGet succeeds for the actor (cookie auth).
 export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>

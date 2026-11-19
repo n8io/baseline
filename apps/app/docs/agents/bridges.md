@@ -60,19 +60,19 @@ export const invoiceLineCustomerReaderCreate = (
 });
 ```
 
-Wire it once, in `domainsUseCasesCreate` in `src/use-cases.ts`. The Server, the Worker, the seed and page tests all build their Use cases there, so no Composition root names a Bridge:
+Wire it once, in `contextsCreate` in `src/use-cases.ts`: the reading context's interface takes its readers as `upstream`. The Server, the Worker, the seed and page tests all build their contexts there, so no Composition root names a Bridge:
 
 ```ts
 // src/use-cases.ts
-const invoiceLineUseCases = telemetryUseCasesTrace(
-	invoiceLineUseCasesCreate(
-		invoiceLinePortsCreate(connections, {
-			// Built after customer: this Bridge reads its Use cases.
-			invoiceLineCustomerReader:
-				invoiceLineCustomerReaderCreate(customerUseCases),
-		}),
-	),
-);
+const invoiceLineContext = invoiceLineContextCreate({
+	connections,
+	upstream: {
+		// Built after customer: this Bridge reads its Use cases.
+		invoiceLineCustomerReader: invoiceLineCustomerReaderCreate(
+			customerContext.useCases,
+		),
+	},
+});
 ```
 
 The reading Domain's tests use a memory fake of the reader, `<domain><Target>ReaderMemoryCreate`, exported from its `adapters/outbound/index.ts`. Its memory ports use it too:
@@ -95,7 +95,7 @@ The Bridge's own test runs it on the target Domain's Use cases over memory ports
 ```ts
 // src/bridges/invoice-line-customer-reader.test.ts
 it("reads a customer's name through customerGet", async () => {
-	const customer = domainsUseCasesCreate(connections).customerUseCases;
+	const customer = contextsCreate(connections).customerContext.useCases;
 	const created = await customer.customerCreate(owner, { name: "Acme" });
 	if (!created.ok) throw created.error;
 
@@ -105,7 +105,7 @@ it("reads a customer's name through customerGet", async () => {
 });
 ```
 
-- **Build order.** `domainsUseCasesCreate` builds a Domain after every Domain it reads. Two Domains never read each other: when they would, one of them reacts to the other's Event instead.
+- **Build order.** `contextsCreate` builds a Domain after every Domain it reads. Two Domains never read each other: when they would, one of them reacts to the other's Event instead.
 - **Lists.** A reader that needs every match calls the target's `*List` Use case page by page, passing `nextCursor` back until it is `null`, and returns one array. Keep such a read to lists that stay small; a large one is an Event-fed copy in the reading Domain.
 - **Between the read and the commit.** A Bridge reads before the reading Domain's transaction opens, so the target can change in between (the customer is deleted after the check). Pick one, and say which in the Use case's comment: accept it, because a Consumer of the target's `<entity>.deleted` Event cleans up; read again after commit and undo; or sweep with a Schedule.
 

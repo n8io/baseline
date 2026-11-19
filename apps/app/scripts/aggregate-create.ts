@@ -48,7 +48,6 @@ export const contextFilePaths = new Set(
 		"application/ports.ts",
 		"domain/errors.ts",
 		"domain/repositories.ts",
-		"adapters/inbound/index.ts",
 		"adapters/outbound/foo-ports.memory.ts",
 		"adapters/outbound/foo-transaction.memory.ts",
 		"adapters/outbound/foo-transaction.postgres.ts",
@@ -66,10 +65,10 @@ const barPathIs = (path: string): boolean =>
 export const barLineIs = (line: string): boolean =>
 	/\b(bar[A-Z]\w*|Bar[A-Za-z0-9]*|bars)\b|"bar"|\/bar[-.]/.test(line);
 
-// A foo that names the context, not the Foo Aggregate: its ports, transaction, Use cases, readers
-// and memory state, its Postgres schema, and the paths of its folder and its own files.
+// A foo that names the context, not the Foo Aggregate: its interface, ports, transaction, Use
+// cases, readers, Schedules list and memory state, its Postgres schema, and the paths of its folder and its own files.
 const contextFooPattern =
-	/\b(foo|Foo)(?=(?:Ports|PortsCreate|PortsMemoryCreate|Readers|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*Reader(?:MemoryCreate|Create|Actor)?)\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|(?<=bridges\/)foo(?=-)|\bfoo(?=-(?:use-cases|ports\.memory|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-reader(?:\.memory)?\.ts\b)/g;
+	/\b(foo|Foo)(?=(?:Context|ContextCreate|Ports|PortsCreate|PortsMemoryCreate|Readers|Schedules|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*Reader(?:MemoryCreate|Create|Actor)?)\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|(?<=bridges\/)foo(?=-)|\bfoo(?=-(?:use-cases|ports\.memory|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-reader(?:\.memory)?\.ts\b)/g;
 const contextPlaceholder = (text: string): string =>
 	text.replace(contextFooPattern, (foo) => (foo === "Foo" ? "Qqctx" : "qqctx"));
 
@@ -374,11 +373,11 @@ export const wiringPartOf = ({
 	path: string;
 }): AggregatePart | undefined => {
 	const name = /wiring: ([a-z-]+)/.exec(marker)?.[1];
-	if (name === "schedules") return "schedule";
-	if (path === "src/seed.ts" && (name === "seeds" || name === "scopes")) {
+	if (name === "schedules" || name === "schedule-definitions")
+		return "schedule";
+	if (name === "seeds" || (path === "src/seed.ts" && name === "scopes")) {
 		return "seed";
 	}
-	if (path === "src/server.ts" && name === "live") return "live";
 	if (path.startsWith("src/ui/")) return "pages";
 	return undefined;
 };
@@ -441,13 +440,11 @@ export const pairPartOf = ({
 	content: string;
 	path: string;
 }): AggregatePart | undefined => {
-	if (path === "src/seed.ts" || /\bseedsRun\b/.test(content)) return "seed";
 	if (path.startsWith("src/ui/")) return "pages";
 	// The Server's argument to uiLoadContextCreate.
-	if (path === "src/server.ts" && content.trim() === "useCases,") {
+	if (path === "src/server.ts" && content.trim() === "contexts,") {
 		return "pages";
 	}
-	if (path === "src/worker.ts") return "schedule";
 	return undefined;
 };
 
@@ -843,7 +840,7 @@ const bridgeTest = (t: Target): string =>
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../connections.ts";
-import { domainsUseCasesCreate } from "../use-cases.ts";
+import { contextsCreate } from "../use-cases.ts";
 import { foo${t.pascal}ReaderCreate } from "./foo-${t.kebab}-reader.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -852,7 +849,7 @@ const connections = await connectionsOpen({ role: "publisher" });
 
 describe("foo${t.pascal}ReaderCreate", () => {
 	it("reads ${article(t.words)}'s name through ${t.camel}Get", async () => {
-		const ${t.camel} = domainsUseCasesCreate(connections).${t.camel}UseCases;
+		const ${t.camel} = contextsCreate(connections).${t.camel}Context.useCases;
 		const created = await ${t.camel}.${t.camel}Create(owner, { name: "Acme" });
 		if (!created.ok) throw created.error;
 
@@ -862,7 +859,7 @@ describe("foo${t.pascal}ReaderCreate", () => {
 	});
 
 	it("answers undefined for ${article(t.words)} that does not exist", async () => {
-		const ${t.camel} = domainsUseCasesCreate(connections).${t.camel}UseCases;
+		const ${t.camel} = contextsCreate(connections).${t.camel}Context.useCases;
 
 		const reader = foo${t.pascal}ReaderCreate(${t.camel});
 
@@ -963,17 +960,51 @@ export const readsApply = ({
 						]),
 					}),
 				};
+			case "src/contexts/foo/index.ts": {
+				const upstreamTaken = text
+					.replace(
+						"({\n\tconnections,\n}: {\n\tconnections: Connections;\n})",
+						"({\n\tconnections,\n\tupstream,\n}: {\n\tconnections: Connections;\n\t// What the contexts it reads hand it, through their Bridges.\n\tupstream: FooReaders;\n})",
+					)
+					.replace(
+						"fooPortsCreate(connections)",
+						"fooPortsCreate(connections, upstream)",
+					);
+				if (!upstreamTaken.includes("upstream: FooReaders")) {
+					throw new Error(
+						`${path}: --reads cannot find the parameters of fooContextCreate`,
+					);
+				}
+				// Each Bridge implements its reader, so the interface exports the reader types.
+				return {
+					path,
+					text: linesAt({
+						text: importsAfter(upstreamTaken, [
+							'import type { FooReaders } from "./application/ports.ts";',
+						]),
+						path,
+						anchor: "// wiring: exports",
+						lines: [
+							`export type { ${targets.map((t) => `Foo${t.pascal}Reader`).join(", ")} } from "./application/ports.ts";`,
+						],
+					}),
+				};
+			}
 			case "src/use-cases.ts": {
-				const bridged = portsCreateCallsExtend({
-					text,
-					names: [],
-					argument: `{ ${targets
+				const bridged = text.replace(
+					"fooContextCreate({ connections })",
+					`fooContextCreate({\n\tconnections,\n\tupstream: { ${targets
 						.map(
 							(t) =>
-								`// Built after ${t.words}: this Bridge reads its Use cases.\n${field(t)}: foo${t.pascal}ReaderCreate(${t.camel}UseCases)`,
+								`// Built after ${t.words}: this Bridge reads its Use cases.\n${field(t)}: foo${t.pascal}ReaderCreate(${t.camel}Context.useCases)`,
 						)
-						.join(",\n")} }`,
-				});
+						.join(",\n")} },\n})`,
+				);
+				if (bridged === text) {
+					throw new Error(
+						`${path}: --reads cannot find the fooContextCreate({ connections }) call`,
+					);
+				}
 				return {
 					path,
 					text: linesAt({
@@ -981,7 +1012,7 @@ export const readsApply = ({
 						path,
 						after: true,
 						anchor:
-							'import { fooPortsCreate } from "#contexts/foo/adapters/outbound/index.ts";',
+							'import { fooContextCreate } from "#contexts/foo/index.ts";',
 						lines: targets.map(
 							(t) =>
 								`import { foo${t.pascal}ReaderCreate } from "#bridges/foo-${t.kebab}-reader.ts";`,

@@ -62,8 +62,8 @@ One context per business area, one Aggregate per entity in it (see context-creat
 | Port implementations, tables, contract tests      | `adapters/outbound/`              |
 | A unit test of one file, beside it                | `<file>.test.ts`                  |
 
-- Outside code imports only `index.ts` and `adapters/*/index.ts`.
-- The Domain never imports `adapters/`. Composition roots wire them.
+- Outside code imports only `index.ts`, the context's one interface (A5).
+- `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
 - Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
 - Name things generic to specific: the scope, then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
   - An exported name never starts with a verb.

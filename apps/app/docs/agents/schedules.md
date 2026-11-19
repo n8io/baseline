@@ -34,9 +34,9 @@ export const bazScheduleCreate = (u: BazUseCases) =>
 
 `pnpm aggregate-create` wires a new Aggregate's first Schedule. For another one, add the same four things by hand:
 
-1. Export the pair from the Domain's `adapters/inbound/index.ts`, inside its `piece-start: queue` block.
-2. Add `bazSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// wiring: schedules`.
-3. Add `bazScheduleCreate(useCases.bazUseCases),` to the `schedules` list that `src/worker.ts` passes to `queueSchedulesStart`, above the same marker.
+1. Import the pair in the context's `index.ts`.
+2. Add `bazSchedule,` to its `<context>Schedules` list, above `// wiring: schedule-definitions`: `src/migrate.ts` syncs that list.
+3. Add `bazScheduleCreate(useCases),` to the `schedules` list `<context>ContextCreate` returns, above `// wiring: schedules`: the Worker starts every context's list.
 4. Declare its override in `.env.schema`, above `# wiring: schedules`, with the decorator line, or boot fails while it is unset:
 
 ```text

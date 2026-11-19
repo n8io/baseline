@@ -7,13 +7,10 @@ import {
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
-import {
-	Foo,
-	type FooError,
-	FooListInput,
-	type FooUseCases,
-	fooErrorStatus,
-} from "../../index.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
+import type { FooError } from "../../domain/errors.ts";
+import { Foo, FooListInput } from "../../domain/foo.ts";
+import { fooErrorStatus } from "../../foo-error-status.ts";
 
 // The route table is the API's view of the Domain's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;

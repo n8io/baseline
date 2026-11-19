@@ -4,7 +4,7 @@ Read when adding a Consumer, an Event or a repository. A Domain that reads anoth
 
 ## Consumer with the inbox
 
-A Consumer lives in the reacting Domain's `adapters/inbound/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// wiring: consumers`.
+A Consumer lives in the reacting Domain's `adapters/inbound/`, one file per Event. The context's `index.ts` lists it in `handlers`, at `// wiring: handlers`: `server.ts` subscribes every context's handlers and only `worker.ts` runs them. Read the other context's schemas inside the `…HandlerCreate` function, never at the top of the file: two contexts that handle each other's Events import each other's `index.ts`, and a top-level read of a binding still in that cycle throws.
 
 ```ts
 // src/contexts/billing/adapters/inbound/billing-order-placed-handler.ts

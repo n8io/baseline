@@ -6,7 +6,10 @@ import {
 	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
-import { Bar, Foo, type FooUseCases, fooErrorStatus } from "../../index.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
+import { Bar } from "../../domain/bar.ts";
+import { Foo } from "../../domain/foo.ts";
+import { fooErrorStatus } from "../../foo-error-status.ts";
 
 // The API's own schemas: models carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const BarResponse = z
