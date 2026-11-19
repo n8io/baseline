@@ -17,7 +17,7 @@ export type ContextMounts = {
 
 // Builds every bounded context from the connections a composition root opened, each after the
 // contexts it reads (its upstream). The Server, the Worker, the seed and tests all call
-// contextsCreate, so each context is built once and the same way (docs/agents/bridges.md).
+// contextsCreate, so each context is built once and the same way (docs/agents/acl.md).
 // wiring: contexts-start
 export const contextsCreate = (connections: Connections) => {
 	const fooContext = fooContextCreate({ connections });

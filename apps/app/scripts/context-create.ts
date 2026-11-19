@@ -1,8 +1,8 @@
 // pnpm context-create <context> [--reads <context>]...: makes a bounded context with no Aggregate
 // yet: the context's own files from the Template's foo, renamed, without Foo's or Bar's lines, its
 // CONTEXT.md with the subdomain type CONTEXT-MAP.md gives it, and its wiring into the composition
-// roots. It refuses a context the map does not list. --reads adds a reader port and its
-// Bridge. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
+// roots. It refuses a context the map does not list. --reads adds an anti-corruption layer (ACL)
+// over another context. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -88,7 +88,7 @@ What the ${context.replaceAll("-", " ")} context does and the Aggregates it hold
 `;
 
 // The files a new context adds or changes, from the template's files and the project's. `reads`
-// names the contexts it reads through Bridges.
+// names the contexts it reads through ACLs.
 export const contextFilesCreate = ({
 	appDirectory,
 	context,
@@ -206,7 +206,7 @@ export const contextNextStepsText = ({
 		`  2. pnpm aggregate-create ${context} <aggregate> adds its first Aggregate (often ${context} itself); pnpm check passes once it has one.`,
 		...reads.map(
 			(target, k) =>
-				`  ${k + 3}. Read what ${context} needs from ${target} in src/bridges/${context}-${target}-reader.ts and its port in src/contexts/${context}/application/ports.ts, and add "| ${context} | ${target} | ACL |" under ## Relationships in CONTEXT-MAP.md.`,
+				`  ${k + 3}. Read what ${context} needs from ${target} in src/contexts/${context}/adapters/outbound/${context}-${target}-acl.ts and its type in application/ports.ts, and add "| ${context} | ${target} | ACL |" under ## Relationships in CONTEXT-MAP.md.`,
 		),
 	].join("\n");
 
@@ -217,8 +217,8 @@ its interface, ports, transaction, Use cases and adapters' entries, its CONTEXT.
 wiring into the composition roots. Add <context>'s row to CONTEXT-MAP.md first, then add each
 Aggregate's term to its CONTEXT.md and the Aggregate with pnpm aggregate-create.
 
-  --reads <context>  reads <context> through a Bridge: a reader port, its memory fake and
-                     src/bridges/<context>-<other>-reader.ts. Repeat it for more.
+  --reads <context>  reads <context> through an anti-corruption layer:
+                     adapters/outbound/<context>-<upstream>-acl.ts. Repeat it for more.
   -h, --help         this help
 
 See docs/agents/context-create.md.`;

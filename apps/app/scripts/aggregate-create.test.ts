@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	type AggregatePart,
+	aclPath,
 	aggregateFilesCreate,
 	aggregateLineIs,
 	aggregateParts,
@@ -433,11 +434,10 @@ describe("readsRefusal and contextReadsFind", () => {
 	it("refuses a target that is missing, itself, named twice or already reading the new context", () => {
 		using folder = appCreate("**Billing**:\nA context.\n");
 		const app = folder.path;
-		mkdirSync(join(app, "src/contexts/customer/application"), {
+		mkdirSync(join(app, "src/contexts/customer/adapters/outbound"), {
 			recursive: true,
 		});
-		const ports = join(app, "src/contexts/customer/application/ports.ts");
-		writeFileSync(ports, "export type CustomerPorts = {};\n");
+		writeFileSync(join(app, "src/contexts/customer/index.ts"), "");
 		const refusal = (reads: string[]) =>
 			readsRefusal({ appDirectory: app, names: billing, reads });
 
@@ -447,20 +447,26 @@ describe("readsRefusal and contextReadsFind", () => {
 		expect(refusal(["foo"])).toContain("contains foo");
 		expect(refusal(["../customer"])).toContain("is not kebab-case");
 		expect(refusal(["customer", "customer"])).toContain("twice");
-		writeFileSync(ports, "export type CustomerBillingReader = {};\n");
+		writeFileSync(
+			join(app, aclPath({ context: "customer", upstream: "billing" })),
+			"",
+		);
 		expect(refusal(["customer"])).toContain("customer already reads billing");
 	});
 
-	it("reads back the contexts a context's ports read", () => {
+	it("reads back the contexts a context reads from its ACL files", () => {
 		using folder = appCreate("");
 		const app = folder.path;
-		mkdirSync(join(app, "src/contexts/billing/application"), {
-			recursive: true,
-		});
-		writeFileSync(
-			join(app, "src/contexts/billing/application/ports.ts"),
-			'export type BillingReaders = Pick<\n\tBillingPorts,\n\t"billingCustomerReader" | "billingInvoiceLineReader"\n>;\n',
-		);
+		const outbound = join(app, "src/contexts/billing/adapters/outbound");
+		mkdirSync(outbound, { recursive: true });
+		for (const name of [
+			"billing-invoice-line-acl.ts",
+			"billing-customer-acl.ts",
+			"billing-customer-acl.test.ts",
+			"billing-repository.memory.ts",
+		]) {
+			writeFileSync(join(outbound, name), "");
+		}
 
 		expect(contextReadsFind({ appDirectory: app, context: "billing" })).toEqual(
 			["customer", "invoice-line"],
@@ -586,13 +592,8 @@ const projectBuild = ({
 		);
 	}
 	for (const target of reads) {
-		mkdirSync(join(app, "src/contexts", target, "application"), {
-			recursive: true,
-		});
-		writeFileSync(
-			join(app, "src/contexts", target, "application/ports.ts"),
-			"",
-		);
+		mkdirSync(join(app, "src/contexts", target), { recursive: true });
+		writeFileSync(join(app, "src/contexts", target, "index.ts"), "");
 	}
 	const shell = contextFilesCreate({
 		appDirectory: app,
@@ -839,44 +840,68 @@ describe.runIf(template)(
 			expect(step.steps[0]).toEqual(files);
 		});
 
-		it("writes the reader, its fake, the Bridge and its wiring for --reads, and passes the readers to a later Aggregate's tests", () => {
+		it("writes the ACL, its test and its wiring for --reads, and passes the upstream to a later Aggregate's tests", () => {
 			const step = projectBuild({
 				aggregates: [{ names, parts: [] }],
 				reads: ["customer"],
 			});
 			using _folder = step.folder;
 			const shell = (path: string) => textOf(step.shell, path);
+			const outbound = "src/contexts/billing/adapters/outbound";
 
 			expect(shell("src/contexts/billing/application/ports.ts")).toContain(
-				'export type BillingReaders = Pick<BillingPorts, "billingCustomerReader">;',
+				"\tbillingCustomerAcl: BillingCustomerAcl;\n",
 			);
-			expect(
-				shell("src/contexts/billing/adapters/outbound/index.ts"),
-			).toContain("\treaders: BillingReaders,\n): BillingPorts =>");
-			expect(
-				shell("src/contexts/billing/adapters/outbound/index.ts"),
-			).toContain(
-				'export { billingCustomerReaderMemoryCreate } from "./billing-customer-reader.memory.ts";',
+			expect(shell(`${outbound}/index.ts`)).toContain(
+				"\tupstream: BillingUpstream,\n): BillingPorts =>",
 			);
-			expect(shell("src/bridges/billing-customer-reader.ts")).toContain(
-				'id: "billing-customer-reader"',
+			expect(shell(`${outbound}/index.ts`)).toContain(
+				"export type BillingUpstream = { customer: BillingCustomerUpstream };",
 			);
-			expect(shell("src/use-cases.ts")).toContain(
-				"billingCustomerReader: billingCustomerReaderCreate(customerContext.useCases)",
+			expect(shell(`${outbound}/index.ts`)).toContain(
+				"billingCustomerAcl: billingCustomerAclCreate(upstream.customer),",
+			);
+			expect(shell(`${outbound}/billing-ports.memory.ts`)).toContain(
+				"export const billingPortsMemoryCreate = (upstream: BillingUpstream) => {",
+			);
+			expect(shell(`${outbound}/billing-customer-acl.ts`)).toContain(
+				'import type { CustomerContext } from "#contexts/customer/index.ts";',
+			);
+			expect(shell(`${outbound}/billing-customer-acl.ts`)).toContain(
+				'id: "billing-customer-acl"',
+			);
+			expect(shell(`${outbound}/billing-customer-acl.test.ts`)).toContain(
+				"billingCustomerAclCreate(customer)",
+			);
+			expect(shell(`${outbound}/billing-test-upstream.ts`)).toContain(
+				"return { customer: contexts.customerContext };",
+			);
+			expect(shell("src/use-cases.ts")).toMatch(
+				/upstream: \{\s*\/\/ Built after customer: it reads customer through an ACL\.\s*customer: customerContext\s*\}/,
 			);
 			expect(shell("src/contexts/billing/index.ts")).toContain(
-				"\tupstream: BillingReaders;\n",
+				"\tupstream: BillingUpstream;\n",
 			);
 			expect(shell("src/contexts/billing/index.ts")).toContain(
 				"billingPortsCreate(connections, upstream)",
 			);
-			expect(shell("src/contexts/billing/index.ts")).toContain(
-				'export type { BillingCustomerReader } from "./application/ports.ts";',
+			expect(step.shell.map((f) => f.path)).not.toContainEqual(
+				expect.stringMatching(/^src\/bridges\//),
 			);
-			// Every call of the ports factory passes the readers, so none is left with one argument.
+			const later = textOf(
+				step.steps[0] ?? [],
+				`${outbound}/invoice-line-repository.memory.test.ts`,
+			);
+			expect(later).toContain(
+				"const upstream = await billingTestUpstreamCreate();",
+			);
+			expect(later).toContain("billingPortsMemoryCreate(upstream)");
+			// Every call of the ports factories passes the upstream, so none is left without it.
 			expect(
-				[...step.shell, ...(step.steps[0] ?? [])].filter((f) =>
-					/billingPortsCreate\((connections|\{[^}]*\})\)/.test(f.text),
+				[...step.shell, ...(step.steps[0] ?? [])].filter(
+					(f) =>
+						/billingPortsCreate\((connections|\{[^}]*\})\)/.test(f.text) ||
+						f.text.includes("billingPortsMemoryCreate()"),
 				),
 			).toEqual([]);
 		});

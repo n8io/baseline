@@ -1,4 +1,4 @@
-# A starter app with the layout and patterns a project made from baseline uses. Its one bounded context, foo, shows the patterns inside a context; Event handlers and anti-corruption layers are shown in `docs/agents/events.md` and `docs/agents/bridges.md`.
+# A starter app with the layout and patterns a project made from baseline uses. Its one bounded context, foo, shows the patterns inside a context; Event handlers and anti-corruption layers are shown in `docs/agents/events.md` and `docs/agents/acl.md`.
 
 ## Architecture
 
@@ -62,7 +62,7 @@ A place where behaviour can change without editing that place: where a module's 
 A concrete thing that satisfies an interface at a seam, named for the slot it fills, not for what is inside it.
 
 **Port**:
-The interface at a seam: what a bounded context declares it needs from outside, such as saving an Aggregate or caching. A port stays only where two adapters exist, a production one and a memory one. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
+The interface at a seam: what a bounded context declares it needs from outside, such as saving an Aggregate or caching. A port stays only where two adapters exist, a production one and a memory one; an anti-corruption layer's slot, filled in process by the real upstream, is the one exception. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
 _Avoid_: contract, gateway
 
 **Repository**:
@@ -115,7 +115,7 @@ The record that an Event handler handled a Domain event, written in the same tra
 _Avoid_: dedupe table, processed events
 
 **Anti-corruption layer**:
-A translation inside a downstream bounded context that reads an upstream context through the upstream's interface and turns what it returns into the downstream's own terms, in `adapters/outbound/<context>-<upstream>-acl.ts`. It runs in process, with no reader port or memory fake: its tests run the real upstream on memory adapters. Short form: ACL.
+A translation inside a downstream bounded context that reads an upstream context through the upstream's interface and turns what it returns into the downstream's own terms, in `adapters/outbound/<context>-<upstream>-acl.ts`. It runs in process: the context's ports name what it reads in its own terms (`<context><Upstream>Acl`), the ACL is their only adapter, and no memory fake stands in for the upstream: tests run the real upstream on memory adapters. Short form: ACL.
 _Avoid_: Bridge, integration, connector, facade
 
 **Saga**:

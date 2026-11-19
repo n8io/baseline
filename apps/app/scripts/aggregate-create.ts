@@ -10,7 +10,7 @@ import {
 	readFileSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import {
 	camelFromKebab,
@@ -66,9 +66,9 @@ export const barLineIs = (line: string): boolean =>
 	/\b(bar[A-Z]\w*|Bar[A-Za-z0-9]*|bars)\b|"bar"|\/bar[-.]/.test(line);
 
 // A foo that names the context, not the Foo Aggregate: its interface, ports, transaction, Use
-// cases, readers, Schedules list and memory state, its Postgres schema, and the paths of its folder and its own files.
+// cases, ACLs and upstream, Schedules list and memory state, its Postgres schema, and the paths of its folder and its own files.
 const contextFooPattern =
-	/\b(foo|Foo)(?=(?:Context|ContextCreate|Ports|PortsCreate|PortsMemoryCreate|Readers|Schedules|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*Reader(?:MemoryCreate|Create|Actor)?)\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|(?<=bridges\/)foo(?=-)|\bfoo(?=-(?:use-cases|ports\.memory|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-reader(?:\.memory)?\.ts\b)/g;
+	/\b(foo|Foo)(?=(?:Context|ContextCreate|Ports|PortsCreate|PortsMemoryCreate|Upstream|TestUpstreamCreate|Schedules|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*(?:Acl(?:Create|Actor)?|Upstream))\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|\bfoo(?=-(?:use-cases|ports\.memory|test-upstream|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-acl(?:\.test)?\.ts\b)/g;
 const contextPlaceholder = (text: string): string =>
 	text.replace(contextFooPattern, (foo) => (foo === "Foo" ? "Qqctx" : "qqctx"));
 
@@ -664,9 +664,9 @@ export const wiringInsert = ({
 };
 
 // ---------------------------------------------------------------------------
-// --reads: a reader port, its memory fake and its Bridge, written in foo's names before the rename.
-// The port belongs to the context, so context-create writes it; aggregate-create passes the
-// context's readers to the fooPortsCreate calls in the Aggregate's tests.
+// --reads: an anti-corruption layer (ACL) per upstream context, written in foo's names before the
+// rename. The ACL belongs to the context, so context-create writes it; aggregate-create passes the
+// context's upstream to the ports calls in the Aggregate's tests.
 
 type Target = {
 	camel: string;
@@ -687,6 +687,16 @@ const targetNames = (kebab: string): Target => ({
 const article = (words: string): string =>
 	/^[aeiou]/.test(words) ? `an ${words}` : `a ${words}`;
 
+// The ACL a context reads an upstream through: src/contexts/<context>/adapters/outbound/<context>-<upstream>-acl.ts.
+export const aclPath = ({
+	context,
+	upstream,
+}: {
+	context: string;
+	upstream: string;
+}): string =>
+	`src/contexts/${context}/adapters/outbound/${context}-${upstream}-acl.ts`;
+
 // The reason a --reads target is refused, or undefined when it is fine.
 export const readsRefusal = ({
 	appDirectory,
@@ -703,17 +713,14 @@ export const readsRefusal = ({
 		if (kebab === names.kebab) return `${kebab} cannot read itself`;
 		// The Template's own context is renamed with the copy, so it cannot be a target.
 		if (kebab.includes("foo")) return `--reads ${kebab}: contains foo`;
-		const ports = join(
-			appDirectory,
-			"src/contexts",
-			kebab,
-			"application/ports.ts",
-		);
-		if (!existsSync(ports))
+		if (!existsSync(join(appDirectory, "src/contexts", kebab, "index.ts")))
 			return `--reads ${kebab}: no src/contexts/${kebab}/`;
-		const back = `${pascalFromKebab(kebab)}${pascalFromKebab(names.kebab)}Reader`;
-		if (readFileSync(ports, "utf8").includes(back)) {
-			return `--reads ${kebab}: ${kebab} already reads ${names.kebab}; two contexts never read each other, so one reacts to the other's Events`;
+		if (
+			existsSync(
+				join(appDirectory, aclPath({ context: kebab, upstream: names.kebab })),
+			)
+		) {
+			return `--reads ${kebab}: ${kebab} already reads ${names.kebab}; two contexts never read each other, so one reacts to the other's Domain events`;
 		}
 	}
 	if (new Set(reads).size !== reads.length)
@@ -750,84 +757,107 @@ const importsAfter = (text: string, imports: string[]): string => {
 	return lines.join("\n");
 };
 
-// Adds `argument` as the last argument of every fooPortsCreate(...) call, and `names` to the
-// import that brings fooPortsCreate in.
-const portsCreateCallsExtend = ({
-	argument,
-	names,
-	text,
-}: {
-	argument: string;
-	names: string[];
-	text: string;
-}): string => {
-	const call = "fooPortsCreate(";
-	let out = "";
-	let from = 0;
-	for (let at = text.indexOf(call); at !== -1; at = text.indexOf(call, from)) {
-		let depth = 1;
-		let k = at + call.length;
-		while (depth > 0 && k < text.length) {
-			if (text[k] === "(") depth++;
-			if (text[k] === ")") depth--;
-			k++;
+// The calls that build foo's ports or foo itself, which a context that reads needs its upstream
+// for: fooPortsMemoryCreate() gets it as its argument, fooPortsCreate(connections) as its second,
+// and fooContextCreate({ connections }) as a field.
+const upstreamCallsExtend = (text: string): string => {
+	let out = text;
+	for (const call of [
+		"fooPortsMemoryCreate(",
+		"fooPortsCreate(",
+		"fooContextCreate(",
+	]) {
+		let next = "";
+		let from = 0;
+		for (let at = out.indexOf(call); at !== -1; at = out.indexOf(call, from)) {
+			// A call a comment names is no call.
+			const lineStart = out.lastIndexOf("\n", at) + 1;
+			if (out.slice(lineStart, at).trimStart().startsWith("//")) {
+				next += out.slice(from, at + call.length);
+				from = at + call.length;
+				continue;
+			}
+			let depth = 1;
+			let k = at + call.length;
+			while (depth > 0 && k < out.length) {
+				if (out[k] === "(") depth++;
+				if (out[k] === ")") depth--;
+				k++;
+			}
+			const inside = out.slice(at + call.length, k - 1).replace(/,\s*$/, "");
+			const extended =
+				call === "fooContextCreate("
+					? inside.replace(/,?\s*\}\s*$/, ", upstream }")
+					: inside.trim() === ""
+						? "upstream"
+						: `${inside}, upstream`;
+			next += `${out.slice(from, at)}${call}${extended})`;
+			from = k;
 		}
-		const inside = text.slice(at + call.length, k - 1).replace(/,\s*$/, "");
-		out += `${text.slice(from, at)}${call}${inside}, ${argument})`;
-		from = k;
+		out = next + out.slice(from);
 	}
-	out += text.slice(from);
-	return names.length === 0
-		? out
-		: out.replace(
-				/^import \{([^}]*\bfooPortsCreate\b[^}]*)\}/m,
-				(_, list: string) =>
-					`import { ${[list.trim().replace(/,$/, ""), ...names].join(", ")} }`,
-			);
+	return out;
 };
 
-const readerPort = (t: Target): string[] => [
-	`// What the context reads about ${article(t.words)}. The Bridge in`,
-	`// src/bridges/foo-${t.kebab}-reader.ts fills it from the ${t.words} context.`,
-	`export type Foo${t.pascal}Reader = {`,
+// A test that builds foo's ports or foo itself builds foo's upstream once, for real on memory.
+// The file shares it: Foo's tests never write upstream rows, and a test that does builds its own.
+const upstreamTestBuild = ({
+	path,
+	text,
+}: {
+	path: string;
+	text: string;
+}): string => {
+	const helper = relative(
+		dirname(path),
+		"src/contexts/foo/adapters/outbound/foo-test-upstream.ts",
+	);
+	const specifier = helper.startsWith(".") ? helper : `./${helper}`;
+	return linesAt({
+		text: importsAfter(upstreamCallsExtend(text), [
+			`import { fooTestUpstreamCreate } from "${specifier}";`,
+		]),
+		path,
+		after: true,
+		anchor: `import { fooTestUpstreamCreate } from "${specifier}";`,
+		lines: [
+			"",
+			"// The contexts this context reads, built for real on memory adapters.",
+			"const upstream = await fooTestUpstreamCreate();",
+		],
+	});
+};
+
+const aclPort = (t: Target): string[] => [
+	`// What the context reads about ${article(t.words)}, in its own terms: the anti-corruption layer in`,
+	`// adapters/outbound/foo-${t.kebab}-acl.ts fills it from the ${t.words} context.`,
+	`export type Foo${t.pascal}Acl = {`,
 	`\tget(id: Id<"${t.snake}">): Promise<{ name: string } | undefined>;`,
 	"};",
 	"",
 ];
 
-const readerMemory = (t: Target): string =>
-	`import type { Id } from "@n8io/baseline-id";
-import type { Foo${t.pascal}Reader } from "../../application/ports.ts";
-
-// The ${t.words} reader's fake for tests: it knows only the entries it is given.
-export const foo${t.pascal}ReaderMemoryCreate = (
-	entries: { id: Id<"${t.snake}">; name: string }[] = [],
-): Foo${t.pascal}Reader => ({
-	get: async (id) => {
-		const entry = entries.find((e) => e.id === id);
-		return entry === undefined ? undefined : { name: entry.name };
-	},
-});
-`;
-
-const bridge = (t: Target): string =>
+const acl = (t: Target): string =>
 	`import type { Actor } from "@n8io/baseline-authn";
-import type { ${t.pascal}UseCases } from "#contexts/${t.kebab}/index.ts";
-import type { Foo${t.pascal}Reader } from "#contexts/foo/index.ts";
+import type { ${t.pascal}Context } from "#contexts/${t.kebab}/index.ts";
+import type { Foo${t.pascal}Acl } from "../../application/ports.ts";
 
-// The Bridge's own machine Actor: it only reads, so it holds no scope.
-const foo${t.pascal}ReaderActor: Actor = {
-	id: "foo-${t.kebab}-reader",
+// What the ACL uses of the ${t.words} context's interface.
+export type Foo${t.pascal}Upstream = Pick<${t.pascal}Context, "useCases">;
+
+// The ACL's own machine Actor: it only reads, so it holds no scope.
+const foo${t.pascal}AclActor: Actor = {
+	id: "foo-${t.kebab}-acl",
 	kind: "client",
 	scopes: [],
 };
 
-// The only file that knows both contexts: foo reads ${article(t.words)} through ${t.camel}Get.
-export const foo${t.pascal}ReaderCreate = (
-	${t.camel}: Pick<${t.pascal}UseCases, "${t.camel}Get">,
-): Foo${t.pascal}Reader => ({
+// Reads ${article(t.words)} through ${t.camel}Get and keeps only what foo needs of it.
+export const foo${t.pascal}AclCreate = ({
+	useCases,
+}: Foo${t.pascal}Upstream): Foo${t.pascal}Acl => ({
 	get: async (id) => {
-		const r = await ${t.camel}.${t.camel}Get(foo${t.pascal}ReaderActor, {
+		const r = await useCases.${t.camel}Get(foo${t.pascal}AclActor, {
 			${t.camel}Id: id,
 		});
 		return r.ok ? { name: r.value.name } : undefined;
@@ -835,37 +865,50 @@ export const foo${t.pascal}ReaderCreate = (
 });
 `;
 
-const bridgeTest = (t: Target): string =>
+const aclTest = (t: Target): string =>
 	`import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
-import { connectionsOpen } from "../connections.ts";
-import { contextsCreate } from "../use-cases.ts";
-import { foo${t.pascal}ReaderCreate } from "./foo-${t.kebab}-reader.ts";
+import { foo${t.pascal}AclCreate } from "./foo-${t.kebab}-acl.ts";
+import { fooTestUpstreamCreate } from "./foo-test-upstream.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
-// Tests run on a memory database, so these are the ${t.words} context's memory ports.
-const connections = await connectionsOpen({ role: "publisher" });
 
-describe("foo${t.pascal}ReaderCreate", () => {
+describe("foo${t.pascal}AclCreate", () => {
 	it("reads ${article(t.words)}'s name through ${t.camel}Get", async () => {
-		const ${t.camel} = contextsCreate(connections).${t.camel}Context.useCases;
-		const created = await ${t.camel}.${t.camel}Create(owner, { name: "Acme" });
+		const { ${t.camel} } = await fooTestUpstreamCreate();
+		const created = await ${t.camel}.useCases.${t.camel}Create(owner, { name: "Acme" });
 		if (!created.ok) throw created.error;
 
-		const reader = foo${t.pascal}ReaderCreate(${t.camel});
+		const acl = foo${t.pascal}AclCreate(${t.camel});
 
-		expect(await reader.get(created.value.id)).toEqual({ name: "Acme" });
+		expect(await acl.get(created.value.id)).toEqual({ name: "Acme" });
 	});
 
 	it("answers undefined for ${article(t.words)} that does not exist", async () => {
-		const ${t.camel} = contextsCreate(connections).${t.camel}Context.useCases;
+		const acl = foo${t.pascal}AclCreate((await fooTestUpstreamCreate()).${t.camel});
 
-		const reader = foo${t.pascal}ReaderCreate(${t.camel});
-
-		expect(await reader.get(idCreate("${t.snake}"))).toBeUndefined();
+		expect(await acl.get(idCreate("${t.snake}"))).toBeUndefined();
 	});
 });
+`;
+
+const upstreamTest = (targets: Target[]): string =>
+	`import { connectionsOpen } from "../../../../connections.ts";
+import { contextsCreate } from "../../../../use-cases.ts";
+import type { FooUpstream } from "./index.ts";
+
+// The contexts this context reads, built for real on memory adapters, for tests: no fake
+// stands in for an upstream. Each call builds them afresh, with nothing in them.
+export const fooTestUpstreamCreate = async (): Promise<FooUpstream> => {
+	const contexts = contextsCreate(
+		await connectionsOpen({
+			role: "publisher",
+			urls: { cache: "memory://", database: "memory://" },
+		}),
+	);
+	return { ${targets.map((t) => `${t.camel}: contexts.${t.camel}Context`).join(", ")} };
+};
 `;
 
 // Foo's files, and src/use-cases.ts, as a foo that reads each target would have them: still in
@@ -879,10 +922,7 @@ export const readsApply = ({
 }): TemplateFile[] => {
 	const targets = reads.map(targetNames);
 	if (targets.length === 0) return files;
-	const field = (t: Target) => `foo${t.pascal}Reader`;
-	const memoryName = (t: Target) => `foo${t.pascal}ReaderMemoryCreate`;
-	const memoryPath = (t: Target) => `./foo-${t.kebab}-reader.memory.ts`;
-	const readersMemory = `{ ${targets.map((t) => `${field(t)}: ${memoryName(t)}()`).join(", ")} }`;
+	const field = (t: Target) => `foo${t.pascal}Acl`;
 	const changed = files.map(({ path, text }): TemplateFile => {
 		switch (path) {
 			case "src/contexts/foo/application/ports.ts": {
@@ -890,160 +930,161 @@ export const readsApply = ({
 					text,
 					path,
 					anchor: "export type FooPorts = {",
-					lines: targets.flatMap(readerPort),
+					lines: targets.flatMap(aclPort),
 				});
-				const withFields = linesAt({
-					text: withTypes,
-					path,
-					anchor:
-						"\t// Every Use case reads the time here, never from new Date().",
-					lines: targets.map((t) => `\t${field(t)}: Foo${t.pascal}Reader;`),
-				});
-				const picked = targets.map((t) => `"${field(t)}"`).join(" | ");
 				return {
 					path,
-					text: `${withFields.trimEnd()}\n\n// The ports Bridges fill: the second argument of fooPortsCreate.\nexport type FooReaders = Pick<FooPorts, ${picked}>;\n`,
+					text: linesAt({
+						text: withTypes,
+						path,
+						anchor:
+							"\t// Every Use case reads the time here, never from new Date().",
+						lines: targets.map((t) => `\t${field(t)}: Foo${t.pascal}Acl;`),
+					}),
 				};
 			}
 			case "src/contexts/foo/adapters/outbound/index.ts": {
 				const typed = text
 					.replace(
-						'import type { FooPorts } from "../../application/ports.ts";',
-						'import type { FooPorts, FooReaders } from "../../application/ports.ts";',
-					)
-					.replace(
 						"(connections: Connections): FooPorts =>",
-						"(\n\tconnections: Connections,\n\treaders: FooReaders,\n): FooPorts =>",
+						"(\n\tconnections: Connections,\n\tupstream: FooUpstream,\n): FooPorts =>",
 					)
 					.replace(
-						'// "memory". Composition roots own every connection.',
-						'// "memory". Composition roots own every connection. The readers come from Bridges, built in\n// src/use-cases.ts.',
+						"fooPortsMemoryCreate().ports",
+						"fooPortsMemoryCreate(upstream).ports",
 					);
-				if (!typed.includes("readers: FooReaders")) {
+				if (
+					!typed.includes("upstream: FooUpstream") ||
+					!typed.includes("fooPortsMemoryCreate(upstream).ports")
+				) {
 					throw new Error(
 						`${path}: --reads cannot find fooPortsCreate's signature`,
 					);
 				}
-				const exported = importsAfter(typed, [
-					"",
-					...targets.map(
-						(t) => `export { ${memoryName(t)} } from "${memoryPath(t)}";`,
+				const imported = importsAfter(
+					typed,
+					targets.map(
+						(t) =>
+							`import { type Foo${t.pascal}Upstream, foo${t.pascal}AclCreate } from "./foo-${t.kebab}-acl.ts";`,
 					),
-				]);
+				);
+				const declared = linesAt({
+					text: imported,
+					path,
+					anchor:
+						"// Picks each port's adapter from the connections the composition root opened: a real one, or",
+					lines: [
+						"// The contexts this context reads, built before it in src/use-cases.ts: each fills its ACL.",
+						`export type FooUpstream = { ${targets.map((t) => `${t.camel}: Foo${t.pascal}Upstream`).join("; ")} };`,
+						"",
+					],
+				});
 				return {
 					path,
 					text: linesAt({
-						text: exported,
+						text: declared,
 						path,
-						after: true,
-						anchor: "\t\tfooClock: connections.clock,",
-						lines: targets.map((t) => `\t\t${field(t)}: readers.${field(t)},`),
+						anchor: "\t\t// wiring: ports",
+						lines: targets.map(
+							(t) =>
+								`\t\t${field(t)}: foo${t.pascal}AclCreate(upstream.${t.camel}),`,
+						),
 					}),
 				};
 			}
-			case "src/contexts/foo/adapters/outbound/foo-ports.memory.ts":
+			case "src/contexts/foo/adapters/outbound/foo-ports.memory.ts": {
+				const taken = text.replace(
+					"export const fooPortsMemoryCreate = () => {",
+					"export const fooPortsMemoryCreate = (upstream: FooUpstream) => {",
+				);
+				if (taken === text) {
+					throw new Error(
+						`${path}: --reads cannot find the parameters of fooPortsMemoryCreate`,
+					);
+				}
 				return {
 					path,
 					text: linesAt({
-						text: importsAfter(
-							text,
-							targets.map(
-								(t) => `import { ${memoryName(t)} } from "${memoryPath(t)}";`,
+						text: importsAfter(taken, [
+							'import type { FooUpstream } from "./index.ts";',
+							...targets.map(
+								(t) =>
+									`import { foo${t.pascal}AclCreate } from "./foo-${t.kebab}-acl.ts";`,
 							),
-						),
-						path,
-						after: true,
-						anchor: "\t\tfooClock: clock,",
-						lines: targets.flatMap((t) => [
-							`\t\t// Knows no ${t.words}; a test that needs one passes a fake that does.`,
-							`\t\t${field(t)}: ${memoryName(t)}(),`,
 						]),
+						path,
+						anchor: "\t\t// wiring: ports",
+						lines: targets.map(
+							(t) =>
+								`\t\t${field(t)}: foo${t.pascal}AclCreate(upstream.${t.camel}),`,
+						),
 					}),
 				};
+			}
 			case "src/contexts/foo/index.ts": {
 				const upstreamTaken = text
 					.replace(
 						"({\n\tconnections,\n}: {\n\tconnections: Connections;\n})",
-						"({\n\tconnections,\n\tupstream,\n}: {\n\tconnections: Connections;\n\t// What the contexts it reads hand it, through their Bridges.\n\tupstream: FooReaders;\n})",
+						"({\n\tconnections,\n\tupstream,\n}: {\n\tconnections: Connections;\n\t// The contexts it reads, built before it: src/use-cases.ts passes them.\n\tupstream: FooUpstream;\n})",
 					)
 					.replace(
 						"fooPortsCreate(connections)",
 						"fooPortsCreate(connections, upstream)",
 					);
-				if (!upstreamTaken.includes("upstream: FooReaders")) {
+				if (!upstreamTaken.includes("upstream: FooUpstream")) {
 					throw new Error(
 						`${path}: --reads cannot find the parameters of fooContextCreate`,
 					);
 				}
-				// Each Bridge implements its reader, so the interface exports the reader types.
-				return {
-					path,
-					text: linesAt({
-						text: importsAfter(upstreamTaken, [
-							'import type { FooReaders } from "./application/ports.ts";',
-						]),
-						path,
-						anchor: "// wiring: exports",
-						lines: [
-							`export type { ${targets.map((t) => `Foo${t.pascal}Reader`).join(", ")} } from "./application/ports.ts";`,
-						],
-					}),
-				};
+				const imported = upstreamTaken.replace(
+					'import { fooPortsCreate } from "./adapters/outbound/index.ts";',
+					'import {\n\ttype FooUpstream,\n\tfooPortsCreate,\n} from "./adapters/outbound/index.ts";',
+				);
+				if (imported === upstreamTaken) {
+					throw new Error(
+						`${path}: --reads cannot find the import of fooPortsCreate`,
+					);
+				}
+				return { path, text: imported };
 			}
 			case "src/use-cases.ts": {
-				const bridged = text.replace(
+				const wired = text.replace(
 					"fooContextCreate({ connections })",
 					`fooContextCreate({\n\tconnections,\n\tupstream: { ${targets
 						.map(
 							(t) =>
-								`// Built after ${t.words}: this Bridge reads its Use cases.\n${field(t)}: foo${t.pascal}ReaderCreate(${t.camel}Context.useCases)`,
+								`// Built after ${t.words}: it reads ${t.words} through an ACL.\n${t.camel}: ${t.camel}Context`,
 						)
 						.join(",\n")} },\n})`,
 				);
-				if (bridged === text) {
+				if (wired === text) {
 					throw new Error(
 						`${path}: --reads cannot find the fooContextCreate({ connections }) call`,
 					);
 				}
-				return {
-					path,
-					text: linesAt({
-						text: bridged,
-						path,
-						after: true,
-						anchor:
-							'import { fooContextCreate } from "#contexts/foo/index.ts";',
-						lines: targets.map(
-							(t) =>
-								`import { foo${t.pascal}ReaderCreate } from "#bridges/foo-${t.kebab}-reader.ts";`,
-						),
-					}),
-				};
+				return { path, text: wired };
 			}
 			default:
-				return text.includes("fooPortsCreate(")
-					? {
-							path,
-							text: portsCreateCallsExtend({
-								text,
-								argument: readersMemory,
-								names: targets.map(memoryName),
-							}),
-						}
+				return path.endsWith(".test.ts") &&
+					/\bfoo(PortsMemoryCreate|PortsCreate|ContextCreate)\(/.test(text)
+					? { path, text: upstreamTestBuild({ path, text }) }
 					: { path, text };
 		}
 	});
 	return [
 		...changed,
+		{
+			path: "src/contexts/foo/adapters/outbound/foo-test-upstream.ts",
+			text: upstreamTest(targets),
+		},
 		...targets.flatMap((t) => [
 			{
-				path: `src/contexts/foo/adapters/outbound/foo-${t.kebab}-reader.memory.ts`,
-				text: readerMemory(t),
+				path: `src/contexts/foo/adapters/outbound/foo-${t.kebab}-acl.ts`,
+				text: acl(t),
 			},
-			{ path: `src/bridges/foo-${t.kebab}-reader.ts`, text: bridge(t) },
 			{
-				path: `src/bridges/foo-${t.kebab}-reader.test.ts`,
-				text: bridgeTest(t),
+				path: `src/contexts/foo/adapters/outbound/foo-${t.kebab}-acl.test.ts`,
+				text: aclTest(t),
 			},
 		]),
 	];
@@ -1121,7 +1162,7 @@ export const aggregateRefusal = ({
 	return nameRefusal({ appDirectory, context, kebab: aggregate.kebab });
 };
 
-// The contexts a context already reads through Bridges, from the readers its ports.ts names.
+// The contexts a context already reads, from its ACL files: <context>-<upstream>-acl.ts.
 export const contextReadsFind = ({
 	appDirectory,
 	context,
@@ -1129,24 +1170,21 @@ export const contextReadsFind = ({
 	appDirectory: string;
 	context: string;
 }): string[] => {
-	const ports = join(
+	const folder = join(
 		appDirectory,
 		"src/contexts",
 		context,
-		"application/ports.ts",
+		"adapters/outbound",
 	);
-	if (!existsSync(ports)) return [];
-	const prefix = camelFromKebab(context);
-	const picked =
-		/export type \w+Readers = Pick<\s*\w+,\s*([^>]+)>/.exec(
-			readFileSync(ports, "utf8"),
-		)?.[1] ?? "";
-	return [...picked.matchAll(/"(\w+)Reader"/g)].map(([, field = ""]) =>
-		field
-			.slice(prefix.length)
-			.replace(/^[A-Z]/, (c) => c.toLowerCase())
-			.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`),
-	);
+	if (!existsSync(folder)) return [];
+	return readdirSync(folder)
+		.flatMap((name) => {
+			const upstream = name.startsWith(`${context}-`)
+				? /^(.+)-acl\.ts$/.exec(name.slice(context.length + 1))?.[1]
+				: undefined;
+			return upstream === undefined ? [] : [upstream];
+		})
+		.sort();
 };
 
 // ---------------------------------------------------------------------------
@@ -1217,7 +1255,7 @@ export const aggregateFilesCreate = ({
 		(copiedPaths.some((p) => p.test(path)) ||
 			(homeAdded && homePaths.has(path)));
 	const foo = template.filter((f) => copied(f.path));
-	// The context's readers reach the fooPortsCreate calls in Foo's tests.
+	// A context that reads others passes its upstream to the ports calls in Foo's tests.
 	const read = readsApply({
 		files: foo,
 		reads: contextReadsFind({ appDirectory, context }),
@@ -1406,7 +1444,7 @@ export const nextStepsText = ({
 					`Change the pages in src/ui/routes/${name}-list.tsx and ${name}-detail.tsx.`,
 				]
 			: []),
-		"Business transitions and specifications, Event handlers and outcome Events are yours to write: docs/agents/context-create.md.",
+		"Business transitions and specifications, Event handlers and sagas are yours to write: docs/agents/context-create.md.",
 	];
 	return ["Next:", ...steps.map((step, k) => `  ${k + 1}. ${step}`)].join("\n");
 };
@@ -1486,7 +1524,7 @@ pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
   --seed             with --bare: development rows
   -h, --help         this help
 
-Never generated: business transitions, Event handlers, outcome Events. See docs/agents/context-create.md.`;
+Never generated: business transitions, Event handlers, sagas. See docs/agents/context-create.md.`;
 
 const fail = (message: string): never => {
 	console.error(`aggregate-create: ${message}`);

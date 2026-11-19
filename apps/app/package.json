@@ -10,7 +10,6 @@
 	"packageManager": "pnpm@12.17.0",
 	"imports": {
 		"#authn": "./src/authn.ts",
-		"#bridges/*": "./src/bridges/*",
 		"#contexts/*": "./src/contexts/*",
 		"#env": "./src/env.ts",
 		"#ui/*": "./src/ui/*"
