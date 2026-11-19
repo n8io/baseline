@@ -64,7 +64,8 @@ describe("foo cache", () => {
 			value: { archivedAt: new Date("2026-06-01T00:00:00Z") },
 		});
 		expect(second).toEqual(first);
-		expect(counts.hits).toBe(1);
+		// One set: the second get parsed what the first stored instead of reading and storing again.
+		expect(counts.sets).toBe(1);
 	});
 	// aggregate-create-end: schedule
 
