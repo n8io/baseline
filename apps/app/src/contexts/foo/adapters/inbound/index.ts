@@ -1,5 +1,6 @@
 // biome-ignore-all assist/source/organizeImports: piece markers keep each piece's exports together
 // The context's inbound adapters, for the composition roots.
+
 export { barRoutesCreate } from "./bar-routes.ts";
 // piece-start: live
 export { fooLiveRoutesCreate } from "./foo-live.ts";
