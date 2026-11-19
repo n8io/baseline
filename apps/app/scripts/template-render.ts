@@ -598,10 +598,66 @@ const workerHealthPortRender = (text: string, name: string): string =>
 		`HEALTH_PORT=${hostPortsCreate(name).WORKER_HEALTH_PORT} `,
 	);
 
+// The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
+// them for a Project with no Domain: the document without foo's operations and schemas, and an
+// sdk.ts that is only its header comment.
+const sdkFileRender = (
+	file: TemplateFile,
+	answers: TemplateAnswers,
+): TemplateFile | undefined => {
+	const { path, text } = file;
+	if (path === "clients/sdk/package.json") {
+		const manifest = JSON.parse(text) as Record<string, unknown>;
+		manifest.name = `${answers.name}-sdk`;
+		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
+	}
+	if (path === "clients/sdk/sdk.ts") {
+		// orval writes the header and a blank line for a document with no operations.
+		const header = /^\/\*\*[\s\S]*?\*\/\n/.exec(text)?.[0] ?? "";
+		return { path, text: `${header}\n` };
+	}
+	if (path !== "clients/sdk/openapi.json") return undefined;
+	const document = JSON.parse(text) as {
+		components?: { schemas?: Record<string, unknown> };
+		info: { title: string };
+		paths: Record<string, unknown>;
+	};
+	const fooless = (record: Record<string, unknown>) =>
+		Object.fromEntries(
+			Object.entries(record).filter(([key]) => !fooLineIs(key)),
+		);
+	document.info.title = answers.name;
+	document.paths = fooless(document.paths);
+	if (document.components?.schemas !== undefined) {
+		document.components.schemas = fooless(document.components.schemas);
+	}
+	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
+	return { path, text: JSON.stringify(document) };
+};
+
+// The CLI's files (the cli piece): its package, its command and the SDK it runs on take the
+// Project's name.
+const cliFileRender = (
+	file: TemplateFile,
+	answers: TemplateAnswers,
+): TemplateFile | undefined => {
+	const { path } = file;
+	if (!path.startsWith("clients/cli/")) return undefined;
+	const text = file.text.replaceAll("app-sdk", `${answers.name}-sdk`);
+	if (path !== "clients/cli/package.json") return { path, text };
+	const manifest = JSON.parse(text) as Record<string, unknown>;
+	manifest.name = `${answers.name}-cli`;
+	manifest.bin = { [answers.name]: "./cli.ts" };
+	return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
+};
+
 export const templateFileRender = (
 	file: TemplateFile,
 	answers: TemplateAnswers,
 ): TemplateFile | undefined => {
+	const clientFile =
+		sdkFileRender(file, answers) ?? cliFileRender(file, answers);
+	if (clientFile !== undefined) return clientFile;
 	const { path, text } = file;
 	if (templateSkippedPaths.some((p) => p.test(path))) return undefined;
 	if (templateFooPaths.some((p) => p.test(path))) return undefined;
@@ -775,9 +831,23 @@ export const releaseLatest = (): string => {
 	return latest.join(".");
 };
 
-// The template's own workspace settings, which the monorepo root holds for apps/app.
-const workspaceRender = (rootWorkspace: string): string =>
-	rootWorkspace.replace(/^packages:\n(?: {2}- .*\n)*/m, "");
+// The template's own workspace settings, which the monorepo root holds for apps/app. A Project's
+// root is the app, and clients/ holds the packages made from its API.
+export const workspaceRender = (rootWorkspace: string): string =>
+	rootWorkspace.replace(
+		/^packages:\n(?: {2}- .*\n)*/m,
+		[
+			"# piece-start: sdk",
+			"# The root is the app; clients/ holds the packages made from its API.",
+			"packages:",
+			'  - "."',
+			"  - clients/*",
+			"# `pnpm add` in the root adds to the app, as in a Project without clients.",
+			"ignoreWorkspaceRootCheck: true",
+			"# piece-end: sdk",
+			"",
+		].join("\n"),
+	);
 
 // The template's own lockfile: the root lockfile with apps/app as the only importer, so a project
 // installs the versions the release was tested with instead of resolving its ranges fresh, which
@@ -800,10 +870,38 @@ export const lockfileRender = (rootLockfile: string): string => {
 	return [...documents.slice(0, -1), own].join("");
 };
 
+// A manifest under clients/ with its `workspace:^` ranges on our own packages as `pnpm pack` writes
+// them, `^` and the version in `versions`; a Project installs those packages from npm.
+export const clientManifestPin = (
+	text: string,
+	versions: Record<string, string>,
+): string => {
+	const manifest = JSON.parse(text) as Partial<
+		Record<"dependencies" | "devDependencies", Record<string, string>>
+	>;
+	for (const field of ["dependencies", "devDependencies"] as const) {
+		for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+			if (
+				!name.startsWith("@n8io/baseline-") ||
+				!range.startsWith("workspace:")
+			) {
+				continue;
+			}
+			const version = versions[name];
+			if (version === undefined) throw new Error(`no package is ${name}`);
+			if (range !== "workspace:^") {
+				throw new Error(`${name}: use workspace:^, not ${range}`);
+			}
+			manifest[field] = { ...manifest[field], [name]: `^${version}` };
+		}
+	}
+	return `${JSON.stringify(manifest, null, "\t")}\n`;
+};
+
 // Exports apps/app at `ref` of a baseline checkout: files with `git archive`, package.json from
 // `pnpm pack` (workspace:^ becomes a caret range; pnpm pack writes a lockfile, so use a throwaway
-// checkout), pnpm-workspace.yaml from the root and pnpm-lock.yaml from lockfileRender. Returns the
-// unrendered files, foo included.
+// checkout), the clients' manifests from clientManifestPin, pnpm-workspace.yaml from the root and
+// pnpm-lock.yaml from lockfileRender. Returns the unrendered files, foo included.
 export const templateExport = (
 	checkout: string,
 	ref: string,
@@ -846,6 +944,27 @@ export const templateExport = (
 		join(app, "package.json"),
 		`${JSON.stringify({ ...manifest, packageManager }, null, "\t")}\n`,
 	);
+	const versions = Object.fromEntries(
+		readdirSync(join(checkout, "packages")).map((folder) => {
+			const { name, version } = JSON.parse(
+				readFileSync(
+					join(checkout, "packages", folder, "package.json"),
+					"utf8",
+				),
+			) as { name: string; version: string };
+			return [name, version];
+		}),
+	);
+	const clients = join(app, "clients");
+	for (const client of existsSync(clients) ? readdirSync(clients) : []) {
+		const path = join(clients, client, "package.json");
+		if (existsSync(path)) {
+			writeFileSync(
+				path,
+				clientManifestPin(readFileSync(path, "utf8"), versions),
+			);
+		}
+	}
 	writeFileSync(
 		join(app, "pnpm-workspace.yaml"),
 		workspaceRender(

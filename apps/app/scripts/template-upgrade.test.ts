@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
-import type { TemplateFile } from "./template-render.ts";
+import { filesWrite, type TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
 	secretKeep,
@@ -206,6 +206,132 @@ describe("templateUpgradeRun", () => {
 		expect(readFileSync(join(app, "src/a.ts"), "utf8")).toBe(
 			'import a from "a";\nnew\n',
 		);
+	});
+
+	it("brings a piece new in the target release, and keeps the SDK files the Project generated", async () => {
+		const manifestOf = (sdk: boolean) =>
+			`${JSON.stringify(
+				{
+					dependencies: piecePackages,
+					...(sdk ? { devDependencies: { orval: "8.48.0" } } : {}),
+					name: "app",
+				},
+				null,
+				"\t",
+			)}\n`;
+		const sdkFiles = (title: string): TemplateFile[] => [
+			{
+				path: "clients/sdk/openapi.json",
+				text: `{"info":{"title":"app","version":"${title}"},"paths":{}}`,
+			},
+			{ path: "scripts/sdk-generate.ts", text: `// ${title}\n` },
+		];
+		const pieces: Record<string, TemplateFile[]> = {
+			"3.0.0": [{ path: "package.json", text: manifestOf(false) }],
+			"3.1.0": [
+				{ path: "package.json", text: manifestOf(true) },
+				...sdkFiles("3.1"),
+			],
+			"3.2.0": [
+				{ path: "package.json", text: manifestOf(true) },
+				...sdkFiles("3.2"),
+			],
+		};
+		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+		const app = folder.path;
+		git(app, "init", "--quiet", "--initial-branch=main");
+		git(app, "config", "user.email", "test@example.com");
+		git(app, "config", "user.name", "Test");
+		const release = (version: string) =>
+			writeFileSync(
+				join(app, ".template.json"),
+				`{ "release": "${version}", "description": "Invoices." }\n`,
+			);
+		release("3.0.0");
+		writeFileSync(join(app, "package.json"), manifestOf(false));
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "project");
+		const upgrade = (to: string) =>
+			templateUpgradeRun({
+				appDirectory: app,
+				to,
+				...runCapture(),
+				tools: { fetch: (v) => pieces[v] ?? [], finish: () => {} },
+			});
+
+		expect(await upgrade("3.1.0")).toBe(0);
+		expect(readFileSync(join(app, "scripts/sdk-generate.ts"), "utf8")).toBe(
+			"// 3.1\n",
+		);
+		expect(readFileSync(join(app, "package.json"), "utf8")).toContain(
+			'"orval"',
+		);
+
+		// The Project regenerates its SDK; the next upgrade leaves the generated file alone.
+		writeFileSync(join(app, "clients/sdk/openapi.json"), '{"title":"own"}\n');
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "upgrade");
+		expect(await upgrade("3.2.0")).toBe(0);
+		expect(readFileSync(join(app, "clients/sdk/openapi.json"), "utf8")).toBe(
+			'{"title":"own"}\n',
+		);
+		expect(readFileSync(join(app, "scripts/sdk-generate.ts"), "utf8")).toBe(
+			"// 3.2\n",
+		);
+	});
+
+	it("brings the cli to a Project with the SDK, and keeps it out of one that removed the SDK", async () => {
+		const manifestOf = (sdk: boolean) =>
+			`${JSON.stringify(
+				{
+					dependencies: piecePackages,
+					...(sdk ? { devDependencies: { orval: "8.48.0" } } : {}),
+					name: "app",
+				},
+				null,
+				"\t",
+			)}\n`;
+		const sdkFile = { path: "clients/sdk/index.ts", text: "// sdk\n" };
+		const cliFile = { path: "clients/cli/package.json", text: "{}\n" };
+		const pieces: Record<string, TemplateFile[]> = {
+			"4.0.0": [{ path: "package.json", text: manifestOf(true) }, sdkFile],
+			"4.1.0": [
+				{ path: "package.json", text: manifestOf(true) },
+				sdkFile,
+				cliFile,
+			],
+		};
+		const upgraded = async (sdk: boolean) => {
+			const folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+			const app = folder.path;
+			git(app, "init", "--quiet", "--initial-branch=main");
+			git(app, "config", "user.email", "test@example.com");
+			git(app, "config", "user.name", "Test");
+			writeFileSync(
+				join(app, ".template.json"),
+				'{ "release": "4.0.0", "description": "Invoices." }\n',
+			);
+			writeFileSync(join(app, "package.json"), manifestOf(sdk));
+			if (sdk) filesWrite(app, [sdkFile]);
+			git(app, "add", ".");
+			git(app, "commit", "--quiet", "-m", "project");
+			expect(
+				await templateUpgradeRun({
+					appDirectory: app,
+					to: "4.1.0",
+					...runCapture(),
+					tools: { fetch: (v) => pieces[v] ?? [], finish: () => {} },
+				}),
+			).toBe(0);
+			return folder;
+		};
+
+		using withSdk = await upgraded(true);
+		expect(existsSync(join(withSdk.path, "clients/cli/package.json"))).toBe(
+			true,
+		);
+		using withoutSdk = await upgraded(false);
+		expect(existsSync(join(withoutSdk.path, "clients/cli"))).toBe(false);
 	});
 
 	it("exits before the checks when the project is already on the target release", async () => {

@@ -1,0 +1,9 @@
+{
+	"name": "app-sdk",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./index.ts",
+		"./openapi.json": "./openapi.json"
+	}
+}

@@ -1,5 +1,5 @@
 // pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
-// redis, queue, analytics, error-tracking or api-reference). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// redis, queue, analytics, error-tracking, api-reference, sdk or cli). It deletes the piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
 // commits. When the check fails it undoes the removal and lists the files that use the piece outside
 // its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
@@ -19,8 +19,12 @@ import { run } from "./template-render.ts";
 type PieceRemoval = {
 	// Pieces that must go first, when installed.
 	after?: string[];
-	// The packages it removes; the first one is how aggregate-create and this script tell it is gone.
+	// The packages it removes; the first one is how aggregate-create and this script tell it is gone,
+	// unless the piece has a folder.
 	packages: string[];
+	// For a piece that adds no package to the app: the package folder (its package.json) that tells
+	// it is there instead. A folder left with only ignored files, such as node_modules, does not.
+	folder?: string;
 	// Paths from the Project root, deleted when present.
 	paths: string[];
 	// Files under src/ deleted by name.
@@ -98,6 +102,22 @@ export const packagesInstalled = (directory: string): Set<string> => {
 		Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }),
 	);
 };
+
+// What tells a piece is in a Project: its folder, else its first package.
+export const pieceSign = (piece: string): string =>
+	pieceRemovals[piece]?.folder ?? pieceRemovals[piece]?.packages[0] ?? "";
+
+// The app's packages and the piece folders the Project holds: every pieceSign it shows.
+export const pieceSignsFind = (directory: string): Set<string> =>
+	new Set([
+		...packagesInstalled(directory),
+		...Object.values(pieceRemovals).flatMap(({ folder }) =>
+			folder !== undefined &&
+			existsSync(join(directory, folder, "package.json"))
+				? [folder]
+				: [],
+		),
+	]);
 
 const trackedFiles = (directory: string): string[] =>
 	run({ command: "git", args: ["ls-files", "-z"], options: { cwd: directory } })
@@ -291,6 +311,28 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				? undefined
 				: "Remove the cache and live updates first: both run on Redis.";
 		},
+	},
+	cli: {
+		folder: "clients/cli",
+		packages: [],
+		paths: ["clients/cli", "test/integration/foo-cli.test.ts"],
+	},
+	sdk: {
+		after: ["cli"],
+		edit: (directory) =>
+			manifestEdit(directory, (manifest) => {
+				delete manifest.scripts?.["sdk-generate"];
+			}),
+		packages: ["orval"],
+		paths: [
+			"clients/sdk",
+			"scripts/sdk-generate.ts",
+			"test/integration/foo-sdk.test.ts",
+		],
+		refusal: (directory) =>
+			existsSync(join(directory, "clients/cli/package.json"))
+				? "Remove the cli first: it runs on the SDK."
+				: undefined,
 	},
 	ui: {
 		edit: uiEdit,
@@ -531,12 +573,12 @@ const filesRemove = ({
 export const pieceFilesRemove = (directory: string, piece: string) =>
 	filesRemove({ directory, filesList: trackedFiles, piece });
 
-// Every piece whose first package is missing from package.json, redis included.
+// Every piece whose pieceSign the Project lacks, redis included.
 export const piecesGoneFind = (directory: string): string[] => {
-	const installed = packagesInstalled(directory);
-	return Object.entries(pieceRemovals)
-		.filter(([, removal]) => !installed.has(removal.packages[0] ?? ""))
-		.map(([name]) => name);
+	const signs = pieceSignsFind(directory);
+	return Object.keys(pieceRemovals).filter(
+		(piece) => !signs.has(pieceSign(piece)),
+	);
 };
 
 // A freshly rendered tree as a Project that removed those pieces would have it: the pieces' files,
@@ -653,6 +695,10 @@ export const pieceRemove = (
 		);
 		if (packages !== undefined && packages.length > 0) {
 			pnpm(["remove", ...packages]);
+		} else if (pieceRemovals[piece]?.folder !== undefined) {
+			// The folder was a workspace package: the lockfile drops its importer. Under CI pnpm
+			// installs frozen by default and would keep it.
+			pnpm(["install", "--no-frozen-lockfile"]);
 		}
 		if (piece === "ui" && !installed.has("@hono/node-server")) {
 			pnpm(["add", "@hono/node-server@^2.1.6"]);

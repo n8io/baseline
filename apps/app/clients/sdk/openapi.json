@@ -1,0 +1,440 @@
+{
+	"info": { "title": "app", "version": "1" },
+	"openapi": "3.1.0",
+	"security": [{ "bearer": [] }],
+	"components": {
+		"securitySchemes": {
+			"bearer": { "bearerFormat": "JWT", "scheme": "bearer", "type": "http" }
+		},
+		"schemas": {
+			"FooResponse": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+					},
+					"name": { "type": "string" },
+					"createdBy": { "type": "string" },
+					"createdAt": { "type": "string", "format": "date-time" },
+					"updatedAt": { "type": "string", "format": "date-time" },
+					"archivedAt": { "type": ["string", "null"], "format": "date-time" }
+				},
+				"required": [
+					"id",
+					"name",
+					"createdBy",
+					"createdAt",
+					"updatedAt",
+					"archivedAt"
+				]
+			},
+			"FooCreateBody": {
+				"type": "object",
+				"properties": {
+					"name": { "type": "string", "minLength": 1, "maxLength": 100 }
+				},
+				"required": ["name"],
+				"additionalProperties": false
+			},
+			"FooListResponse": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": { "$ref": "#/components/schemas/FooResponse" }
+					},
+					"nextCursor": { "type": ["string", "null"] },
+					"total": { "type": "integer" }
+				},
+				"required": ["items", "nextCursor"]
+			},
+			"FooUpdateBody": {
+				"type": "object",
+				"properties": {
+					"name": { "type": "string", "minLength": 1, "maxLength": 100 }
+				},
+				"required": ["name"],
+				"additionalProperties": false
+			}
+		},
+		"parameters": {}
+	},
+	"paths": {
+		"/api/v1/foos": {
+			"post": {
+				"operationId": "fooCreate",
+				"tags": ["foo"],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/FooCreateBody" }
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FooResponse" }
+							}
+						}
+					},
+					"409": {
+						"description": "FooNameTaken",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNameTaken"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"operationId": "fooList",
+				"tags": ["foo"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100,
+							"default": 50
+						},
+						"required": false,
+						"name": "limit",
+						"in": "query"
+					},
+					{
+						"schema": { "type": "string" },
+						"required": false,
+						"name": "cursor",
+						"in": "query"
+					},
+					{
+						"schema": { "type": "string", "default": false },
+						"required": false,
+						"name": "count",
+						"in": "query"
+					},
+					{
+						"schema": { "type": "string", "default": false },
+						"required": false,
+						"name": "archived",
+						"in": "query"
+					},
+					{
+						"schema": {
+							"type": "string",
+							"enum": ["createdAt", "-createdAt", "name", "-name"],
+							"default": "-createdAt"
+						},
+						"required": false,
+						"name": "sort",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "A page of foos",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FooListResponse" }
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/foos/{fooId}": {
+			"get": {
+				"operationId": "fooGet",
+				"tags": ["foo"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+						},
+						"required": true,
+						"name": "fooId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The foo",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FooResponse" }
+							}
+						}
+					},
+					"404": {
+						"description": "FooNotFound",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNotFound"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"operationId": "fooUpdate",
+				"tags": ["foo"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+						},
+						"required": true,
+						"name": "fooId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/FooUpdateBody" }
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Updated",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/FooResponse" }
+							}
+						}
+					},
+					"403": {
+						"description": "FooForbidden",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooForbidden"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "FooNotFound",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNotFound"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "FooNameTaken",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNameTaken"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "fooDelete",
+				"tags": ["foo"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+						},
+						"required": true,
+						"name": "fooId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"204": { "description": "Deleted" },
+					"403": {
+						"description": "FooForbidden",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooForbidden"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "FooNotFound",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNotFound"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"webhooks": {}
+}
