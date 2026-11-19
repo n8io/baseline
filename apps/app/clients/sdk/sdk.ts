@@ -36,6 +36,28 @@ export interface FooUpdateBody {
 	name: string;
 }
 
+export interface BarResponse {
+	/** @pattern ^bar_[0-7][0-9a-hjkmnp-tv-z]{25}$ */
+	id: string;
+	/** @pattern ^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$ */
+	fooId: string;
+	text: string;
+	createdBy: string;
+	createdAt: string;
+}
+
+export interface BarCreateBody {
+	/**
+	 * @minLength 1
+	 * @maxLength 500
+	 */
+	text: string;
+}
+
+export interface BarListResponse {
+	items: BarResponse[];
+}
+
 export type FooCreate409ErrorsItem = {
 	pointer: string;
 	detail: string;
@@ -138,6 +160,45 @@ export type FooDelete404 = {
 	code: string;
 	traceId?: string;
 	errors?: FooDelete404ErrorsItem[];
+};
+
+export type BarCreate403ErrorsItem = {
+	pointer: string;
+	detail: string;
+};
+
+export type BarCreate403 = {
+	status: number;
+	title: string;
+	code: string;
+	traceId?: string;
+	errors?: BarCreate403ErrorsItem[];
+};
+
+export type BarCreate404ErrorsItem = {
+	pointer: string;
+	detail: string;
+};
+
+export type BarCreate404 = {
+	status: number;
+	title: string;
+	code: string;
+	traceId?: string;
+	errors?: BarCreate404ErrorsItem[];
+};
+
+export type BarList404ErrorsItem = {
+	pointer: string;
+	detail: string;
+};
+
+export type BarList404 = {
+	status: number;
+	title: string;
+	code: string;
+	traceId?: string;
+	errors?: BarList404ErrorsItem[];
 };
 
 const getHeaders = (
@@ -375,5 +436,87 @@ export const fooDelete = async (
 	return sdkFetch<fooDeleteResponse>(getFooDeleteUrl(fooId), {
 		...options,
 		method: "DELETE",
+	});
+};
+
+export type barCreateResponse201 = {
+	data: BarResponse;
+	status: 201;
+};
+
+export type barCreateResponse403 = {
+	data: BarCreate403;
+	status: 403;
+};
+
+export type barCreateResponse404 = {
+	data: BarCreate404;
+	status: 404;
+};
+
+export type barCreateResponseSuccess = barCreateResponse201 & {
+	headers: Headers;
+};
+export type barCreateResponseError = (
+	| barCreateResponse403
+	| barCreateResponse404
+) & {
+	headers: Headers;
+};
+
+export type barCreateResponse =
+	| barCreateResponseSuccess
+	| barCreateResponseError;
+
+const getBarCreateUrl = (fooId: string) => {
+	return `/api/v1/foos/${fooId}/bars`;
+};
+
+export const barCreate = async (
+	fooId: string,
+	barCreateBody: BarCreateBody,
+	options?: Parameters<typeof sdkFetch>[1],
+): Promise<barCreateResponse> => {
+	return sdkFetch<barCreateResponse>(getBarCreateUrl(fooId), {
+		...options,
+		method: "POST",
+		headers: getHeaders(
+			{ "Content-Type": "application/json" },
+			options?.headers,
+		),
+		body: JSON.stringify(barCreateBody),
+	});
+};
+
+export type barListResponse200 = {
+	data: BarListResponse;
+	status: 200;
+};
+
+export type barListResponse404 = {
+	data: BarList404;
+	status: 404;
+};
+
+export type barListResponseSuccess = barListResponse200 & {
+	headers: Headers;
+};
+export type barListResponseError = barListResponse404 & {
+	headers: Headers;
+};
+
+export type barListResponse = barListResponseSuccess | barListResponseError;
+
+const getBarListUrl = (fooId: string) => {
+	return `/api/v1/foos/${fooId}/bars`;
+};
+
+export const barList = async (
+	fooId: string,
+	options?: Parameters<typeof sdkFetch>[1],
+): Promise<barListResponse> => {
+	return sdkFetch<barListResponse>(getBarListUrl(fooId), {
+		...options,
+		method: "GET",
 	});
 };

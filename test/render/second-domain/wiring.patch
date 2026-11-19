@@ -1,17 +1,19 @@
 diff --git a/src/contexts/invoice-line/adapters/inbound/index.ts b/src/contexts/invoice-line/adapters/inbound/index.ts
-index 128e6e2..e3615ba 100644
+index c65c90f..c507c2a 100644
 --- a/src/contexts/invoice-line/adapters/inbound/index.ts
 +++ b/src/contexts/invoice-line/adapters/inbound/index.ts
-@@ -1,3 +1,4 @@
+@@ -1,5 +1,6 @@
  // biome-ignore-all assist/source/organizeImports: piece markers keep each piece's exports together
  // The context's inbound adapters, for the composition roots.
+ 
 +export { invoiceLineCustomerDeletedHandlerCreate } from "./invoice-line-customer-deleted-handler.ts";
  export { invoiceLineRoutesCreate } from "./invoice-line-routes.ts";
+ // wiring: exports
 diff --git a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts b/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
-index 66d68e0..f2fc484 100644
+index 1ed7175..166a272 100644
 --- a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
 +++ b/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
-@@ -48,6 +48,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
+@@ -28,6 +28,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  	};
  
  	return {
@@ -73,7 +75,7 @@ index 756b306..15b9c87 100644
  	],
  );
 diff --git a/src/contexts/invoice-line/application/invoice-line-use-cases.ts b/src/contexts/invoice-line/application/invoice-line-use-cases.ts
-index 5f85a3f..01aa5fe 100644
+index 1273f1f..251f28f 100644
 --- a/src/contexts/invoice-line/application/invoice-line-use-cases.ts
 +++ b/src/contexts/invoice-line/application/invoice-line-use-cases.ts
 @@ -1,4 +1,6 @@
@@ -128,16 +130,17 @@ index 551c8e5..e12079f 100644
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
 diff --git a/src/contexts/invoice-line/domain/repositories.ts b/src/contexts/invoice-line/domain/repositories.ts
-index 5eb39a5..aa4a0ba 100644
+index bce2886..ccbedfc 100644
 --- a/src/contexts/invoice-line/domain/repositories.ts
 +++ b/src/contexts/invoice-line/domain/repositories.ts
-@@ -37,4 +37,6 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
+@@ -35,5 +35,7 @@ export type InvoiceLineRepository = InvoiceLineReadRepository & {
  	delete(
  		id: Id<"invoice_line">,
  	): Promise<Result<void, InvoiceLineRepositoryDeleteError>>;
 +	// Removes the customer from every invoice line naming it; returns how many.
 +	customerClear(customerId: Id<"customer">): Promise<number>;
  };
+ // wiring: repositories
 diff --git a/src/env.d.ts b/src/env.d.ts
 index 1e18757..4a65e68 100644
 --- a/src/env.d.ts
@@ -195,7 +198,7 @@ index 1e18757..4a65e68 100644
  }
 \ No newline at end of file
 diff --git a/src/server.ts b/src/server.ts
-index ff18370..4b75d22 100644
+index 1e4b3c9..38db60f 100644
 --- a/src/server.ts
 +++ b/src/server.ts
 @@ -39,7 +39,10 @@ import { basketRoutesCreate } from "#contexts/basket/adapters/inbound/index.ts";
@@ -210,16 +213,16 @@ index ff18370..4b75d22 100644
  import { invoiceLineScopes } from "#contexts/invoice-line/index.ts";
  import { paymentRoutesCreate } from "#contexts/payment/adapters/inbound/index.ts";
  import { paymentScopes } from "#contexts/payment/index.ts";
-@@ -105,6 +108,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
+@@ -107,6 +110,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
  // Creates queues and subscriptions; consumers run only in the worker.
  if (connections.events !== "memory") {
  	await connections.events.consumersSubscribe([
 +		invoiceLineCustomerDeletedHandlerCreate(useCases.invoiceLineUseCases),
- 		// domain-create: consumers
+ 		// wiring: consumers
  	]);
  }
 diff --git a/src/worker.ts b/src/worker.ts
-index c10fb2d..eceab62 100644
+index 7c95a49..529f464 100644
 --- a/src/worker.ts
 +++ b/src/worker.ts
 @@ -7,6 +7,7 @@ import {
@@ -228,13 +231,13 @@ index c10fb2d..eceab62 100644
  import { telemetryShutdown } from "@n8io/baseline-telemetry";
 +import { invoiceLineCustomerDeletedHandlerCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";
  import { paymentScheduleCreate } from "#contexts/payment/adapters/inbound/index.ts";
- import { vendorScheduleCreate } from "#contexts/vendor/adapters/inbound/index.ts";
- import { ENV } from "#env";
-@@ -37,6 +38,7 @@ const useCases = domainsUseCasesCreate(connections);
- // domain-create: domains-end
+ import {
+ 	vendorContactScheduleCreate,
+@@ -40,6 +41,7 @@ const useCases = domainsUseCasesCreate(connections);
+ // wiring: contexts-end
  
  await events.consumersStart([
 +	invoiceLineCustomerDeletedHandlerCreate(useCases.invoiceLineUseCases),
- 	// domain-create: consumers
+ 	// wiring: consumers
  ]);
  // Starts the Schedules migrate has synced; it changes none of them.

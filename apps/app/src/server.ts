@@ -34,6 +34,7 @@ import {
 	authnProviderOptionsCreate,
 } from "#authn";
 import {
+	barRoutesCreate,
 	fooLiveRoutesCreate,
 	fooRoutesCreate,
 } from "#contexts/foo/adapters/inbound/index.ts";
@@ -73,20 +74,20 @@ if (import.meta.env.DEV) {
 	devRun.serverDevClose = serverDevCloseCreate({ connections, health });
 }
 // piece-end: ui
-// domain-create: domains-start
+// wiring: contexts-start
 const useCases = domainsUseCasesCreate(connections);
-// domain-create: domains-end
-// domain-create: domains-start
+// wiring: contexts-end
+// wiring: contexts-start
 if (ENV.APP_ENV === "development" && connections.database === "memory") {
 	await seedsRun(useCases);
 }
-// domain-create: domains-end
+// wiring: contexts-end
 
 // piece-start: queue
 // Creates queues and subscriptions; consumers run only in the worker.
 if (connections.events !== "memory") {
 	await connections.events.consumersSubscribe([
-		// domain-create: consumers
+		// wiring: consumers
 	]);
 }
 // piece-end: queue
@@ -94,7 +95,7 @@ if (connections.events !== "memory") {
 // Every scope the Template's Domains define; the dev admin and the dev client hold all of them.
 const scopes: string[] = [
 	...fooScopes,
-	// domain-create: scopes
+	// wiring: scopes
 ];
 const authn = await authnCreate({
 	...authnProviderOptionsCreate(ENV),
@@ -130,13 +131,14 @@ app.use(
 );
 app.route("/auth", authnRoutesCreate(authn));
 app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
-// domain-create: routes
+app.route("/api/v1/foos", barRoutesCreate(useCases.fooUseCases));
+// wiring: routes
 // piece-start: live
 app.route(
 	"/live/foo",
 	fooLiveRoutesCreate(useCases.fooUseCases, connections.liveHub),
 );
-// domain-create: live
+// wiring: live
 // piece-end: live
 // piece-start: api-reference
 // Public like openapi.json (the guard above exempts /api/v1/docs); without this piece it is a 404.
@@ -196,9 +198,9 @@ export default await createHonoServer({
 	getLoadContext: (c) =>
 		uiLoadContextCreate(
 			c,
-			// domain-create: domains-start
+			// wiring: contexts-start
 			useCases,
-			// domain-create: domains-end
+			// wiring: contexts-end
 		),
 	listeningListener: serverListening,
 	onServe: (server) => {

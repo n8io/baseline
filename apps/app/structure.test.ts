@@ -50,7 +50,19 @@ const structureViolations = (paths: string[], context: string): string[] => {
 	}
 	for (const [name, files] of byContext) {
 		const base = `src/contexts/${name}`;
-		const allowed = new Set(["index.ts", `${name}-error-status.ts`]);
+		// The context's CONTEXT.md, and each Aggregate's error statuses (one table file each).
+		const aggregates = files.flatMap((f) => {
+			const aggregate = /^adapters\/outbound\/([^/]+)-table\.ts$/.exec(f)?.[1];
+			return aggregate && files.includes(`domain/${aggregate}.ts`)
+				? [aggregate]
+				: [];
+		});
+		const allowed = new Set([
+			"CONTEXT.md",
+			"index.ts",
+			`${name}-error-status.ts`,
+			...aggregates.map((aggregate) => `${aggregate}-error-status.ts`),
+		]);
 		const folders = [
 			"domain",
 			"application",
@@ -79,7 +91,7 @@ const structureViolations = (paths: string[], context: string): string[] => {
 			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
 			if (!allowed.has(file) && !inFolder) {
 				problems.push(
-					`${base}/${file}: a context root holds only index.ts and ${name}-error-status.ts; put the model, its rules, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
+					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the model, its rules, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
 				);
 			}
 		}
@@ -126,19 +138,45 @@ const testPlacementViolations = (paths: string[]): string[] => {
 	const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
 	const nameOf = (path: string) => path.slice(folderOf(path).length);
 	const sources = paths.filter((path) => !path.endsWith(".test.ts"));
+	// An Aggregate's test of a context file (billing-use-cases.ts) is named with the Aggregate in
+	// the context's place (invoice-line-use-cases-cache.test.ts), so two Aggregates' tests differ.
+	const aggregatesOf = (path: string): string[] => {
+		const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1];
+		return context === undefined
+			? []
+			: sources.flatMap((source) => {
+					const aggregate = new RegExp(
+						`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
+					).exec(source)?.[1];
+					return aggregate &&
+						sources.includes(`src/contexts/${context}/domain/${aggregate}.ts`)
+						? [aggregate]
+						: [];
+				});
+	};
 	return paths
 		.filter((path) => path.endsWith(".test.ts"))
 		.filter((path) => {
 			if (!path.includes("/") || path.startsWith("test/integration/"))
 				return false;
 			const name = nameOf(path).slice(0, -".test.ts".length);
+			const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1] ?? "";
+			const names = [
+				name,
+				...aggregatesOf(path)
+					.filter((aggregate) => name.startsWith(`${aggregate}-`))
+					.map((aggregate) => `${context}${name.slice(aggregate.length)}`),
+			];
 			const beside = sources.some((source) => {
 				const stem = nameOf(source).replace(/\.[^.]+$/, "");
 				return (
 					folderOf(source) === folderOf(path) &&
-					(name === stem ||
-						name.startsWith(`${stem}-`) ||
-						name.startsWith(`${stem}.`))
+					names.some(
+						(n) =>
+							n === stem ||
+							n.startsWith(`${stem}-`) ||
+							n.startsWith(`${stem}.`),
+					)
 				);
 			});
 			return !(beside && /^(src|scripts)\//.test(path));
@@ -252,7 +290,7 @@ describe("context structure", () => {
 		},
 		{
 			message:
-				"src/contexts/bar/helper.ts: a context root holds only index.ts and bar-error-status.ts",
+				"src/contexts/bar/helper.ts: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts",
 			paths: [...barBase, "src/contexts/bar/helper.ts"],
 			name: "a stray root file",
 		},
@@ -283,6 +321,24 @@ describe("context structure", () => {
 		]);
 	});
 
+	it("passes a CONTEXT.md and each Aggregate's error statuses at the root", () => {
+		const paths = [
+			...barBase,
+			"src/contexts/bar/CONTEXT.md",
+			"src/contexts/bar/bar-note-error-status.ts",
+			"src/contexts/bar/adapters/outbound/bar-note-table.ts",
+			"src/contexts/bar/adapters/outbound/index.ts",
+			"src/contexts/bar/domain/bar-note.ts",
+		];
+		expect(structureViolations(paths, `${context}**Bar note**:\n`)).toEqual([]);
+		expect(
+			structureViolations(
+				[...barBase, "src/contexts/bar/baz-error-status.ts"],
+				context,
+			),
+		).toEqual([expect.stringContaining("a context root holds only")]);
+	});
+
 	it("passes a model once the glossary has its term", () => {
 		const paths = [...barBase, "src/contexts/bar/domain/bar-line.ts"];
 		expect(structureViolations(paths, `${context}**Bar line**:\n`)).toEqual([]);
@@ -303,6 +359,12 @@ describe("test placement", () => {
 				"src/server-open.test.ts",
 				"src/contexts/bar/adapters/outbound/bar-repository.postgres.ts",
 				"src/contexts/bar/adapters/outbound/bar-repository.postgres.test.ts",
+				"src/contexts/bar/application/bar-use-cases.ts",
+				"src/contexts/bar/application/bar-note-use-cases-cache.test.ts",
+				"src/contexts/bar/adapters/outbound/bar-note-table.ts",
+				"src/contexts/bar/domain/bar-note.ts",
+				"src/contexts/bar/adapters/outbound/bar-transaction.postgres.ts",
+				"src/contexts/bar/adapters/outbound/bar-note-transaction.postgres.test.ts",
 				"scripts/glossary-check.ts",
 				"scripts/glossary-check.test.ts",
 				"structure.test.ts",
@@ -319,6 +381,13 @@ describe("test placement", () => {
 		],
 		["a test in test/unit/", ["src/seed.ts", "test/unit/seed.test.ts"]],
 		["a test in another folder", ["docs/a.ts", "docs/a.test.ts"]],
+		[
+			"a context file's test named after no Aggregate",
+			[
+				"src/contexts/bar/application/bar-use-cases.ts",
+				"src/contexts/bar/application/baz-use-cases-cache.test.ts",
+			],
+		],
 	])("fails on %s", (_name, paths) => {
 		expect(testPlacementViolations(paths)).toEqual([
 			expect.stringContaining("put a test beside the file it covers"),

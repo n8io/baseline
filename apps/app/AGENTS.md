@@ -19,7 +19,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker. `pnpm dev:reset` wipes their data
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `*-table.ts` file)
-- new domain: `pnpm domain-create`
+- new context: `pnpm context-create`; new Aggregate: `pnpm aggregate-create`
 - API check (oasdiff): `pnpm api-check`
 - pieces removable: `pnpm piece-check`
 - template upgrade: `pnpm template-upgrade`
@@ -45,7 +45,7 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 
 ## Where new work goes
 
-One Domain per business entity, added with `pnpm domain-create`.
+One context per business area, one Aggregate per entity in it (see context-create.md).
 
 | Kind of work                                      | File                              |
 | ------------------------------------------------- | --------------------------------- |
@@ -83,7 +83,7 @@ One Domain per business entity, added with `pnpm domain-create`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts` and the authn, id and result types (A2). Move the rest to a Use case.
 - A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
 - Use cases return `err()`; they and `domain/` never throw or catch (A27).
-- A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`) needs that Domain's `deleted` Consumer (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
+- A table column built with another context's id prefix (`postgresIdColumnCreate("team")`) needs that context's `deleted` Consumer (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
 
 ### Stop and ask
 
@@ -103,7 +103,7 @@ Stop and ask the user when:
 - an OpenTelemetry instrumentation would be added;
 - a secret cannot come from `.env.schema` and Infisical.
 
-For several Domains at once, one approved plan answers the Domain, term, verb and Event questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
+For several Domains at once, one approved plan answers the questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
 
 Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/contexts/**`; every test asserts with `expect()`; Vitest is the only runner.
 
@@ -147,7 +147,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 Read the one that matches before you start.
 
 - Adding a role or a scope, a dev user, or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
-- Adding a Domain with `pnpm domain-create` (flags, what it writes): [docs/agents/domain-create.md](docs/agents/domain-create.md)
+- Adding a context or an Aggregate, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
 - Adding a Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
 - Touching a table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
@@ -162,6 +162,6 @@ Read the one that matches before you start.
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - Adding a script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
-- Removing, restoring or keeping (`piecesKept`) a piece (UI, live, cache, Redis, queue, analytics, error tracking, API docs): [docs/agents/pieces.md](docs/agents/pieces.md)
+- Removing, restoring or keeping (`piecesKept`) a piece (UI, cache, queue and the rest): [docs/agents/pieces.md](docs/agents/pieces.md)
 - Planning a build of several Domains (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
 - Working on a fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

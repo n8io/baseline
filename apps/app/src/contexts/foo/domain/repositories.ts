@@ -1,5 +1,6 @@
 import type { Id } from "@n8io/baseline-id";
 import type { Result } from "@n8io/baseline-result";
+import type { Bar } from "./bar.ts";
 import type { FooNameTakenError, FooNotFoundError } from "./errors.ts";
 import type { Foo, FooList, FooListInput } from "./foo.ts";
 
@@ -22,8 +23,21 @@ export type FooRepository = FooReadRepository & {
 	// A row deleted since it was read answers FooNotFoundError, never a throw.
 	update(foo: Foo): Promise<Result<Foo, FooRepositoryUpdateError>>;
 	delete(id: Id<"foo">): Promise<Result<void, FooRepositoryDeleteError>>;
-	// domain-create-start: schedule
+	// aggregate-create-start: schedule
 	// Archives every foo with updatedAt < before and archivedAt null; returns how many.
 	archiveStale(before: Date, now: Date): Promise<number>;
-	// domain-create-end: schedule
+	// aggregate-create-end: schedule
+};
+// wiring: repositories
+
+export type BarReadRepository = {
+	// Oldest first.
+	listByFooId(fooId: Id<"foo">): Promise<Bar[]>;
+};
+
+// Writes happen only through this, and only fooTransaction hands it out.
+export type BarRepository = BarReadRepository & {
+	insert(bar: Bar): Promise<void>;
+	// Returns how many it deleted.
+	deleteByFooId(fooId: Id<"foo">): Promise<number>;
 };

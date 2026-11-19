@@ -31,12 +31,12 @@ const health = healthServerCreate({
 	port: ENV.HEALTH_PORT,
 });
 
-// domain-create: domains-start
+// wiring: contexts-start
 const useCases = domainsUseCasesCreate(connections);
-// domain-create: domains-end
+// wiring: contexts-end
 
 await events.consumersStart([
-	// domain-create: consumers
+	// wiring: consumers
 ]);
 // Starts the Schedules migrate has synced; it changes none of them.
 await queueSchedulesStart({
@@ -44,7 +44,7 @@ await queueSchedulesStart({
 	queue,
 	schedules: [
 		fooScheduleCreate(useCases.fooUseCases),
-		// domain-create: schedules
+		// wiring: schedules
 	],
 });
 

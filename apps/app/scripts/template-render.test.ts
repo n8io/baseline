@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { domainsPairsFill } from "./domain-create.ts";
+import { contextsPairsFill } from "./aggregate-create.ts";
 import {
 	clientManifestPin,
 	domainsPairsFind,
@@ -49,8 +49,8 @@ const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const answers = { description: "Invoices for small shops.", name: "invoicing" };
 const domainsUrl = new URL("src/contexts/", appRoot);
-// The template itself: foo is its only domain. A project, or this tree after a
-// domain-create, skips these tests.
+// The template itself: foo is its only context. A project, or this tree after a
+// context-create, skips these tests.
 const template =
 	existsSync(domainsUrl) &&
 	readdirSync(domainsUrl)
@@ -174,7 +174,7 @@ describe("fooBlocksFind", () => {
 			");",
 			"const scopes = [", // 8
 			"\t...fooScopes,",
-			"\t// domain-create: scopes",
+			"\t// wiring: scopes",
 			"];",
 			"await db.query(", // 12
 			"\t`UPDATE foo.foo",
@@ -220,12 +220,27 @@ describe("fooBlocksFind", () => {
 		).toThrow("src/x.ts:1: cannot find the statement");
 	});
 
+	it("takes a type argument list spread over lines with its statement", () => {
+		const text = [
+			"const state = {",
+			"\tfooSent: [] as Parameters<", // 1
+			'\t\tFooPorts["fooLive"]["send"]',
+			"\t>[0][],",
+			"\tbarSent: [] as Parameters<", // 4
+			'\t\tBarPorts["send"]',
+			"\t>[0][],",
+			"};",
+		].join("\n");
+
+		expect(fooBlocksFind(text, "src/x.ts")).toEqual([[1, 3]]);
+	});
+
 	it("takes an env item's decorator lines with it", () => {
 		const text = [
 			"# schedule overrides",
 			"# @sensitive=false @required=false",
 			"SCHEDULE_FOO_STALE_ARCHIVE=",
-			"# domain-create: schedules",
+			"# wiring: schedules",
 		].join("\n");
 
 		expect(fooBlocksFind(text, ".env.schema")).toEqual([[1, 2]]);
@@ -340,11 +355,15 @@ describe("templateFileRender", () => {
 			templateFileRender({ path: `clients/sdk/${path}`, text }, answers)?.text;
 		const document = {
 			components: {
-				schemas: { FooResponse: {}, Problem: {} },
+				schemas: { BarCreateBody: {}, FooResponse: {}, Problem: {} },
 				securitySchemes: { bearer: {} },
 			},
 			info: { title: "app", version: "1" },
-			paths: { "/api/v1/foos": {}, "/api/v1/foos/{fooId}": {} },
+			paths: {
+				"/api/v1/foos": {},
+				"/api/v1/foos/{fooId}": {},
+				"/api/v1/foos/{fooId}/bars": {},
+			},
 		};
 
 		expect(
@@ -617,7 +636,7 @@ describe.runIf(template)("the template's own files", () => {
 		expect(readme).toContain(`[app@${version}]`);
 	});
 
-	it("empty every domains-start/domains-end pair, which domainsPairsFill fills back exactly", () => {
+	it("empty every contexts-start/contexts-end pair, which contextsPairsFill fills back exactly", () => {
 		const paired = files.filter((f) => domainsPairsFind(f.text, f.path).length);
 
 		expect(paired.map((f) => f.path)).toEqual([
@@ -634,7 +653,12 @@ describe.runIf(template)("the template's own files", () => {
 
 			expect(pairs.every(([start, end]) => end === start + 1)).toBe(true);
 			expect(
-				domainsPairsFill({ project: rendered, template: text, path }),
+				contextsPairsFill({
+					pairWanted: () => true,
+					path,
+					project: rendered,
+					template: text,
+				}),
 			).toBe(linesRemove(text, fooBlocksFind(text, path)));
 		}
 	});

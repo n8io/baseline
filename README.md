@@ -33,7 +33,7 @@ It asks two questions; pass them as flags instead with `--name --description [--
 
 <table>
 <tr>
-<td width="33%" valign="top"><b>Domains, not folders of stuff</b><br>API, Use cases, Rules, ports and SPI in one layout per Domain. <code>pnpm domain-create</code> adds a whole Domain, wired and tested, once its term is in <code>CONTEXT.md</code>.</td>
+<td width="33%" valign="top"><b>Domains, not folders of stuff</b><br>API, Use cases, Rules, ports and SPI in one layout per Domain. <code>pnpm context-create</code> and <code>pnpm aggregate-create</code> add a context and its Aggregates, wired and tested, once their terms are in <code>CONTEXT.md</code>.</td>
 <td width="33%" valign="top"><b>Events that keep their order</b><br>An Event commits with the write that caused it, reaches each Consumer in order per Event key, and an inbox skips a repeat. Schedules run in the Worker.</td>
 <td width="33%" valign="top"><b>An API that documents itself</b><br>An OpenAPI document and an interactive reference at <code>/api/v1/docs</code>. CI fails a breaking change to it.</td>
 </tr>
@@ -66,7 +66,7 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
 | `error-tracking` | Error reports and `SENTRY_DSN`                                     | Errors still logged                                                  |
 
-`pnpm domain-create` leaves a removed piece out of every new Domain, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
+`pnpm aggregate-create` leaves a removed piece out of every new Aggregate, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
 
 ## Packages
 
@@ -93,16 +93,16 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 
 ## In a Project
 
-| Task                                                  | Command                     |
-| ----------------------------------------------------- | --------------------------- |
-| Lint, format check and typecheck                      | `pnpm check`                |
-| Unit tests (memory adapters)                          | `pnpm test`                 |
-| Integration tests (needs `docker compose up -d`)      | `pnpm test:integration`     |
-| Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`               |
-| Add a Domain                                          | `pnpm domain-create <name>` |
-| Remove a piece                                        | `pnpm piece-remove <piece>` |
-| Generate a migration after you edit any `*-table.ts`. | `pnpm codegen`              |
-| Pull the newest Template release                      | `pnpm template-upgrade`     |
+| Task                                                  | Command                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Lint, format check and typecheck                      | `pnpm check`                                                                   |
+| Unit tests (memory adapters)                          | `pnpm test`                                                                    |
+| Integration tests (needs `docker compose up -d`)      | `pnpm test:integration`                                                        |
+| Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`                                                                  |
+| Add a context, then an Aggregate                      | `pnpm context-create <context>`, `pnpm aggregate-create <context> <aggregate>` |
+| Remove a piece                                        | `pnpm piece-remove <piece>`                                                    |
+| Generate a migration after you edit any `*-table.ts`. | `pnpm codegen`                                                                 |
+| Pull the newest Template release                      | `pnpm template-upgrade`                                                        |
 
 > [!TIP]
 > `pnpm template-upgrade` does a 3-way merge between the release your Project came from and the newest one. Resolve every conflict marker before you commit.

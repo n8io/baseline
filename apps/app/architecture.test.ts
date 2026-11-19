@@ -63,7 +63,7 @@ describe("architecture", () => {
 		);
 	});
 
-	// The regex checks of A11 and A14 also pass the corrected sample.
+	// The regex checks of A11, A14 and A28 also pass the corrected sample.
 	it.each([
 		{
 			from: "\tensure: (name) => u.bazCreate(actor, { name }),\n",
@@ -74,6 +74,11 @@ describe("architecture", () => {
 			from: '"baz.created"',
 			name: "a14-column-without-handler.txt",
 			to: '"baz.deleted"',
+		},
+		{
+			from: "=>\n\tports.billingTransaction(",
+			name: "a28-transaction-two-aggregates.txt",
+			to: "=>\n\t// invariant: an invoice closes with its lines.\n\tports.billingTransaction(",
 		},
 	])("$name passes once fixed", async ({ from, name, to }) => {
 		const sample = samples.find((s) => s.name === name);
@@ -112,6 +117,117 @@ describe("architecture", () => {
 		expect(
 			architectureRules.A14?.([...(sample?.files ?? []), handler]),
 		).toEqual([]);
+	});
+
+	it("A14 needs no handler for an id of the context's own Aggregate, and one for another context's Aggregate", async () => {
+		const own = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("billing").table("invoice_line", { invoiceId: text("invoice_id") });\n',
+		);
+		const invoice = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-table.ts",
+			'import { pgSchema } from "drizzle-orm/pg-core";\nexport const t = pgSchema("billing").table("invoice", {});\n',
+		);
+		const shipping = await architectureFileCreate(
+			"src/contexts/shipping/adapters/outbound/parcel-table.ts",
+			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("shipping").table("parcel", { invoiceId: text("invoice_id") });\n',
+		);
+		const models = await Promise.all(
+			[
+				"src/contexts/billing/domain/invoice.ts",
+				"src/contexts/billing/domain/invoice-line.ts",
+			].map((path) => architectureFileCreate(path, "")),
+		);
+		expect(architectureRules.A14?.([own, invoice, ...models])).toEqual([]);
+		expect(
+			architectureRules.A14?.([own, invoice, shipping, ...models]),
+		).toEqual([
+			'src/contexts/shipping/adapters/outbound/parcel-table.ts: a column holding a invoice id needs src/contexts/shipping/adapters/inbound/shipping-invoice-deleted-handler.ts handling "invoice.deleted", so rows never point at a deleted invoice',
+		]);
+		// A table with no model of its name is a projection, not an Aggregate.
+		expect(architectureRules.A14?.([own, invoice, shipping])).toEqual([]);
+	});
+
+	it("A14 reads the context's own longer Aggregate name before another context's shorter one", async () => {
+		const files = await Promise.all(
+			[
+				[
+					"src/contexts/shop/adapters/outbound/shipment-table.ts",
+					'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("shop").table("shipment", { orderItemId: text("order_item_id") });\n',
+				],
+				["src/contexts/shop/adapters/outbound/order-item-table.ts", ""],
+				["src/contexts/shop/domain/order-item.ts", ""],
+				["src/contexts/shop/domain/shipment.ts", ""],
+				["src/contexts/catalog/adapters/outbound/item-table.ts", ""],
+				["src/contexts/catalog/domain/item.ts", ""],
+			].map(([path = "", source = ""]) => architectureFileCreate(path, source)),
+		);
+		expect(architectureRules.A14?.(files)).toEqual([]);
+	});
+
+	it("A16 lets an Aggregate's Use case name its span attributes after the Aggregate", async () => {
+		const table = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			"",
+		);
+		const model = await architectureFileCreate(
+			"src/contexts/billing/domain/invoice-line.ts",
+			"",
+		);
+		const useCase = await architectureFileCreate(
+			"src/contexts/billing/application/invoice-line-get.ts",
+			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
+		);
+		expect(architectureRules.A16?.([table, model, useCase])).toEqual([
+			expect.stringContaining("span attribute baseline.note.id"),
+		]);
+	});
+
+	it.each([
+		{
+			body: "export const x = (ports) =>\n\tports.billingTransaction(async ({ invoiceRepository, invoiceLineRepository }) => ok());\n",
+			found: 1,
+			name: "destructured repositories",
+		},
+		{
+			body: "// invariant: an invoice closes with its lines.\nconst a = 1;\nexport const x = (ports) =>\n\tports.billingTransaction(async (t) => t.invoiceRepository.x(t.invoiceLineRepository));\n",
+			found: 1,
+			name: "an invariant comment away from the call",
+		},
+		{
+			body: "export const x = async (ports) => {\n\tawait ports.billingTransaction(async (t) => t.invoiceRepository.x());\n\tawait ports.billingTransaction(async (t) => t.invoiceLineRepository.x());\n};\n",
+			found: 0,
+			name: "one transaction per Aggregate",
+		},
+		{
+			body: "export const x = (ports) =>\n\t// invariant: an invoice closes with its lines,\n\t// which it locks first.\n\tports.billingTransaction(async (t) => t.invoiceRepository.x(t.invoiceLineRepository));\n",
+			found: 0,
+			name: "a two-line invariant comment above the call",
+		},
+	])("A28 finds $found with $name", async ({ body, found }) => {
+		const file = await architectureFileCreate(
+			"src/contexts/billing/application/invoice-close.ts",
+			body,
+		);
+		expect(architectureRules.A28?.([file])).toHaveLength(found);
+	});
+
+	it("A23 lets a context's export start with one of its Aggregates' names", async () => {
+		const table = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			"",
+		);
+		const model = await architectureFileCreate(
+			"src/contexts/billing/domain/invoice-line.ts",
+			"",
+		);
+		const useCase = await architectureFileCreate(
+			"src/contexts/billing/application/invoice-line-create.ts",
+			"export const invoiceLineCreate = () => 1;\nexport const noteCreate = () => 1;\n",
+		);
+		expect(architectureRules.A23?.([table, model, useCase])).toEqual([
+			expect.stringContaining("noteCreate is exported from billing"),
+		]);
 	});
 
 	it("A14 counts only the longest context name a column matches", async () => {

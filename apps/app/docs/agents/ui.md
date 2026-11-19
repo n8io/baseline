@@ -1,24 +1,24 @@
 # UI pages
 
-Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `bar` Domain; a Domain made by `pnpm domain-create` starts with the same two pages, `<domain>-list.tsx` and `<domain>-detail.tsx`, under its own name.
+Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `baz` Domain; an Aggregate made by `pnpm aggregate-create` starts with the same two pages, `<domain>-list.tsx` and `<domain>-detail.tsx`, under its own name.
 
 ## A page
 
-One React Router route module per page, `src/ui/routes/<domain>-<view>.tsx`, listed in `src/ui/routes.ts` above `// domain-create: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a Domain only through its `index.ts` (A10).
+One React Router route module per page, `src/ui/routes/<domain>-<view>.tsx`, listed in `src/ui/routes.ts` above `// wiring: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a Domain only through its `index.ts` (A10).
 
 ## Loader
 
 The loader requires a signed-in Actor, reads its input from the URL with the Domain's input type, and gets the Use cases from the load context. It may call any number of read Use cases across Domains.
 
 ```ts
-// src/ui/routes/bar-list.tsx
+// src/ui/routes/baz-list.tsx
 export const loader = async (args: Route.LoaderArgs) => {
 	const actor = authnPageActorRequire(args);
 	const cursor = new URL(args.request.url).searchParams.get("cursor");
-	const input = BarListInput.parse(cursor === null ? {} : { cursor });
+	const input = BazListInput.parse(cursor === null ? {} : { cursor });
 	const result = await args.context
-		.get(barUseCasesContext)
-		.barList(actor, input);
+		.get(bazUseCasesContext)
+		.bazList(actor, input);
 	if (!result.ok) {
 		throw result.error;
 	}
@@ -26,27 +26,27 @@ export const loader = async (args: Route.LoaderArgs) => {
 };
 ```
 
-- Each Domain's Use cases are one context key, `<domain>UseCasesContext` in `src/ui/context.ts`. `pnpm domain-create` adds the key and its entry in `uiLoadContextCreate`.
-- A Use case error the page cannot go on from (not found, forbidden) is thrown as `data(...)` with its status from the Domain's exported `barErrorStatus`, keyed by the error's `type` (the same table the API uses). Never write a status literal for a Use case's error.
+- Each Domain's Use cases are one context key, `<domain>UseCasesContext` in `src/ui/context.ts`. A context's first Aggregate with pages adds the key and its entry in `uiLoadContextCreate`.
+- A Use case error the page cannot go on from (not found, forbidden) is thrown as `data(...)` with its status from the Domain's exported `bazErrorStatus`, keyed by the error's `type` (the same table the API uses). Never write a status literal for a Use case's error.
 - Show a control only when the Actor may use it: call the Domain's exported "can" predicates in the loader and return booleans. The Use case still checks; the predicate only hides what it would refuse.
 
 ```ts
-// src/ui/routes/bar-detail.tsx
-const barErrorThrow = ({ message, type }: BarError): never => {
-	throw data({ type, message }, { status: barErrorStatus[type] });
+// src/ui/routes/baz-detail.tsx
+const bazErrorThrow = ({ message, type }: BazError): never => {
+	throw data({ type, message }, { status: bazErrorStatus[type] });
 };
 ```
 
 ```ts
-// src/ui/routes/bar-detail.tsx
-const bar = result.value;
+// src/ui/routes/baz-detail.tsx
+const baz = result.value;
 return {
-	can: { delete: barDeleteCan(bar, actor), update: barUpdateCan(bar, actor) },
-	bar,
+	can: { delete: bazDeleteCan(baz, actor), update: bazUpdateCan(baz, actor) },
+	baz,
 };
 ```
 
-- The `ErrorBoundary` branches on the error's `type`, not on `barErrorStatus`: a value import from the Domain in a component ships the Domain's code to the browser. Import only its types there.
+- The `ErrorBoundary` branches on the error's `type`, not on `bazErrorStatus`: a value import from the Domain in a component ships the Domain's code to the browser. Import only its types there.
 
 ## Action
 
@@ -54,8 +54,8 @@ An action calls exactly one write Use case. A page with several forms tells them
 
 - Parse the form with the Domain's input type. On failure return `data({ errors: z.flattenError(parsed.error).fieldErrors, values }, { status: 400 })`, so the form shows each field's errors and keeps what was typed.
 - On success, `redirect` to the changed entity, or return `{ ok: true }` to stay.
-- A refused change the user can fix is a message on the page, not an error page: return `data({ errors, values }, { status: barErrorStatus.BarNameTaken })` and render it beside the form. Throw the rest with `barErrorThrow`; the `ErrorBoundary` shows them.
-- Words for a refused change: `error.message`, or, when users need other words, a `Record<BarError["type"], string>` in `src/ui/lib/<domain>-error-message.ts`, so a new error fails to compile until it has words.
+- A refused change the user can fix is a message on the page, not an error page: return `data({ errors, values }, { status: bazErrorStatus.BazNameTaken })` and render it beside the form. Throw the rest with `bazErrorThrow`; the `ErrorBoundary` shows them.
+- Words for a refused change: `error.message`, or, when users need other words, a `Record<BazError["type"], string>` in `src/ui/lib/<domain>-error-message.ts`, so a new error fails to compile until it has words.
 - Pending state comes from `useNavigation()`: disable the form's buttons while it submits.
 
 ## Live updates
@@ -63,8 +63,8 @@ An action calls exactly one write Use case. A page with several forms tells them
 A page that shows an entity others can change reruns its loaders when that entity changes. The call sits between the page's `piece-start: live` and `piece-end: live` lines, so `pnpm piece-remove live` takes it out.
 
 ```ts
-// src/ui/routes/bar-detail.tsx
-useLiveUpdates({ channel: "bar", id: bar.id });
+// src/ui/routes/baz-detail.tsx
+useLiveUpdates({ channel: "baz", id: baz.id });
 ```
 
 - The channel is the Domain, the id the entity's. The Domain's Use case sends on that channel after commit, and `adapters/inbound/<domain>-live.ts` serves the stream only to an Actor its read Use case allows.
@@ -81,13 +81,13 @@ useLiveUpdates({ channel: "bar", id: bar.id });
 A page test sits beside its page and calls `loader` and `action` directly, with every Domain built on memory connections the same way the Server builds them.
 
 ```ts
-// src/ui/routes/bar-list.test.ts
+// src/ui/routes/baz-list.test.ts
 const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = (actor: Actor | null = owner) => {
-	const useCases = domainsUseCasesCreate(connections).barUseCases;
+	const useCases = domainsUseCasesCreate(connections).bazUseCases;
 	const context = routerContextCreate(actor ?? undefined, [
-		[barUseCasesContext, useCases],
+		[bazUseCasesContext, useCases],
 	]);
 	return { context, useCases };
 };

@@ -1,6 +1,7 @@
-// Shared by domain-create, template-upgrade and app-create: fetches a baseline release and renders
-// apps/app without the foo domain. Native TS, no dependencies; shells out to git and pnpm.
-// Why a JS/TS-aware scanner renames foo instead of domain-create markers alone: foo also appears in
+// Shared by context-create, aggregate-create, template-upgrade and app-create: fetches a baseline
+// release and renders apps/app without the foo context. Native TS, no dependencies; shells out to
+// git and pnpm.
+// Why a JS/TS-aware scanner renames foo instead of wiring markers alone: foo also appears in
 // regex literals, JSX text and prose, where a plain replace or a marker would rename the wrong text
 // or miss it. render-and-test renders and tests a project on every PR, so it covers the scanner.
 import { execFileSync } from "node:child_process";
@@ -338,12 +339,21 @@ const lineDepths = (
 	return result;
 };
 
-// Line ranges [start, end] (inclusive) holding foo. In code files a range grows to the whole
-// bracket-balanced statement; in .env files it takes the item's `# @` decorator lines.
-export const fooBlocksFind = (
-	text: string,
-	path: string,
-): [number, number][] => {
+// Line ranges [start, end] (inclusive) holding foo, or the lines `lineIs` picks. In code files a
+// range grows to the whole bracket-balanced statement; in .env files it takes the item's `# @`
+// decorator lines.
+export const fooBlocksFind = (text: string, path: string): [number, number][] =>
+	linesBlocksFind({ lineIs: fooLineIs, path, text });
+
+export const linesBlocksFind = ({
+	lineIs,
+	path,
+	text,
+}: {
+	lineIs: (line: string) => boolean;
+	path: string;
+	text: string;
+}): [number, number][] => {
 	const lines = text.split("\n");
 	const blocks: [number, number][] = [];
 	const code = codeFileIs(path);
@@ -359,7 +369,7 @@ export const fooBlocksFind = (
 		return { depth, low };
 	};
 	for (let i = 0; i < lines.length; i++) {
-		if (!fooLineIs(lines[i] ?? "")) continue;
+		if (!lineIs(lines[i] ?? "")) continue;
 		let start = i;
 		let end = i;
 		if (code) {
@@ -374,18 +384,20 @@ export const fooBlocksFind = (
 				if (
 					low < 0 ||
 					depths[before]?.open === true ||
-					/=\s*$/.test(lines[before] ?? "")
+					// A type argument list spread over lines (`Parameters<` … `>[0][],`) counts too.
+					/(=|<)\s*$/.test(lines[before] ?? "")
 				) {
 					start--;
 				} else if (
 					depth > 0 ||
 					depths[end]?.open === true ||
-					/=\s*$/.test(lines[end] ?? "")
+					/(=|<)\s*$/.test(lines[end] ?? "") ||
+					/^\s*>/.test(lines[end + 1] ?? "")
 				) {
 					end++;
 				} else if (
 					/[([{]\s*$/.test(lines[before] ?? "") &&
-					fooLineIs(lines[end + 1] ?? "")
+					lineIs(lines[end + 1] ?? "")
 				) {
 					// The next argument names foo too: it may be all the bracket holds, and then
 					// the statement around it goes (app.route("/live/foo", fooLive...(...))).
@@ -446,10 +458,10 @@ const templateFooPaths = [
 const templateUntouchedPaths = [/^scripts\//];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
-// Lines between a `domain-create: domains-start` and `domains-end` marker pair are valid only while
-// a domain exists. The render empties each pair; domain-create fills them for the first domain.
-const domainsStart = /^\s*(\/\/|#) domain-create: domains-start\s*$/;
-const domainsEnd = /^\s*(\/\/|#) domain-create: domains-end\s*$/;
+// Lines between a `wiring: contexts-start` and `contexts-end` marker pair are valid only while
+// a context exists. The render empties each pair; context-create and aggregate-create fill them.
+const domainsStart = /^\s*(\/\/|#) wiring: contexts-start\s*$/;
+const domainsEnd = /^\s*(\/\/|#) wiring: contexts-end\s*$/;
 
 // Each pair's marker lines [start, end].
 export const domainsPairsFind = (
@@ -463,7 +475,7 @@ export const domainsPairsFind = (
 			? start !== undefined
 			: domainsEnd.test(line) && start === undefined;
 		if (misplaced) {
-			throw new Error(`${path}:${k + 1}: domain-create markers must pair up`);
+			throw new Error(`${path}:${k + 1}: wiring markers must pair up`);
 		}
 		if (domainsStart.test(line)) start = k;
 		if (domainsEnd.test(line) && start !== undefined) {
@@ -472,7 +484,7 @@ export const domainsPairsFind = (
 		}
 	}
 	if (start !== undefined) {
-		throw new Error(`${path}:${start + 1}: domains-start has no domains-end`);
+		throw new Error(`${path}:${start + 1}: contexts-start has no contexts-end`);
 	}
 	return pairs;
 };
@@ -483,15 +495,17 @@ export const domainsPairsEmpty = (text: string, path: string): string =>
 		domainsPairsFind(text, path).map(([start, end]) => [start + 1, end - 1]),
 	);
 
-// CONTEXT.md keeps every Architecture term; only the **Foo**: entry goes.
+// CONTEXT.md keeps every Architecture term; only the **Foo**: and **Bar**: entries go.
 const contextRender = (text: string, answers: TemplateAnswers): string => {
 	const lines = text.split("\n");
 	lines[0] = `# ${answers.description}`;
-	const start = lines.indexOf("**Foo**:");
-	if (start === -1) return lines.join("\n");
-	let end = start;
-	while (end < lines.length && (lines[end] ?? "") !== "") end++;
-	lines.splice(start, end - start + 1);
+	for (const term of ["**Foo**:", "**Bar**:"]) {
+		const start = lines.indexOf(term);
+		if (start === -1) continue;
+		let end = start;
+		while (end < lines.length && (lines[end] ?? "") !== "") end++;
+		lines.splice(start, end - start + 1);
+	}
 	return lines.join("\n").replace(/\n+$/, "\n");
 };
 
@@ -614,8 +628,13 @@ const sdkFileRender = (
 		);
 	document.info.title = answers.name;
 	document.paths = fooless(document.paths);
+	// Bar's schemas go with foo's: Bar is foo's second Aggregate, whose names do not say foo.
 	if (document.components?.schemas !== undefined) {
-		document.components.schemas = fooless(document.components.schemas);
+		document.components.schemas = Object.fromEntries(
+			Object.entries(fooless(document.components.schemas)).filter(
+				([key]) => !/^Bar[A-Z]/.test(key),
+			),
+		);
 	}
 	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
 	return { path, text: JSON.stringify(document) };

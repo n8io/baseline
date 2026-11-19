@@ -7,16 +7,16 @@ import type { Connections } from "./connections.ts";
 // Server, the Worker, the seed and tests all call domainsUseCasesCreate, so each Bridge is wired
 // once. A Domain that reads another is built after it, with its Bridge (docs/agents/bridges.md).
 // (Below the imports: a Project with no Domain yet keeps this comment when its imports go.)
-// domain-create: domains-start
+// wiring: contexts-start
 export const domainsUseCasesCreate = (connections: Connections) => {
 	const fooUseCases = telemetryUseCasesTrace(
 		fooUseCasesCreate(fooPortsCreate(connections)),
 	);
-	// domain-create: use-cases
+	// wiring: use-cases
 	return {
 		fooUseCases,
-		// domain-create: use-cases-returned
+		// wiring: use-cases-returned
 	};
 };
 export type DomainsUseCases = ReturnType<typeof domainsUseCasesCreate>;
-// domain-create: domains-end
+// wiring: contexts-end

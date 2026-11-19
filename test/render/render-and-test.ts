@@ -1,21 +1,26 @@
 // node test/render/render-and-test.ts <directory>: builds the project CI's render-and-test job
 // hands to app-ci.yml. origin/main is the previous release rendered as app-create renders it,
 // with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade and
-// checks, tests and builds it with no Domain, as app-create leaves a new Project. Then it adds
-// Domains with this checkout's domain-create: customer with --bare first, invoice-line with
-// --bare --reads customer, one --bare Domain per part, so each part passes app-ci alone and fills
-// the wiring the first Domain left empty, and vendor with every part. Then
-// the second-domain fixture: a customer_id column on invoice lines and the consumer that clears it
-// when a customer is deleted. HEAD installs this checkout's packages/*.
+// checks, tests and builds it with no context, as app-create leaves a new Project. Then it adds
+// contexts with this checkout's context-create, each with an Aggregate of its own name from
+// aggregate-create: customer with --bare first, invoice-line with --bare and --reads customer, one
+// --bare context per part, so each part passes app-ci alone and fills the wiring the first context
+// left empty, and vendor with every part, which then gets a second Aggregate, vendor-contact, with
+// every part too. Then the second-domain fixture: a customer_id column on invoice lines and the
+// Event handler that clears it when a customer is deleted. HEAD installs this checkout's packages/*.
 import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
-	type DomainPart,
-	domainFilesCreate,
-	domainFilesFormat,
-	domainNameRefusal,
-	domainReadsRefusal,
-} from "../../apps/app/scripts/domain-create.ts";
+	type AggregatePart,
+	aggregateFilesCreate,
+	aggregateRefusal,
+	filesFormat,
+	readsRefusal,
+} from "../../apps/app/scripts/aggregate-create.ts";
+import {
+	contextFilesCreate,
+	contextRefusal,
+} from "../../apps/app/scripts/context-create.ts";
 import { npmTarballsWait } from "../../apps/app/scripts/npm-tarballs-wait.ts";
 import {
 	filesWrite,
@@ -47,12 +52,14 @@ const answers = {
 	name: "render-test",
 	release: "",
 };
-// customer first: invoice-line reads it through a Bridge. `parts` null is a domain-create
-// without --bare.
+// customer first: invoice-line reads it through a Bridge. `parts` null is an aggregate-create
+// without --bare. `context` names an existing context to add the Aggregate to; without it,
+// context-create makes a context of the Aggregate's name first.
 const domains: {
+	context?: string;
 	definition: string;
 	kebab: string;
-	parts: DomainPart[] | null;
+	parts: AggregatePart[] | null;
 	plural: string;
 	reads: string[];
 }[] = [
@@ -80,7 +87,7 @@ const domains: {
 			["seed", "refund"],
 		] as const
 	).map(([part, kebab]) => ({
-		definition: `A Domain made with domain-create --bare --${part}.`,
+		definition: `A context made with aggregate-create --bare --${part}.`,
 		kebab,
 		parts: [part],
 		plural: `${kebab}s`,
@@ -91,6 +98,14 @@ const domains: {
 		kebab: "vendor",
 		parts: null,
 		plural: "vendors",
+		reads: [],
+	},
+	{
+		context: "vendor",
+		definition: "A person to call at a vendor.",
+		kebab: "vendor-contact",
+		parts: null,
+		plural: "vendor-contacts",
 		reads: [],
 	},
 ];
@@ -180,29 +195,51 @@ const main = async () => {
 		);
 	}
 
-	for (const { kebab, parts, plural, reads } of domains) {
-		const names = { kebab, plural };
-		const refusal =
-			domainNameRefusal(names, directory) ??
-			domainReadsRefusal({ appDirectory: directory, names, reads });
-		if (refusal !== undefined) throw new Error(refusal);
-		const created = domainFilesCreate({
-			templateFull: files,
+	for (const { context, kebab, parts, plural, reads } of domains) {
+		const created: string[] = [];
+		if (context === undefined) {
+			const refusal =
+				contextRefusal({ appDirectory: directory, context: kebab }) ??
+				readsRefusal({
+					appDirectory: directory,
+					names: { kebab, plural: `${kebab}s` },
+					reads,
+				});
+			if (refusal !== undefined) throw new Error(refusal);
+			const contextFiles = contextFilesCreate({
+				appDirectory: directory,
+				context: kebab,
+				reads,
+				templateFull: files,
+			});
+			filesWrite(directory, contextFiles);
+			created.push(...contextFiles.map((f) => f.path));
+		}
+		const aggregate = { kebab, plural };
+		const refusal = aggregateRefusal({
+			aggregate,
 			appDirectory: directory,
-			names,
-			parts,
-			reads,
+			context: context ?? kebab,
 		});
-		filesWrite(directory, created);
-		domainFilesFormat({
+		if (refusal !== undefined) throw new Error(refusal);
+		const aggregateFiles = aggregateFilesCreate({
+			aggregate,
 			appDirectory: directory,
-			paths: created.map((f) => f.path),
+			context: context ?? kebab,
+			parts,
+			templateFull: files,
+		});
+		filesWrite(directory, aggregateFiles);
+		created.push(...aggregateFiles.map((f) => f.path));
+		filesFormat({
+			appDirectory: directory,
+			paths: [...new Set(created)].filter((p) => !p.endsWith(".md")),
 		});
 	}
 	if (process.env.RENDER_AND_TEST_STOP === "fixture") {
 		// To change the fixture: edit this tree, then copy its new files to second-domain/files
 		// and save `git diff` as second-domain/wiring.patch.
-		gitCommitAll(directory, "Add the Domains");
+		gitCommitAll(directory, "Add the contexts");
 		return;
 	}
 	cpSync(join(fixture, "files"), directory, { recursive: true });
@@ -215,12 +252,12 @@ const main = async () => {
 	});
 	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
 	pnpmRun(directory, ["codegen"]);
-	// The Domains added routes, so the SDK is regenerated, as a Project does after domain-create.
+	// The Domains added routes, so the SDK is regenerated, as a Project does after aggregate-create.
 	pnpmRun(directory, ["sdk-generate"]);
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);
 	checkoutPackagesTrack(directory);
-	gitCommitAll(directory, "Upgrade and add the Domains");
+	gitCommitAll(directory, "Upgrade and add the contexts");
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));
 };
 

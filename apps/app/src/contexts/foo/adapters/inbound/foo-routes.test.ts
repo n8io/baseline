@@ -215,7 +215,7 @@ describe("GET /{fooId}", () => {
 		);
 	});
 
-	it.each(["nope", "bar_0123456789abcdef"])(
+	it.each(["nope", "baz_0123456789abcdef"])(
 		"rejects id %s with 400",
 		async (id) => {
 			const { send } = setup();

@@ -1,0 +1,186 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "32324e4b-9b19-44a8-bc1a-70888087db4f",
+  "prevIds": [
+    "10b4add9-72ae-420c-af9e-39c3eaf030ce"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "foo",
+        "bar"
+      ],
+      "writes": [
+        "s|tbl|foo.bar",
+        "n|tbl|foo.bar",
+        "e|tbl|foo.bar",
+        "n|rel|foo.bar",
+        "n|type|foo.bar",
+        "n|rel|foo.bar_pkey"
+      ],
+      "reads": [
+        "n|sch|foo"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "foo",
+        "bar",
+        "bar_foo_id_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|foo.bar_foo_id_created_at_idx",
+        "n|idx|foo.bar_foo_id_created_at_idx",
+        "e|idx|foo.bar_foo_id_created_at_idx",
+        "n|rel|foo.bar_foo_id_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|foo.bar",
+        "n|sch|foo",
+        "n|col|foo.bar.foo_id",
+        "n|col|foo.bar.created_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "name": "bar",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "foo_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "text",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "created_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "bar_foo_id_created_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "foo_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "foo",
+        "table": "bar",
+        "name": "bar_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

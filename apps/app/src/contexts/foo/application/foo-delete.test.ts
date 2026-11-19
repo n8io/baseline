@@ -4,6 +4,7 @@ import { err } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
 import { FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
+import { barCreate } from "./bar-create.ts";
 import { fooCreate } from "./foo-create.ts";
 import { fooDelete } from "./foo-delete.ts";
 import { fooGet } from "./foo-get.ts";
@@ -69,6 +70,30 @@ describe("fooDelete", () => {
 			state.published.filter((event) => event.name === "foo.deleted"),
 		).toEqual([{ data: { fooId: foo.id }, key: foo.id, name: "foo.deleted" }]);
 		// piece-end: queue
+	});
+
+	it("deletes the foo's bars with it and leaves other foos' bars", async () => {
+		const { ports, state, foo } = await setup();
+		const other = await fooCreate(ports)(owner, { name: "beta" });
+		if (!other.ok) throw other.error;
+		await barCreate(ports)(owner, { fooId: foo.id, text: "gone" });
+		const kept = await barCreate(ports)(owner, {
+			fooId: other.value.id,
+			text: "kept",
+		});
+
+		await fooDelete(ports)(owner, { fooId: foo.id });
+
+		expect([...state.bars.values()]).toEqual([kept.ok && kept.value]);
+	});
+
+	it("keeps the bars when the delete is forbidden", async () => {
+		const { ports, state, foo } = await setup();
+		await barCreate(ports)(owner, { fooId: foo.id, text: "stays" });
+
+		await fooDelete(ports)(stranger, { fooId: foo.id });
+
+		expect(state.bars.size).toBe(1);
 	});
 
 	it("returns FooNotFoundError for an unknown id", async () => {
