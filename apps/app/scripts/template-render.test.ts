@@ -355,11 +355,15 @@ describe("templateFileRender", () => {
 			templateFileRender({ path: `clients/sdk/${path}`, text }, answers)?.text;
 		const document = {
 			components: {
-				schemas: { FooResponse: {}, Problem: {} },
+				schemas: { BarCreateBody: {}, FooResponse: {}, Problem: {} },
 				securitySchemes: { bearer: {} },
 			},
 			info: { title: "app", version: "1" },
-			paths: { "/api/v1/foos": {}, "/api/v1/foos/{fooId}": {} },
+			paths: {
+				"/api/v1/foos": {},
+				"/api/v1/foos/{fooId}": {},
+				"/api/v1/foos/{fooId}/bars": {},
+			},
 		};
 
 		expect(

@@ -628,24 +628,12 @@ const sdkFileRender = (
 		);
 	document.info.title = answers.name;
 	document.paths = fooless(document.paths);
-	// Only the schemas the remaining operations reach stay: foo's context's go, Bar's too, whose
-	// names do not say foo.
-	const schemas = document.components?.schemas;
-	if (document.components !== undefined && schemas !== undefined) {
-		const reached = new Set<string>();
-		const refsFind = (value: unknown) => {
-			for (const [, name = ""] of JSON.stringify(value).matchAll(
-				/"#\/components\/schemas\/([^"]+)"/g,
-			)) {
-				if (!reached.has(name)) {
-					reached.add(name);
-					refsFind(schemas[name]);
-				}
-			}
-		};
-		refsFind(document.paths);
+	// Bar's schemas go with foo's: Bar is foo's second Aggregate, whose names do not say foo.
+	if (document.components?.schemas !== undefined) {
 		document.components.schemas = Object.fromEntries(
-			Object.entries(schemas).filter(([name]) => reached.has(name)),
+			Object.entries(fooless(document.components.schemas)).filter(
+				([key]) => !/^Bar[A-Z]/.test(key),
+			),
 		);
 	}
 	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
