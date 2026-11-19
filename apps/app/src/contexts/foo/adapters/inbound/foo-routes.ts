@@ -72,9 +72,10 @@ const json = <S extends z.ZodType>(schema: S, description: string) => ({
 });
 
 // Each operation is named after the Use case it calls and tagged with its Aggregate; SDK methods
-// and CLI commands take their names from both (docs/agents/api.md).
+// and CLI commands take their names from both and their help from the summary (docs/agents/api.md).
 const fooCreateRoute = createRoute({
 	operationId: "fooCreate",
+	summary: "Create one foo",
 	tags: ["foo"],
 	method: "post",
 	path: "/",
@@ -93,6 +94,7 @@ const fooCreateRoute = createRoute({
 
 const fooListRoute = createRoute({
 	operationId: "fooList",
+	summary: "List foos, one page at a time",
 	tags: ["foo"],
 	method: "get",
 	path: "/",
@@ -102,6 +104,7 @@ const fooListRoute = createRoute({
 
 const fooGetRoute = createRoute({
 	operationId: "fooGet",
+	summary: "Get one foo",
 	tags: ["foo"],
 	method: "get",
 	path: "/{fooId}",
@@ -114,6 +117,7 @@ const fooGetRoute = createRoute({
 
 const fooUpdateRoute = createRoute({
 	operationId: "fooUpdate",
+	summary: "Update one foo",
 	tags: ["foo"],
 	method: "patch",
 	path: "/{fooId}",
@@ -137,6 +141,7 @@ const fooUpdateRoute = createRoute({
 
 const fooDeleteRoute = createRoute({
 	operationId: "fooDelete",
+	summary: "Delete one foo",
 	tags: ["foo"],
 	method: "delete",
 	path: "/{fooId}",
