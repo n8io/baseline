@@ -1,5 +1,11 @@
 # @n8io/baseline-result
 
+## 1.1.3
+
+### Patch Changes
+
+- 97f64ad: The README now says Use cases never throw: only adapters throw, for the unexpected.
+
 ## 1.1.2
 
 ### Patch Changes
