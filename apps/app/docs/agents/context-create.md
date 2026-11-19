@@ -37,7 +37,7 @@ A seed that stores another context's ids must tolerate a row it seeded earlier s
 
 ## Several Aggregates in one context
 
-Each Aggregate gets its own Model, table, repository, Use cases and routes; they share the context's ports, transaction, Use cases object and memory state. One transaction writes one Aggregate. A Use case that must change two of the same context's Aggregates together (deleting an invoice with its lines) says why in a `// invariant: <what>` comment above the transaction; architecture rule A28 fails without it. Across contexts, use an Event ([events.md](events.md)).
+Each Aggregate gets its own Model (`domain/<aggregate>.ts`), table (`adapters/outbound/<aggregate>-table.ts`, which is how the checks tell an Aggregate from a projection), repository, Use cases and routes; only the context's first table exports its `pgSchema`, because drizzle-kit refuses two exported schemas of one name. They share the context's ports, transaction, Use cases object and memory state. One transaction writes one Aggregate. A Use case that must change two of the same context's Aggregates together (deleting an invoice with its lines) says why in a `// invariant: <what>` comment above the transaction; architecture rule A28 fails without it. Across contexts, use an Event ([events.md](events.md)).
 
 ## What they never write
 

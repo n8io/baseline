@@ -142,6 +142,20 @@ describe("nameRefusal and aggregateRefusal", () => {
 		writeFileSync(join(app, "src/contexts/billing/index.ts"), "");
 		writeFileSync(join(app, "src/contexts/billing/domain/invoice-line.ts"), "");
 		expect(refusal()).toContain("domain/invoice-line.ts already exists");
+		mkdirSync(join(app, "src/contexts/crm/domain"), { recursive: true });
+		const crm = () =>
+			aggregateRefusal({ aggregate: names, appDirectory: app, context: "crm" });
+		writeFileSync(join(app, "src/contexts/crm/index.ts"), "");
+		expect(crm()).toContain(
+			"src/contexts/billing/domain/invoice-line.ts already exists",
+		);
+		expect(
+			aggregateRefusal({
+				aggregate: { kebab: "billing", plural: "billings" },
+				appDirectory: app,
+				context: "crm",
+			}),
+		).toContain("src/contexts/billing/ is another context");
 	});
 });
 
@@ -188,6 +202,13 @@ describe("contextAggregateRename", () => {
 		).toBe(true);
 		expect(barLineIs("\tbarRepository: BarRepository;")).toBe(true);
 		expect(barLineIs("// a toolbar and a barrier")).toBe(false);
+		expect(barLineIs('\tscopes: ["bar:read"],')).toBe(false);
+		expect(barLineIs('<nav className="nav-bar">')).toBe(false);
+		expect(barLineIs('\tbars: new Map<Id<"bar">, Bar>(),')).toBe(true);
+		expect(barLineIs('export * from "./domain/bar.ts";')).toBe(true);
+		expect(barLineIs("\t// invariant: a Bar never outlives its Foo.")).toBe(
+			true,
+		);
 	});
 });
 
@@ -241,6 +262,35 @@ describe("wiringInsert", () => {
 				template: templateText,
 			}),
 		).toBe(inserted);
+	});
+
+	it("adds a line whose text sits inside a longer name, and skips one Biome reflowed", () => {
+		const order = (text: string) =>
+			contextAggregateRename({
+				aggregate: { kebab: "order", plural: "orders" },
+				context: { kebab: "order", plural: "orders" },
+				path: "src/use-cases.ts",
+				text,
+			});
+		const insert = (project: string, template: string) =>
+			wiringInsert({
+				blockIs: (line) => line.includes("foo"),
+				path: "src/use-cases.ts",
+				project,
+				rename: order,
+				template,
+			});
+		const returned = "return {\n\tfooUseCases,\n\t// wiring: returned\n};";
+		const suborder = "return {\n\tsuborderUseCases,\n\t// wiring: returned\n};";
+
+		expect(insert(suborder, returned)).toBe(
+			"return {\n\tsuborderUseCases,\n\torderUseCases,\n\t// wiring: returned\n};",
+		);
+		const map =
+			"new Map([\n\t[fooUseCasesContext, useCases.fooUseCases],\n\t// wiring: ui\n]);";
+		const reflowed =
+			"new Map([\n\t[\n\t\torderUseCasesContext,\n\t\tuseCases.orderUseCases,\n\t],\n\t// wiring: ui\n]);";
+		expect(insert(reflowed, map)).toBe(reflowed);
 	});
 
 	it("stops and names the file when the project lost a marker", () => {

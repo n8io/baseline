@@ -1,28 +1,28 @@
 # Schedules
 
-Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `bar` Domain whose Schedule archives stale bars; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
+Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `baz` Domain whose Schedule archives stale bazs; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
 
 ## The file pair
 
 One file per Schedule in the Domain's `adapters/inbound/`. It exports two things: `<domain>Schedule`, the name and cron that migrate syncs, and `<domain>ScheduleCreate`, which the Worker starts with the Domain's Use cases.
 
 ```ts
-// src/contexts/bar/adapters/inbound/bar-schedule.ts
-const barScheduleActor: Actor = {
-	id: "bar-schedule",
+// src/contexts/baz/adapters/inbound/baz-schedule.ts
+const bazScheduleActor: Actor = {
+	id: "baz-schedule",
 	kind: "client",
 	scopes: [],
 };
 
-// Daily at 03:00 UTC. Override per environment: SCHEDULE_BAR_STALE_ARCHIVE="*/5 * * * *" or "off".
+// Daily at 03:00 UTC. Override per environment: SCHEDULE_BAZ_STALE_ARCHIVE="*/5 * * * *" or "off".
 // When it runs: src/migrate.ts syncs this to the database, once per deploy.
-export const barSchedule = { cron: "0 3 * * *", name: "bar.stale-archive" };
+export const bazSchedule = { cron: "0 3 * * *", name: "baz.stale-archive" };
 
 // What it runs: src/worker.ts starts this with the Domain's Use cases.
-export const barScheduleCreate = (u: BarUseCases) =>
+export const bazScheduleCreate = (u: BazUseCases) =>
 	queueScheduleCreate({
-		...barSchedule,
-		run: () => u.barStaleArchive(barScheduleActor),
+		...bazSchedule,
+		run: () => u.bazStaleArchive(bazScheduleActor),
 	});
 ```
 
@@ -35,16 +35,16 @@ export const barScheduleCreate = (u: BarUseCases) =>
 `pnpm aggregate-create` wires a new Aggregate's first Schedule. For another one, add the same four things by hand:
 
 1. Export the pair from the Domain's `adapters/inbound/index.ts`, inside its `piece-start: queue` block.
-2. Add `barSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// wiring: schedules`.
-3. Add `barScheduleCreate(useCases.barUseCases),` to the `schedules` list that `src/worker.ts` passes to `queueSchedulesStart`, above the same marker.
+2. Add `bazSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// wiring: schedules`.
+3. Add `bazScheduleCreate(useCases.bazUseCases),` to the `schedules` list that `src/worker.ts` passes to `queueSchedulesStart`, above the same marker.
 4. Declare its override in `.env.schema`, above `# wiring: schedules`, with the decorator line, or boot fails while it is unset:
 
 ```text
 # @sensitive=false @required=false
-SCHEDULE_BAR_STALE_ARCHIVE=
+SCHEDULE_BAZ_STALE_ARCHIVE=
 ```
 
-- `queueScheduleEnvName` makes the variable's name: upper case, with `.` and `-` turned into `_` (`bar.stale-archive` is `SCHEDULE_BAR_STALE_ARCHIVE`). Its value is a cron or `off`. A cron override acts in migrate; the Worker reads only `off`.
+- `queueScheduleEnvName` makes the variable's name: upper case, with `.` and `-` turned into `_` (`baz.stale-archive` is `SCHEDULE_BAZ_STALE_ARCHIVE`). Its value is a cron or `off`. A cron override acts in migrate; the Worker reads only `off`.
 - migrate adds, updates and removes Schedules once per rollout. The Worker only starts the ones migrate has added: it logs "Schedule is not in the database" for any other, and runs it after a restart that follows a migrate.
 - Removing a Schedule: delete its file, its export, its two list entries and its `.env.schema` lines. The next migrate removes it from the database.
 
@@ -55,42 +55,42 @@ A Schedule's Use case is an ordinary Use case. It may publish Events inside its 
 It handles everything due as of now, not a fixed batch: one run must catch up on any number of missed ticks, and a repeat must change nothing. pg-boss enqueues one run for all the ticks missed during an outage, skips a tick while a run is still active, and retries a failed run, so a run can come late, once for several ticks, or twice.
 
 ```ts
-// src/contexts/bar/application/bar-stale-archive.ts
-export const barStaleArchive =
+// src/contexts/baz/application/baz-stale-archive.ts
+export const bazStaleArchive =
 	({
-		barClock,
-		barTransaction,
-	}: Pick<BarPorts, "barClock" | "barTransaction">) =>
+		bazClock,
+		bazTransaction,
+	}: Pick<BazPorts, "bazClock" | "bazTransaction">) =>
 	(_actor: Actor): Promise<Result<number, never>> =>
-		barTransaction(async ({ barRepository }) => {
-			const now = barClock.now();
-			return ok(await barRepository.archiveStale(barStaleBefore(now), now));
+		bazTransaction(async ({ bazRepository }) => {
+			const now = bazClock.now();
+			return ok(await bazRepository.archiveStale(bazStaleBefore(now), now));
 		});
 ```
 
 ## "Due" work is a repository method
 
-The test for "due" is not a Rule. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. A Rule may compute the method's inputs (`barStaleBefore(now)` gives the cut-off). The adapters may not import Rules, so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
+The test for "due" is not a Rule. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. A Rule may compute the method's inputs (`bazStaleBefore(now)` gives the cut-off). The adapters may not import Rules, so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
 
 ```ts
-// src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
+// src/contexts/baz/adapters/outbound/baz-repository.postgres.ts
 archiveStale: async (before, now) => {
 	const archived = await db
-		.update(bar)
+		.update(baz)
 		.set({ archivedAt: now })
-		.where(and(isNull(bar.archivedAt), lt(bar.updatedAt, before)))
-		.returning({ id: bar.id });
+		.where(and(isNull(baz.archivedAt), lt(baz.updatedAt, before)))
+		.returning({ id: baz.id });
 	return archived.length;
 },
 ```
 
 ```ts
-// src/contexts/bar/adapters/outbound/bar-repository.memory.ts
+// src/contexts/baz/adapters/outbound/baz-repository.memory.ts
 archiveStale: async (before, now) => {
 	let archived = 0;
-	for (const bar of state.bars.values()) {
-		if (bar.archivedAt === null && bar.updatedAt < before) {
-			bar.archivedAt = new Date(now);
+	for (const baz of state.bazs.values()) {
+		if (baz.archivedAt === null && baz.updatedAt < before) {
+			baz.archivedAt = new Date(now);
 			archived += 1;
 		}
 	}
@@ -107,12 +107,12 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 - The Schedule: build the Domain's Use cases on memory ports, call `run()`, and check the result and the rows. That is also how to run a Schedule on demand in any test: never wait for the cron.
 
 ```ts
-// src/contexts/bar/adapters/inbound/bar-schedule.test.ts
-const schedule = barScheduleCreate(barUseCasesCreate(ports));
+// src/contexts/baz/adapters/inbound/baz-schedule.test.ts
+const schedule = bazScheduleCreate(bazUseCasesCreate(ports));
 
-expect(schedule).toMatchObject(barSchedule);
+expect(schedule).toMatchObject(bazSchedule);
 expect(await schedule.run()).toEqual(ok(1));
-expect(state.bars.get(id)?.archivedAt).toBeInstanceOf(Date);
+expect(state.bazs.get(id)?.archivedAt).toBeInstanceOf(Date);
 expect(await schedule.run()).toEqual(ok(0));
 ```
 

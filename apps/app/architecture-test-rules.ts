@@ -133,14 +133,18 @@ const camel = (kebab: string): string =>
 const snake = (kebab: string): string => kebab.replaceAll("-", "_");
 const tableIs = (p: string): boolean =>
 	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
-// A context's Aggregates: one table file each, adapters/outbound/<aggregate>-table.ts.
+// A context's Aggregates: a model in domain/ with its own table in adapters/outbound/. A table
+// with no model of its name (a projection) is not one.
 const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
-	files.flatMap(
-		(f) =>
-			new RegExp(
-				`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
-			).exec(f.path)?.[1] ?? [],
-	);
+	files.flatMap((f) => {
+		const name = new RegExp(
+			`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
+		).exec(f.path)?.[1];
+		return name &&
+			files.some((m) => m.path === `src/contexts/${context}/domain/${name}.ts`)
+			? [name]
+			: [];
+	});
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
 // Where Use cases are built: domainsUseCasesCreate, and any composition root that still does.
 const useCasesBuilders = [...roots, "src/use-cases.ts"];
@@ -585,11 +589,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				// Another context's id, or an id of one of its Aggregates, is a column built with that id's
 				// prefix, whatever it is named (proposer_team_id); a plain uuid("proposer_team_id") or a
 				// column named <other>_id counts too. An id of the context's own Aggregate needs no handler.
-				const held = contexts
-					.filter((other) => other !== context)
-					.flatMap((other) => [
-						...new Set([other, ...aggregatesOf(files, other)]),
-					])
+				// The context's own names count while picking the longest match, so its order-item id
+				// is not read as another context's item id, then drop out: they need no handler.
+				const own = new Set([context, ...aggregatesOf(files, context)]);
+				const held = [
+					...new Set(
+						contexts.flatMap((other) => [other, ...aggregatesOf(files, other)]),
+					),
+				]
 					.filter((other) => {
 						const camelOther = camel(other);
 						const capital = `${camelOther.charAt(0).toUpperCase()}${camelOther.slice(1)}`;
@@ -601,7 +608,8 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					.filter(
 						(other, _i, matched) =>
 							!matched.some((longer) => longer.endsWith(`-${other}`)),
-					);
+					)
+					.filter((other) => !own.has(other));
 				return held
 					.filter(
 						(other) =>
@@ -948,23 +956,44 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				});
 			}),
 
-	// One Aggregate per transaction: a Use case that writes through two Aggregates' repositories in
-	// a transaction says which invariant needs both, in a `// invariant: <what>` comment above it.
+	// One Aggregate per transaction: a transaction whose work reaches two Aggregates' repositories
+	// says which invariant needs both, in a `// invariant: <what>` comment right above the call.
 	// The ports already keep a transaction inside one context.
 	A28: (files) =>
 		files
 			.filter((f) => applicationUseCaseIs(f.path))
 			.flatMap((f) => {
-				const repositories = new Set(
-					[...f.source.matchAll(/\.(\w+?)Repository\b(?!\w)/g)]
-						.map((m) => m[1] ?? "")
-						.filter((name) => !name.endsWith("Read")),
-				);
-				return repositories.size > 1 &&
-					!/^\s*\/\/ invariant: \S+(\s+\S+){2,}/m.test(f.source)
-					? [
-							`${f.path}: one transaction writes ${[...repositories].sort().join(" and ")}; keep one Aggregate per transaction, or say the invariant that needs both in a "// invariant: <what>" comment above it`,
-						]
-					: [];
+				const lines = f.source.split("\n");
+				return [
+					...f.source.matchAll(/\b\w+Transaction\s*(?:<[^()]*?>)?\s*\(/g),
+				].flatMap((m) => {
+					// The call's own text, to its closing bracket.
+					let depth = 0;
+					let end = m.index + m[0].length - 1;
+					for (; end < f.source.length; end++) {
+						const c = f.source[end];
+						if (c === "(") depth++;
+						else if (c === ")" && --depth === 0) break;
+					}
+					const work = f.source.slice(m.index, end);
+					const repositories = new Set(
+						[...work.matchAll(/\b(\w+?)Repository\b/g)]
+							.map((r) => r[1] ?? "")
+							.filter((name) => !/Read$|^[A-Z]/.test(name)),
+					);
+					if (repositories.size < 2) return [];
+					// The comment lines right above the statement the call is in.
+					let line = f.source.slice(0, m.index).split("\n").length - 1;
+					const above: string[] = [];
+					while (/^\s*\/\//.test(lines[line - 1] ?? ""))
+						above.push(lines[--line] ?? "");
+					return above.some((l) =>
+						/^\s*\/\/ invariant: \S+(\s+\S+){2,}/.test(l),
+					)
+						? []
+						: [
+								`${f.path}:${line + 1}: one transaction writes ${[...repositories].sort().join(" and ")}; keep one Aggregate per transaction, or say the invariant that needs both in a "// invariant: <what>" comment above it`,
+							];
+				});
 			}),
 };

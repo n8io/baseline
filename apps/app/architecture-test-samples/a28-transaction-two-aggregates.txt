@@ -1,5 +1,5 @@
 // A28: a Use case writing two Aggregates' repositories in one transaction says the invariant that needs both
-// expect: src/contexts/billing/application/invoice-close.ts: one transaction writes invoice and invoiceLine; keep one Aggregate per transaction
+// expect: src/contexts/billing/application/invoice-close.ts:2: one transaction writes invoice and invoiceLine; keep one Aggregate per transaction
 // @file src/contexts/billing/application/invoice-close.ts
 export const invoiceClose = (ports) =>
 	ports.billingTransaction(async (t) => {

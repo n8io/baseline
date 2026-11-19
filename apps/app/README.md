@@ -30,7 +30,7 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 
 ## Domains
 
-A Domain is one business entity: a folder in `src/contexts/` with the API, Use cases, Rules, ports and SPI in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The Domains are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
+A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its API, Use cases, Rules, ports and adapters in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The contexts are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
 
 ```sh
 pnpm context-create invoice && pnpm aggregate-create invoice invoice --bare   # the core only; --help lists the parts

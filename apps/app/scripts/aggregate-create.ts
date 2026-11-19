@@ -61,8 +61,10 @@ export const contextFilePaths = new Set(
 const barPathIs = (path: string): boolean =>
 	/^src\/contexts\/foo\/(.+\/)?bar[-.][^/]*$/.test(path) ||
 	/^migrations\/[^/]*_foo_bar_[^/]*\//.test(path);
+// A line naming Bar: its identifiers (barCreate, BarRepository, bars), its id prefix ("bar") and
+// its files (./bar-routes.ts), not a word such as "bar:read" or a nav-bar.
 export const barLineIs = (line: string): boolean =>
-	/(?<![A-Za-z])(bar|Bar|BAR)s?(?![a-z])/.test(line);
+	/\b(bar[A-Z]\w*|Bar[A-Za-z0-9]*|bars)\b|"bar"|\/bar[-.]/.test(line);
 
 // A foo that names the context, not the Foo Aggregate: its ports, transaction, Use cases, readers
 // and memory state, its Postgres schema, and the paths of its folder and its own files.
@@ -553,7 +555,34 @@ const importsMissingAdd = ({
 	return lines.join("\n");
 };
 
-const spaceless = (text: string): string => text.replaceAll(/\s+/g, "");
+// Text as Biome may reflow it: no whitespace, no trailing comma before a closing bracket.
+const spaceless = (text: string): string =>
+	text.replaceAll(/\s+/g, "").replaceAll(/,(?=[)\]}>])/g, "");
+// Whether the project already holds the block whole: `orderUseCases,` is not in
+// `suborderUseCases,`, and a trailing comma the block ends with may be gone before a bracket.
+const blockPresentIs = ({
+	block,
+	project,
+}: {
+	block: string;
+	project: string;
+}): boolean => {
+	const needle = spaceless(block).replace(/,$/, "");
+	const haystack = spaceless(project);
+	for (let at = haystack.indexOf(needle); at !== -1; ) {
+		const before = haystack[at - 1] ?? "";
+		const after = haystack[at + needle.length] ?? "";
+		const word = /[\w$]/;
+		if (
+			!(word.test(before) && word.test(needle[0] ?? "")) &&
+			!(word.test(after) && word.test(needle.at(-1) ?? ""))
+		) {
+			return true;
+		}
+		at = haystack.indexOf(needle, at + 1);
+	}
+	return false;
+};
 
 // Adds the renamed copy of each block `blockIs` picks in the template's version of a file to the
 // project's version: above the marker below it, or after the imports for an import. In a shared
@@ -582,12 +611,11 @@ export const wiringInsert = ({
 	const skipped = [...blocks, ...fooBlocksFind(exploded, path)];
 	const inSkipped = (k: number) => skipped.some(([s, e]) => k >= s && k <= e);
 	const context = contextFilePaths.has(path);
-	const present = spaceless(project);
 	const imports: string[] = [];
 	const inserted: string[] = [];
 	for (const [start, end] of blocks) {
 		const text = rename(templateLines.slice(start, end + 1).join("\n"));
-		if (present.includes(spaceless(text))) continue;
+		if (blockPresentIs({ block: text, project })) continue;
 		inserted.push(text);
 		if (/^import /.test(templateLines[start] ?? "")) {
 			imports.push(text);
@@ -1032,8 +1060,19 @@ export const aggregateRefusal = ({
 	if (aggregate.plural === aggregate.kebab) {
 		return "the plural must differ from the name";
 	}
-	const model = `src/contexts/${context}/domain/${aggregate.kebab}.ts`;
-	if (existsSync(join(appDirectory, model))) return `${model} already exists`;
+	// An Aggregate's names (its routes, scopes, ids and Use cases) are the app's, not only its
+	// context's: no other context may hold it, nor be named after it.
+	const contexts = join(appDirectory, "src/contexts");
+	for (const other of existsSync(contexts) ? readdirSync(contexts) : []) {
+		const model = `src/contexts/${other}/domain/${aggregate.kebab}.ts`;
+		if (existsSync(join(appDirectory, model))) return `${model} already exists`;
+	}
+	if (
+		aggregate.kebab !== context &&
+		existsSync(join(contexts, aggregate.kebab))
+	) {
+		return `src/contexts/${aggregate.kebab}/ is another context; name the Aggregate otherwise`;
+	}
 	return nameRefusal({ appDirectory, kebab: aggregate.kebab });
 };
 

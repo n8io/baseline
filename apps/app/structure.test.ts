@@ -51,9 +51,12 @@ const structureViolations = (paths: string[], context: string): string[] => {
 	for (const [name, files] of byContext) {
 		const base = `src/contexts/${name}`;
 		// The context's CONTEXT.md, and each Aggregate's error statuses (one table file each).
-		const aggregates = files.flatMap(
-			(f) => /^adapters\/outbound\/([^/]+)-table\.ts$/.exec(f)?.[1] ?? [],
-		);
+		const aggregates = files.flatMap((f) => {
+			const aggregate = /^adapters\/outbound\/([^/]+)-table\.ts$/.exec(f)?.[1];
+			return aggregate && files.includes(`domain/${aggregate}.ts`)
+				? [aggregate]
+				: [];
+		});
 		const allowed = new Set([
 			"CONTEXT.md",
 			"index.ts",
@@ -141,12 +144,15 @@ const testPlacementViolations = (paths: string[]): string[] => {
 		const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1];
 		return context === undefined
 			? []
-			: sources.flatMap(
-					(source) =>
-						new RegExp(
-							`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
-						).exec(source)?.[1] ?? [],
-				);
+			: sources.flatMap((source) => {
+					const aggregate = new RegExp(
+						`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
+					).exec(source)?.[1];
+					return aggregate &&
+						sources.includes(`src/contexts/${context}/domain/${aggregate}.ts`)
+						? [aggregate]
+						: [];
+				});
 	};
 	return paths
 		.filter((path) => path.endsWith(".test.ts"))
@@ -356,6 +362,7 @@ describe("test placement", () => {
 				"src/contexts/bar/application/bar-use-cases.ts",
 				"src/contexts/bar/application/bar-note-use-cases-cache.test.ts",
 				"src/contexts/bar/adapters/outbound/bar-note-table.ts",
+				"src/contexts/bar/domain/bar-note.ts",
 				"src/contexts/bar/adapters/outbound/bar-transaction.postgres.ts",
 				"src/contexts/bar/adapters/outbound/bar-note-transaction.postgres.test.ts",
 				"scripts/glossary-check.ts",
