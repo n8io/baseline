@@ -45,6 +45,10 @@ describe("the SDK on the production build", { timeout: 30_000 }, () => {
 		const listed = await fooList({ limit: 10 });
 		expect(listed.status).toBe(200);
 		expect(listed.data.items.map((foo) => foo.id)).toContain(id);
+		// A boolean query parameter is a boolean in the SDK, sent as ?count=true.
+		const counted = await fooList({ count: true, limit: 10 });
+		expect(counted.status).toBe(200);
+		expect(counted.data.total).toBeGreaterThanOrEqual(1);
 
 		const updated = await fooUpdate(id, { name: "Beta" });
 		expect(updated).toMatchObject({ data: { name: "Beta" }, status: 200 });

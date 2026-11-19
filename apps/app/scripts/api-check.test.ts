@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { problemCodesOpen, securityBearerDeclare } from "./api-check.ts";
+import {
+	problemCodesOpen,
+	queryBooleansTyped,
+	securityBearerDeclare,
+} from "./api-check.ts";
 
 const problem = (code: Record<string, unknown>) => ({
 	paths: {
@@ -59,5 +63,33 @@ describe("securityBearerDeclare", () => {
 		expect(securityBearerDeclare(structuredClone(document))).toStrictEqual(
 			document,
 		);
+	});
+});
+
+describe("queryBooleansTyped", () => {
+	const list = (schema: Record<string, unknown>, where = "query") => ({
+		paths: {
+			"/foos": {
+				get: { parameters: [{ in: where, name: "count", schema }] },
+			},
+		},
+	});
+
+	it("reads a string query parameter with a boolean default as a boolean", () => {
+		expect(
+			queryBooleansTyped(list({ default: false, type: "string" })),
+		).toStrictEqual(list({ default: false, type: "boolean" }));
+	});
+
+	it("leaves a string default, a path parameter and a typed boolean alone", () => {
+		for (const document of [
+			list({ default: "false", type: "string" }),
+			list({ default: false, type: "string" }, "path"),
+			list({ default: false, type: "boolean" }),
+		]) {
+			expect(queryBooleansTyped(structuredClone(document))).toStrictEqual(
+				document,
+			);
+		}
 	});
 });

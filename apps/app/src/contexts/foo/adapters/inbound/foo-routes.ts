@@ -44,9 +44,11 @@ export const FooUpdateBody = z
 	.openapi("FooUpdateBody");
 
 // Query strings arrive as text: numbers are coerced, and booleans accept only "true" or "false".
+// The document says boolean, which is how the SDK sends one (`?count=true`).
 const queryBoolean = z
 	.stringbool({ falsy: ["false"], truthy: ["true"] })
-	.default(false);
+	.default(false)
+	.openapi({ default: false, type: "boolean" });
 export const FooListQuery = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(50),
 	cursor: FooListInput.shape.cursor,

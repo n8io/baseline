@@ -72,6 +72,33 @@ export const securityBearerDeclare = (document: unknown): unknown => {
 	return document;
 };
 
+// A base document built before boolean query parameters were documented as booleans lists each
+// one as `type: string` with a boolean `default` (Zod's stringbool). The server took only "true"
+// or "false" then too, so the base is read as the boolean it was. Delete this once no Project is
+// older than that release.
+export const queryBooleansTyped = (document: unknown): unknown => {
+	const paths = (document as { paths?: Record<string, unknown> }).paths ?? {};
+	for (const operation of Object.values(paths).flatMap((item) =>
+		Object.values((item ?? {}) as Record<string, unknown>),
+	)) {
+		const { parameters } = (operation ?? {}) as { parameters?: unknown };
+		for (const parameter of Array.isArray(parameters) ? parameters : []) {
+			const { in: where, schema } = parameter as {
+				in?: unknown;
+				schema?: { default?: unknown; type?: unknown };
+			};
+			if (
+				where === "query" &&
+				schema?.type === "string" &&
+				typeof schema.default === "boolean"
+			) {
+				schema.type = "boolean";
+			}
+		}
+	}
+	return document;
+};
+
 // Builds the server in `directory`, boots it on memory adapters and saves its OpenAPI document.
 // pnpm sdk-generate reuses it.
 export const documentSave = async ({
@@ -157,7 +184,8 @@ const main = async () => {
 			directory: join(base, prefix),
 			file: baseFile,
 			port: 3101,
-			prepare: (document) => securityBearerDeclare(problemCodesOpen(document)),
+			prepare: (document) =>
+				queryBooleansTyped(securityBearerDeclare(problemCodesOpen(document))),
 		});
 		step({
 			args: [

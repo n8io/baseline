@@ -78,8 +78,8 @@ export type FooListParams = {
 	 */
 	limit?: number;
 	cursor?: string;
-	count?: string;
-	archived?: string;
+	count?: boolean;
+	archived?: boolean;
 	sort?: FooListSort;
 };
 
