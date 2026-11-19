@@ -171,9 +171,12 @@ const main = async () => {
 		sdkFiles.map((path) => readFileSync(join(directory, path), "utf8"));
 	const sdkRendered = sdkRead();
 	pnpmRun(directory, ["sdk-generate"]);
-	if (sdkRead().some((text, k) => text !== sdkRendered[k])) {
+	const sdkChanged = sdkRead().flatMap((text, k) =>
+		text === sdkRendered[k] ? [] : [sdkFiles[k]],
+	);
+	if (sdkChanged.length > 0) {
 		throw new Error(
-			"pnpm sdk-generate changed the rendered clients/sdk: the render and the generator disagree",
+			`pnpm sdk-generate changed the rendered ${sdkChanged.join(" and ")}: the render (sdkFileRender in template-render.ts) and the generator disagree`,
 		);
 	}
 

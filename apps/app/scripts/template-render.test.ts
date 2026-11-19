@@ -361,7 +361,7 @@ describe("templateFileRender", () => {
 				"sdk.ts",
 				'/**\n * Generated.\n */\nimport { sdkFetch } from "./sdk-fetch.ts";\nexport const fooGet = 1;\n',
 			),
-		).toBe("/**\n * Generated.\n */\n");
+		).toBe("/**\n * Generated.\n */\n\n");
 	});
 });
 

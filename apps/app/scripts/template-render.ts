@@ -598,7 +598,9 @@ const sdkFileRender = (
 		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
 	}
 	if (path === "clients/sdk/sdk.ts") {
-		return { path, text: /^\/\*\*[\s\S]*?\*\/\n/.exec(text)?.[0] ?? "" };
+		// orval writes the header and a blank line for a document with no operations.
+		const header = /^\/\*\*[\s\S]*?\*\/\n/.exec(text)?.[0] ?? "";
+		return { path, text: `${header}\n` };
 	}
 	if (path !== "clients/sdk/openapi.json") return undefined;
 	const document = JSON.parse(text) as {
