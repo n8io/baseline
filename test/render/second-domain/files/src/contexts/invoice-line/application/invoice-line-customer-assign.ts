@@ -13,10 +13,10 @@ import {
 } from "../domain/invoice-line.ts";
 import type { InvoiceLinePorts } from "./ports.ts";
 
-// Bills an invoice line to a customer the customer domain knows, read through the bridge
-// before the transaction opens. An unknown customer answers not found, like the invoice line.
-// A customer deleted between the read and the commit is accepted: the customer.deleted
-// Consumer clears it.
+// Bills an invoice line to a customer the customer context knows, read through the
+// anti-corruption layer before the transaction opens. An unknown customer answers not found,
+// like the invoice line. A customer deleted between the read and the commit is accepted: the
+// customer.deleted Event handler clears it.
 export const invoiceLineCustomerAssign =
 	(ports: InvoiceLinePorts) =>
 	async (
@@ -33,7 +33,7 @@ export const invoiceLineCustomerAssign =
 		telemetrySpanAttributesSet({
 			"baseline.invoice_line.id": input.invoiceLineId,
 		});
-		if (!(await ports.invoiceLineCustomerReader.get(input.customerId))) {
+		if (!(await ports.invoiceLineCustomerAcl.get(input.customerId))) {
 			return err(new InvoiceLineNotFoundError(input.invoiceLineId));
 		}
 		const result = await ports.invoiceLineTransaction<

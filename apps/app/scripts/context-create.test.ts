@@ -82,14 +82,16 @@ describe("contextGlossaryText", () => {
 });
 
 describe("contextNextStepsText", () => {
-	it("points at aggregate-create and each reader to fill", () => {
+	it("points at aggregate-create and each ACL to fill", () => {
 		const text = contextNextStepsText({
 			context: "billing",
 			reads: ["customer"],
 		});
 
 		expect(text).toContain("pnpm aggregate-create billing <aggregate>");
-		expect(text).toContain("src/bridges/billing-customer-reader.ts");
+		expect(text).toContain(
+			"src/contexts/billing/adapters/outbound/billing-customer-acl.ts",
+		);
 	});
 });
 

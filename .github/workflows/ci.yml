@@ -154,7 +154,7 @@ jobs:
         working-directory: apps/app
 
   # Renders apps/app as a project would hold it: origin/main is the previous release,
-  # HEAD upgrades it to this change and adds two domains, a consumer and a bridge.
+  # HEAD upgrades it to this change and adds contexts, an Event handler and an ACL.
   render:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}

@@ -1,7 +1,7 @@
 import { analyticsLoggerCreate } from "@n8io/baseline-analytics";
 import type { Actor } from "@n8io/baseline-authn";
 import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
-import { idCreate } from "@n8io/baseline-id";
+import type { Id } from "@n8io/baseline-id";
 import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
 import {
@@ -12,10 +12,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
 import { invoiceLineUseCasesCreate } from "../../application/invoice-line-use-cases.ts";
-import {
-	invoiceLineCustomerReaderMemoryCreate,
-	invoiceLinePortsCreate,
-} from "../outbound/index.ts";
+import { invoiceLinePortsCreate } from "../outbound/index.ts";
+import { invoiceLineTestUpstreamCreate } from "../outbound/invoice-line-test-upstream.ts";
 import { invoiceLineCustomerDeletedHandlerCreate } from "./invoice-line-customer-deleted-handler.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
@@ -36,9 +34,19 @@ afterAll(async () => {
 	await drop();
 });
 
-describe("the customer.deleted consumer on Postgres", () => {
-	const customerId = idCreate("customer");
-	const portsCreate = () =>
+describe("the customer.deleted Event handler on Postgres", () => {
+	// The customer lives in the real customer context, on memory adapters.
+	let customerId: Id<"customer">;
+	const upstream = invoiceLineTestUpstreamCreate();
+	beforeAll(async () => {
+		const customer = await (await upstream).customer.useCases.customerCreate(
+			owner,
+			{ name: "Acme" },
+		);
+		if (!customer.ok) throw customer.error;
+		customerId = customer.value.id;
+	});
+	const portsCreate = async () =>
 		invoiceLinePortsCreate(
 			{
 				// piece-start: analytics
@@ -59,15 +67,11 @@ describe("the customer.deleted consumer on Postgres", () => {
 				// piece-end: redis
 				resources: [],
 			},
-			{
-				invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate([
-					{ id: customerId, name: "Acme" },
-				]),
-			},
+			await upstream,
 		);
 
 	it("clears the customer once and skips a repeat of the same event", async () => {
-		const u = invoiceLineUseCasesCreate(portsCreate());
+		const u = invoiceLineUseCasesCreate(await portsCreate());
 		const billed = async (name: string) => {
 			const created = await u.invoiceLineCreate(owner, { name });
 			if (!created.ok) throw created.error;

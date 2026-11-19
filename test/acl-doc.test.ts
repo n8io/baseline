@@ -17,13 +17,13 @@ import {
 	templateFilesRender,
 } from "../apps/app/scripts/template-render.ts";
 
-// apps/app/docs/agents/bridges.md quotes the render test's invoice-line context. Each ts block
+// apps/app/docs/agents/acl.md quotes the render test's invoice-line context. Each ts block
 // starts with `// <path>` and must appear in that file: in the second-domain fixture's files when
 // the fixture adds the file, in one hunk of its wiring.patch when it changes a generated one, or
 // else in what `context-create invoice-line --reads customer` and then
 // `aggregate-create invoice-line invoice-line --bare` write. Whitespace and
 // trailing commas are ignored: Biome reformats both the quoted block and the generated code.
-const doc = new URL("../apps/app/docs/agents/bridges.md", import.meta.url);
+const doc = new URL("../apps/app/docs/agents/acl.md", import.meta.url);
 const fixture = new URL("render/second-domain/", import.meta.url);
 
 // The new side of each hunk wiring.patch makes to path, hunks apart.
@@ -49,20 +49,15 @@ const formatDrop = (text: string): string =>
 const app = fileURLToPath(new URL("../apps/app/", import.meta.url));
 // A rendered Project with a customer context to read, then the two commands, in a scratch folder.
 const generated = (() => {
-	using folder = mkdtempDisposableSync(join(tmpdir(), "bridges-doc-"));
+	using folder = mkdtempDisposableSync(join(tmpdir(), "acl-doc-"));
 	const project = folder.path;
 	const templateFull = filesRead(app);
 	filesWrite(
 		project,
 		templateFilesRender(templateFull, { description: "d", name: "n" }),
 	);
-	mkdirSync(join(project, "src/contexts/customer/application"), {
-		recursive: true,
-	});
-	writeFileSync(
-		join(project, "src/contexts/customer/application/ports.ts"),
-		"",
-	);
+	mkdirSync(join(project, "src/contexts/customer"), { recursive: true });
+	writeFileSync(join(project, "src/contexts/customer/index.ts"), "");
 	const shell = contextFilesCreate({
 		appDirectory: project,
 		context: "invoice-line",
@@ -92,7 +87,7 @@ const sourcesRead = (path: string): string[] => {
 	];
 };
 
-const bridgesDocBlocksRead = (text: string) =>
+const aclDocBlocksRead = (text: string) =>
 	[...text.matchAll(/^```ts\n([\s\S]*?)^```$/gm)].map(([, body = ""]) => {
 		const [first = "", ...rest] = body.split("\n");
 		return {
@@ -101,8 +96,8 @@ const bridgesDocBlocksRead = (text: string) =>
 		};
 	});
 
-describe("docs/agents/bridges.md", () => {
-	const blocks = bridgesDocBlocksRead(readFileSync(doc, "utf8"));
+describe("docs/agents/acl.md", () => {
+	const blocks = aclDocBlocksRead(readFileSync(doc, "utf8"));
 
 	it("quotes code in every ts block", () => {
 		expect(blocks.length).toBeGreaterThan(0);

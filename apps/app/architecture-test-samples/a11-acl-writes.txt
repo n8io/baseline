@@ -1,0 +1,9 @@
+// A11: an ACL imports only its upstream's index.ts and calls only its *Get and *List use cases
+// expect: src/contexts/bar/adapters/outbound/bar-baz-acl.ts: an ACL only reads, so it calls only *Get and *List use cases, not bazCreate
+// @file src/contexts/bar/adapters/outbound/bar-baz-acl.ts
+import type { BazContext } from "#contexts/baz/index.ts";
+
+export const barBazAclCreate = ({ useCases }: Pick<BazContext, "useCases">) => ({
+	get: (bazId: string) => useCases.bazGet(actor, { bazId }),
+	ensure: (name: string) => useCases.bazCreate(actor, { name }),
+});

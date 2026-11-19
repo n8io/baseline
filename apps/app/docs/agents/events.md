@@ -1,6 +1,6 @@
 # Events and Aggregates
 
-Read when adding a Consumer, an Event or a repository. A Domain that reads another through a Bridge: [bridges.md](bridges.md).
+Read when adding a Consumer, an Event or a repository. A context that reads another through an anti-corruption layer: [acl.md](acl.md).
 
 ## Consumer with the inbox
 

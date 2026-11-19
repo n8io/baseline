@@ -22,7 +22,6 @@ export type ArchitectureRule = (files: ArchitectureFile[]) => string[];
 
 const aliasDirs: [string, string][] = [
 	["#contexts/", "src/contexts/"],
-	["#bridges/", "src/bridges/"],
 	["#ui/", "src/ui/"],
 ];
 const aliasFiles: Record<string, string> = {
@@ -132,6 +131,15 @@ const contextsOf = (files: ArchitectureFile[]): string[] => [
 const camel = (kebab: string): string =>
 	kebab.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 const snake = (kebab: string): string => kebab.replaceAll("-", "_");
+// The upstream an ACL file reads: src/contexts/<context>/adapters/outbound/<context>-<upstream>-acl.ts
+// (or its test).
+const aclOf = (p: string): string | undefined => {
+	const context = contextOf(p);
+	if (!context) return undefined;
+	return new RegExp(
+		`^src/contexts/${context}/adapters/outbound/${context}-(.+)-acl(?:\\.test)?\\.ts$`,
+	).exec(p)?.[1];
+};
 const tableIs = (p: string): boolean =>
 	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
 // A context's Aggregates: a model in domain/ with its own table in adapters/outbound/. A table
@@ -230,7 +238,7 @@ const exportedPredicate =
 const exportedUntypedFunction =
 	/^export (?:const (\w+)\s*=\s*(?:async\s*)?(?:<[^=;]*?>\s*)?\(|(?:async )?function (\w+))/gm;
 const thingWords =
-	/(Body|Cache|Column|Consumer|Handle|Handler|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
+	/(Acl|Body|Cache|Column|Consumer|Handle|Handler|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
 // The scope a file's exports start with: its package (packages/<name>/src) or context.
 const scopeOf = (p: string): string | undefined => {
 	const pkg = /^packages\/([^/]+)\/src\//.exec(p)?.[1];
@@ -418,21 +426,45 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			},
 		}),
 
-	A6: (files) =>
-		importsCheck({
+	A6: (files) => {
+		// The upstreams a context reads: the contexts it has ACL files for.
+		const upstreams = (context: string): string[] =>
+			files.flatMap((f) =>
+				contextOf(f.path) === context && !testIs(f.path)
+					? (aclOf(f.path) ?? [])
+					: [],
+			);
+		return importsCheck({
 			files,
 			fileIs: (f) => contextOf(f.path) !== undefined,
 			check: ({ context, f, imp }) => {
+				// The composition: only tests and test helpers build contexts or open connections.
+				if (
+					["src/use-cases.ts", "src/connections.ts"].includes(imp.target) &&
+					!imp.typeOnly &&
+					!testIs(f.path) &&
+					!/-test-[^/]*\.ts$/.test(f.path)
+				) {
+					return "inside a context only tests and test helpers build contexts or open connections; index.ts gets connections and upstream as arguments";
+				}
 				const target = contextOf(imp.target);
 				if (!target || target === context) return undefined;
+				const entry = partsOf(imp.target).join("/") === "index.ts";
 				const handler =
 					layerOf(f.path) === "adapters/inbound" &&
 					f.path.endsWith("-handler.ts");
-				return handler && partsOf(imp.target).join("/") === "index.ts"
+				// A seed may type an upstream it lists rows from (a team's golfers).
+				const seed =
+					layerOf(f.path) === "adapters/inbound" &&
+					f.path.endsWith("-seed.ts") &&
+					imp.typeOnly &&
+					upstreams(context ?? "").includes(target);
+				return entry && (handler || seed || aclOf(f.path) === target)
 					? undefined
-					: `contexts never import each other; read ${target} through a bridge in src/bridges/, or handle its event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
+					: `contexts never import each other; read ${target} through an anti-corruption layer in adapters/outbound/${context}-${target}-acl.ts, or handle its event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
 			},
-		}),
+		});
+	},
 
 	A7: (files) => [
 		...importsCheck({
@@ -498,54 +530,44 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			},
 		}),
 
-	A11: (files) => {
-		const bridges = files.filter(
-			(f) => f.path.startsWith("src/bridges/") && !testIs(f.path),
-		);
-		const messages = bridges.flatMap((f) => {
-			const contextImports = f.imports.filter((imp) => contextOf(imp.target));
-			const entryMisses = contextImports
-				.filter((imp) => partsOf(imp.target).join("/") !== "index.ts")
-				.map(
+	A11: (files) =>
+		files
+			.filter((f) => aclOf(f.path) !== undefined && !testIs(f.path))
+			.flatMap((f) => {
+				const upstream = aclOf(f.path) ?? "";
+				const others = f.imports.filter(
 					(imp) =>
-						`${f.path} imports ${imp.specifier}: a bridge imports only each context's index.ts`,
+						contextOf(imp.target) !== undefined &&
+						contextOf(imp.target) !== contextOf(f.path),
 				);
-			const contexts = [
-				...new Set(
-					contextImports.flatMap((imp) => contextOf(imp.target) ?? []),
-				),
-			];
-			const countMiss =
-				contexts.length === 2
-					? []
-					: [
-							`${f.path}: a bridge connects exactly two contexts through their index.ts; it imports ${contexts.length} (${contexts.join(", ") || "none"})`,
-						];
-			const callMisses = contexts.flatMap((d) =>
-				[
+				const importMisses = others
+					.filter(
+						(imp) =>
+							contextOf(imp.target) !== upstream ||
+							partsOf(imp.target).join("/") !== "index.ts",
+					)
+					.map(
+						(imp) =>
+							`${f.path} imports ${imp.specifier}: an ACL reads one upstream, ${upstream}, through its index.ts`,
+					);
+				const callMisses = [
 					...f.source.matchAll(
-						new RegExp(`\\b(${camel(d)}[A-Z]\\w*)\\s*\\(`, "g"),
+						new RegExp(`\\b(${camel(upstream)}[A-Z]\\w*)\\s*\\(`, "g"),
 					),
 				]
 					.map((m) => m[1] ?? "")
-					.filter((name) => !/(Get|List)$/.test(name))
+					// The downstream's own names may start with the upstream's (customer-note reads customer).
+					.filter(
+						(name) =>
+							!/(Get|List)$/.test(name) &&
+							!name.startsWith(camel(contextOf(f.path) ?? "")),
+					)
 					.map(
 						(name) =>
-							`${f.path}: a bridge only reads, so it calls only *Get and *List use cases, not ${name}; a change belongs in a use case of the context that owns it`,
-					),
-			);
-			return [...entryMisses, ...countMiss, ...callMisses];
-		});
-		const contextImports = importsCheck({
-			files,
-			fileIs: (f) => contextOf(f.path) !== undefined,
-			check: ({ imp }) =>
-				imp.target.startsWith("src/bridges/")
-					? "no context imports a bridge; src/use-cases.ts passes the bridge to <context>ContextCreate as its upstream"
-					: undefined,
-		});
-		return [...messages, ...contextImports];
-	},
+							`${f.path}: an ACL only reads, so it calls only *Get and *List use cases, not ${name}; a change belongs in a use case of the context that owns it`,
+					);
+				return [...importMisses, ...callMisses];
+			}),
 
 	A12: (files) => [
 		...textCheck({
@@ -621,7 +643,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			check: ({ context, imp }) => {
 				const owner = tableIs(imp.target) ? contextOf(imp.target) : undefined;
 				return owner && owner !== context
-					? `another context's table is private to ${owner}; read ${owner} through a bridge`
+					? `another context's table is private to ${owner}; read ${owner} through an anti-corruption layer`
 					: undefined;
 			},
 		}),
@@ -763,7 +785,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		const builder = (
 			files.find((f) => f.path === "src/use-cases.ts")?.source ?? ""
 		).replaceAll(/\/\/.*$/gm, "");
-		// The roots mount what contextsCreate returns, so a context built only for a Bridge is lost.
+		// The roots mount what contextsCreate returns, so a context built only for another's ACL is lost.
 		const returned = /return\s*\{([^}]*)\}/.exec(builder)?.[1] ?? "";
 		const unbuilt = contexts
 			.filter(

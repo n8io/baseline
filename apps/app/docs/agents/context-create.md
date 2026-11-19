@@ -39,9 +39,9 @@ Read when adding a bounded context or an Aggregate to one. Two commands copy the
 
 `context-create` takes one flag:
 
-| Flag                | Writes                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--reads <context>` | A reader port, `readers` as the required second argument of `<context>PortsCreate`, a memory fake exported from `adapters/outbound/index.ts`, the Bridge `src/bridges/<context>-<target>-reader.ts` and its test, its `upstream` argument on `<context>ContextCreate`, the reader types exported from `index.ts` for the Bridge, and the wiring in `src/use-cases.ts`. Repeat it for each context read. See [bridges.md](bridges.md). |
+| Flag                | Writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--reads <context>` | An anti-corruption layer `adapters/outbound/<context>-<upstream>-acl.ts` and its test, its slot `<context><Upstream>Acl` in `application/ports.ts`, `upstream` as the required argument of `<context>ContextCreate`, `<context>PortsCreate` and `<context>PortsMemoryCreate`, the test helper `<context>TestUpstreamCreate` that builds the real upstream on memory adapters, and the wiring in `src/use-cases.ts`. Repeat it for each context read. See [acl.md](acl.md). |
 
 `aggregate-create` takes the parts:
 
@@ -70,7 +70,7 @@ An Aggregate changes only through its transitions, in `domain/<aggregate>.ts` be
 
 ## What they never write
 
-Business transitions and specifications, Use cases beyond create, get, list, update and delete, Consumers, outcome Events, and the reader's real shape. The Bridge calls the target's `<target>Get` with `<target>Id` and returns its `name`, as the target was first written; if the target's get or Model has changed since, `pnpm check` fails after the files are written, and you fix the Bridge and its test by hand. Those are the context's own design; plan tickets for them, not for what the commands already wrote. [events.md](events.md) covers Consumers, [bridges.md](bridges.md) outcome Events.
+Business transitions and specifications, Use cases beyond create, get, list, update and delete, Consumers, sagas, and the real shape an ACL returns. The ACL calls the upstream's `<upstream>Get` with `<upstream>Id` and returns its `name`, as the upstream was first written; if the upstream's get or Model has changed since, `pnpm check` fails after the files are written, and you fix the ACL and its test by hand. Those are the context's own design; plan tickets for them, not for what the commands already wrote. [events.md](events.md) covers Consumers, [acl.md](acl.md) sagas.
 
 ## After they run
 

@@ -81,8 +81,8 @@ describe("architecture", () => {
 			to: "useCases: telemetryUseCasesTrace(barUseCasesCreate())",
 		},
 		{
-			from: "\tensure: (name) => u.bazCreate(actor, { name }),\n",
-			name: "a11-bridge-writes.txt",
+			from: "\tensure: (name: string) => useCases.bazCreate(actor, { name }),\n",
+			name: "a11-acl-writes.txt",
 			to: "",
 		},
 		{
@@ -128,6 +128,57 @@ describe("architecture", () => {
 			'import { idCreate } from "@n8io/baseline-id";\n',
 		);
 		expect(architectureRules.A2?.([value])).toHaveLength(1);
+	});
+
+	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
+		const acl = await architectureFileCreate(
+			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
+			'import type { BazContext } from "#contexts/baz/index.ts";\n',
+		);
+		const seed = (source: string) =>
+			architectureFileCreate(
+				"src/contexts/bar/adapters/inbound/bar-seed.ts",
+				source,
+			);
+		const typed = await seed(
+			'import type { BazContext } from "#contexts/baz/index.ts";\n',
+		);
+		expect(architectureRules.A6?.([acl, typed])).toEqual([]);
+		// Without the ACL, baz is no upstream of bar.
+		expect(architectureRules.A6?.([typed])).toHaveLength(1);
+		const value = await seed(
+			'import { bazScopes } from "#contexts/baz/index.ts";\n',
+		);
+		expect(architectureRules.A6?.([acl, value])).toHaveLength(1);
+		const other = await architectureFileCreate(
+			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
+			'import type { QuxContext } from "#contexts/qux/index.ts";\n',
+		);
+		expect(architectureRules.A6?.([other])).toHaveLength(1);
+	});
+
+	it("A6 lets only tests and test helpers in a context build contexts or open connections", async () => {
+		const source =
+			'import { connectionsOpen } from "../../../../connections.ts";\nimport { contextsCreate } from "../../../../use-cases.ts";\n';
+		const at = (path: string) => architectureFileCreate(path, source);
+		const outbound = "src/contexts/bar/adapters/outbound";
+		expect(
+			architectureRules.A6?.([
+				await at(`${outbound}/bar-test-upstream.ts`),
+				await at(`${outbound}/bar-baz-acl.test.ts`),
+			]),
+		).toEqual([]);
+		expect(
+			architectureRules.A6?.([await at(`${outbound}/bar-baz-acl.ts`)]),
+		).toHaveLength(2);
+	});
+
+	it("A11 reads a downstream's own call that starts with its upstream's name as its own", async () => {
+		const acl = await architectureFileCreate(
+			"src/contexts/baz-note/adapters/outbound/baz-note-baz-acl.ts",
+			"export const bazNoteBazAclCreate = () => bazNoteShape(useCases.bazGet(actor, {}));\n",
+		);
+		expect(architectureRules.A11?.([acl])).toEqual([]);
 	});
 
 	it("A14 passes once the other context's deleted Event has an Event handler", async () => {

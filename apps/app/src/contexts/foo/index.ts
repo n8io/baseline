@@ -54,6 +54,8 @@ export const fooContextCreate = ({
 		],
 	};
 };
+// What the context hands back: a downstream context's ACL reads it through its useCases.
+export type FooContext = ReturnType<typeof fooContextCreate>;
 
 // The Published language: what the UI and other contexts may use.
 export type { FooUseCases } from "./application/foo-use-cases.ts";
