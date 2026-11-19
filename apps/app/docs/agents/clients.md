@@ -18,7 +18,7 @@ npm trusted publishing (OIDC, no stored token) cannot create a package, so a per
 
 1. From an up-to-date main, publish both packages by hand: `npm login`, then `CLIENTS_NPM_SCOPE=<scope> GITHUB_REPOSITORY=<owner>/<repo> node scripts/clients-release.ts`. A granular token works only with "Bypass two-factor authentication" ticked; without it npm asks for a browser login.
 2. On npmjs.com, for each package, add a trusted publisher: GitHub Actions, this repository, workflow `clients-release.yml`, no environment, and allow direct publishing. A setup made after 2026-09-03 defaults to staged publishing, where each release waits for a 2FA approval. A token that bypasses 2FA cannot add it from the command line (npm answers 403). A setup no workflow uses within 2 days expires.
-3. Set the repository variable `CLIENTS_NPM_SCOPE` to the scope (Settings, Secrets and variables, Actions, Variables).
+3. Set the repository variable `CLIENTS_NPM_SCOPE` to the scope (Settings, Secrets and variables, Actions, Variables). Then run the workflow by hand from the Actions tab: with nothing changed it says so and publishes nothing.
 
 ## When a publish fails
 

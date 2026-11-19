@@ -3,9 +3,11 @@ name: clients-release
 # Publishes the SDK (clients/sdk) and the command line tool (clients/cli) to npm after each push to
 # main that changed them: scripts/clients-release.ts picks the version, docs/agents/clients.md says
 # how. Off, and green, until the repository variable CLIENTS_NPM_SCOPE names the npm scope.
+# workflow_dispatch: a run by hand, to check it after turning it on.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # One publish at a time, none cancelled: each reads the version the one before published.
 concurrency:
