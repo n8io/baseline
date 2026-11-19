@@ -69,7 +69,7 @@ describe("foo detail loader", () => {
 		expect(result.can).toEqual({ delete: true, update: true });
 	});
 
-	it("hides update and delete from an actor the Rules refuse", async () => {
+	it("hides update and delete from an actor the specifications refuse", async () => {
 		const { context, foo } = await setup(stranger);
 		const result = await loader(getArgs(context, foo.id));
 		expect(result.can).toEqual({ delete: false, update: false });

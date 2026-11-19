@@ -27,10 +27,10 @@ pnpm add @n8io/baseline-queue
 ## Example
 
 ```ts
-// In the billing context's HTTP route: validate with the schema, then call the Use case.
+// In the billing context's Event handler: validate with the schema, then call the Use case.
 export const billingOrderPlaced = queueConsumerCreate({
 	eventName: "order.placed",
-	queueName: "billing.order-placed", // <consumer domain>.<event>
+	queueName: "billing.order-placed", // <handling context>.<event>
 	run: (event, inbox) =>
 		billingUseCases.invoiceCreate(actor, {
 			amountCents: event.totalCents,
@@ -110,13 +110,13 @@ const queue = await queueCreate({ pgPool, role: "worker" });
 
 // Each Event handler calls its Use case as its own machine Actor.
 const billingOrderPlacedHandlerActor: Actor = {
-	id: "billing-order-placed-consumer",
+	id: "billing-order-placed-handler",
 	kind: "client",
 	scopes: ["billing:invoice-create"],
 };
 const billingOrderPlaced = queueConsumerCreate({
 	eventName: "order.placed",
-	queueName: "billing.order-placed", // <consumer domain>.<event>
+	queueName: "billing.order-placed", // <handling context>.<event>
 	run: (event, inbox) =>
 		billingUseCases.invoiceCreate(billingOrderPlacedHandlerActor, {
 			amountCents: event.totalCents,

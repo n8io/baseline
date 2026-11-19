@@ -31,7 +31,7 @@ export const billingOrderPlacedHandlerCreate = (u: BillingUseCases) =>
 - Delivery is at least once. The Use case takes `inbox` in its input and passes it to its transaction port: `billingTransaction(work, inbox)`.
 - The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
 - Such a Use case returns `Result<void, E>`.
-- Publish an Event only inside the Use case's transaction, through the context's `<context>Events` port, and after the write it is about.
+- Publish an Event only inside the Use case's transaction, through its Aggregate's `<aggregate>Events` port, and after the write it is about.
 - A context whose ids other contexts hold publishes `<entity>.deleted`. Each context holding that id handles it: see [Holding another context's id](#holding-another-contexts-id).
 
 ## Order and the Event key
@@ -51,7 +51,7 @@ await transaction.orderEvents.publish({
 ```
 
 - Each Event handler gets the Events of one Event key one at a time, in the order their transactions committed, however many workers run. Events with different Event keys run beside each other, so never rely on order across entities.
-- The port types `key` as the context's own id (`Id<"order">`), so a publish without one, or with another context's id, does not compile.
+- The port types `key` as its Aggregate's own id (`Id<"order">`), so a publish without one, or with another Aggregate's id, does not compile.
 - While an Event waits for a retry, the later Events of its Event key wait behind it. Keep an Event handler's Use case short, and let it return `err` for an outcome you expect: only a throw is retried.
 - An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on with an error log. The worker logs it at error level (error tracking hears it, and again each day), `queue.blockedKeys()` lists it, `queue.blockedKeyRetry({ consumer, key })` or `queue.blockedKeyGiveUp({ consumer, key })` releases it, and in a pod `node src/blocked-keys.ts` does both. The runbook is "A blocked key" in the `@n8io/baseline-queue` README.
 

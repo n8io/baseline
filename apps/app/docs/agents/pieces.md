@@ -49,7 +49,7 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Aggregate c
 
 `pnpm piece-remove live`
 
-The live update streams (`/live/<aggregate>/<id>`, `@n8io/baseline-live`) and each context's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
+The live update streams (`/live/<aggregate>/<id>`, `@n8io/baseline-live`) and each Aggregate's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
 Add live updates back: `git revert` the "Remove live" commit. For each Aggregate created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, with its route inside the `piece-start: live` block of the context's `index.ts`.
 
@@ -57,7 +57,7 @@ Add live updates back: `git revert` the "Remove live" commit. For each Aggregate
 
 `pnpm piece-remove cache`
 
-The cache store (`src/cache-store-open.ts`), each context's cache port and its adapter (`adapters/outbound/<aggregate>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each Aggregate's cache port and its adapter (`adapters/outbound/<aggregate>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
 While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `adapters/outbound/index.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
 
@@ -79,13 +79,13 @@ The queue (`@n8io/baseline-queue` on pg-boss), each context's Domain events and 
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Aggregate created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` and `adapters/outbound/index-queue.test.ts` files from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Aggregate created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` files from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts` and its `SCHEDULE_*` line at the one in `.env.schema`. Once per context, also copy `adapters/outbound/index-queue.test.ts` and add `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`.
 
 ## Analytics
 
 `pnpm piece-remove analytics`
 
-Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each context's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
+Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Aggregate's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
 
 `MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 

@@ -1,4 +1,4 @@
-// pnpm app-create: makes a new Project from the latest app@ release, with no Domain yet.
+// pnpm app-create: makes a new Project from the latest app@ release, with no bounded context yet.
 // Renders apps/app, writes the Project's answers, installs and commits, then creates the private
 // GitHub repository, the CI ruleset, squash-only merging and Dependabot security updates, and runs CI once on main.
 // --no-github stops after the commit; --github-only does the GitHub half inside an existing render.

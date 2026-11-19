@@ -10,8 +10,8 @@
 // other text files; migrations, JSON, the glossaries and a string that is the value of `kind:`,
 // in code or quoted in text, are skipped. A glossary term on the line is blanked first, so "Event
 // key" is no hit for an alias "Event"; an alias written capitalized ("DTO") matches only that case,
-// so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. Warnings only: the agent judges
-// each hit, so it always exits 0.
+// so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. Warnings
+// only: the agent judges each hit, so it always exits 0.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { codeFileIs, modesRead, run } from "./template-render.ts";
@@ -306,7 +306,7 @@ export const glossaryLanguageOf = ({
 
 // Not inside a word or a path: test/integration, test:integration and integration.test.ts are
 // no hit for "integration". A word written capitalized ("DTO", another context's "Golfer")
-// matches only as written, as prose writes a glossary term; "an architecture rule" and "a golfer id" pass.
+// matches only as written, as prose writes a glossary term; "a dto" and "a golfer id" pass.
 // `plural` also takes "Golfers".
 const wordPattern = ({
 	global = "",
@@ -383,7 +383,7 @@ export const glossaryHitsFind = ({
 			if (lines === null) continue;
 			prose = lines[added.line - 1] ?? "";
 		} else {
-			// A Markdown line quoting code (`kind: "client"`) skips the `kind:` value, as code does.
+			// A text file line quoting code (`kind: "client"`) skips the `kind:` value, as code does.
 			prose = prose.replace(kindValuePattern, (value) =>
 				" ".repeat(value.length),
 			);

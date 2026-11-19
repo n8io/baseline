@@ -45,7 +45,7 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 
 ## Where new work goes
 
-One context per business area, its Aggregates in it (see context-create.md).
+One context per business area, holding its Aggregates (context-create.md).
 
 | Kind of work                                      | File                                 |
 | ------------------------------------------------- | ------------------------------------ |
@@ -122,7 +122,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - An action calls exactly one write Use case. A loader may call any number of read Use cases across contexts.
 - Do one write per Use case where possible.
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
-- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The context's analytics port lists every name it sends.
+- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Aggregate's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch: one run covers any number of missed ticks, and a repeat changes nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
 - Reuse a shadcn component before making one; add one only with `pnpm exec shadcn add <name>`, never by hand.

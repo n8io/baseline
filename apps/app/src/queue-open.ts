@@ -1,4 +1,4 @@
-// The queue and Events for a composition root, in the same Postgres as the Domains: both "memory"
+// The queue and Events for a composition root, in the same Postgres as the contexts: both "memory"
 // with a memory database. `pnpm piece-remove queue` deletes this file.
 import type { PostgresPool } from "@n8io/baseline-postgres";
 import { type Events, type Queue, queueCreate } from "@n8io/baseline-queue";
@@ -20,7 +20,7 @@ export const queueOpen = async ({
 }): Promise<{ events: Events | "memory"; queue: Queue | "memory" }> => {
 	if (database === "memory") return { events: "memory", queue: "memory" };
 	const queue = await queueCreate({
-		// A Worker runs this many Events and Schedule runs at once, across all its Consumers. Each
+		// A Worker runs this many Events and Schedule runs at once, across all its Event handlers. Each
 		// holds a pool connection while it runs, so one is kept free for the queue's own polls.
 		concurrency: Math.max(1, (database.options.max ?? 10) - 1),
 		pgPool: database,

@@ -21,7 +21,7 @@ Most spans already exist. Instrumentations time inbound and outbound HTTP, Postg
 
 Decide in this order:
 
-1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `telemetrySpanAttributesSet({ "baseline.invoice.id": input.invoiceId })` from `@n8io/baseline-telemetry/span`. Use a semantic-convention key when one exists, otherwise `baseline.<domain>.<key>` in snake_case.
+1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `telemetrySpanAttributesSet({ "baseline.invoice.id": input.invoiceId })` from `@n8io/baseline-telemetry/span`. Use a semantic-convention key when one exists, otherwise `baseline.<scope>.<key>` in snake_case.
 2. Does a span already time it? Then it is not a span. That covers a port call, a transaction, a whole Use case, loader or action.
 3. Is it a step inside a Use case whose own duration you would ask about in an incident? Start one child span around it. It qualifies only when no instrumentation times it and it routinely takes milliseconds or grows with input size: parsing an upload, rendering a document, hashing, a large in-memory sort or merge, or a whole batch loop.
 

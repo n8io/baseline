@@ -54,10 +54,34 @@ describe("invoiceLineCustomerDeletedHandlerCreate", () => {
 		});
 
 		expect(result).toEqual(ok(undefined));
-		expect(await useCases.invoiceLineGet(owner, { invoiceLineId })).toEqual({
-			ok: true,
-			value: expect.not.objectContaining({ customerId }),
+		const line = await useCases.invoiceLineGet(owner, { invoiceLineId });
+		if (!line.ok) throw line.error;
+		expect(line.value.customerId).toBeUndefined();
+	});
+
+	it("passes the job's inbox through, so a repeated job changes nothing", async () => {
+		const { customerId, handler, invoiceLineId, useCases } = await setup();
+		await queueTestConsumerRun({
+			consumer: handler,
+			data: { customerId },
+			eventId: "job-1",
 		});
+		const reassigned = await useCases.invoiceLineCustomerAssign(owner, {
+			customerId,
+			invoiceLineId,
+		});
+		if (!reassigned.ok) throw reassigned.error;
+
+		const repeat = await queueTestConsumerRun({
+			consumer: handler,
+			data: { customerId },
+			eventId: "job-1",
+		});
+
+		expect(repeat).toEqual(ok(undefined));
+		const line = await useCases.invoiceLineGet(owner, { invoiceLineId });
+		if (!line.ok) throw line.error;
+		expect(line.value.customerId).toBe(customerId);
 	});
 
 	it("fails the job on an event that does not parse", async () => {

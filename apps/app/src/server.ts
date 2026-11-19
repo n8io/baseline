@@ -91,7 +91,7 @@ if (connections.events !== "memory") {
 }
 // piece-end: queue
 
-// Every scope the Template's Domains define; the dev admin and the dev client hold all of them.
+// Every scope the Template's contexts define; the dev admin and the dev client hold all of them.
 const scopes: string[] = [
 	...fooScopes,
 	// wiring: scopes

@@ -210,13 +210,14 @@ describe("glossary-check", () => {
 			expect(hitsIn("src/a.tsx", text)).toEqual([]);
 		});
 
-		it("skips a kind value quoted in Markdown, not the prose around it", () => {
+		it("skips a kind value quoted in a text file, not the prose around it", () => {
 			const text = [
 				'A Schedule builds `{ id: "a", kind: "client", scopes: [] }`.',
 				"A machine client calls it.",
+				'A client builds `kind: "client"`.',
 			].join("\n");
 
-			expect(hitsIn("docs/a.md", text)).toEqual([2]);
+			expect(hitsIn("docs/a.md", text)).toEqual([2, 3]);
 		});
 
 		it("reads JSX text, on one line and across lines, and leaves code that looks like it", () => {
