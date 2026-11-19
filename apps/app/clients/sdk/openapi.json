@@ -174,13 +174,13 @@
 						"in": "query"
 					},
 					{
-						"schema": { "type": "string", "default": false },
+						"schema": { "type": "boolean", "default": false },
 						"required": false,
 						"name": "count",
 						"in": "query"
 					},
 					{
-						"schema": { "type": "string", "default": false },
+						"schema": { "type": "boolean", "default": false },
 						"required": false,
 						"name": "archived",
 						"in": "query"
