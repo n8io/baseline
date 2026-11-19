@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { domainFilesCreate } from "../apps/app/scripts/domain-create.ts";
+import { domainFilesCreate } from "../apps/app/scripts/aggregate-create.ts";
 import { filesRead } from "../apps/app/scripts/template-render.ts";
 
 // apps/app/docs/agents/bridges.md quotes the render test's invoice-line Domain. Each ts block

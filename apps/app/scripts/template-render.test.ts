@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { domainsPairsFill } from "./domain-create.ts";
+import { domainsPairsFill } from "./aggregate-create.ts";
 import {
 	domainsPairsFind,
 	filesRead,

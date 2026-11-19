@@ -306,7 +306,7 @@ export const fooRepositoryContract = (
 		});
 	});
 
-	// domain-create-start: schedule
+	// aggregate-create-start: schedule
 	it("archives every unarchived foo updated before the cutoff", async () => {
 		const ports = await create();
 		const before = new Date("2026-02-01T00:00:00.000Z");
@@ -332,5 +332,5 @@ export const fooRepositoryContract = (
 			archived,
 		);
 	});
-	// domain-create-end: schedule
+	// aggregate-create-end: schedule
 };

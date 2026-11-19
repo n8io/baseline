@@ -4,7 +4,6 @@ import {
 } from "@n8io/baseline-postgres";
 import {
 	type Events,
-	type EventsPublisher,
 	type Inbox,
 	queueInboxInsert,
 } from "@n8io/baseline-queue";
@@ -16,9 +15,11 @@ import type {
 	FooTransactionPorts,
 } from "../../application/ports.ts";
 import type { FooEventMap } from "../../domain/foo.ts";
+import { barRepositoryPostgresCreate } from "./bar-repository.postgres.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 
-// One Postgres transaction: everything the work writes commits or rolls back together.
+// One Postgres transaction: everything the work writes, in every Aggregate of the context,
+// commits or rolls back together.
 export const fooTransactionPostgresCreate = (
 	pgPool: PostgresPool,
 	// piece-start: queue
@@ -33,30 +34,40 @@ export const fooTransactionPostgresCreate = (
 		// piece-end: queue
 	) => {
 		// piece-start: queue
-		let fooEvents: EventsPublisher<FooEventMap> | undefined;
+		const committed: (() => Promise<void>)[] = [];
 		// piece-end: queue
 		const result = await postgresTransactionRun({
 			pgPool,
 			work: async (pgClient) => {
+				let open = true;
+				const isOpen = (): boolean => open;
+				const db = drizzle({ client: pgClient });
 				// piece-start: queue
 				if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 					return ok(undefined) as Result<T, E>;
 				}
-				fooEvents = events.publisherCreate<FooEventMap>(pgClient);
-				// The Use case gets publish only: committed() is this file's to call.
-				const { publish } = fooEvents;
+				// An Aggregate's Events port, publishing on this transaction's client. The Use case
+				// gets publish only: committed() is this file's to call.
+				const eventsCreate = <M extends Record<string, unknown>>() => {
+					const publisher = events.publisherCreate<M>(pgClient);
+					committed.push(publisher.committed);
+					return transactionPortsGuard({ publish: publisher.publish }, isOpen);
+				};
 				// piece-end: queue
-				let open = true;
-				const isOpen = (): boolean => open;
 				try {
 					return await work({
-						// piece-start: queue
-						fooEvents: transactionPortsGuard({ publish }, isOpen),
-						// piece-end: queue
-						fooRepository: transactionPortsGuard(
-							fooRepositoryPostgresCreate(drizzle({ client: pgClient })),
+						barRepository: transactionPortsGuard(
+							barRepositoryPostgresCreate(db),
 							isOpen,
 						),
+						// piece-start: queue
+						fooEvents: eventsCreate<FooEventMap>(),
+						// piece-end: queue
+						fooRepository: transactionPortsGuard(
+							fooRepositoryPostgresCreate(db),
+							isOpen,
+						),
+						// wiring: transaction-ports
 					});
 				} finally {
 					open = false;
@@ -65,7 +76,7 @@ export const fooTransactionPostgresCreate = (
 		});
 		// piece-start: queue
 		// The transaction has committed: the queue outside it sends its Events now.
-		if (result.ok) await fooEvents?.committed();
+		if (result.ok) for (const sent of committed) await sent();
 		// piece-end: queue
 		return result;
 	}) as FooTransaction;

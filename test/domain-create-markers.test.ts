@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { domainParts } from "../apps/app/scripts/domain-create.ts";
+import { domainParts } from "../apps/app/scripts/aggregate-create.ts";
 
 // Foo marks the lines of a domain-create part (`--schedule`, `--seed`) that sit inside shared files
 // with `domain-create-start: <part>` / `domain-create-end: <part>`. Like piece blocks, each is code a

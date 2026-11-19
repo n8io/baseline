@@ -13,6 +13,7 @@ export const fooDelete =
 		input: FooDeleteInput,
 	): Promise<Result<void, FooNotFoundError | FooForbiddenError>> => {
 		telemetrySpanAttributesSet({ "baseline.foo.id": input.fooId });
+		// invariant: a Bar never outlives its Foo, so its Bars go in the same transaction.
 		const result = await ports.fooTransaction<
 			void,
 			FooNotFoundError | FooForbiddenError
@@ -25,6 +26,7 @@ export const fooDelete =
 			if (!fooDeleteCan(foo, actor)) {
 				return err(new FooForbiddenError(input.fooId));
 			}
+			await transaction.barRepository.deleteByFooId(foo.id);
 			const deleted = await transaction.fooRepository.delete(foo.id);
 			if (!deleted.ok) return deleted;
 			// piece-start: queue

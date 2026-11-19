@@ -13,7 +13,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { isAbsolute, join, normalize, relative } from "node:path";
-import { pieceBlocksRemove, piecesRemovedFind } from "./domain-create.ts";
+import { pieceBlocksRemove, piecesRemovedFind } from "./aggregate-create.ts";
 import { run } from "./template-render.ts";
 
 type PieceRemoval = {

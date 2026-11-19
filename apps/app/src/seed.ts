@@ -10,13 +10,13 @@ import { ENV, envLocal } from "#env";
 import { connectionsOpen } from "./connections.ts";
 import { type DomainsUseCases, domainsUseCasesCreate } from "./use-cases.ts";
 
-// domain-create: domains-start
+// wiring: contexts-start
 const devSeedActor: Actor = {
 	id: "dev-seed",
 	kind: "client",
 	scopes: [
 		...fooScopes,
-		// domain-create: scopes
+		// wiring: scopes
 	],
 };
 
@@ -24,9 +24,9 @@ const devSeedActor: Actor = {
 // `const things = await thingSeed(...)`, then `await partSeed(..., { things })`.
 export const seedsRun = async (useCases: DomainsUseCases) => {
 	await fooSeed(useCases.fooUseCases, devSeedActor);
-	// domain-create: seeds
+	// wiring: seeds
 };
-// domain-create: domains-end
+// wiring: contexts-end
 
 // True only for `node src/seed.ts`; false when server.ts imports seedsRun.
 if (import.meta.main) {
@@ -40,9 +40,9 @@ if (import.meta.main) {
 		process.exit(0);
 	}
 	const connections = await connectionsOpen({ role: "publisher" });
-	// domain-create: domains-start
+	// wiring: contexts-start
 	await seedsRun(domainsUseCasesCreate(connections));
-	// domain-create: domains-end
+	// wiring: contexts-end
 	logger.info("seeds done");
 
 	for (const step of [...connections.intakes, ...connections.resources]) {

@@ -21,7 +21,7 @@ await queueSchedulesSync({
 	env: ENV,
 	schedules: [
 		fooSchedule,
-		// domain-create: schedules
+		// wiring: schedules
 	],
 });
 // piece-end: queue

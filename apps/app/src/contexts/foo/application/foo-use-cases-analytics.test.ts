@@ -9,7 +9,7 @@ const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const setup = () => {
 	const { ports, state } = fooPortsMemoryCreate();
 	return {
-		tracked: state.analyticsTracked,
+		tracked: state.fooAnalyticsTracked,
 		useCases: fooUseCasesCreate(ports),
 	};
 };

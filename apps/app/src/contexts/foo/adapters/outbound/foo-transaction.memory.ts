@@ -1,3 +1,4 @@
+import type { Id } from "@n8io/baseline-id";
 import type { Inbox } from "@n8io/baseline-queue";
 import { queueEventsMemoryCreate } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
@@ -6,13 +7,35 @@ import type {
 	FooTransaction,
 	FooTransactionPorts,
 } from "../../application/ports.ts";
-import type { FooEventMap } from "../../domain/foo.ts";
-import {
-	type FooMemoryState,
-	fooRepositoryMemoryCreate,
-} from "./foo-repository.memory.ts";
+import type { Bar } from "../../domain/bar.ts";
+import type { Foo } from "../../domain/foo.ts";
+import { barRepositoryMemoryCreate } from "./bar-repository.memory.ts";
+import { fooRepositoryMemoryCreate } from "./foo-repository.memory.ts";
 
-// Runs the work on a copy of the committed foos and swaps it in on ok; drops it on err or a
+// The context's committed rows, one map per Aggregate. The read repositories and the transaction
+// share one state object; a transaction swaps in its copies on commit.
+export type FooMemoryState = {
+	bars: Map<Id<"bar">, Bar>;
+	foos: Map<Id<"foo">, Foo>;
+	// wiring: memory-state
+	// piece-start: queue
+	inbox: Set<string>;
+	// Events reach it only on commit.
+	published: { name: string; data: unknown; key: string }[];
+	// piece-end: queue
+};
+
+export const fooMemoryStateCreate = (): FooMemoryState => ({
+	bars: new Map(),
+	foos: new Map(),
+	// wiring: memory-state-create
+	// piece-start: queue
+	inbox: new Set(),
+	published: [],
+	// piece-end: queue
+});
+
+// Runs the work on a copy of the committed rows and swaps it in on ok; drops it on err or a
 // throw. One transaction at a time.
 export const fooTransactionMemoryCreate = (
 	state: FooMemoryState,
@@ -35,13 +58,21 @@ export const fooTransactionMemoryCreate = (
 		}
 		const pending: FooMemoryState["published"] = [];
 		// piece-end: queue
-		const scratch = { foos: structuredClone(state.foos) };
+		const scratch = {
+			bars: structuredClone(state.bars),
+			foos: structuredClone(state.foos),
+			// wiring: memory-scratch
+		};
 		let open = true;
 		try {
 			const result = await work({
+				barRepository: transactionPortsGuard(
+					barRepositoryMemoryCreate(scratch),
+					() => open,
+				),
 				// piece-start: queue
 				fooEvents: transactionPortsGuard(
-					queueEventsMemoryCreate<FooEventMap>({ published: pending }),
+					queueEventsMemoryCreate({ published: pending }),
 					() => open,
 				),
 				// piece-end: queue
@@ -49,9 +80,10 @@ export const fooTransactionMemoryCreate = (
 					fooRepositoryMemoryCreate(scratch),
 					() => open,
 				),
+				// wiring: transaction-ports
 			});
 			if (result.ok) {
-				state.foos = scratch.foos;
+				Object.assign(state, scratch);
 				// piece-start: queue
 				if (inboxKey !== undefined) state.inbox.add(inboxKey);
 				state.published.push(...pending);
