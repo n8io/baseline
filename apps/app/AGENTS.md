@@ -53,8 +53,8 @@ One context per business area, one Aggregate per entity in it (see context-creat
 | Repository ports                                  | `domain/repositories.ts`          |
 | Other ports                                       | `application/ports.ts`            |
 | Domain errors                                     | `domain/errors.ts`                |
-| Models, input Models, Event schemas (Zod)         | `domain/<domain>.ts`              |
-| Rules: pure, one per file, with a test            | `domain/<domain>-<rule>.ts`       |
+| Aggregate: schemas, transitions, specifications   | `domain/<aggregate>.ts`           |
+| Domain service: logic over several Aggregates     | `domain/<name>.ts`                |
 | One Use case per file, tested on memory adapters  | `application/<domain>-<verb>.ts`  |
 | Use cases factory and its type                    | `application/*-use-cases.ts`      |
 | A helper two Use cases share                      | `application/<domain>-<thing>.ts` |
@@ -64,23 +64,23 @@ One context per business area, one Aggregate per entity in it (see context-creat
 
 - Outside code imports only `index.ts` and `adapters/*/index.ts`.
 - The Domain never imports `adapters/`. Composition roots wire them.
-- Use cases apply Rules; adapters hold none.
+- Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
 - Name things generic to specific: the scope, then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
   - An exported name never starts with a verb.
   - Every exported function in a package starts with the package's name, and in a Domain with the Domain's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
   - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`.
-  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`, `invoice-stale-is.ts` exports `invoiceStaleIs`.
+  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`.
   - Exceptions, each for a reason:
-    - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`.
+    - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
     - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures such as ports: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
-- `domain/` imports only itself, Zod, `src/id-schema.ts` and the authn, id and result types (A2). Move the rest to a Use case.
+- `domain/` imports only itself, Zod, `src/id-schema.ts`, the result package and the authn and id types (A2).
 - A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
 - Use cases return `err()`; they and `domain/` never throw or catch (A27).
 - A table column built with another context's id prefix (`postgresIdColumnCreate("team")`) needs that context's `deleted` Consumer (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).

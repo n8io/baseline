@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import type { Result } from "@n8io/baseline-result";
 import type { FooNameTakenError } from "../domain/errors.ts";
-import type { Foo, FooCreateInput } from "../domain/foo.ts";
+import { type Foo, type FooCreateInput, fooNew } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
 export const fooCreate =
@@ -12,15 +12,14 @@ export const fooCreate =
 		input: FooCreateInput,
 	): Promise<Result<Foo, FooNameTakenError>> => {
 		const result = await ports.fooTransaction(async (transaction) => {
-			const now = ports.fooClock.now();
-			const inserted = await transaction.fooRepository.insert({
-				id: idCreate("foo"),
-				name: input.name,
-				createdBy: actor.id,
-				createdAt: now,
-				updatedAt: now,
-				archivedAt: null,
-			});
+			const inserted = await transaction.fooRepository.insert(
+				fooNew({
+					actor,
+					id: idCreate("foo"),
+					input,
+					now: ports.fooClock.now(),
+				}),
+			);
 			// piece-start: queue
 			if (inserted.ok) {
 				await transaction.fooEvents.publish({
