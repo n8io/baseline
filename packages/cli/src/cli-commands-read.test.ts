@@ -21,6 +21,103 @@ describe("cliCommandsRead", () => {
 		]);
 	});
 
+	it("reads a field's allowed values, default and description from its schema", () => {
+		const list = cliCommandsRead(cliTestDocument).find(
+			(command) => command.operationId === "fooList",
+		);
+		expect(
+			list?.fields.filter(({ name }) => ["count", "sort"].includes(name)),
+		).toEqual([
+			{
+				default: false,
+				description: "Count every match",
+				flag: "count",
+				in: "query",
+				kind: "boolean",
+				name: "count",
+				required: false,
+			},
+			{
+				choices: ["createdAt", "-createdAt", "name", "-name"],
+				default: "-createdAt",
+				description: "The order of the page",
+				flag: "sort",
+				in: "query",
+				kind: "string",
+				name: "sort",
+				required: false,
+			},
+		]);
+		const nullableEnum = cliCommandsRead({
+			components: {
+				schemas: { Order: { enum: ["up", "down"], type: "string" } },
+			},
+			...operationDocument({
+				operationId: "fooCreate",
+				parameters: [
+					{
+						in: "query",
+						name: "level",
+						schema: {
+							anyOf: [{ enum: [1, 2], type: "integer" }, { type: "null" }],
+						},
+					},
+					{
+						in: "query",
+						name: "tags",
+						schema: {
+							anyOf: [
+								{ items: { enum: ["a", "b"], type: "string" }, type: "array" },
+								{ type: "null" },
+							],
+						},
+					},
+					{
+						in: "query",
+						name: "order",
+						schema: {
+							$ref: "#/components/schemas/Order",
+							default: "up",
+							description: "Beside the $ref",
+						},
+					},
+				],
+				tags: ["foo"],
+			}),
+		})[0]?.fields;
+		expect(
+			nullableEnum?.map((field) => ({
+				choices: field.choices,
+				default: field.default,
+				description: field.description,
+				itemKind: field.itemKind,
+				kind: field.kind,
+			})),
+		).toEqual([
+			{
+				choices: ["1", "2"],
+				default: undefined,
+				description: undefined,
+				itemKind: undefined,
+				kind: "number",
+			},
+			{
+				choices: ["a", "b"],
+				default: undefined,
+				description: undefined,
+				itemKind: "string",
+				kind: "array",
+			},
+			{
+				choices: ["up", "down"],
+				default: "up",
+				description: "Beside the $ref",
+				itemKind: undefined,
+				kind: "string",
+			},
+		]);
+	});
+
 	it("reads body fields through $ref, with their kind and whether they are required", () => {
 		const create = cliCommandsRead(cliTestDocument).find(
 			(command) => command.operationId === "fooCreate",

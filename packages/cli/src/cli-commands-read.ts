@@ -19,6 +19,12 @@ export type CliDocument = {
 export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 
 export type CliField = {
+	/** The values the schema allows (its `enum`), as text; for an array, its items' values. */
+	choices?: string[];
+	/** The schema's `default`, shown in the help; the CLI does not send it. */
+	default?: unknown;
+	/** The parameter's or schema's `description`. */
+	description?: string;
 	flag: string;
 	in: "body" | "path" | "query";
 	/** An array's item kind. */
@@ -94,18 +100,75 @@ const typeOf = (document: CliDocument, schema: Node): unknown => {
 	return types.size === 1 ? [...types][0] : undefined;
 };
 
-const kindsOf = (
+const kindOf = (document: CliDocument, node: Node): CliFieldKind => {
+	const type = typeOf(document, node);
+	if (type === "array") return "array";
+	if (type === "integer" || type === "number") return "number";
+	if (type === "string" || type === "boolean") return type;
+	return "json";
+};
+
+// A schema and the members of its `anyOf` and `oneOf` (Zod's nullable), resolved.
+const membersOf = (document: CliDocument, node: Node): Node[] => [
+	node,
+	...[node.anyOf, node.oneOf]
+		.flatMap((members) => (Array.isArray(members) ? members : []))
+		.map((member) => refResolve(document, member)),
+];
+
+// The `enum` of a schema, as the text a flag takes, without the null a nullable adds.
+const choicesOf = (document: CliDocument, node: Node): string[] | undefined => {
+	const values = membersOf(document, node)
+		.flatMap((member) => (Array.isArray(member.enum) ? member.enum : []))
+		.filter((value) => value !== null)
+		.map((value) =>
+			typeof value === "string" ? value : JSON.stringify(value),
+		);
+	return values.length === 0 ? undefined : [...new Set(values)];
+};
+
+// The first non-empty text of `key` on the schema as written, then on what its `$ref` names.
+const siblingRead = (nodes: Node[], key: "default" | "description") =>
+	nodes
+		.map((node) => node[key])
+		.find((value) =>
+			key === "default"
+				? value !== undefined
+				: typeof value === "string" && value !== "",
+		);
+
+// How a field's flag reads and describes its value: kind, allowed values, default and description.
+const schemaRead = (
 	document: CliDocument,
 	schema: unknown,
-): Pick<CliField, "itemKind" | "kind"> => {
+): Pick<
+	CliField,
+	"choices" | "default" | "description" | "itemKind" | "kind"
+> => {
 	const node = refResolve(document, schema);
-	const type = typeOf(document, node);
-	if (type === "array") {
-		return { itemKind: kindsOf(document, node.items).kind, kind: "array" };
-	}
-	if (type === "integer" || type === "number") return { kind: "number" };
-	if (type === "string" || type === "boolean") return { kind: type };
-	return { kind: "json" };
+	const kind = kindOf(document, node);
+	// OpenAPI 3.1 lets `default` and `description` sit beside a `$ref`; those win.
+	const written = nodeIs(schema) ? [schema, node] : [node];
+	const fallback = siblingRead(written, "default");
+	const description = siblingRead(written, "description");
+	// A nullable array keeps its `items` in the non-null member.
+	const items = refResolve(
+		document,
+		membersOf(document, node).find((member) => member.items !== undefined)
+			?.items,
+	);
+	// A boolean is a switch, so its values are not listed.
+	const choices =
+		kind === "boolean"
+			? undefined
+			: choicesOf(document, kind === "array" ? items : node);
+	return {
+		...(choices === undefined ? {} : { choices }),
+		...(fallback === undefined ? {} : { default: fallback }),
+		...(typeof description === "string" ? { description } : {}),
+		...(kind === "array" ? { itemKind: kindOf(document, items) } : {}),
+		kind,
+	};
 };
 
 // Path fields come first, in the order the path names them: the SDK's argument order.
@@ -147,7 +210,12 @@ const fieldsRead = ({
 				// A path parameter without a schema is still text.
 				...(parameter.schema === undefined && parameter.in === "path"
 					? { kind: "string" }
-					: kindsOf(document, parameter.schema)),
+					: schemaRead(document, parameter.schema)),
+				// The parameter's own description wins over its schema's.
+				...(typeof parameter.description === "string" &&
+				parameter.description !== ""
+					? { description: parameter.description }
+					: {}),
 				name: String(parameter.name),
 				required: parameter.required === true,
 			}),
@@ -169,7 +237,7 @@ const fieldsRead = ({
 		([name, property]): CliField => ({
 			flag: cliKebab(name),
 			in: "body",
-			...kindsOf(document, property),
+			...schemaRead(document, property),
 			name,
 			required: required.includes(name),
 		}),
