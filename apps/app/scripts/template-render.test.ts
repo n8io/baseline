@@ -298,14 +298,34 @@ describe("templateFilesRender", () => {
 });
 
 describe("templateFileRender", () => {
-	it("drops only the Foo entry from CONTEXT.md and writes the description", () => {
+	it("keeps CONTEXT.md's terms as written and writes the description", () => {
 		const text =
-			"# A starter app.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n\n## Language\n\n**Foo**:\nThe example.\n_Avoid_: widget\n";
+			"# A starter app.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n";
 
 		expect(templateFileRender({ path: "CONTEXT.md", text }, answers)).toEqual({
 			path: "CONTEXT.md",
-			text: "# Invoices for small shops.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n\n## Language\n",
+			text: "# Invoices for small shops.\n\n## Architecture\n\n**Use case**:\nSuch as creating a foo (`fooCreate`).\n_Avoid_: Service\n",
 		});
+	});
+
+	it("drops foo's row from CONTEXT-MAP.md and keeps both tables", () => {
+		const text = [
+			"## Contexts",
+			"",
+			"| Context | Subdomain | Language                                                   |",
+			"| ------- | --------- | ---------------------------------------------------------- |",
+			"| `foo`   | core      | [src/contexts/foo/CONTEXT.md](src/contexts/foo/CONTEXT.md) |",
+			"",
+			"## Relationships",
+			"",
+			"| Downstream | Upstream | Through |",
+			"| ---------- | -------- | ------- |",
+			"",
+		].join("\n");
+
+		expect(
+			templateFileRender({ path: "CONTEXT-MAP.md", text }, answers)?.text,
+		).toBe(text.replace(/\| `foo`.*\n/, ""));
 	});
 
 	it("deletes foo's own files and keeps the scripts as they are", () => {

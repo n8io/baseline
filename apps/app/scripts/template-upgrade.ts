@@ -217,6 +217,29 @@ export const secretKeep = ({
 	);
 };
 
+// A Project from before each context had its own CONTEXT.md keeps its terms under CONTEXT.md's
+// `## Language`, which the Template no longer has. Both renders carry that section as the Project
+// has it, so the merge leaves it in place instead of conflicting with it; glossary-check's test
+// then fails until the Project moves each term into its context's CONTEXT.md.
+export const languageKeep = ({
+	files,
+	project,
+}: {
+	files: TemplateFile[];
+	project: string;
+}): TemplateFile[] => {
+	const heading = /^## Language\s*$/m;
+	const at = project.search(heading);
+	if (at === -1 || !/^\*\*.+\*\*:\s*$/m.test(project.slice(at))) return files;
+	const section = project.slice(at);
+	return files.map((file) => {
+		if (file.path !== "CONTEXT.md") return file;
+		const own = file.text.search(heading);
+		const head = own === -1 ? file.text : file.text.slice(0, own);
+		return { ...file, text: `${head.trimEnd()}\n\n${section}` };
+	});
+};
+
 const sdkGeneratedPaths = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
 
 // A piece whose package (or folder) the Project's own release did not have yet is new, not removed: it arrives.
@@ -276,16 +299,22 @@ export const templateUpgrade = async ({
 		);
 	const envPath = join(appDirectory, ".env.development");
 	const project = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
+	const glossaryPath = join(appDirectory, "CONTEXT.md");
+	const glossary = existsSync(glossaryPath)
+		? readFileSync(glossaryPath, "utf8")
+		: "";
+	const kept = async (files: TemplateFile[]) =>
+		languageKeep({
+			files: secretKeep({
+				files: await releaseRender(merged(files), answers),
+				project,
+			}),
+			project: glossary,
+		});
 	const { conflicts } = templateMerge({
 		repository: appDirectory,
-		from: secretKeep({
-			files: await releaseRender(merged(fromFiles), answers),
-			project,
-		}),
-		to: secretKeep({
-			files: await releaseRender(merged(toFiles), answers),
-			project,
-		}),
+		from: await kept(fromFiles),
+		to: await kept(toFiles),
 		tools,
 		removed: piecesRemovedWith(
 			piecesGoneFind(appDirectory).filter(pieceInRelease(fromFiles)),

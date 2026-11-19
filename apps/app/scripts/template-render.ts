@@ -495,18 +495,12 @@ export const domainsPairsEmpty = (text: string, path: string): string =>
 		domainsPairsFind(text, path).map(([start, end]) => [start + 1, end - 1]),
 	);
 
-// CONTEXT.md keeps every Architecture term; only the **Foo**: and **Bar**: entries go.
+// CONTEXT.md keeps every Architecture term as written, foo in their examples too; its title
+// becomes the Project's description. foo's own terms live in src/contexts/foo/, which never renders.
 const contextRender = (text: string, answers: TemplateAnswers): string => {
 	const lines = text.split("\n");
 	lines[0] = `# ${answers.description}`;
-	for (const term of ["**Foo**:", "**Bar**:"]) {
-		const start = lines.indexOf(term);
-		if (start === -1) continue;
-		let end = start;
-		while (end < lines.length && (lines[end] ?? "") !== "") end++;
-		lines.splice(start, end - start + 1);
-	}
-	return lines.join("\n").replace(/\n+$/, "\n");
+	return lines.join("\n");
 };
 
 // README.md names the Project and the release it was made from: its `# app` title becomes the

@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import {
 	existsSync,
+	mkdirSync,
 	mkdtempDisposableSync,
 	readdirSync,
 	writeFileSync,
@@ -10,6 +11,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	contextFilesCreate,
+	contextGlossary,
 	contextNextStepsText,
 	contextRefusal,
 } from "./context-create.ts";
@@ -31,7 +33,7 @@ import.meta.glob(
 	],
 	{ query: "?raw" },
 );
-import.meta.glob(["../CONTEXT.md"], { query: "?raw" });
+import.meta.glob(["../CONTEXT.md", "../CONTEXT-MAP.md"], { query: "?raw" });
 
 const appRoot = new URL("../", import.meta.url);
 const contextsUrl = new URL("src/contexts/", appRoot);
@@ -42,19 +44,39 @@ const template =
 		.join() === "foo";
 
 describe("contextRefusal", () => {
-	it("refuses a context that exists or that the glossary lacks", () => {
+	it("refuses a context that exists or that the map does not list", () => {
 		using folder = mkdtempDisposableSync(join(tmpdir(), "context-create-"));
 		const app = folder.path;
-		writeFileSync(join(app, "CONTEXT.md"), "**Billing**:\nA context.\n");
+		writeFileSync(
+			join(app, "CONTEXT-MAP.md"),
+			"## Contexts\n\n| Context | Subdomain | Language |\n| --- | --- | --- |\n| `billing` | core | [x](src/contexts/billing/CONTEXT.md) |\n| `crm` | generic | [x](src/contexts/crm/CONTEXT.md) |\n",
+		);
+		mkdirSync(join(app, "src/contexts/crm"), { recursive: true });
 
 		expect(
 			contextRefusal({ appDirectory: app, context: "billing" }),
 		).toBeUndefined();
 		expect(contextRefusal({ appDirectory: app, context: "vendor" })).toContain(
-			"CONTEXT.md has no **Vendor**: entry",
+			"CONTEXT-MAP.md lists no vendor",
+		);
+		expect(contextRefusal({ appDirectory: app, context: "crm" })).toContain(
+			"src/contexts/crm/ already exists",
 		);
 		expect(contextRefusal({ appDirectory: app, context: "foo-two" })).toContain(
 			"contains foo",
+		);
+		expect(contextRefusal({ appDirectory: app, context: "Billing" })).toContain(
+			"not kebab-case",
+		);
+	});
+});
+
+describe("contextGlossary", () => {
+	it("names the subdomain type and leaves the language for the Aggregates' terms", () => {
+		expect(
+			contextGlossary({ context: "order-desk", subdomain: "supporting" }),
+		).toBe(
+			"# Order desk\n\nSubdomain: supporting\n\nWhat the order desk context does and the Aggregates it holds, in a sentence or two.\n\n## Language\n",
 		);
 	});
 });

@@ -44,6 +44,7 @@ import {
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
+import { contextMapDefine, contextTermAdd } from "./glossary.ts";
 
 const fixture = join(import.meta.dirname, "second-domain");
 
@@ -126,14 +127,7 @@ const main = async () => {
 
 	console.log(`origin/main: app@${previous} with no domain`);
 	await appRender({ directory, files: previousFiles, answers });
-	answersWrite({
-		directory,
-		answers: { ...answers, release: previous },
-		terms: domains.map((d) => ({
-			definition: d.definition,
-			term: glossaryTerm(d.kebab),
-		})),
-	});
+	answersWrite({ directory, answers: { ...answers, release: previous } });
 	// The template's lockfile drops our own packages, so this install adds them, resolved first so
 	// their tarballs can be awaited.
 	pnpmRun(directory, ["install", "--lockfile-only", "--no-frozen-lockfile"]);
@@ -195,9 +189,10 @@ const main = async () => {
 		);
 	}
 
-	for (const { context, kebab, parts, plural, reads } of domains) {
+	for (const { context, definition, kebab, parts, plural, reads } of domains) {
 		const created: string[] = [];
 		if (context === undefined) {
+			contextMapDefine({ context: kebab, directory });
 			const refusal =
 				contextRefusal({ appDirectory: directory, context: kebab }) ??
 				readsRefusal({
@@ -215,6 +210,12 @@ const main = async () => {
 			filesWrite(directory, contextFiles);
 			created.push(...contextFiles.map((f) => f.path));
 		}
+		contextTermAdd({
+			context: context ?? kebab,
+			definition,
+			directory,
+			term: glossaryTerm(kebab),
+		});
 		const aggregate = { kebab, plural };
 		const refusal = aggregateRefusal({
 			aggregate,

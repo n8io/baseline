@@ -7,8 +7,33 @@ Read when adding a bounded context or an Aggregate to one. Two commands copy the
 
 ## Before you run them
 
-1. Agree each term and add its `**<Term>**:` entry to `CONTEXT.md` first: both commands refuse a name the glossary does not define. `invoice-line` needs `**Invoice line**:`.
-2. Decide what each Aggregate needs. One that is not plain create, read, update and delete wants `--bare` and only the parts it uses; deleting a full copy costs more than adding a part.
+1. Agree the context's name and subdomain type and add its row to `CONTEXT-MAP.md` (format below): `context-create` refuses a context the map does not list. It writes `src/contexts/<context>/CONTEXT.md` with that type and an empty `## Language`.
+2. Agree each Aggregate's term and add its `**<Term>**:` entry under that `## Language`: `aggregate-create` refuses a name the context's glossary does not define. `invoice-line` needs `**Invoice line**:`.
+3. Decide what each Aggregate needs. One that is not plain create, read, update and delete wants `--bare` and only the parts it uses; deleting a full copy costs more than adding a part.
+
+## The context map
+
+`CONTEXT-MAP.md` holds two tables. `pnpm test` checks them against `src/contexts/`, and `pnpm glossary-check` reads every glossary they name.
+
+```md
+## Contexts
+
+| Context   | Subdomain  | Language                          |
+| --------- | ---------- | --------------------------------- |
+| `billing` | core       | `src/contexts/billing/CONTEXT.md` |
+| `catalog` | supporting | `src/contexts/catalog/CONTEXT.md` |
+
+## Relationships
+
+| Downstream | Upstream  | Through            |
+| ---------- | --------- | ------------------ |
+| `billing`  | `catalog` | ACL, Domain events |
+```
+
+- Language: the context's own `CONTEXT.md`, as a link or a path.
+- Subdomain: `core` (what sets the Project apart), `supporting` (needed, specific to it) or `generic` (any app has one). The context's `CONTEXT.md` says the same under its title: `Subdomain: core`.
+- A relationship row names the downstream context, the upstream it depends on, and how: `ACL` (it reads the upstream through an anti-corruption layer), `Domain events` (it handles the upstream's), or both. Both go through the upstream's Published language. The Shared kernel needs no row.
+- A file in a context uses its own terms and `CONTEXT.md`'s. Another context's term is a `glossary-check` hit, except in the `adapters/` of a context downstream of it.
 
 ## What each flag writes
 

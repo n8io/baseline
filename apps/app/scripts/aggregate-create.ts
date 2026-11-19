@@ -1017,21 +1017,25 @@ export const nameTerm = (kebab: string): string => {
 	return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-// The reason a context or Aggregate name is refused for its form or its glossary entry, or
-// undefined when it is fine.
+// The reason an Aggregate name is refused for its form or for lacking an entry in its context's
+// glossary, or undefined when it is fine.
 export const nameRefusal = ({
 	appDirectory,
+	context,
 	kebab,
 }: {
 	appDirectory: string;
+	context: string;
 	kebab: string;
 }): string | undefined => {
 	if (!kebabPattern.test(kebab)) return `"${kebab}" is not kebab-case`;
 	if (kebab.includes("foo")) return `"${kebab}" contains foo`;
 	const term = nameTerm(kebab);
-	const glossary = readFileSync(join(appDirectory, "CONTEXT.md"), "utf8");
+	const path = `src/contexts/${context}/CONTEXT.md`;
+	const file = join(appDirectory, path);
+	const glossary = existsSync(file) ? readFileSync(file, "utf8") : "";
 	if (!glossary.toLowerCase().includes(`**${term.toLowerCase()}**:`)) {
-		return `CONTEXT.md has no **${term}**: entry; agree the term and add it first`;
+		return `${path} has no **${term}**: entry; agree the term and add it first`;
 	}
 	return undefined;
 };
@@ -1073,7 +1077,7 @@ export const aggregateRefusal = ({
 	) {
 		return `src/contexts/${aggregate.kebab}/ is another context; name the Aggregate otherwise`;
 	}
-	return nameRefusal({ appDirectory, kebab: aggregate.kebab });
+	return nameRefusal({ appDirectory, context, kebab: aggregate.kebab });
 };
 
 // The contexts a context already reads through Bridges, from the readers its ports.ts names.
@@ -1165,8 +1169,10 @@ export const aggregateFilesCreate = ({
 		domainsPairsFind(readFileSync(routes, "utf8"), "src/ui/routes.ts").some(
 			([start, end]) => end === start + 1,
 		);
+	// foo's CONTEXT.md is the context's own language, which context-create writes.
 	const copied = (path: string) =>
 		!contextFilePaths.has(path) &&
+		!path.endsWith("/CONTEXT.md") &&
 		(copiedPaths.some((p) => p.test(path)) ||
 			(homeAdded && homePaths.has(path)));
 	const foo = template.filter((f) => copied(f.path));
@@ -1423,7 +1429,7 @@ const usage = `Usage: pnpm aggregate-create <context> <aggregate> [--plural <plu
 
 Copies Foo, the Template's Aggregate, into src/contexts/<context>/ as <aggregate>, and wires it
 into the context's files, the Server, the Worker and the UI. Make the context first with
-pnpm context-create, and add <aggregate>'s **Term**: entry to CONTEXT.md.
+pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
 
   --plural <plural>  the plural, when it is not <aggregate>s
   --bare             only the core: the Aggregate, its errors, create/get/list/update/delete, the

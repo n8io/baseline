@@ -1,11 +1,32 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+	contextMapRead,
+	contextMapViolations,
+	type GlossaryLanguage,
 	glossaryAliasesRead,
 	glossaryDiffAddedLines,
 	glossaryHitFormat,
 	glossaryHitsFind,
-	glossaryTermsRead,
+	glossaryLanguageOf,
+	glossaryLanguageRead,
 } from "./glossary-check.ts";
+
+import.meta.glob(
+	["../CONTEXT.md", "../CONTEXT-MAP.md", "../src/contexts/*/CONTEXT.md"],
+	{ query: "?raw" },
+);
+
+const appRoot = new URL("../", import.meta.url);
+
+// One language for every file, as a single glossary gives.
+const everyFile =
+	(language: Partial<GlossaryLanguage>) => (): GlossaryLanguage => ({
+		aliases: [],
+		foreign: [],
+		terms: [],
+		...language,
+	});
 
 const context = [
 	"# A project.",
@@ -83,9 +104,8 @@ describe("glossary-check", () => {
 		].join("\n");
 		expect(
 			glossaryHitsFind({
-				aliases: glossaryAliasesRead(terms),
 				diff: added,
-				terms: glossaryTermsRead(terms),
+				languageOf: () => glossaryLanguageRead(terms),
 				textRead: () => "// Put it on the tome shelf.\n// Read the tome.\n",
 			}).map((hit) => hit.line),
 		).toEqual([2]);
@@ -101,8 +121,8 @@ describe("glossary-check", () => {
 
 	it("finds whole-word hits in any case and skips CONTEXT.md", () => {
 		const hits = glossaryHitsFind({
-			aliases: glossaryAliasesRead(context),
 			diff,
+			languageOf: everyFile({ aliases: glossaryAliasesRead(context) }),
 			textRead: () =>
 				"\n\n\n// Sends a Push to every item.\nconst pushed = items;\n\n\n\n\n\n\n// a real-time event",
 		});
@@ -131,8 +151,8 @@ describe("glossary-check", () => {
 
 		expect(
 			glossaryHitsFind({
-				aliases,
 				diff: pathDiff,
+				languageOf: everyFile({ aliases }),
 				textRead: () => pathText,
 			}).map((h) => h.line),
 		).toEqual([3]);
@@ -162,7 +182,7 @@ describe("glossary-check", () => {
 		];
 		const hitsIn = (file: string, text: string): number[] =>
 			glossaryHitsFind({
-				aliases,
+				languageOf: everyFile({ aliases }),
 				diff: [
 					`+++ b/${file}`,
 					`@@ -0,0 +1,${text.split("\n").length} @@`,
@@ -234,6 +254,244 @@ describe("glossary-check", () => {
 
 		it("tests every line of a text file", () => {
 			expect(hitsIn("docs/a.md", "the client\nnothing")).toEqual([1]);
+		});
+	});
+});
+
+describe("an alias written capitalized", () => {
+	it("matches only as written, so a plain English word passes", () => {
+		const text = "// A Rule holds.\n// An architecture rule holds.\n";
+		const hits = glossaryHitsFind({
+			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
+			languageOf: everyFile({
+				aliases: [{ alias: "Rule", term: "Invariant" }],
+			}),
+			textRead: () => text,
+		});
+
+		expect(hits.map((h) => h.line)).toEqual([1]);
+	});
+});
+
+// A sample app: league reads tour through an ACL. Each has its own language.
+const sampleMap = [
+	"# Context map",
+	"",
+	"[CONTEXT.md](CONTEXT.md) holds the shared terms.",
+	"",
+	"## Contexts",
+	"",
+	"| Context  | Subdomain  | Language                                                     |",
+	"| -------- | ---------- | ------------------------------------------------------------ |",
+	"| `league` | core       | [src/contexts/league/CONTEXT.md](src/contexts/league/CONTEXT.md) |",
+	"| `tour`   | supporting | [src/contexts/tour/CONTEXT.md](src/contexts/tour/CONTEXT.md)     |",
+	"",
+	"## Relationships",
+	"",
+	"| Downstream | Upstream | Through            |",
+	"| ---------- | -------- | ------------------ |",
+	"| `league`   | `tour`   | ACL, Domain events |",
+	"",
+].join("\n");
+
+const sampleGlossaries: Record<string, string> = {
+	"CONTEXT.md": "**Use case**:\nOne operation.\n_Avoid_: Service\n",
+	"src/contexts/league/CONTEXT.md":
+		"# League\n\nSubdomain: core\n\n## Language\n\n**Roster**:\nA team's golfers.\n_Avoid_: lineup\n",
+	"src/contexts/tour/CONTEXT.md":
+		"# Tour\n\nSubdomain: supporting\n\n## Language\n\n**Golfer**:\nA player on tour.\n\n**Score**:\nStrokes in a round.\n",
+};
+
+describe("the context map", () => {
+	it("reads its contexts, relationships and glossaries", () => {
+		expect(contextMapRead(sampleMap)).toEqual({
+			contexts: [
+				{
+					context: "league",
+					glossary: "src/contexts/league/CONTEXT.md",
+					subdomain: "core",
+				},
+				{
+					context: "tour",
+					glossary: "src/contexts/tour/CONTEXT.md",
+					subdomain: "supporting",
+				},
+			],
+			glossaries: [
+				"CONTEXT.md",
+				"src/contexts/league/CONTEXT.md",
+				"src/contexts/tour/CONTEXT.md",
+			],
+			relationships: [
+				{
+					downstream: "league",
+					through: ["ACL", "Domain events"],
+					upstream: "tour",
+				},
+			],
+		});
+	});
+
+	it("reads a Language cell given as a path", () => {
+		const map = sampleMap.replace(
+			"[src/contexts/tour/CONTEXT.md](src/contexts/tour/CONTEXT.md)",
+			"`src/contexts/tour/CONTEXT.md`",
+		);
+		expect(contextMapRead(map).contexts[1]?.glossary).toBe(
+			"src/contexts/tour/CONTEXT.md",
+		);
+	});
+
+	describe("glossary-check over it", () => {
+		const languageOf = glossaryLanguageOf({
+			glossaryRead: (path) => sampleGlossaries[path] ?? "",
+			map: contextMapRead(sampleMap),
+		});
+		const hitsIn = (file: string, line: string) =>
+			glossaryHitsFind({
+				diff: `+++ b/apps/app/${file}\n@@ -0,0 +1 @@\n+${line}`,
+				languageOf,
+				textRead: () => line,
+			}).map((hit) => glossaryHitFormat(hit, false));
+
+		it("passes a context's own terms and the shared ones", () => {
+			expect(
+				hitsIn(
+					"src/contexts/league/domain/roster.md",
+					"A Use case adds a golfer id to the Roster.",
+				),
+			).toEqual([]);
+		});
+
+		it("fails another context's term and either glossary's aliases", () => {
+			expect(
+				hitsIn(
+					"src/contexts/league/domain/roster.md",
+					"The Service sets the lineup from each Golfer's Score.",
+				),
+			).toEqual([
+				'apps/app/src/contexts/league/domain/roster.md:1: "Golfer" is a term of the tour context',
+				'apps/app/src/contexts/league/domain/roster.md:1: "Score" is a term of the tour context',
+				'apps/app/src/contexts/league/domain/roster.md:1: "Service" is an alias of "Use case"',
+				'apps/app/src/contexts/league/domain/roster.md:1: "lineup" is an alias of "Roster"',
+			]);
+		});
+
+		it("lets the adapters of a downstream context name its upstream's terms", () => {
+			expect(
+				hitsIn(
+					"src/contexts/league/adapters/outbound/league-tour-acl.md",
+					"Turns each Golfer into a roster pick.",
+				),
+			).toEqual([]);
+			expect(
+				hitsIn(
+					"src/contexts/tour/adapters/outbound/tour-league-acl.md",
+					"Reads the Roster.",
+				),
+			).toEqual([
+				'apps/app/src/contexts/tour/adapters/outbound/tour-league-acl.md:1: "Roster" is a term of the league context',
+			]);
+		});
+
+		it("holds files outside the contexts to every glossary's aliases", () => {
+			expect(
+				hitsIn("src/ui/routes/home.md", "The lineup and the Golfer."),
+			).toEqual([
+				'apps/app/src/ui/routes/home.md:1: "lineup" is an alias of "Roster"',
+			]);
+		});
+	});
+
+	describe("contextMapViolations", () => {
+		const violations = (
+			change: Partial<Parameters<typeof contextMapViolations>[0]> = {},
+		) =>
+			contextMapViolations({
+				appGlossary: sampleGlossaries["CONTEXT.md"] ?? "",
+				contexts: ["league", "tour"],
+				glossaryRead: (path) => sampleGlossaries[path],
+				map: sampleMap,
+				...change,
+			});
+
+		it("passes the sample", () => {
+			expect(violations()).toEqual([]);
+		});
+
+		it.each([
+			[
+				"terms left under the app's ## Language",
+				{ appGlossary: "**Use case**:\nx\n\n## Language\n\n**Golfer**:\nx\n" },
+				"CONTEXT.md: move each term under ## Language",
+			],
+			[
+				"a context folder with no row",
+				{ contexts: ["league", "tour", "billing"] },
+				"CONTEXT-MAP.md: add a row for billing under ## Contexts",
+			],
+			[
+				"a row with no context folder",
+				{ contexts: ["league"] },
+				"CONTEXT-MAP.md: there is no src/contexts/tour/",
+			],
+			[
+				"an unknown subdomain type",
+				{ map: sampleMap.replace("| core       |", "| main       |") },
+				'league\'s subdomain is core, supporting or generic, not "main"',
+			],
+			[
+				"a context glossary with another subdomain",
+				{
+					glossaryRead: (path: string) =>
+						sampleGlossaries[path]?.replace(
+							"Subdomain: supporting",
+							"Subdomain: core",
+						),
+				},
+				'src/contexts/tour/CONTEXT.md: say "Subdomain: supporting"',
+			],
+			[
+				"a context with no glossary",
+				{
+					glossaryRead: (path: string) =>
+						path.includes("tour") ? undefined : sampleGlossaries[path],
+				},
+				"src/contexts/tour/CONTEXT.md: add tour's language",
+			],
+			[
+				"a relationship to an unlisted context",
+				{ map: sampleMap.replace("| `tour`   | ACL", "| `crm`    | ACL") },
+				"crm is not under ## Contexts",
+			],
+			[
+				"a relationship through something else",
+				{ map: sampleMap.replace("ACL, Domain events", "Shared database  ") },
+				"Through is ACL, Domain events or both",
+			],
+			[
+				"a map that does not link CONTEXT.md",
+				{ map: sampleMap.replace("[CONTEXT.md](CONTEXT.md)", "CONTEXT.md") },
+				"CONTEXT-MAP.md: link CONTEXT.md",
+			],
+		])("fails on %s", (_name, change, message) => {
+			expect(violations(change)).toEqual([expect.stringContaining(message)]);
+		});
+
+		it("holds for the real tree", () => {
+			const contexts = new URL("src/contexts/", appRoot);
+			const read = (path: string) => {
+				const url = new URL(path, appRoot);
+				return existsSync(url) ? readFileSync(url, "utf8") : undefined;
+			};
+			expect(
+				contextMapViolations({
+					appGlossary: read("CONTEXT.md") ?? "",
+					contexts: readdirSync(contexts).filter((n) => !n.startsWith(".")),
+					glossaryRead: read,
+					map: read("CONTEXT-MAP.md") ?? "",
+				}),
+			).toEqual([]);
 		});
 	});
 });

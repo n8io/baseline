@@ -15,7 +15,6 @@ import {
 	appCreateArgsRead,
 	baselinePackagesPinned,
 	ciDispatch,
-	contextLanguageWrite,
 	envFilesWrite,
 	glossaryTerm,
 	mergeSettingsCall,
@@ -35,10 +34,6 @@ const projectCreate = (): DisposableTempDir => {
 	writeFileSync(
 		join(directory, ".env.development"),
 		"APP_ENV=development\nAUTHN_SECRET=template-secret\nPORT=3000\n",
-	);
-	writeFileSync(
-		join(directory, "CONTEXT.md"),
-		"# Invoices.\n\n## Architecture\n\n**Domain**:\nOne entity.\n\n## Language\n",
 	);
 	return folder;
 };
@@ -279,22 +274,6 @@ describe("app-create", () => {
 		expect(repositoryFromRemote("/tmp/elsewhere")).toBeNull();
 	});
 
-	it("leaves ## Language empty when there are no terms yet", () => {
-		const text = "# Invoices.\n\n## Language\n";
-		expect(contextLanguageWrite(text, [])).toBe(text);
-	});
-
-	it("adds each term under ## Language", () => {
-		expect(
-			contextLanguageWrite("# Invoices.\n\n## Language\n\n", [
-				{ definition: "A charge.", term: "Invoice line" },
-				{ definition: "A payer.", term: "Customer" },
-			]),
-		).toBe(
-			"# Invoices.\n\n## Language\n\n**Invoice line**:\nA charge.\n\n**Customer**:\nA payer.\n",
-		);
-	});
-
 	it("writes a fresh AUTHN_SECRET for development", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
@@ -322,16 +301,12 @@ describe("app-create", () => {
 				name: "invoicing",
 				release: "1.0.1",
 			},
-			terms: [{ definition: "A charge.", term: "Invoice line" }],
 		});
 
 		expect(JSON.parse(read(directory, ".template.json"))).toEqual({
 			description: "Invoices.",
 			release: "1.0.1",
 		});
-		expect(read(directory, "CONTEXT.md")).toContain(
-			"## Language\n\n**Invoice line**:\nA charge.\n",
-		);
 	});
 
 	it("requires every app-ci.yml job but changes, as ci / <job>", () => {

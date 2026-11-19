@@ -1,6 +1,7 @@
 // pnpm context-create <context> [--reads <context>]...: makes a bounded context with no Aggregate
-// yet: the context's own files from the Template's foo, renamed, without Foo's or Bar's lines, a
-// CONTEXT.md stub, and its wiring into the composition roots. --reads adds a reader port and its
+// yet: the context's own files from the Template's foo, renamed, without Foo's or Bar's lines, its
+// CONTEXT.md with the subdomain type CONTEXT-MAP.md gives it, and its wiring into the composition
+// roots. It refuses a context the map does not list. --reads adds a reader port and its
 // Bridge. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -14,7 +15,7 @@ import {
 	contextsPairsFill,
 	filesFormat,
 	filesWriteAll,
-	nameRefusal,
+	kebabPattern,
 	nameTerm,
 	type PairWanted,
 	pairsEmptyFillableHas,
@@ -26,6 +27,7 @@ import {
 	templateWithoutPieces,
 	wiringInsert,
 } from "./aggregate-create.ts";
+import { contextMapRead } from "./glossary-check.ts";
 import {
 	fooLineIs,
 	fooPathRename,
@@ -34,6 +36,21 @@ import {
 	type TemplateFile,
 } from "./template-render.ts";
 
+// The context's row in CONTEXT-MAP.md, or undefined when the map lacks it or the file.
+const contextMapRowFind = ({
+	appDirectory,
+	context,
+}: {
+	appDirectory: string;
+	context: string;
+}) => {
+	const path = join(appDirectory, "CONTEXT-MAP.md");
+	if (!existsSync(path)) return undefined;
+	return contextMapRead(readFileSync(path, "utf8")).contexts.find(
+		(c) => c.context === context,
+	);
+};
+
 // The reason context-create refuses this name, or undefined.
 export const contextRefusal = ({
 	appDirectory,
@@ -41,14 +58,33 @@ export const contextRefusal = ({
 }: {
 	appDirectory: string;
 	context: string;
-}): string | undefined =>
-	existsSync(join(appDirectory, "src/contexts", context))
-		? `src/contexts/${context}/ already exists`
-		: nameRefusal({ appDirectory, kebab: context });
+}): string | undefined => {
+	if (!kebabPattern.test(context)) return `"${context}" is not kebab-case`;
+	if (context.includes("foo")) return `"${context}" contains foo`;
+	if (existsSync(join(appDirectory, "src/contexts", context))) {
+		return `src/contexts/${context}/ already exists`;
+	}
+	if (contextMapRowFind({ appDirectory, context }) === undefined) {
+		return `CONTEXT-MAP.md lists no ${context}; agree its subdomain type and add its row under ## Contexts first`;
+	}
+	return undefined;
+};
 
-const contextStub = (context: string): string => `# ${nameTerm(context)}
+// The context's own glossary: its subdomain type, a line to fill in, and an empty language that
+// aggregate-create needs each Aggregate's term in.
+export const contextGlossary = ({
+	context,
+	subdomain,
+}: {
+	context: string;
+	subdomain: string;
+}): string => `# ${nameTerm(context)}
 
-The ${context.replaceAll("-", " ")} bounded context. Say here whether it is a core, supporting or generic subdomain, and which Aggregates it holds. Its terms live in the app's CONTEXT.md.
+Subdomain: ${subdomain}
+
+What the ${context.replaceAll("-", " ")} context does and the Aggregates it holds, in a sentence or two.
+
+## Language
 `;
 
 // The files a new context adds or changes, from the template's files and the project's. `reads`
@@ -100,7 +136,15 @@ export const contextFilesCreate = ({
 		});
 	const files: TemplateFile[] = [
 		...own,
-		{ path: `src/contexts/${context}/CONTEXT.md`, text: contextStub(context) },
+		{
+			path: `src/contexts/${context}/CONTEXT.md`,
+			text: contextGlossary({
+				context,
+				// context-create refuses a context the map lacks; tests may skip the map.
+				subdomain:
+					contextMapRowFind({ appDirectory, context })?.subdomain ?? "core",
+			}),
+		},
 	];
 	// The composition roots get the context's own lines; aggregate-create brings the rest, the
 	// UI's included.
@@ -158,7 +202,7 @@ export const contextNextStepsText = ({
 }): string =>
 	[
 		"Next:",
-		`  1. Say in src/contexts/${context}/CONTEXT.md which subdomain ${context} is and what it holds.`,
+		`  1. Say in src/contexts/${context}/CONTEXT.md what ${context} does, and add each Aggregate's **Term**: under its ## Language.`,
 		`  2. pnpm aggregate-create ${context} <aggregate> adds its first Aggregate (often ${context} itself); pnpm check passes once it has one.`,
 		...reads.map(
 			(target, k) =>
@@ -169,9 +213,9 @@ export const contextNextStepsText = ({
 const usage = `Usage: pnpm context-create <context> [--reads <context>]...
 
 Makes src/contexts/<context>/, a bounded context with no Aggregate yet, from the Template's foo:
-its interface, ports, transaction, Use cases and adapters' entries, a CONTEXT.md stub, and its
-wiring into the composition roots. Add <context>'s **Term**: entry to CONTEXT.md first, then add
-Aggregates with pnpm aggregate-create.
+its interface, ports, transaction, Use cases and adapters' entries, its CONTEXT.md, and its
+wiring into the composition roots. Add <context>'s row to CONTEXT-MAP.md first, then add each
+Aggregate's term to its CONTEXT.md and the Aggregate with pnpm aggregate-create.
 
   --reads <context>  reads <context> through a Bridge: a reader port, its memory fake and
                      src/bridges/<context>-<other>-reader.ts. Repeat it for more.

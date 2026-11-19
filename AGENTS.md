@@ -6,7 +6,7 @@ The glossary is [CONTEXT.md](CONTEXT.md). Use its terms for every name. The next
 
 @CONTEXT.md
 
-[CONTEXT-MAP.md](CONTEXT-MAP.md) lists every glossary; read [apps/app/CONTEXT.md](apps/app/CONTEXT.md) before naming anything in `apps/app`.
+[CONTEXT-MAP.md](CONTEXT-MAP.md) lists every glossary; read [apps/app/CONTEXT-MAP.md](apps/app/CONTEXT-MAP.md) and the glossaries it links before naming anything in `apps/app`.
 
 ## Verify
 

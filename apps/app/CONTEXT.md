@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)). Code, paths and `CONTEXT-MAP.md` keep the old words and shape until the tickets that move them land; `glossary-check` lets the old words pass until then:
+The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`. Code and paths keep the old words until the tickets that move them land; `glossary-check` lets the old words pass until then:
 _Allowed until n8io/baseline#473 (added 2026-11-18)_: Domain, Model, Rule, API layer, SPI, Consumer, Bridge, Outcome Events
 
 **Bounded context**:
@@ -10,13 +10,13 @@ The scope of one model and its language, holding one or more Aggregates grouped 
 _Avoid_: Domain, feature
 
 **Subdomain**:
-The kind of business area a bounded context serves: core, supporting or generic. Each context's language file names its type.
+The kind of business area a bounded context serves: core, supporting or generic. `CONTEXT-MAP.md` and the context's own `CONTEXT.md` both name its type.
 
 **Context map**:
 `CONTEXT-MAP.md`: each bounded context, its subdomain type, and its relationships to the others: upstream or downstream, anti-corruption layer, Published language, Shared kernel.
 
 **Shared kernel**:
-What every bounded context shares and changes together: the result, id and authn Packages. Their types are the only imports `domain/` may take from outside itself.
+What every bounded context shares and changes together: the result, id and authn Packages. Their types, and the result Package's `ok` and `err`, are the only imports `domain/` may take from outside itself, besides Zod and the id schema.
 
 **Aggregate**:
 An Aggregate root with the entities and value objects it owns, saved and loaded as one unit through one Repository. Every change to it goes through a transition in its `domain/` file, so a Use case cannot save one that breaks an invariant. One Aggregate per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
@@ -152,12 +152,3 @@ _Avoid_: job runner, background process
 **Seed**:
 An inbound adapter that creates example data for local development by calling its bounded context's own Use cases.
 _Avoid_: fixture, sample data
-
-## Language
-
-**Foo**:
-The Template's example bounded context, `foo`, and its Aggregate root: a named record that shows every pattern a context uses. A project never contains it: it starts with no context, `context-create` copies foo's context-level files under a new context's name, and `aggregate-create` copies Foo under each new Aggregate's name.
-_Avoid_: widget, example, sample
-
-**Bar**:
-The Template's second example Aggregate in `foo`: a short note on one Foo, deleted with its Foo in the same transaction. It shows a context holding several Aggregates and a transaction across two under an invariant. Neither command copies it.
