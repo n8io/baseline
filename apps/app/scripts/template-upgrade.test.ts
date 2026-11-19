@@ -208,6 +208,78 @@ describe("templateUpgradeRun", () => {
 		);
 	});
 
+	it("brings a piece new in the target release, and keeps the SDK files the Project generated", async () => {
+		const manifestOf = (sdk: boolean) =>
+			`${JSON.stringify(
+				{
+					dependencies: piecePackages,
+					...(sdk ? { devDependencies: { orval: "8.48.0" } } : {}),
+					name: "app",
+				},
+				null,
+				"\t",
+			)}\n`;
+		const sdkFiles = (title: string): TemplateFile[] => [
+			{
+				path: "clients/sdk/openapi.json",
+				text: `{"info":{"title":"app","version":"${title}"},"paths":{}}`,
+			},
+			{ path: "scripts/sdk-generate.ts", text: `// ${title}\n` },
+		];
+		const pieces: Record<string, TemplateFile[]> = {
+			"3.0.0": [{ path: "package.json", text: manifestOf(false) }],
+			"3.1.0": [
+				{ path: "package.json", text: manifestOf(true) },
+				...sdkFiles("3.1"),
+			],
+			"3.2.0": [
+				{ path: "package.json", text: manifestOf(true) },
+				...sdkFiles("3.2"),
+			],
+		};
+		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+		const app = folder.path;
+		git(app, "init", "--quiet", "--initial-branch=main");
+		git(app, "config", "user.email", "test@example.com");
+		git(app, "config", "user.name", "Test");
+		const release = (version: string) =>
+			writeFileSync(
+				join(app, ".template.json"),
+				`{ "release": "${version}", "description": "Invoices." }\n`,
+			);
+		release("3.0.0");
+		writeFileSync(join(app, "package.json"), manifestOf(false));
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "project");
+		const upgrade = (to: string) =>
+			templateUpgradeRun({
+				appDirectory: app,
+				to,
+				...runCapture(),
+				tools: { fetch: (v) => pieces[v] ?? [], finish: () => {} },
+			});
+
+		expect(await upgrade("3.1.0")).toBe(0);
+		expect(readFileSync(join(app, "scripts/sdk-generate.ts"), "utf8")).toBe(
+			"// 3.1\n",
+		);
+		expect(readFileSync(join(app, "package.json"), "utf8")).toContain(
+			'"orval"',
+		);
+
+		// The Project regenerates its SDK; the next upgrade leaves the generated file alone.
+		writeFileSync(join(app, "clients/sdk/openapi.json"), '{"title":"own"}\n');
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "upgrade");
+		expect(await upgrade("3.2.0")).toBe(0);
+		expect(readFileSync(join(app, "clients/sdk/openapi.json"), "utf8")).toBe(
+			'{"title":"own"}\n',
+		);
+		expect(readFileSync(join(app, "scripts/sdk-generate.ts"), "utf8")).toBe(
+			"// 3.2\n",
+		);
+	});
+
 	it("exits before the checks when the project is already on the target release", async () => {
 		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
 		const app = folder.path;

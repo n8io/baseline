@@ -11,9 +11,9 @@ export type SdkOptions = {
 
 let configured: SdkOptions = {};
 
-/** Sets the URL and token every later call uses unless the call passes its own. */
+/** Sets the URL or token (or both) every later call uses unless the call passes its own. */
 export const sdkConfigure = (options: SdkOptions): void => {
-	configured = { ...options };
+	configured = { ...configured, ...options };
 };
 
 export const sdkFetch = async <T>(

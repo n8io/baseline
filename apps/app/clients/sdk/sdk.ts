@@ -191,7 +191,7 @@ export type fooCreateResponse =
 	| fooCreateResponseSuccess
 	| fooCreateResponseError;
 
-export const getFooCreateUrl = () => {
+const getFooCreateUrl = () => {
 	return `/api/v1/foos`;
 };
 
@@ -221,7 +221,7 @@ export type fooListResponseSuccess = fooListResponse200 & {
 
 export type fooListResponse = fooListResponseSuccess;
 
-export const getFooListUrl = (params?: FooListParams) => {
+const getFooListUrl = (params?: FooListParams) => {
 	const normalizedParams = new URLSearchParams();
 
 	Object.entries(params || {}).forEach(([key, value]) => {
@@ -266,7 +266,7 @@ export type fooGetResponseError = fooGetResponse404 & {
 
 export type fooGetResponse = fooGetResponseSuccess | fooGetResponseError;
 
-export const getFooGetUrl = (fooId: string) => {
+const getFooGetUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 
@@ -315,7 +315,7 @@ export type fooUpdateResponse =
 	| fooUpdateResponseSuccess
 	| fooUpdateResponseError;
 
-export const getFooUpdateUrl = (fooId: string) => {
+const getFooUpdateUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 
@@ -364,7 +364,7 @@ export type fooDeleteResponse =
 	| fooDeleteResponseSuccess
 	| fooDeleteResponseError;
 
-export const getFooDeleteUrl = (fooId: string) => {
+const getFooDeleteUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 

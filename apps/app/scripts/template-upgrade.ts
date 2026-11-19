@@ -12,7 +12,11 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
-import { piecesGoneFind, piecesRemoveFromTree } from "./piece-remove.ts";
+import {
+	pieceRemovals,
+	piecesGoneFind,
+	piecesRemoveFromTree,
+} from "./piece-remove.ts";
 import {
 	filesWrite,
 	releaseLatest,
@@ -212,6 +216,20 @@ export const secretKeep = ({
 	);
 };
 
+const sdkGeneratedPaths = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
+
+// A piece whose package the Project's own release did not have yet is new, not removed: it arrives.
+const pieceInRelease = (files: TemplateFile[]) => {
+	const manifest = JSON.parse(
+		files.find((f) => f.path === "package.json")?.text ?? "{}",
+	) as Record<string, Record<string, string> | undefined>;
+	const names = new Set([
+		...Object.keys(manifest.dependencies ?? {}),
+		...Object.keys(manifest.devDependencies ?? {}),
+	]);
+	return (piece: string) => names.has(pieceRemovals[piece]?.packages[0] ?? "");
+};
+
 export const templateUpgrade = async ({
 	appDirectory,
 	to,
@@ -234,8 +252,14 @@ export const templateUpgrade = async ({
 	const fromFiles = tools.fetch(template.release);
 	const toFiles = tools.fetch(to);
 	// The project's lockfile is its own after app-create: its next install moves only what changed.
+	// So are the SDK's generated files once it has them: pnpm sdk-generate writes them from its API.
+	const sdkOwn = existsSync(join(appDirectory, "clients/sdk/openapi.json"));
 	const merged = (files: TemplateFile[]) =>
-		files.filter((f) => f.path !== "pnpm-lock.yaml");
+		files.filter(
+			(f) =>
+				f.path !== "pnpm-lock.yaml" &&
+				!(sdkOwn && sdkGeneratedPaths.includes(f.path)),
+		);
 	const envPath = join(appDirectory, ".env.development");
 	const project = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
 	const { conflicts } = templateMerge({
@@ -249,7 +273,7 @@ export const templateUpgrade = async ({
 			project,
 		}),
 		tools,
-		removed: piecesGoneFind(appDirectory),
+		removed: piecesGoneFind(appDirectory).filter(pieceInRelease(fromFiles)),
 		labels: { from: template.release, to },
 	});
 	const workspace = join(appDirectory, "pnpm-workspace.yaml");

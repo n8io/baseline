@@ -153,7 +153,7 @@ jobs:
           pnpm sdk-generate
           if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
             git status --porcelain -- clients/sdk
-            echo "::error::The API changed without its SDK. Run pnpm sdk-generate and commit clients/sdk/."
+            echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
             exit 1
           fi
       # Warnings only: it prints a ::warning annotation per glossary alias in the added lines and exits 0.

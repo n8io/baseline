@@ -800,7 +800,7 @@ export const releaseLatest = (): string => {
 
 // The template's own workspace settings, which the monorepo root holds for apps/app. A Project's
 // root is the app, and clients/ holds the packages made from its API.
-const workspaceRender = (rootWorkspace: string): string =>
+export const workspaceRender = (rootWorkspace: string): string =>
 	rootWorkspace.replace(
 		/^packages:\n(?: {2}- .*\n)*/m,
 		[

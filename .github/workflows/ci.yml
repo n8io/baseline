@@ -141,7 +141,7 @@ jobs:
           pnpm sdk-generate
           if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
             git status --porcelain -- clients/sdk
-            echo "::error::The API changed without its SDK. Run pnpm sdk-generate in apps/app and commit apps/app/clients/sdk/."
+            echo "::error::apps/app/clients/sdk differs from what pnpm sdk-generate writes. Run it in apps/app and commit clients/sdk/."
             exit 1
           fi
         working-directory: apps/app

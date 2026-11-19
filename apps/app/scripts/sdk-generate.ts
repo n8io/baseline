@@ -1,8 +1,9 @@
 // pnpm sdk-generate: writes clients/sdk/openapi.json from the app's own OpenAPI document (the build
 // booted on memory adapters, as api-check does) and generates clients/sdk/sdk.ts from it: one typed
 // function per operation, named by its operationId. Run it after any change to a route; CI fails
-// when the committed files differ from what it writes. The generator is named only in this file.
+// when the committed files differ from what it writes. This is the only file that imports the generator.
 import { spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 import { generate } from "orval";
 import { documentSave } from "./api-check.ts";
 
@@ -33,6 +34,16 @@ export const sdkGenerate = async (): Promise<void> => {
 			tsconfig: { compilerOptions: { allowImportingTsExtensions: true } },
 		},
 	});
+	// orval also exports each operation's URL builder (getFooCreateUrl); keep them module-private,
+	// so the SDK's value exports are exactly its operations.
+	const target = `${sdk}/sdk.ts`;
+	writeFileSync(
+		target,
+		readFileSync(target, "utf8").replaceAll(
+			/^export const (get\w+Url) =/gm,
+			"const $1 =",
+		),
+	);
 	const format = spawnSync("pnpm", ["exec", "biome", "check", "--write", sdk], {
 		stdio: "inherit",
 	});
