@@ -23,7 +23,7 @@ const { useCases } = contextsCreate(connections).invoiceContext;
 
 Only two kinds of test reach behind `index.ts`:
 
-- A seam with two adapters: the repository contract (`<aggregate>-repository.contract.ts`, run on memory and on Postgres) and the transaction's commit and rollback.
+- A seam with two adapters: the repository suite in `<aggregate>-repository.contract.ts`, run on memory and on Postgres, and the transaction's commit and rollback.
 - A race: two transactions interleaved on Postgres (`postgresTestInterleave`), which memory cannot show.
 
 Delete a test that only repeats an interface test, such as a test of one transition or specification whose cases a Use case test covers, or a unit test of a thin adapter. Move a case it has that no interface test covers into the Use case test first.

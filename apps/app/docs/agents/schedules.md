@@ -109,19 +109,17 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 ```ts
 // src/contexts/baz/adapters/inbound/baz-schedule.test.ts
 const clock = clockMemoryCreate(new Date("2020-01-01T00:00:00Z"));
-const { schedules, useCases } = contextsCreate({
-	...connections,
-	clock,
-}).bazContext;
+const connected = { ...connections, clock };
+const { schedules, useCases } = contextsCreate(connected).bazContext;
 const created = await useCases.bazCreate(owner, { name: "old" });
 if (!created.ok) throw created.error;
+const bazId = created.value.id;
 clock.set(new Date("2026-06-01T00:00:00Z"));
-const schedule = schedules.find((each) => each.name === "baz.stale-archive");
+const schedule = schedules.find((s) => s.name === "baz.stale-archive");
 
 expect(await schedule?.run()).toEqual(ok(1));
-expect(await useCases.bazGet(owner, { bazId: created.value.id })).toMatchObject(
-	{ ok: true, value: { archivedAt: expect.any(Date) } },
-);
+const archived = await useCases.bazGet(owner, { bazId });
+expect(archived.ok && archived.value.archivedAt).toBeInstanceOf(Date);
 expect(await schedule?.run()).toEqual(ok(0));
 ```
 

@@ -19,21 +19,17 @@ describe("foo's schedule", () => {
 
 	it("archives the stale foos when run, and nothing on a repeat", async () => {
 		const clock = clockMemoryCreate(new Date("2020-01-01T00:00:00Z"));
-		const { schedules, useCases } = contextsCreate({
-			...connections,
-			clock,
-		}).fooContext;
+		const connected = { ...connections, clock };
+		const { schedules, useCases } = contextsCreate(connected).fooContext;
 		const created = await useCases.fooCreate(owner, { name: "old" });
 		if (!created.ok) throw created.error;
+		const fooId = created.value.id;
 		clock.set(new Date("2026-06-01T00:00:00Z"));
-		const schedule = schedules.find(
-			(each) => each.name === "foo.stale-archive",
-		);
+		const schedule = schedules.find((s) => s.name === "foo.stale-archive");
 
 		expect(await schedule?.run()).toEqual(ok(1));
-		expect(
-			await useCases.fooGet(owner, { fooId: created.value.id }),
-		).toMatchObject({ ok: true, value: { archivedAt: expect.any(Date) } });
+		const archived = await useCases.fooGet(owner, { fooId });
+		expect(archived.ok && archived.value.archivedAt).toBeInstanceOf(Date);
 		expect(await schedule?.run()).toEqual(ok(0));
 	});
 });
