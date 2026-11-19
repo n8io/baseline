@@ -3,7 +3,7 @@
 Read when adding a bounded context or an Aggregate to one. Two commands copy the Template's own context under new names. Neither writes a migration or commits.
 
 - `pnpm context-create <context>` writes the context's shell: `src/contexts/<context>/` with its `index.ts`, ports, transaction, Use cases entry, adapters' entries, errors, repositories file and a `CONTEXT.md` stub, and its wiring into `src/use-cases.ts` and the composition roots. It has no Aggregate yet, so `pnpm check` fails until it has one. It formats and runs no check.
-- `pnpm aggregate-create <context> <aggregate>` adds an Aggregate to that context: the Template Aggregate's files under the new name, its lines in the context's shared files and in the composition roots and UI, then `pnpm check` and `pnpm test`. A context's first Aggregate is often named after the context (`invoice invoice`).
+- `pnpm aggregate-create <context> <aggregate>` adds an Aggregate to that context: the Template Aggregate's files under the new name, its lines in the context's shared files and in the composition roots and UI, then the `sdk-generate` script when the Project has the SDK (its new routes would leave it stale), `pnpm check` and `pnpm test`. A context's first Aggregate is often named after the context (`invoice invoice`).
 
 ## Before you run them
 

@@ -913,6 +913,19 @@ describe.runIf(template)(
 			expect(piecesRemovedFind(folder.path)).not.toContain("cache");
 		});
 
+		it("counts the cli as removed once its folder has no package.json", () => {
+			using folder = appCreate("**Invoice line**:\nA line.\n");
+			writeFileSync(
+				join(folder.path, "package.json"),
+				JSON.stringify({ devDependencies: { orval: "1" } }),
+			);
+			expect(piecesRemovedFind(folder.path)).toContain("cli");
+			expect(piecesRemovedFind(folder.path)).not.toContain("sdk");
+			mkdirSync(join(folder.path, "clients/cli"), { recursive: true });
+			writeFileSync(join(folder.path, "clients/cli/package.json"), "{}");
+			expect(piecesRemovedFind(folder.path)).not.toContain("cli");
+		});
+
 		it("leaves out the pieces a Project removed, which have no package left", () => {
 			const step = projectBuild({
 				aggregates: [{ names }],
