@@ -488,7 +488,7 @@ const getBarCreateUrl = (fooId: string) => {
 };
 
 /**
- * @summary Create one bar under its foo
+ * @summary Create one bar under a foo
  */
 export const barCreate = async (
 	fooId: string,
@@ -530,7 +530,7 @@ const getBarListUrl = (fooId: string) => {
 };
 
 /**
- * @summary List a foo's bars, one page at a time
+ * @summary List one foo's bars, one page at a time
  */
 export const barList = async (
 	fooId: string,

@@ -72,7 +72,7 @@ const json = <S extends z.ZodType>(schema: S, description: string) => ({
 });
 
 // Each operation is named after the Use case it calls and tagged with its Aggregate; SDK methods
-// and CLI commands take their names from both, and their help from its summary (docs/agents/api.md).
+// and CLI commands take their names from both and their help from the summary (docs/agents/api.md).
 const fooCreateRoute = createRoute({
 	operationId: "fooCreate",
 	summary: "Create one foo",

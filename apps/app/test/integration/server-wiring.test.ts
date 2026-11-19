@@ -190,8 +190,8 @@ describe("server wiring", { timeout: 30_000 }, () => {
 			expect(res.status).toBe(200);
 		});
 
-		// SDK methods and CLI commands are named from these two fields (docs/agents/api.md).
-		it("names every operation after its Use case, tags it with its Aggregate and sums it up", async () => {
+		// SDK methods and CLI commands take their names from operationId and tag, and their help from summary (docs/agents/api.md).
+		it("names every operation after its Use case, tags it with its Aggregate and gives it a summary", async () => {
 			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
 				paths: Record<
 					string,

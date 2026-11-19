@@ -478,7 +478,7 @@
 		"/api/v1/foos/{fooId}/bars": {
 			"post": {
 				"operationId": "barCreate",
-				"summary": "Create one bar under its foo",
+				"summary": "Create one bar under a foo",
 				"tags": ["bar"],
 				"parameters": [
 					{
@@ -574,7 +574,7 @@
 			},
 			"get": {
 				"operationId": "barList",
-				"summary": "List a foo's bars, one page at a time",
+				"summary": "List one foo's bars, one page at a time",
 				"tags": ["bar"],
 				"parameters": [
 					{
