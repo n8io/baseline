@@ -1,4 +1,4 @@
-// The context's entry: everything outside foo imports from here, adapters/inbound/index.ts or
+// The context's entry: outside code imports only from here, adapters/inbound/index.ts and
 // adapters/outbound/index.ts.
 
 export {
@@ -6,6 +6,7 @@ export {
 	fooUseCasesCreate,
 } from "./application/foo-use-cases.ts";
 export type * from "./application/ports.ts";
+export * from "./domain/bar.ts";
 export * from "./domain/errors.ts";
 export * from "./domain/foo.ts";
 export { fooDeleteCan } from "./domain/foo-delete-can.ts";
@@ -15,3 +16,4 @@ export * from "./foo-error-status.ts";
 
 // Scopes an actor may hold to change other people's foos.
 export const fooScopes = ["foo:update", "foo:delete"] as const;
+// wiring: exports

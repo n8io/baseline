@@ -1,0 +1,245 @@
+// pnpm context-create <context> [--reads <context>]...: makes a bounded context with no Aggregate
+// yet: the context's own files from the Template's foo, renamed, without Foo's or Bar's lines, a
+// CONTEXT.md stub, and its wiring into the composition roots. --reads adds a reader port and its
+// Bridge. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseArgs } from "node:util";
+import {
+	aggregateLineIs,
+	aggregateParts,
+	barRemove,
+	blocksOf,
+	contextFilePaths,
+	contextsPairsFill,
+	filesFormat,
+	filesWriteAll,
+	nameRefusal,
+	nameTerm,
+	type PairWanted,
+	pairsEmptyFillableHas,
+	partsApply,
+	piecesRemovedFind,
+	readsApply,
+	readsRefusal,
+	templateOf,
+	templateWithoutPieces,
+	wiringInsert,
+} from "./aggregate-create.ts";
+import {
+	fooLineIs,
+	fooPathRename,
+	fooRename,
+	linesRemove,
+	type TemplateFile,
+} from "./template-render.ts";
+
+// The reason context-create refuses this name, or undefined.
+export const contextRefusal = ({
+	appDirectory,
+	context,
+}: {
+	appDirectory: string;
+	context: string;
+}): string | undefined =>
+	existsSync(join(appDirectory, "src/contexts", context))
+		? `src/contexts/${context}/ already exists`
+		: nameRefusal({ appDirectory, kebab: context });
+
+const contextStub = (context: string): string => `# ${nameTerm(context)}
+
+The ${context.replaceAll("-", " ")} bounded context. Say here whether it is a core, supporting or generic subdomain, and which Aggregates it holds. Its terms live in the app's CONTEXT.md.
+`;
+
+// The files a new context adds or changes, from the template's files and the project's. `reads`
+// names the contexts it reads through Bridges.
+export const contextFilesCreate = ({
+	appDirectory,
+	context,
+	reads = [],
+	templateFull,
+}: {
+	appDirectory: string;
+	context: string;
+	reads?: string[];
+	templateFull: TemplateFile[];
+}): TemplateFile[] => {
+	const names = { kebab: context, plural: `${context}s` };
+	const template = barRemove(
+		templateWithoutPieces(templateFull, piecesRemovedFind(appDirectory)),
+	);
+	const read = readsApply({
+		files: template.filter(
+			(f) => contextFilePaths.has(f.path) || f.path === "src/use-cases.ts",
+		),
+		reads,
+	});
+	const rename = (path: string) => (text: string) =>
+		fooRename({ names, path, text });
+	// The context's files lose every Aggregate's lines and the part blocks that hold them.
+	const own = read
+		.filter((f) => f.path !== "src/use-cases.ts")
+		.map((file): TemplateFile => {
+			const [shell = file] = contextFilePaths.has(file.path)
+				? partsApply({ files: [file], partsLeftOut: [...aggregateParts] })
+				: [file];
+			const text = contextFilePaths.has(file.path)
+				? linesRemove(
+						shell.text,
+						blocksOf({
+							lineIs: aggregateLineIs,
+							path: file.path,
+							text: shell.text,
+						}),
+					)
+				: shell.text;
+			return {
+				path: fooPathRename(file.path, names),
+				text: rename(file.path)(text),
+			};
+		});
+	const files: TemplateFile[] = [
+		...own,
+		{ path: `src/contexts/${context}/CONTEXT.md`, text: contextStub(context) },
+	];
+	// The composition roots get the context's own lines; aggregate-create brings the rest, the
+	// UI's included.
+	const pairWanted: PairWanted = (part) => part === undefined;
+	for (const file of template) {
+		if (
+			/^(src\/contexts|src\/ui|scripts|test)\//.test(file.path) ||
+			file.path.endsWith(".md") ||
+			!file.text
+				.split("\n")
+				.some((line) => /^\s*(\/\/|#) wiring: [a-z-]+\s*$/.test(line))
+		) {
+			continue;
+		}
+		const source = read.find((f) => f.path === file.path)?.text ?? file.text;
+		const target = join(appDirectory, file.path);
+		if (!existsSync(target)) {
+			throw new Error(
+				`${file.path} is missing; the template wires contexts there`,
+			);
+		}
+		const project = readFileSync(target, "utf8");
+		const filled = pairsEmptyFillableHas({
+			pairWanted,
+			path: file.path,
+			project,
+			template: source,
+		})
+			? contextsPairsFill({
+					pairWanted,
+					path: file.path,
+					project,
+					template: source,
+				})
+			: project;
+		const text = wiringInsert({
+			blockIs: (line) => fooLineIs(line) && !aggregateLineIs(line),
+			path: file.path,
+			project: filled,
+			rename: rename(file.path),
+			template: source,
+		});
+		if (text !== project) files.push({ path: file.path, text });
+	}
+	return files;
+};
+
+// What to do after a context-create.
+export const contextNextStepsText = ({
+	context,
+	reads,
+}: {
+	context: string;
+	reads: string[];
+}): string =>
+	[
+		"Next:",
+		`  1. Say in src/contexts/${context}/CONTEXT.md which subdomain ${context} is and what it holds.`,
+		`  2. pnpm aggregate-create ${context} <aggregate> adds its first Aggregate (often ${context} itself); pnpm check passes once it has one.`,
+		...reads.map(
+			(target, k) =>
+				`  ${k + 3}. Read what ${context} needs from ${target} in src/bridges/${context}-${target}-reader.ts and its port in src/contexts/${context}/application/ports.ts.`,
+		),
+	].join("\n");
+
+const usage = `Usage: pnpm context-create <context> [--reads <context>]...
+
+Makes src/contexts/<context>/, a bounded context with no Aggregate yet, from the Template's foo:
+its interface, ports, transaction, Use cases and adapters' entries, a CONTEXT.md stub, and its
+wiring into the composition roots. Add <context>'s **Term**: entry to CONTEXT.md first, then add
+Aggregates with pnpm aggregate-create.
+
+  --reads <context>  reads <context> through a Bridge: a reader port, its memory fake and
+                     src/bridges/<context>-<other>-reader.ts. Repeat it for more.
+  -h, --help         this help
+
+See docs/agents/context-create.md.`;
+
+const fail = (message: string): never => {
+	console.error(`context-create: ${message}`);
+	process.exit(1);
+};
+
+const argsParse = () =>
+	parseArgs({
+		allowPositionals: true,
+		options: {
+			help: { short: "h", type: "boolean" },
+			reads: { multiple: true, type: "string" },
+		},
+	});
+
+const main = () => {
+	let parsed: ReturnType<typeof argsParse>;
+	try {
+		parsed = argsParse();
+	} catch (error) {
+		console.error(`context-create: ${(error as Error).message}\n\n${usage}`);
+		process.exit(1);
+	}
+	const { positionals, values } = parsed;
+	if (values.help) {
+		console.log(usage);
+		return;
+	}
+	const [context] = positionals;
+	if (context === undefined || positionals.length !== 1) {
+		console.error(usage);
+		process.exit(1);
+	}
+	const reads = values.reads ?? [];
+	const appDirectory = process.cwd();
+	const refusal =
+		contextRefusal({ appDirectory, context }) ??
+		readsRefusal({
+			appDirectory,
+			names: { kebab: context, plural: `${context}s` },
+			reads,
+		});
+	if (refusal !== undefined) fail(refusal);
+	let files: TemplateFile[] = [];
+	try {
+		files = contextFilesCreate({
+			appDirectory,
+			context,
+			reads,
+			templateFull: templateOf(appDirectory),
+		});
+	} catch (error) {
+		fail((error as Error).message);
+	}
+	const wired = filesWriteAll({ appDirectory, files });
+	filesFormat({
+		appDirectory,
+		paths: files.map((f) => f.path).filter((p) => !p.endsWith(".md")),
+	});
+	console.log(
+		`Created src/contexts/${context}/ and wired it into ${wired} files.\n${contextNextStepsText({ context, reads })}`,
+	);
+};
+
+if (import.meta.main) main();

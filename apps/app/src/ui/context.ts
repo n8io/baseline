@@ -18,13 +18,13 @@ export const cspNonceContext: RouterContext<string | undefined> = createContext<
 >();
 export const fooUseCasesContext: RouterContext<FooUseCases> =
 	createContext<FooUseCases>();
-// domain-create: context-keys
+// wiring: context-keys
 
 export const uiLoadContextCreate = (
 	c: Context,
-	// domain-create: domains-start
+	// wiring: contexts-start
 	useCases: DomainsUseCases,
-	// domain-create: domains-end
+	// wiring: contexts-end
 ): RouterContextProvider =>
 	new RouterContextProvider(
 		new Map<RouterContext<unknown>, unknown>([
@@ -32,6 +32,6 @@ export const uiLoadContextCreate = (
 			[authnExpiryContext, c.var.authnExpiresAt],
 			[cspNonceContext, c.var.secureHeadersNonce],
 			[fooUseCasesContext, useCases.fooUseCases],
-			// domain-create: context
+			// wiring: context
 		]),
 	);

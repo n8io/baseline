@@ -2,27 +2,8 @@ import type { Id } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { cursorDecode, cursorMemoryPage } from "../../../../cursor.ts";
 import { FooNameTakenError, FooNotFoundError } from "../../domain/errors.ts";
-import type { Foo, FooEventMap, FooListInput } from "../../domain/foo.ts";
+import type { Foo, FooListInput } from "../../domain/foo.ts";
 import type { FooRepository } from "../../domain/repositories.ts";
-
-// Committed foos. The read repository and the transaction share one state object; a
-// transaction swaps in its copy of `foos` on commit.
-export type FooMemoryState = {
-	foos: Map<Id<"foo">, Foo>;
-	// piece-start: queue
-	inbox: Set<string>;
-	// Events reach it only on commit.
-	published: { name: keyof FooEventMap; data: unknown; key: string }[];
-	// piece-end: queue
-};
-
-export const fooMemoryStateCreate = (): FooMemoryState => ({
-	foos: new Map(),
-	// piece-start: queue
-	inbox: new Set(),
-	published: [],
-	// piece-end: queue
-});
 
 // Like Postgres: the unique index on name, and copies in and out so no caller shares a row.
 export const fooRepositoryMemoryCreate = (state: {
@@ -39,7 +20,7 @@ export const fooRepositoryMemoryCreate = (state: {
 	};
 
 	return {
-		// domain-create-start: schedule
+		// aggregate-create-start: schedule
 		archiveStale: async (before, now) => {
 			let archived = 0;
 			for (const foo of state.foos.values()) {
@@ -50,7 +31,7 @@ export const fooRepositoryMemoryCreate = (state: {
 			}
 			return archived;
 		},
-		// domain-create-end: schedule
+		// aggregate-create-end: schedule
 		delete: async (id) =>
 			state.foos.delete(id) ? ok(undefined) : err(new FooNotFoundError(id)),
 		findById,

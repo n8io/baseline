@@ -30,3 +30,4 @@ export class FooForbiddenError extends Error {
 }
 
 export type FooError = FooNotFoundError | FooNameTakenError | FooForbiddenError;
+// wiring: errors

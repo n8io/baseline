@@ -1,11 +1,11 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
-// does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
+// does, with the customer context, and drives the rendered Project's own `pnpm piece-remove`:
 // - each of ui, live, cache, queue, analytics, error-tracking, api-reference and cli removed alone, and sdk
 //   after cli, passes check, unit tests and build, and git revert of its commits gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it, and sdk alone, because the cli runs on it;
 // - all ten removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all ten removed, then invoice-line added with domain-create, pass check, unit tests and build
+// - all ten removed, then invoice-line added with context-create and aggregate-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // One render serves every case, to keep CI short. `pnpm piece-check` is not one of them:
 // render-and-test's `pieces` job runs it on the render that job checks.
@@ -15,9 +15,13 @@ import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
-	domainFilesCreate,
-	domainNameRefusal,
-} from "../../apps/app/scripts/domain-create.ts";
+	aggregateFilesCreate,
+	aggregateRefusal,
+} from "../../apps/app/scripts/aggregate-create.ts";
+import {
+	contextFilesCreate,
+	contextRefusal,
+} from "../../apps/app/scripts/context-create.ts";
 import { filesWrite, run } from "../../apps/app/scripts/template-render.ts";
 import {
 	answersWrite,
@@ -55,7 +59,7 @@ type Piece =
 	| "sdk"
 	| "ui";
 
-const domainAdd = ({
+const contextAdd = ({
 	directory,
 	files,
 	names,
@@ -64,14 +68,33 @@ const domainAdd = ({
 	files: ReturnType<typeof checkoutExport>;
 	names: typeof customer;
 }) => {
-	const refusal = domainNameRefusal(names, directory);
-	if (refusal !== undefined) throw new Error(refusal);
-	const created = domainFilesCreate({
-		templateFull: files,
+	const refusal = contextRefusal({
 		appDirectory: directory,
-		names,
+		context: names.kebab,
 	});
-	filesWrite(directory, created);
+	if (refusal !== undefined) throw new Error(refusal);
+	const shell = contextFilesCreate({
+		appDirectory: directory,
+		context: names.kebab,
+		templateFull: files,
+	});
+	filesWrite(directory, shell);
+	const refused = aggregateRefusal({
+		aggregate: names,
+		appDirectory: directory,
+		context: names.kebab,
+	});
+	if (refused !== undefined) throw new Error(refused);
+	const aggregate = aggregateFilesCreate({
+		aggregate: names,
+		appDirectory: directory,
+		context: names.kebab,
+		templateFull: files,
+	});
+	filesWrite(directory, aggregate);
+	const created = [...shell, ...aggregate].filter(
+		(f) => !f.path.endsWith(".md"),
+	);
 	const paths = created.map((f) => f.path);
 	const unusedImports = "--only=correctness/noUnusedImports";
 	pnpmRun(directory, [
@@ -283,7 +306,7 @@ const main = async () => {
 	checkoutPackagesUse(directory);
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
-	domainAdd({ directory, files, names: customer });
+	contextAdd({ directory, files, names: customer });
 	pnpmRun(directory, ["check"]);
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
@@ -360,7 +383,7 @@ const main = async () => {
 	// git ignores the types check generated after the revert; piece-remove ui deletes them.
 	rmSync(join(directory, ".react-router"), { force: true, recursive: true });
 	pnpmRun(directory, ["install"]);
-	domainAdd({ directory, files, names: invoiceLine });
+	contextAdd({ directory, files, names: invoiceLine });
 	for (const script of checkTestBuild) pnpmRun(directory, [script]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");

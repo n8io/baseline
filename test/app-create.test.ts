@@ -70,7 +70,7 @@ const registryServe = async (versions: Record<string, number>) => {
 };
 
 describe("app-create", () => {
-	it("names the glossary term domain-create looks for", () => {
+	it("names the glossary term context-create and aggregate-create look for", () => {
 		expect(glossaryTerm("invoice-line")).toBe("Invoice line");
 		expect(glossaryTerm("customer")).toBe("Customer");
 	});

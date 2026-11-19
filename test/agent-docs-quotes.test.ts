@@ -2,16 +2,17 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { templateFileRender } from "../apps/app/scripts/template-render.ts";
 
-// These apps/app/docs/agents pages quote the Template's Foo renamed to a `bar` Domain, because the
+// These apps/app/docs/agents pages quote the Template's Foo renamed to a `baz` context (not `bar`: that is the
+// Template's real second Aggregate), because the
 // render drops every line that names foo from a Project's copy. Each ts block starts with
-// `// <path>` and, with bar read as foo, must appear line for line in apps/app/<path>. Indents are
+// `// <path>` and, with baz read as foo, must appear line for line in apps/app/<path>. Indents are
 // ignored: Biome dedents a quoted block.
 const docs = ["schedules.md", "ui.md"];
 const app = new URL("../apps/app/", import.meta.url);
 
-const barAsFoo = (text: string): string =>
-	text.replaceAll(/(bar|Bar|BAR)(?=s?(?![a-z]))/g, (name) =>
-		name === "bar" ? "foo" : name === "Bar" ? "Foo" : "FOO",
+const bazAsFoo = (text: string): string =>
+	text.replaceAll(/(baz|Baz|BAZ)(?=s?(?![a-z]))/g, (name) =>
+		name === "baz" ? "foo" : name === "Baz" ? "Foo" : "FOO",
 	);
 
 const indentsDrop = (text: string): string =>
@@ -42,8 +43,8 @@ describe.each(docs)("docs/agents/%s", (doc) => {
 		"quotes %s as the Template has it",
 		(path, code) => {
 			expect(code.trim()).not.toBe("");
-			const source = readFileSync(new URL(barAsFoo(path ?? ""), app), "utf8");
-			expect(indentsDrop(source)).toContain(indentsDrop(barAsFoo(code)).trim());
+			const source = readFileSync(new URL(bazAsFoo(path ?? ""), app), "utf8");
+			expect(indentsDrop(source)).toContain(indentsDrop(bazAsFoo(code)).trim());
 		},
 	);
 });
@@ -66,13 +67,13 @@ describe.each(agentDocs)("%s", (path) => {
 		).toEqual({ path, text });
 	});
 
-	// domain-create would wire into a file with a marker line, and piece-remove would cut it.
-	it("holds no domain-create or piece marker line", () => {
+	// aggregate-create would wire into a file with a marker line, and piece-remove would cut it.
+	it("holds no wiring or piece marker line", () => {
 		expect(
 			text
 				.split("\n")
 				.filter((line) =>
-					/^\s*(\/\/|#) (domain-create|piece-(start|end)):/.test(line),
+					/^\s*(\/\/|#) (wiring|piece-(start|end)):/.test(line),
 				),
 		).toEqual([]);
 	});

@@ -12,7 +12,7 @@ const stranger: Actor = { id: "other", kind: "user", scopes: [] };
 
 const setup = async () => {
 	const { ports, state } = fooPortsMemoryCreate();
-	const sent = state.liveUpdatesSent;
+	const sent = state.fooLiveUpdatesSent;
 	const useCases = fooUseCasesCreate(ports);
 	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;

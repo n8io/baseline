@@ -4,12 +4,15 @@ import type { Result } from "@n8io/baseline-result";
 import type { Clock } from "../../../clock.ts";
 import type { Foo, FooEventMap } from "../domain/foo.ts";
 import type {
+	BarReadRepository,
+	BarRepository,
 	FooReadRepository,
 	FooRepository,
 } from "../domain/repositories.ts";
 
 // No fooTransaction here: transactions do not nest.
 export type FooTransactionPorts = {
+	barRepository: BarRepository;
 	fooRepository: FooRepository;
 	// piece-start: queue
 	fooEvents: {
@@ -21,6 +24,7 @@ export type FooTransactionPorts = {
 		}): Promise<void>;
 	};
 	// piece-end: queue
+	// wiring: transaction-ports
 };
 
 // Commits when the work returns ok, rolls back on err or a throw. One signature, so explicit
@@ -53,8 +57,6 @@ export type FooPorts = {
 		delete(id: Id<"foo">): Promise<void>;
 	};
 	// piece-end: cache
-	// Every Use case reads the time here, never from new Date().
-	fooClock: Clock;
 	// piece-start: live
 	// Best effort and never throws; call it after commit with no catch.
 	fooLiveUpdates: {
@@ -64,6 +66,10 @@ export type FooPorts = {
 		}): Promise<void>;
 	};
 	// piece-end: live
+	barReadRepository: BarReadRepository;
 	fooReadRepository: FooReadRepository;
+	// wiring: ports
+	// Every Use case reads the time here, never from new Date().
+	fooClock: Clock;
 	fooTransaction: FooTransaction;
 };

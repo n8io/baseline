@@ -10,9 +10,9 @@ AGENTS.md asks you to stop and ask for every new Domain, glossary term, business
 - Each PR that adds one of those terms says so in its "Glossary" section: the term as agreed, and where the plan was approved (the plan's path or link).
 - A change to an approved term is a new question, not a plan edit.
 
-## What domain-create already builds
+## What context-create and aggregate-create already build
 
-`pnpm domain-create` writes a whole create, read, update and delete Domain: Model, Rules, Use cases, its `/api/v1` API, repository and Events, plus analytics, cache, live updates, pages, a Schedule and seeds unless you pick parts with `--bare`, and Bridges with `--reads`. [domain-create.md](domain-create.md) lists what each flag writes and what it never writes. Spend tickets on what it does not write: business Rules, the Use cases beyond the five, Consumers, outcome Events and the real reader shapes. A ticket whose Domain is plain create, read, update and delete is a flag on the setup ticket, not a ticket.
+`pnpm aggregate-create` writes a whole create, read, update and delete Aggregate: Model, Rules, Use cases, its `/api/v1` API, repository and Events, plus analytics, cache, live updates, pages, a Schedule and seeds unless you pick parts with `--bare`, and `pnpm context-create` writes Bridges with `--reads`. [context-create.md](context-create.md) lists what each flag writes and what it never writes. Spend tickets on what it does not write: business Rules, the Use cases beyond the five, Consumers, outcome Events and the real reader shapes. A ticket whose Domain is plain create, read, update and delete is a flag on the setup ticket, not a ticket.
 
 ## Ticket size
 
@@ -22,7 +22,7 @@ A real Domain with its own Rules, Consumers and pages is 1,100 to 3,000 producti
 
 Several agents can build Domains at once if the files they share change in one place first:
 
-1. **One serial setup PR.** It adds every agreed term to `CONTEXT.md`, runs `pnpm domain-create` for each Domain in build order (a Domain after the Domains it reads, with `--reads`), shapes each Model and table, and runs `pnpm codegen` once. After it merges, every wiring file (`src/use-cases.ts`, `src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/ui/routes.ts`, `.env.schema`) holds each Domain's lines.
-2. **Parallel Domain PRs.** Each one changes only its own `src/contexts/<domain>/` folder and, where a Bridge or Consumer is new, the matching wiring lines next to its `domain-create` marker comments. Two PRs that add a line at the same marker conflict on rebase: keep both lines.
+1. **One serial setup PR.** It adds every agreed term to `CONTEXT.md`, runs `pnpm context-create` for each context in build order (a context after the contexts it reads, with `--reads`) and `pnpm aggregate-create` for each of its Aggregates, shapes each Model and table, and runs `pnpm codegen` once. After it merges, every wiring file (`src/use-cases.ts`, `src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/ui/routes.ts`, `.env.schema`) holds each Domain's lines.
+2. **Parallel Domain PRs.** Each one changes only its own `src/contexts/<domain>/` folder and, where a Bridge or Consumer is new, the matching wiring lines next to its `wiring:` marker comments. Two PRs that add a line at the same marker conflict on rebase: keep both lines.
 3. **Migrations after rebase.** Two PRs that both add a migration conflict by design. The later one deletes its migration folder, rebases and runs `pnpm codegen` again ([data.md](data.md)).
 4. **Glossary changes go serial.** A term a Domain PR finds it needs is a question to the user and lands in its own small PR before the Domain PR that uses it.

@@ -56,6 +56,41 @@
 				},
 				"required": ["name"],
 				"additionalProperties": false
+			},
+			"BarResponse": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"pattern": "^bar_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+					},
+					"fooId": {
+						"type": "string",
+						"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+					},
+					"text": { "type": "string" },
+					"createdBy": { "type": "string" },
+					"createdAt": { "type": "string", "format": "date-time" }
+				},
+				"required": ["id", "fooId", "text", "createdBy", "createdAt"]
+			},
+			"BarCreateBody": {
+				"type": "object",
+				"properties": {
+					"text": { "type": "string", "minLength": 1, "maxLength": 500 }
+				},
+				"required": ["text"],
+				"additionalProperties": false
+			},
+			"BarListResponse": {
+				"type": "object",
+				"properties": {
+					"items": {
+						"type": "array",
+						"items": { "$ref": "#/components/schemas/BarResponse" }
+					}
+				},
+				"required": ["items"]
 			}
 		},
 		"parameters": {}
@@ -398,6 +433,159 @@
 									},
 									"required": ["status", "title", "code"]
 								}
+							}
+						}
+					},
+					"404": {
+						"description": "FooNotFound",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNotFound"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/foos/{fooId}/bars": {
+			"post": {
+				"operationId": "barCreate",
+				"tags": ["bar"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+						},
+						"required": true,
+						"name": "fooId",
+						"in": "path"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/BarCreateBody" }
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/BarResponse" }
+							}
+						}
+					},
+					"403": {
+						"description": "FooForbidden",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooForbidden"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "FooNotFound",
+						"content": {
+							"application/problem+json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"status": { "type": "integer" },
+										"title": { "type": "string" },
+										"code": {
+											"type": "string",
+											"x-extensible-enum": ["FooNotFound"]
+										},
+										"traceId": { "type": "string" },
+										"errors": {
+											"type": "array",
+											"items": {
+												"type": "object",
+												"properties": {
+													"pointer": { "type": "string" },
+													"detail": { "type": "string" }
+												},
+												"required": ["pointer", "detail"]
+											}
+										}
+									},
+									"required": ["status", "title", "code"]
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"operationId": "barList",
+				"tags": ["bar"],
+				"parameters": [
+					{
+						"schema": {
+							"type": "string",
+							"pattern": "^foo_[0-7][0-9a-hjkmnp-tv-z]{25}$"
+						},
+						"required": true,
+						"name": "fooId",
+						"in": "path"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The foo's bars, oldest first",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/BarListResponse" }
 							}
 						}
 					},

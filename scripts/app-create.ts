@@ -39,7 +39,7 @@ export const requiredJobs = [
 // The monorepo's apps/app, whose node_modules hold the Biome and varlock the render runs.
 export const toolsDirectory = resolve(import.meta.dirname, "../apps/app");
 
-// invoice-line ↔ **Invoice line**:, the glossary term domain-create looks for.
+// invoice-line ↔ **Invoice line**:, the glossary term context-create and aggregate-create look for.
 export const glossaryTerm = (kebab: string): string => {
 	const words = kebab.replaceAll("-", " ");
 	return words.charAt(0).toUpperCase() + words.slice(1);
@@ -506,7 +506,7 @@ const githubSteps = ({
 const nextSteps = (directory: string): string =>
 	[
 		`Next: cd ${directory} && pnpm dev`,
-		"Then add your first Domain's term to CONTEXT.md and run `pnpm domain-create <name> --bare` (docs/agents/domain-create.md).",
+		"Then add your first context's term to CONTEXT.md, run `pnpm context-create <context>`, then `pnpm aggregate-create <context> <aggregate> --bare` (docs/agents/context-create.md).",
 	].join("\n");
 
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
