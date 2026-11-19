@@ -100,19 +100,20 @@ const structureViolations = (
 			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
 			if (!allowed.has(file) && !inFolder) {
 				problems.push(
-					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the model, its rules, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
+					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the Aggregates, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
 				);
 			}
 		}
-		// Each model in domain/ is a glossary term. Errors, repository ports and Rules are not; a
-		// Rule is the file with a test beside it (one per file, with a test).
+		// Each Aggregate in domain/ is a glossary term, and so is any other file of schemas there.
+		// Errors, repository ports and domain services are not; a domain service is a file with no
+		// table of its name and a test beside it.
 		for (const file of files) {
 			const stem = /^domain\/([^/]+)\.ts$/.exec(file)?.[1];
 			if (
 				stem &&
 				!stem.endsWith(".test") &&
 				!["errors", "repositories"].includes(stem) &&
-				!files.includes(`domain/${stem}.test.ts`)
+				(aggregates.includes(stem) || !files.includes(`domain/${stem}.test.ts`))
 			)
 				termCheck(stem, name);
 		}
@@ -365,6 +366,21 @@ describe("context structure", () => {
 		expect(
 			structureViolations(paths, () => `${context}**Bar line**:\n`),
 		).toEqual([]);
+	});
+
+	it("term-checks an Aggregate's file even with a test beside it, but not a domain service", () => {
+		const paths = [
+			...barBase,
+			"src/contexts/bar/domain/bar-line.ts",
+			"src/contexts/bar/domain/bar-line.test.ts",
+			"src/contexts/bar/adapters/outbound/bar-line-table.ts",
+			"src/contexts/bar/adapters/outbound/index.ts",
+			"src/contexts/bar/domain/bar-line-merge.ts",
+			"src/contexts/bar/domain/bar-line-merge.test.ts",
+		];
+		expect(structureViolations(paths, () => context)).toEqual([
+			expect.stringContaining("**Bar line**"),
+		]);
 	});
 });
 

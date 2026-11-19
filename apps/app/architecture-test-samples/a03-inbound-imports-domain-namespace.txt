@@ -1,0 +1,5 @@
+// A3: adapters/inbound/ never takes the domain's functions, even through a namespace import
+// expect: src/contexts/billing/adapters/inbound/invoice-routes.ts imports * as invoice: adapters/inbound/ holds no business logic
+// @file src/contexts/billing/adapters/inbound/invoice-routes.ts
+import * as invoice from "../../domain/invoice.ts";
+export const invoiceRoutesCreate = () => ({ overdue: invoice.invoiceOverdueIs });

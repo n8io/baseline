@@ -172,7 +172,7 @@ describe("contextAggregateRename", () => {
 		const text = [
 			'import type { FooPorts } from "../application/ports.ts";',
 			'import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";',
-			'import { fooDeleteCan } from "#contexts/foo/domain/foo-delete-can.ts";',
+			'import { fooDeleteCan } from "#contexts/foo/domain/foo.ts";',
 			"export const fooDelete = (ports: FooPorts) => ports.fooTransaction(async (t) => t.fooRepository);",
 			'const key = "foo.deleted";',
 			'export const fooSchema = pgSchema("foo");',
@@ -188,7 +188,7 @@ describe("contextAggregateRename", () => {
 		).toEqual([
 			'import type { BillingPorts } from "../application/ports.ts";',
 			'import { billingPortsMemoryCreate } from "../adapters/outbound/billing-ports.memory.ts";',
-			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line-delete-can.ts";',
+			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line.ts";',
 			"export const invoiceLineDelete = (ports: BillingPorts) => ports.billingTransaction(async (t) => t.invoiceLineRepository);",
 			'const key = "invoice-line.deleted";',
 			'export const invoiceLineSchema = pgSchema("billing");',
@@ -785,7 +785,7 @@ describe.runIf(template)(
 			schedule: (created) =>
 				created.some(
 					(f) =>
-						/StaleArchive|archiveStale|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
+						/StaleArchive|archiveStale|StaleBefore|STALE_DAYS|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
 							f.text,
 						) || /stale|schedule/.test(f.path),
 				),
@@ -919,6 +919,19 @@ describe.runIf(template)(
 			);
 			expect(piecesRemovedFind(folder.path)).toContain("redis");
 			expect(piecesRemovedFind(folder.path)).not.toContain("cache");
+		});
+
+		it("counts the cli as removed once its folder has no package.json", () => {
+			using folder = appCreate("**Invoice line**:\nA line.\n");
+			writeFileSync(
+				join(folder.path, "package.json"),
+				JSON.stringify({ devDependencies: { orval: "1" } }),
+			);
+			expect(piecesRemovedFind(folder.path)).toContain("cli");
+			expect(piecesRemovedFind(folder.path)).not.toContain("sdk");
+			mkdirSync(join(folder.path, "clients/cli"), { recursive: true });
+			writeFileSync(join(folder.path, "clients/cli/package.json"), "{}");
+			expect(piecesRemovedFind(folder.path)).not.toContain("cli");
 		});
 
 		it("leaves out the pieces a Project removed, which have no package left", () => {

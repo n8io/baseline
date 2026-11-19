@@ -95,10 +95,10 @@ index 1273f1f..251f28f 100644
  	invoiceLineGet: invoiceLineGet(ports),
  	invoiceLineList: invoiceLineList(ports),
 diff --git a/src/contexts/invoice-line/domain/invoice-line.ts b/src/contexts/invoice-line/domain/invoice-line.ts
-index 551c8e5..e12079f 100644
+index a777c3b..905c4b9 100644
 --- a/src/contexts/invoice-line/domain/invoice-line.ts
 +++ b/src/contexts/invoice-line/domain/invoice-line.ts
-@@ -9,6 +9,8 @@ export const InvoiceLine = z.object({
+@@ -13,6 +13,8 @@ export const InvoiceLine = z.object({
  	createdAt: z.date(),
  	updatedAt: z.date(),
  	archivedAt: z.date().nullable(),
@@ -107,7 +107,7 @@ index 551c8e5..e12079f 100644
  });
  export type InvoiceLine = z.infer<typeof InvoiceLine>;
  
-@@ -31,6 +33,21 @@ export const InvoiceLineDeleteInput = z.object({
+@@ -35,6 +37,21 @@ export const InvoiceLineDeleteInput = z.object({
  });
  export type InvoiceLineDeleteInput = z.infer<typeof InvoiceLineDeleteInput>;
  
@@ -129,6 +129,26 @@ index 551c8e5..e12079f 100644
  export const InvoiceLineListInput = z.object({
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
+@@ -100,6 +117,19 @@ export const invoiceLineRename = (
+ 		? ok({ ...invoiceLine, name, updatedAt: now })
+ 		: err(new InvoiceLineForbiddenError(invoiceLine.id));
+ 
++// Bills the line to a customer; whoever may change the line may.
++export const invoiceLineCustomerAssign = (
++	invoiceLine: InvoiceLine,
++	{
++		actor,
++		customerId,
++		now,
++	}: { actor: Actor; customerId: Id<"customer">; now: Date },
++): Result<InvoiceLine, InvoiceLineForbiddenError> =>
++	invoiceLineUpdateCan(invoiceLine, actor)
++		? ok({ ...invoiceLine, customerId, updatedAt: now })
++		: err(new InvoiceLineForbiddenError(invoiceLine.id));
++
+ // piece-start: queue
+ export const invoiceLineCreated = z.object({
+ 	invoiceLineId: idSchemaCreate("invoice_line"),
 diff --git a/src/contexts/invoice-line/domain/repositories.ts b/src/contexts/invoice-line/domain/repositories.ts
 index bce2886..ccbedfc 100644
 --- a/src/contexts/invoice-line/domain/repositories.ts

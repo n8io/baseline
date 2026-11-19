@@ -2,15 +2,15 @@ import type { Actor } from "@n8io/baseline-authn";
 import { err, type Result } from "@n8io/baseline-result";
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import {
-	InvoiceLineForbiddenError,
+	type InvoiceLineForbiddenError,
 	type InvoiceLineNameTakenError,
 	InvoiceLineNotFoundError,
 } from "../domain/errors.ts";
-import type {
-	InvoiceLine,
-	InvoiceLineCustomerAssignInput,
+import {
+	invoiceLineCustomerAssign as customerAssignTransition,
+	type InvoiceLine,
+	type InvoiceLineCustomerAssignInput,
 } from "../domain/invoice-line.ts";
-import { invoiceLineUpdateCan } from "../domain/invoice-line-update-can.ts";
 import type { InvoiceLinePorts } from "./ports.ts";
 
 // Bills an invoice line to a customer the customer domain knows, read through the bridge
@@ -47,14 +47,14 @@ export const invoiceLineCustomerAssign =
 			);
 			if (!invoiceLine)
 				return err(new InvoiceLineNotFoundError(input.invoiceLineId));
-			if (!invoiceLineUpdateCan(invoiceLine, actor)) {
-				return err(new InvoiceLineForbiddenError(input.invoiceLineId));
-			}
-			return invoiceLineRepository.update({
-				...invoiceLine,
+			const assigned = customerAssignTransition(invoiceLine, {
+				actor,
 				customerId: input.customerId,
-				updatedAt: ports.invoiceLineClock.now(),
+				now: ports.invoiceLineClock.now(),
 			});
+			return assigned.ok
+				? invoiceLineRepository.update(assigned.value)
+				: assigned;
 		});
 		return result;
 	};

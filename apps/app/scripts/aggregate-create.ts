@@ -245,6 +245,10 @@ const pieces = [
 	{ name: "api-reference", package: "swagger-ui-dist", paths: [] },
 	// Owns no context file either (src/redis-open.ts is not a context's).
 	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
+	// The SDK and the command line tool own no context file; checksRun regenerates the SDK. The
+	// command line tool adds no package to the app, so its folder tells it is there.
+	{ name: "sdk", package: "orval", paths: [] },
+	{ folder: "clients/cli", name: "cli", paths: [] },
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
@@ -281,7 +285,13 @@ export const piecesRemovedFind = (appDirectory: string): string[] => {
 		...manifest.dependencies,
 		...manifest.devDependencies,
 	};
-	return pieces.filter((p) => !(p.package in installed)).map((p) => p.name);
+	return pieces
+		.filter((p) =>
+			p.package === undefined
+				? !existsSync(join(appDirectory, p.folder ?? "", "package.json"))
+				: !(p.package in installed),
+		)
+		.map((p) => p.name);
 };
 
 // Drops every block from a `piece-start: <name>` line through its `piece-end: <name>` line.
@@ -350,7 +360,7 @@ const partPaths: Record<AggregatePart, RegExp[]> = {
 	live: [],
 	pages: [/^src\/ui\/routes\/(foo-(list|detail)|home)(\.test)?\.tsx?$/],
 	schedule: [
-		/^src\/contexts\/foo\/(adapters\/inbound\/foo-schedule|application\/foo-stale-archive|domain\/foo-stale-is)(\.test)?\.ts$/,
+		/^src\/contexts\/foo\/(adapters\/inbound\/foo-schedule|application\/foo-stale-archive)(\.test)?\.ts$/,
 	],
 	seed: [/^src\/contexts\/foo\/adapters\/inbound\/foo-seed(\.test)?\.ts$/],
 };
@@ -1344,7 +1354,7 @@ export const nextStepsText = ({
 	const name = aggregate.kebab;
 	const has = (part: AggregatePart) => parts === null || parts.includes(part);
 	const steps = [
-		`Edit the Aggregate in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; delete the Use cases, API operations and Rules it does not need.`,
+		`Edit the Aggregate in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; give it its own transitions and specifications there, and delete the Use cases and API operations it does not need.`,
 		...(migrated
 			? []
 			: [
@@ -1365,7 +1375,7 @@ export const nextStepsText = ({
 					`Change the pages in src/ui/routes/${name}-list.tsx and ${name}-detail.tsx.`,
 				]
 			: []),
-		"Business Rules, Event handlers and outcome Events are yours to write: docs/agents/context-create.md.",
+		"Business transitions and specifications, Event handlers and outcome Events are yours to write: docs/agents/context-create.md.",
 	];
 	return ["Next:", ...steps.map((step, k) => `  ${k + 1}. ${step}`)].join("\n");
 };
@@ -1402,7 +1412,9 @@ export const checksRun = ({
 	command: string;
 }): void => {
 	try {
-		for (const script of ["check", "test"]) {
+		// New routes make the committed SDK stale, and CI's check job fails on a stale SDK.
+		const sdk = existsSync(join(appDirectory, "clients/sdk/package.json"));
+		for (const script of [...(sdk ? ["sdk-generate"] : []), "check", "test"]) {
 			run({
 				command: "pnpm",
 				args: ["run", script],
@@ -1443,7 +1455,7 @@ pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
   --seed             with --bare: development rows
   -h, --help         this help
 
-Never generated: business Rules, Event handlers, outcome Events. See docs/agents/context-create.md.`;
+Never generated: business transitions, Event handlers, outcome Events. See docs/agents/context-create.md.`;
 
 const fail = (message: string): never => {
 	console.error(`aggregate-create: ${message}`);

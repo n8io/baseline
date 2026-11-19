@@ -2,12 +2,11 @@ import type { Actor } from "@n8io/baseline-authn";
 import { err, type Result } from "@n8io/baseline-result";
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import {
-	FooForbiddenError,
+	type FooForbiddenError,
 	type FooNameTakenError,
 	FooNotFoundError,
 } from "../domain/errors.ts";
-import type { Foo, FooUpdateInput } from "../domain/foo.ts";
-import { fooUpdateCan } from "../domain/foo-update-can.ts";
+import { type Foo, type FooUpdateInput, fooRename } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
 export const fooUpdate =
@@ -26,14 +25,12 @@ export const fooUpdate =
 			// Locks the row: a concurrent write waits until this commits instead of being undone.
 			const foo = await fooRepository.findByIdForUpdate(input.fooId);
 			if (!foo) return err(new FooNotFoundError(input.fooId));
-			if (!fooUpdateCan(foo, actor)) {
-				return err(new FooForbiddenError(input.fooId));
-			}
-			return fooRepository.update({
-				...foo,
+			const renamed = fooRename(foo, {
+				actor,
 				name: input.name,
-				updatedAt: ports.fooClock.now(),
+				now: ports.fooClock.now(),
 			});
+			return renamed.ok ? fooRepository.update(renamed.value) : renamed;
 		});
 		// After commit, outside the callback.
 		if (result.ok) {

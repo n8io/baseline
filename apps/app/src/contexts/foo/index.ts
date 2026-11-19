@@ -9,8 +9,6 @@ export type * from "./application/ports.ts";
 export * from "./domain/bar.ts";
 export * from "./domain/errors.ts";
 export * from "./domain/foo.ts";
-export { fooDeleteCan } from "./domain/foo-delete-can.ts";
-export { fooUpdateCan } from "./domain/foo-update-can.ts";
 export type * from "./domain/repositories.ts";
 export * from "./foo-error-status.ts";
 

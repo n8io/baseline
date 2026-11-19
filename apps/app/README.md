@@ -30,7 +30,7 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 
 ## Domains
 
-A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its API, Use cases, Rules, ports and adapters in the same layout, listed with its subdomain type in [CONTEXT-MAP.md](CONTEXT-MAP.md) and named by the terms in its own `CONTEXT.md`. The contexts are the folders there; a new Project starts with none. Agree the context and add its row to the map, then:
+A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its API, Use cases, transitions, ports and adapters in the same layout, listed with its subdomain type in [CONTEXT-MAP.md](CONTEXT-MAP.md) and named by the terms in its own `CONTEXT.md`. The contexts are the folders there; a new Project starts with none. Agree the context and add its row to the map, then:
 
 ```sh
 pnpm context-create invoice                 # then add **Invoice**: to src/contexts/invoice/CONTEXT.md

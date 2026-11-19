@@ -80,6 +80,11 @@ describe("architecture", () => {
 			name: "a28-transaction-two-aggregates.txt",
 			to: "=>\n\t// invariant: an invoice closes with its lines.\n\tports.billingTransaction(",
 		},
+		{
+			from: "update({ ...invoice, name: input.name })",
+			name: "a29-use-case-spreads-aggregate.txt",
+			to: "update(invoiceRename(invoice, input.name).value)",
+		},
 	])("$name passes once fixed", async ({ from, name, to }) => {
 		const sample = samples.find((s) => s.name === name);
 		const fixed = await Promise.all(
@@ -92,15 +97,20 @@ describe("architecture", () => {
 	});
 
 	// The passing side of each rule that A2, A14 and A25 loosened or added.
-	it("A2 lets domain/ import a sibling file, zod and the id and result types", async () => {
+	it("A2 lets domain/ import a sibling file, zod, the result package and the id and authn types", async () => {
 		const rule = await architectureFileCreate(
 			"src/contexts/bar/domain/bar-open.ts",
 			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { z } from "zod";\nimport { idSchemaCreate } from "../../../id-schema.ts";\nimport { barClosedIs } from "./bar-closed.ts";\n',
 		);
 		expect(architectureRules.A2?.([rule])).toEqual([]);
-		const value = await architectureFileCreate(
+		const result = await architectureFileCreate(
 			"src/contexts/bar/domain/bar-open.ts",
 			'import { ok } from "@n8io/baseline-result";\n',
+		);
+		expect(architectureRules.A2?.([result])).toEqual([]);
+		const value = await architectureFileCreate(
+			"src/contexts/bar/domain/bar-open.ts",
+			'import { idCreate } from "@n8io/baseline-id";\n',
 		);
 		expect(architectureRules.A2?.([value])).toHaveLength(1);
 	});
@@ -320,14 +330,14 @@ describe("architecture", () => {
 		expect(architectureRules.A27?.([file])).toHaveLength(found);
 	});
 
-	it("A27 tells domain/ to return a plain value", async () => {
+	it("A27 tells a transition to return err", async () => {
 		const rule = await architectureFileCreate(
-			"src/contexts/bar/domain/bar-open-can.ts",
-			'export const barOpenCan = () => {\n\tthrow new Error("closed");\n};\n',
+			"src/contexts/bar/domain/bar.ts",
+			'export const barOpen = () => {\n\tthrow new Error("closed");\n};\n',
 		);
 		expect(architectureRules.A27?.([rule])).toEqual([
 			expect.stringContaining(
-				"bar-open-can.ts:2: throw in a domain/ file; domain/ returns a plain value",
+				"bar.ts:2: throw in a domain/ file; a transition returns err(new <Name>Error())",
 			),
 		]);
 	});

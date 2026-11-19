@@ -2,8 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { err, ok, type Result } from "@n8io/baseline-result";
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import { FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
-import type { FooDeleteInput } from "../domain/foo.ts";
-import { fooDeleteCan } from "../domain/foo-delete-can.ts";
+import { type FooDeleteInput, fooDeleteCan } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
 export const fooDelete =

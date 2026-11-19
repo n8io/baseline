@@ -6,8 +6,8 @@ import { aggregateParts } from "../apps/app/scripts/aggregate-create.ts";
 // Foo marks the lines of an aggregate-create part (`--schedule`, `--seed`) that sit inside shared files
 // with `aggregate-create-start: <part>` / `aggregate-create-end: <part>`. Like piece blocks, each is code a
 // reader skips past, so they have a budget, beside the piece markers' in piece-markers.test.ts.
-// Raise it only on purpose.
-const blocksMax = 8;
+// Raise it only on purpose: 9 since the stale cut-off moved into domain/foo.ts (#468).
+const blocksMax = 9;
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 

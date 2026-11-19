@@ -12,11 +12,11 @@ AGENTS.md asks you to stop and ask for every new Domain, glossary term, business
 
 ## What context-create and aggregate-create already build
 
-`pnpm aggregate-create` writes a whole create, read, update and delete Aggregate: Model, Rules, Use cases, its `/api/v1` API, repository and Events, plus analytics, cache, live updates, pages, a Schedule and seeds unless you pick parts with `--bare`, and `pnpm context-create` writes Bridges with `--reads`. [context-create.md](context-create.md) lists what each flag writes and what it never writes. Spend tickets on what it does not write: business Rules, the Use cases beyond the five, Consumers, outcome Events and the real reader shapes. A ticket whose Domain is plain create, read, update and delete is a flag on the setup ticket, not a ticket.
+`pnpm aggregate-create` writes a whole create, read, update and delete Aggregate: its schema, transitions and specifications, Use cases, its `/api/v1` API, repository and Events, plus analytics, cache, live updates, pages, a Schedule and seeds unless you pick parts with `--bare`, and `pnpm context-create` writes Bridges with `--reads`. [context-create.md](context-create.md) lists what each flag writes and what it never writes. Spend tickets on what it does not write: business transitions and specifications, the Use cases beyond the five, Consumers, outcome Events and the real reader shapes. A ticket whose Domain is plain create, read, update and delete is a flag on the setup ticket, not a ticket.
 
 ## Ticket size
 
-A real Domain with its own Rules, Consumers and pages is 1,100 to 3,000 production lines. Split a larger one by Use case or by Consumer, never by layer: each ticket ships its Use case with its tests, API and adapters.
+A real Domain with its own transitions, Consumers and pages is 1,100 to 3,000 production lines. Split a larger one by Use case or by Consumer, never by layer: each ticket ships its Use case with its tests, API and adapters.
 
 ## Parallel work
 

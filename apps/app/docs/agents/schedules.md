@@ -70,7 +70,7 @@ export const bazStaleArchive =
 
 ## "Due" work is a repository method
 
-The test for "due" is not a Rule. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. A Rule may compute the method's inputs (`bazStaleBefore(now)` gives the cut-off). The adapters may not import Rules, so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
+The test for "due" is not a specification. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. This set-based write is the one change to an Aggregate that skips its transitions: loading every due row to change it one at a time would lose that single claim. `domain/<aggregate>.ts` still computes the method's inputs (`bazStaleBefore(now)` gives the cut-off). Adapters may not import the domain's functions (A4), so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
 
 ```ts
 // src/contexts/baz/adapters/outbound/baz-repository.postgres.ts

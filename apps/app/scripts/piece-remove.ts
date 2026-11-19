@@ -325,7 +325,10 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			}),
 		packages: ["orval"],
 		paths: [
+			".github/workflows/clients-release.yml",
 			"clients/sdk",
+			"scripts/clients-release.test.ts",
+			"scripts/clients-release.ts",
 			"scripts/sdk-generate.ts",
 			"test/integration/foo-sdk.test.ts",
 		],
