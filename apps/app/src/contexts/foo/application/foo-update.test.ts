@@ -2,34 +2,33 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { err } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
-import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
+import { clockMemoryCreate } from "../../../clock.ts";
+import { connectionsOpen } from "../../../connections.ts";
+import { contextsCreate } from "../../../use-cases.ts";
 import {
 	FooForbiddenError,
 	FooNameTakenError,
 	FooNotFoundError,
 } from "../domain/errors.ts";
-import { fooCreate } from "./foo-create.ts";
-import { fooDelete } from "./foo-delete.ts";
-import { fooGet } from "./foo-get.ts";
-import { fooUpdate } from "./foo-update.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = async () => {
-	const memory = fooPortsMemoryCreate();
-	const created = await fooCreate(memory.ports)(owner, { name: "alpha" });
+	const clock = clockMemoryCreate();
+	const { useCases } = contextsCreate({ ...connections, clock }).fooContext;
+	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
-	return { ...memory, foo: created.value };
+	return { clock, foo: created.value, useCases };
 };
 
 describe("fooUpdate", () => {
 	it("lets the owner rename, and the next get reads the new name", async () => {
-		const { ports, foo } = await setup();
-		const get = fooGet(ports);
-		await get(owner, { fooId: foo.id });
+		const { foo, useCases } = await setup();
+		await useCases.fooGet(owner, { fooId: foo.id });
 
-		const result = await fooUpdate(ports)(owner, {
+		const result = await useCases.fooUpdate(owner, {
 			fooId: foo.id,
 			name: "beta",
 		});
@@ -38,17 +37,17 @@ describe("fooUpdate", () => {
 			ok: true,
 			value: expect.objectContaining({ id: foo.id, name: "beta" }),
 		});
-		expect(await get(owner, { fooId: foo.id })).toEqual({
+		expect(await useCases.fooGet(owner, { fooId: foo.id })).toEqual({
 			ok: true,
 			value: expect.objectContaining({ name: "beta" }),
 		});
 	});
 
 	it("stamps updatedAt from the clock", async () => {
-		const { clock, ports, foo } = await setup();
+		const { clock, foo, useCases } = await setup();
 		clock.advance(60_000);
 
-		const result = await fooUpdate(ports)(owner, {
+		const result = await useCases.fooUpdate(owner, {
 			fooId: foo.id,
 			name: "beta",
 		});
@@ -64,31 +63,34 @@ describe("fooUpdate", () => {
 	});
 
 	it("answers FooNotFoundError after a delete (memory transactions run one at a time)", async () => {
-		const { ports, foo } = await setup();
+		const { foo, useCases } = await setup();
 
 		const [deleted, updated] = await Promise.all([
-			fooDelete(ports)(owner, { fooId: foo.id }),
-			fooUpdate(ports)(owner, { fooId: foo.id, name: "beta" }),
+			useCases.fooDelete(owner, { fooId: foo.id }),
+			useCases.fooUpdate(owner, { fooId: foo.id, name: "beta" }),
 		]);
 
 		expect(deleted.ok).toBe(true);
 		expect(updated).toEqual(err(new FooNotFoundError(foo.id)));
 	});
 
-	it("forbids a stranger and changes nothing", async () => {
-		const { ports, state, foo } = await setup();
-		const result = await fooUpdate(ports)(stranger, {
-			fooId: foo.id,
-			name: "beta",
-		});
+	it("forbids a stranger and a holder of foo:delete, and changes nothing", async () => {
+		const { foo, useCases } = await setup();
 
-		expect(result).toEqual(err(expect.any(FooForbiddenError)));
-		expect(state.foos.get(foo.id)).toEqual(foo);
+		for (const actor of [stranger, { ...stranger, scopes: ["foo:delete"] }]) {
+			expect(
+				await useCases.fooUpdate(actor, { fooId: foo.id, name: "beta" }),
+			).toEqual(err(expect.any(FooForbiddenError)));
+		}
+		expect(await useCases.fooGet(owner, { fooId: foo.id })).toEqual({
+			ok: true,
+			value: foo,
+		});
 	});
 
 	it("lets a holder of foo:update rename", async () => {
-		const { ports, foo } = await setup();
-		const result = await fooUpdate(ports)(
+		const { foo, useCases } = await setup();
+		const result = await useCases.fooUpdate(
 			{ ...stranger, scopes: ["foo:update"] },
 			{ fooId: foo.id, name: "beta" },
 		);
@@ -97,8 +99,8 @@ describe("fooUpdate", () => {
 	});
 
 	it("returns FooNotFoundError for an unknown id", async () => {
-		const { ports } = await setup();
-		const result = await fooUpdate(ports)(owner, {
+		const { useCases } = await setup();
+		const result = await useCases.fooUpdate(owner, {
 			fooId: idCreate("foo"),
 			name: "beta",
 		});
@@ -106,16 +108,19 @@ describe("fooUpdate", () => {
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
 	});
 
-	it("returns FooNameTakenError when another foo has the name", async () => {
-		const { ports, state, foo } = await setup();
-		await fooCreate(ports)(owner, { name: "beta" });
+	it("returns FooNameTakenError when another foo has the name, and keeps the old name", async () => {
+		const { foo, useCases } = await setup();
+		await useCases.fooCreate(owner, { name: "beta" });
 
-		const result = await fooUpdate(ports)(owner, {
+		const result = await useCases.fooUpdate(owner, {
 			fooId: foo.id,
 			name: "beta",
 		});
 
 		expect(result).toEqual(err(expect.any(FooNameTakenError)));
-		expect(state.foos.get(foo.id)?.name).toBe("alpha");
+		expect(await useCases.fooGet(owner, { fooId: foo.id })).toEqual({
+			ok: true,
+			value: foo,
+		});
 	});
 });

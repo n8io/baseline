@@ -2,26 +2,28 @@ import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
-import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
+import { clockMemoryCreate } from "../../../clock.ts";
+import { connectionsOpen } from "../../../connections.ts";
+import { contextsCreate } from "../../../use-cases.ts";
 import { FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
-import { barCreate } from "./bar-create.ts";
-import { fooCreate } from "./foo-create.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = async () => {
-	const memory = fooPortsMemoryCreate();
-	const created = await fooCreate(memory.ports)(owner, { name: "alpha" });
+	const clock = clockMemoryCreate();
+	const { useCases } = contextsCreate({ ...connections, clock }).fooContext;
+	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
-	return { ...memory, foo: created.value };
+	return { clock, foo: created.value, useCases };
 };
 
 describe("barCreate", () => {
-	it("adds a bar to the owner's foo", async () => {
-		const { clock, ports, state, foo } = await setup();
+	it("adds a bar to the owner's foo, and the foo's list shows it", async () => {
+		const { clock, foo, useCases } = await setup();
 
-		const result = await barCreate(ports)(owner, {
+		const result = await useCases.barCreate(owner, {
 			fooId: foo.id,
 			text: "first",
 		});
@@ -30,16 +32,16 @@ describe("barCreate", () => {
 			createdAt: clock.now(),
 			createdBy: owner.id,
 			fooId: foo.id,
-			id: expect.any(String),
+			id: expect.stringMatching(/^bar_/),
 			text: "first",
 		};
 		expect(result).toEqual(ok(bar));
-		expect([...state.bars.values()]).toEqual([bar]);
+		expect(await useCases.barList(owner, { fooId: foo.id })).toEqual(ok([bar]));
 	});
 
 	it("lets a holder of foo:update add one", async () => {
-		const { ports, foo } = await setup();
-		const result = await barCreate(ports)(
+		const { foo, useCases } = await setup();
+		const result = await useCases.barCreate(
 			{ ...stranger, scopes: ["foo:update"] },
 			{ fooId: foo.id, text: "first" },
 		);
@@ -48,24 +50,23 @@ describe("barCreate", () => {
 	});
 
 	it("forbids a stranger and adds nothing", async () => {
-		const { ports, state, foo } = await setup();
-		const result = await barCreate(ports)(stranger, {
+		const { foo, useCases } = await setup();
+		const result = await useCases.barCreate(stranger, {
 			fooId: foo.id,
 			text: "first",
 		});
 
 		expect(result).toEqual(err(expect.any(FooForbiddenError)));
-		expect(state.bars.size).toBe(0);
+		expect(await useCases.barList(owner, { fooId: foo.id })).toEqual(ok([]));
 	});
 
 	it("returns FooNotFoundError for a foo that does not exist", async () => {
-		const { ports, state } = await setup();
-		const result = await barCreate(ports)(owner, {
+		const { useCases } = await setup();
+		const result = await useCases.barCreate(owner, {
 			fooId: idCreate("foo"),
 			text: "first",
 		});
 
 		expect(result).toEqual(err(expect.any(FooNotFoundError)));
-		expect(state.bars.size).toBe(0);
 	});
 });

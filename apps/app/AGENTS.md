@@ -38,9 +38,9 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
 - A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts` and the like.
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
-- A Package's test helpers come from `@n8io/baseline-<package>/testing`. Only a `*.test.ts(x)` file or a file under `test/` imports it (architecture rule A24). Use them and its memory adapter; never copy its internals into a test.
+- A Package's test helpers come from `@n8io/baseline-<package>/testing`, imported only by `*.test.ts(x)` and `test/` files (A24). Use them and its memory adapter; never copy its internals.
 - `structure.test.ts` fails on a test anywhere else (no `test/unit/`) or one reading undeclared app files.
-- Domain test files share one import graph (`isolate: false`): keep them free of file-level state.
+- Test a context through its interface on memory connections; past it, only a seam with two adapters or a race.
 - Biome reads a helper named `use<Name>` as a React hook and `before` or `after` as a test hook: name helpers otherwise.
 
 ## Where new work goes
@@ -60,7 +60,7 @@ One context per business area, one Aggregate per entity in it (see context-creat
 | A helper two Use cases share                      | `application/<domain>-<thing>.ts` |
 | Routes, live streams, Consumers, Schedules, Seeds | `adapters/inbound/`               |
 | Port implementations, tables, contract tests      | `adapters/outbound/`              |
-| A unit test of one file, beside it                | `<file>.test.ts`                  |
+| A test through the context's interface            | `<file>.test.ts`                  |
 
 - Outside code imports only `index.ts`, the context's one interface (A5).
 - `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
@@ -77,7 +77,7 @@ One context per business area, one Aggregate per entity in it (see context-creat
     - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures such as ports: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- Up to two inputs (the second strongly coupled, maybe optional) may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result package and the authn and id types (A2).
@@ -123,9 +123,9 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - Do one write per Use case where possible.
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
 - Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Domain's analytics port lists every name it sends.
-- A scheduled Use case handles everything due as of now, not a fixed batch. One catch-up run must cover any number of missed ticks, and a repeat must change nothing.
+- A scheduled Use case handles everything due as of now, not a fixed batch: one run covers any number of missed ticks, and a repeat changes nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
-- Reuse an existing shadcn component before making one. Add components only with `pnpm exec shadcn add <name>`. Never write them by hand.
+- Reuse a shadcn component before making one; add one only with `pnpm exec shadcn add <name>`, never by hand.
 
 ## Env and secrets
 
@@ -159,6 +159,7 @@ Read the one that matches before you start.
 - A route, a field, a query parameter or an error under `/api/v1` (oasdiff, statuses): [docs/agents/api.md](docs/agents/api.md)
 - A dependency, a Dependabot PR or an update walkthrough: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Closing what a test, script or helper opens (`await using`): [docs/agents/using.md](docs/agents/using.md)
+- A context's tests: [docs/agents/tests.md](docs/agents/tests.md)
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Removing, restoring or keeping (`piecesKept`) a piece (UI, cache, queue and the rest): [docs/agents/pieces.md](docs/agents/pieces.md)

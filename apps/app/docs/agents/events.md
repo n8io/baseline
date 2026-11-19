@@ -94,23 +94,27 @@ With an inbox the transaction returns `Result<void, E>`, so a value the Use case
 
 ## Testing a Consumer
 
-Run the Consumer as the worker does, on memory ports, with `queueTestConsumerRun` from `@n8io/baseline-queue/testing`:
+Run the Consumer as the worker does, through the context's interface on memory connections ([tests.md](tests.md)), with `queueTestConsumerRun` from `@n8io/baseline-queue/testing`:
 
 ```ts
-// src/contexts/billing/adapters/inbound/billing-order-placed-consumer.test.ts
-const { ports, state } = billingPortsMemoryCreate();
-const consumer = billingOrderPlacedConsumerCreate(billingUseCasesCreate(ports));
+// src/contexts/billing/adapters/inbound/billing-order-placed-handler.test.ts
+const { handlers, useCases } = contextsCreate(connections).billingContext;
+const consumer = handlers.find((each) => each.eventName === "order.placed");
+if (!consumer) throw new Error("no order.placed handler");
 const result = await queueTestConsumerRun({
 	consumer,
 	data: { customerId, orderId, totalCents: 1200 },
 });
 expect(result).toEqual(ok(undefined));
-expect([...state.invoices.values()]).toMatchObject([{ amountCents: 1200 }]);
+expect(await useCases.invoiceList(actor, { orderId })).toMatchObject({
+	ok: true,
+	value: [{ amountCents: 1200 }],
+});
 ```
 
 - It validates `data` as the worker does, so pass the whole Event as the publisher sends it; a missing field rejects ("Event failed validation for ...").
 - Pass the same `eventId` twice to check a repeat changes nothing.
-- Assert on what the memory state holds afterwards, not on calls. No mocks.
+- Assert on what a later read returns, not on calls or memory state. No mocks.
 
 ## Changing an Event's shape
 

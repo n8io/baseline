@@ -1,92 +1,117 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
-import { fooUseCasesCreate } from "../../application/foo-use-cases.ts";
-import { fooPortsMemoryCreate } from "../outbound/foo-ports.memory.ts";
-import { fooSeed } from "./foo-seed.ts";
+import { clockMemoryCreate } from "../../../../clock.ts";
+import { connectionsOpen } from "../../../../connections.ts";
+import { contextsCreate } from "../../../../use-cases.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
+import { type Foo, FooListInput } from "../../domain/foo.ts";
 
 const actor: Actor = { id: "dev-seed", kind: "client", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
-const namesOf = (state: { foos: Map<string, { name: string }> }) =>
-	[...state.foos.values()].map((foo) => foo.name).sort();
+// The context with its seed, which the seed command runs as `actor`.
+const setup = () => {
+	const clock = clockMemoryCreate();
+	const { seeds, useCases } = contextsCreate({
+		...connections,
+		clock,
+	}).fooContext;
+	const seed = async () => {
+		const results = await Promise.all(seeds.map((each) => each(actor)));
+		return results[0] as Foo[];
+	};
+	return { clock, seed, useCases };
+};
+
+// Every foo's name, archived or not, sorted.
+const namesOf = async (useCases: FooUseCases) => {
+	const names: string[] = [];
+	for (const archived of [false, true]) {
+		const list = await useCases.fooList(
+			actor,
+			FooListInput.parse({ archived, limit: 100 }),
+		);
+		if (!list.ok) throw list.error;
+		names.push(...list.value.items.map((foo) => foo.name));
+	}
+	return names.sort();
+};
 
 describe("fooSeed", () => {
 	it("creates Alpha, Beta and Gamma as the given actor and returns them", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
+		const { seed, useCases } = setup();
 
-		const seeded = await fooSeed(fooUseCasesCreate(ports), actor);
+		const seeded = await seed();
 
 		expect(seeded.map((foo) => foo.name)).toEqual(["Alpha", "Beta", "Gamma"]);
-		expect(seeded).toEqual([...state.foos.values()]);
+		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 		expect(seeded.every((foo) => foo.createdBy === "dev-seed")).toBe(true);
 	});
 
 	it("tops up a half-seeded database and returns the existing rows as they are", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate(ports);
+		const { seed, useCases } = setup();
 		const beta = await useCases.fooCreate(
 			{ ...actor, id: "someone-else" },
 			{ name: "Beta" },
 		);
 		if (!beta.ok) throw beta.error;
 
-		const seeded = await fooSeed(useCases, actor);
+		const seeded = await seed();
 
 		expect(seeded.map((foo) => foo.name)).toEqual(["Alpha", "Beta", "Gamma"]);
 		expect(seeded[1]).toEqual(beta.value);
-		expect(namesOf(state)).toEqual(["Alpha", "Beta", "Gamma"]);
+		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 	});
 
 	it("changes nothing in a seeded database and returns the same foos", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate(ports);
-		const first = await fooSeed(useCases, actor);
+		const { seed, useCases } = setup();
+		const first = await seed();
 
-		const second = await fooSeed(useCases, actor);
+		const second = await seed();
 
 		expect(second).toEqual(first);
-		expect(namesOf(state)).toEqual(["Alpha", "Beta", "Gamma"]);
+		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 	});
 
+	// aggregate-create-start: schedule
 	it("returns an archived foo it finds instead of failing", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate(ports);
-		const alpha = await useCases.fooCreate(actor, { name: "Alpha" });
-		if (!alpha.ok) throw alpha.error;
-		state.foos.set(alpha.value.id, {
-			...alpha.value,
-			archivedAt: new Date(0),
-		});
+		const { clock, seed, useCases } = setup();
+		clock.set(new Date("2020-01-01T00:00:00Z"));
+		await useCases.fooCreate(actor, { name: "Alpha" });
+		clock.set(new Date("2026-06-01T00:00:00Z"));
+		await useCases.fooStaleArchive(actor);
 
-		const seeded = await fooSeed(useCases, actor);
+		const seeded = await seed();
 
-		expect(seeded[0]?.archivedAt).toEqual(new Date(0));
-		expect(namesOf(state)).toEqual(["Alpha", "Beta", "Gamma"]);
+		expect(seeded[0]?.archivedAt).toEqual(new Date("2026-06-01T00:00:00Z"));
+		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 	});
+	// aggregate-create-end: schedule
 
 	it("keeps other foos and the three it ensured when the database has more", async () => {
-		const { ports, state } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate(ports);
+		const { seed, useCases } = setup();
 		await useCases.fooCreate(actor, { name: "Mine" });
 
-		const seeded = await fooSeed(useCases, actor);
+		const seeded = await seed();
 
 		expect(seeded.map((foo) => foo.name)).toEqual(["Alpha", "Beta", "Gamma"]);
-		expect(namesOf(state)).toEqual(["Alpha", "Beta", "Gamma", "Mine"]);
+		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma", "Mine"]);
 	});
 
 	it("finds a taken name on a later page of a long list", async () => {
-		const { clock, ports, state } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate(ports);
-		const first = await fooSeed(useCases, actor);
+		const { clock, seed, useCases } = setup();
+		const first = await seed();
 		// Newer foos list first, so the three examples now sit on the second page.
 		for (let n = 0; n < 120; n++) {
 			clock.advance(1000);
 			await useCases.fooCreate(actor, { name: `Other ${n}` });
 		}
 
-		const second = await fooSeed(useCases, actor);
+		const second = await seed();
 
 		expect(second).toEqual(first);
-		expect(state.foos.size).toBe(123);
+		expect(
+			await useCases.fooList(actor, FooListInput.parse({ count: true })),
+		).toMatchObject({ ok: true, value: { total: 123 } });
 	});
 });

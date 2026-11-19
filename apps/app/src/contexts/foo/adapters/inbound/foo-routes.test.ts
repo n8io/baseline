@@ -2,15 +2,17 @@ import type { Actor } from "@n8io/baseline-authn";
 import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
-import { fooUseCasesCreate } from "../../application/foo-use-cases.ts";
-import { fooPortsMemoryCreate } from "../outbound/foo-ports.memory.ts";
-import { fooRoutesCreate } from "./foo-routes.ts";
+import { connectionsOpen } from "../../../../connections.ts";
+import { contextsCreate } from "../../../../use-cases.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 const stranger: Actor = { id: "user-2", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
+
+// The context's routes mounted where the Server mounts them; a test's path is relative to /api/v1/foos.
+const url = (path: string) => `/api/v1/foos${path.replace(/^\/(?=\?|$)/, "")}`;
 
 const setup = () => {
-	const useCases = fooUseCasesCreate(fooPortsMemoryCreate().ports);
 	let actor: Actor | undefined = owner;
 	const app = httpRouterCreate();
 	app.onError(httpErrorHandle);
@@ -18,7 +20,10 @@ const setup = () => {
 		if (actor) c.set("actor", actor);
 		await next();
 	});
-	app.route("/", fooRoutesCreate(useCases));
+	for (const { path, router } of contextsCreate(connections).fooContext
+		.routes) {
+		app.route(path, router);
+	}
 	const send = ({
 		body,
 		method = "GET",
@@ -28,7 +33,7 @@ const setup = () => {
 		method?: string;
 		path: string;
 	}) =>
-		app.request(path, {
+		app.request(url(path), {
 			body: body === undefined ? null : JSON.stringify(body),
 			headers: { "Content-Type": "application/json" },
 			method,
@@ -118,7 +123,7 @@ describe("POST /", () => {
 			const { app, create } = setup();
 			const { id } = await create("alpha");
 			const path = method === "POST" ? "/" : `/${id}`;
-			const res = await app.request(path, { method });
+			const res = await app.request(url(path), { method });
 
 			expect(res.status).toBe(400);
 		},

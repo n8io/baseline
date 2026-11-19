@@ -936,7 +936,7 @@ export const readsApply = ({
 						text: exported,
 						path,
 						after: true,
-						anchor: "\t\tfooClock: clockSystemCreate(),",
+						anchor: "\t\tfooClock: connections.clock,",
 						lines: targets.map((t) => `\t\t${field(t)}: readers.${field(t)},`),
 					}),
 				};

@@ -1,16 +1,16 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
-import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
+import { connectionsOpen } from "../../../connections.ts";
+import { contextsCreate } from "../../../use-cases.ts";
 import { FooListInput } from "../domain/foo.ts";
-import { fooCreate } from "./foo-create.ts";
-import { fooList } from "./foo-list.ts";
 
 const actor: Actor = { id: "u1", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
 describe("fooList", () => {
 	it("returns an empty page when there are no foos", async () => {
-		const { ports } = fooPortsMemoryCreate();
-		const result = await fooList(ports)(actor, FooListInput.parse({}));
+		const { useCases } = contextsCreate(connections).fooContext;
+		const result = await useCases.fooList(actor, FooListInput.parse({}));
 
 		expect(result).toEqual({
 			ok: true,
@@ -18,14 +18,13 @@ describe("fooList", () => {
 		});
 	});
 
-	it("passes the input through to the repository", async () => {
-		const { ports } = fooPortsMemoryCreate();
-		const create = fooCreate(ports);
-		await create(actor, { name: "b" });
-		await create(actor, { name: "a" });
-		await create(actor, { name: "c" });
+	it("sorts, pages and counts as the input asks", async () => {
+		const { useCases } = contextsCreate(connections).fooContext;
+		for (const name of ["b", "a", "c"]) {
+			await useCases.fooCreate(actor, { name });
+		}
 
-		const result = await fooList(ports)(
+		const result = await useCases.fooList(
 			actor,
 			FooListInput.parse({ count: true, limit: 2, sort: "name" }),
 		);

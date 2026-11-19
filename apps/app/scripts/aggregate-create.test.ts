@@ -873,14 +873,6 @@ describe.runIf(template)(
 			expect(shell("src/contexts/billing/index.ts")).toContain(
 				'export type { BillingCustomerReader } from "./application/ports.ts";',
 			);
-			expect(
-				textOf(
-					step.steps[0] ?? [],
-					"src/contexts/billing/adapters/outbound/index-invoice-line.test.ts",
-				),
-			).toContain(
-				"{ billingCustomerReader: billingCustomerReaderMemoryCreate() })",
-			);
 			// Every call of the ports factory passes the readers, so none is left with one argument.
 			expect(
 				[...step.shell, ...(step.steps[0] ?? [])].filter((f) =>

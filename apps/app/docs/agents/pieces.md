@@ -79,7 +79,7 @@ The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Sche
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts`, `adapters/outbound/index-queue.test.ts` and `application/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` and `adapters/outbound/index-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 ## Analytics
 

@@ -1,19 +1,30 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
+import type { LiveHub } from "@n8io/baseline-live";
 import type { RedisClient } from "@n8io/baseline-redis";
 import { describe, expect, it } from "vitest";
+import { connectionsOpen } from "../../../connections.ts";
 import { liveHubOpen } from "../../../live-hub-open.ts";
-import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
-import { fooUseCasesCreate } from "./foo-use-cases.ts";
+import { contextsCreate } from "../../../use-cases.ts";
 
 // The live updates each use case sends after commit; the live piece owns this file.
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const stranger: Actor = { id: "other", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
 
+// The context on a live hub that keeps what it was given to send.
 const setup = async () => {
-	const { ports, state } = fooPortsMemoryCreate();
-	const sent = state.fooLiveUpdatesSent;
-	const useCases = fooUseCasesCreate(ports);
+	const sent: { channel: string; update: Parameters<LiveHub["send"]>[1] }[] =
+		[];
+	const { useCases } = contextsCreate({
+		...connections,
+		liveHub: {
+			...connections.liveHub,
+			send: async (channel, update) => {
+				sent.push({ channel, update });
+			},
+		},
+	}).fooContext;
 	const created = await useCases.fooCreate(owner, { name: "alpha" });
 	if (!created.ok) throw created.error;
 	await useCases.fooCreate(owner, { name: "beta" });
@@ -28,8 +39,8 @@ describe("foo live updates", () => {
 		await useCases.fooDelete(owner, { fooId: foo.id });
 
 		expect(sent).toEqual([
-			{ id: foo.id, type: "foo.updated" },
-			{ id: foo.id, type: "foo.deleted" },
+			{ channel: "foo", update: { id: foo.id, type: "foo.updated" } },
+			{ channel: "foo", update: { id: foo.id, type: "foo.deleted" } },
 		]);
 	});
 
@@ -49,15 +60,13 @@ describe("foo live updates", () => {
 		const publish = async (): Promise<never> => {
 			throw new Error("Redis is down");
 		};
-		const liveHub = liveHubOpen({
-			redis: { publish } as unknown as RedisClient,
-			steps: [],
-		});
-		const { ports } = fooPortsMemoryCreate();
-		const useCases = fooUseCasesCreate({
-			...ports,
-			fooLiveUpdates: { send: (update) => liveHub.send("foo", update) },
-		});
+		const { useCases } = contextsCreate({
+			...connections,
+			liveHub: liveHubOpen({
+				redis: { publish } as unknown as RedisClient,
+				steps: [],
+			}),
+		}).fooContext;
 		const created = await useCases.fooCreate(owner, { name: "alpha" });
 		if (!created.ok) throw created.error;
 		const foo = created.value;
