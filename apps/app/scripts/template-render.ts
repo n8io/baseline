@@ -584,10 +584,49 @@ const workerHealthPortRender = (text: string, name: string): string =>
 		`HEALTH_PORT=${hostPortsCreate(name).WORKER_HEALTH_PORT} `,
 	);
 
+// The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
+// them for a Project with no Domain: the document without foo's operations and schemas, and an
+// sdk.ts that is only its header comment.
+const sdkFileRender = (
+	file: TemplateFile,
+	answers: TemplateAnswers,
+): TemplateFile | undefined => {
+	const { path, text } = file;
+	if (path === "clients/sdk/package.json") {
+		const manifest = JSON.parse(text) as Record<string, unknown>;
+		manifest.name = `${answers.name}-sdk`;
+		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
+	}
+	if (path === "clients/sdk/sdk.ts") {
+		// orval writes the header and a blank line for a document with no operations.
+		const header = /^\/\*\*[\s\S]*?\*\/\n/.exec(text)?.[0] ?? "";
+		return { path, text: `${header}\n` };
+	}
+	if (path !== "clients/sdk/openapi.json") return undefined;
+	const document = JSON.parse(text) as {
+		components?: { schemas?: Record<string, unknown> };
+		info: { title: string };
+		paths: Record<string, unknown>;
+	};
+	const fooless = (record: Record<string, unknown>) =>
+		Object.fromEntries(
+			Object.entries(record).filter(([key]) => !fooLineIs(key)),
+		);
+	document.info.title = answers.name;
+	document.paths = fooless(document.paths);
+	if (document.components?.schemas !== undefined) {
+		document.components.schemas = fooless(document.components.schemas);
+	}
+	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
+	return { path, text: JSON.stringify(document) };
+};
+
 export const templateFileRender = (
 	file: TemplateFile,
 	answers: TemplateAnswers,
 ): TemplateFile | undefined => {
+	const sdkFile = sdkFileRender(file, answers);
+	if (sdkFile !== undefined) return sdkFile;
 	const { path, text } = file;
 	if (templateSkippedPaths.some((p) => p.test(path))) return undefined;
 	if (templateFooPaths.some((p) => p.test(path))) return undefined;
@@ -761,9 +800,23 @@ export const releaseLatest = (): string => {
 	return latest.join(".");
 };
 
-// The template's own workspace settings, which the monorepo root holds for apps/app.
-const workspaceRender = (rootWorkspace: string): string =>
-	rootWorkspace.replace(/^packages:\n(?: {2}- .*\n)*/m, "");
+// The template's own workspace settings, which the monorepo root holds for apps/app. A Project's
+// root is the app, and clients/ holds the packages made from its API.
+export const workspaceRender = (rootWorkspace: string): string =>
+	rootWorkspace.replace(
+		/^packages:\n(?: {2}- .*\n)*/m,
+		[
+			"# piece-start: sdk",
+			"# The root is the app; clients/ holds the packages made from its API.",
+			"packages:",
+			'  - "."',
+			"  - clients/*",
+			"# `pnpm add` in the root adds to the app, as in a Project without clients.",
+			"ignoreWorkspaceRootCheck: true",
+			"# piece-end: sdk",
+			"",
+		].join("\n"),
+	);
 
 // The template's own lockfile: the root lockfile with apps/app as the only importer, so a project
 // installs the versions the release was tested with instead of resolving its ranges fresh, which

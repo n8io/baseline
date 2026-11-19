@@ -25,6 +25,7 @@
 	"files": ["src/env.d.ts"],
 	"include": [
 		"*.ts",
+		"clients",
 		"scripts",
 		"src",
 		"test",

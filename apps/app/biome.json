@@ -3,6 +3,10 @@
 	"root": false,
 	"overrides": [
 		{
+			"includes": ["clients/sdk/sdk.ts"],
+			"linter": { "enabled": false }
+		},
+		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
 			"linter": { "rules": { "complexity": { "useMaxParams": "off" } } }
 		}

@@ -1,11 +1,11 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
-// - each of ui, live, cache, queue, analytics, error-tracking and api-reference removed alone passes check, unit tests and
+// - each of ui, live, cache, queue, analytics, error-tracking, api-reference and sdk removed alone passes check, unit tests and
 //   build, and git revert of its commit gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it;
-// - all eight removed together, each passing check, then reverted, give back the starting tree,
+// - all nine removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all eight removed, then invoice-line added with domain-create, pass check, unit tests and build
+// - all nine removed, then invoice-line added with domain-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // One render serves every case, to keep CI short. `pnpm piece-check` is not one of them:
 // render-and-test's `pieces` job runs it on the render that job checks.
@@ -51,6 +51,7 @@ type Piece =
 	| "live"
 	| "queue"
 	| "redis"
+	| "sdk"
 	| "ui";
 
 const domainAdd = ({
@@ -294,6 +295,7 @@ const main = async () => {
 		"analytics",
 		"error-tracking",
 		"api-reference",
+		"sdk",
 	] as const) {
 		const before = head();
 		pieceRemove({ directory, piece, scripts: checkTestBuild });
@@ -322,6 +324,7 @@ const main = async () => {
 		"analytics",
 		"error-tracking",
 		"api-reference",
+		"sdk",
 	];
 	for (const piece of all)
 		pieceRemove({ directory, piece, scripts: ["check"] });

@@ -73,7 +73,8 @@ export const securityBearerDeclare = (document: unknown): unknown => {
 };
 
 // Builds the server in `directory`, boots it on memory adapters and saves its OpenAPI document.
-const documentSave = async ({
+// pnpm sdk-generate reuses it.
+export const documentSave = async ({
 	directory,
 	file,
 	port,

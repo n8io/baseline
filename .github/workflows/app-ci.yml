@@ -146,6 +146,16 @@ jobs:
       - name: No breaking change inside /api/v1
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm api-check
+      # A Project without the sdk piece has no clients/sdk, and the step is skipped.
+      - name: The SDK matches the OpenAPI document
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && hashFiles('clients/sdk/package.json') != '' }}
+        run: |
+          pnpm sdk-generate
+          if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
+            git status --porcelain -- clients/sdk
+            echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
+            exit 1
+          fi
       # Warnings only: it prints a ::warning annotation per glossary alias in the added lines and exits 0.
       # continue-on-error keeps a crash in the script from failing `check`.
       - name: Glossary aliases in added lines

@@ -165,6 +165,20 @@ const main = async () => {
 	// app-create makes no Domain, so a Project's first commit is this tree.
 	console.log("HEAD with no Domain: check, test and build");
 	for (const script of ["check", "test", "build"]) pnpmRun(directory, [script]);
+	// The render writes the SDK as pnpm sdk-generate does for a Project with no Domain.
+	const sdkFiles = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
+	const sdkRead = () =>
+		sdkFiles.map((path) => readFileSync(join(directory, path), "utf8"));
+	const sdkRendered = sdkRead();
+	pnpmRun(directory, ["sdk-generate"]);
+	const sdkChanged = sdkRead().flatMap((text, k) =>
+		text === sdkRendered[k] ? [] : [sdkFiles[k]],
+	);
+	if (sdkChanged.length > 0) {
+		throw new Error(
+			`pnpm sdk-generate changed the rendered ${sdkChanged.join(" and ")}: the render (sdkFileRender in template-render.ts) and the generator disagree`,
+		);
+	}
 
 	for (const { kebab, parts, plural, reads } of domains) {
 		const names = { kebab, plural };
@@ -201,6 +215,8 @@ const main = async () => {
 	});
 	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
 	pnpmRun(directory, ["codegen"]);
+	// The Domains added routes, so the SDK is regenerated, as a Project does after domain-create.
+	pnpmRun(directory, ["sdk-generate"]);
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);
 	checkoutPackagesTrack(directory);

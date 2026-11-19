@@ -174,6 +174,12 @@ describe("Dockerfile", () => {
 			true,
 		);
 	});
+
+	it("leaves clients/ (the SDK and CLI packages) out of the build context and the image", () => {
+		expect(read(".dockerignore").split("\n")).toContain("clients");
+		const copies = runtime.filter(({ keyword }) => keyword === "COPY");
+		expect(copies.some(({ args }) => args.includes("clients"))).toBe(false);
+	});
 });
 
 describe("src/preload.ts", () => {

@@ -1,0 +1,71 @@
+import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+	fooCreate,
+	fooDelete,
+	fooGet,
+	fooList,
+	fooUpdate,
+	sdkConfigure,
+} from "../../clients/sdk/index.ts";
+import {
+	type ProductionServer,
+	productionServerStart,
+} from "./production-server.ts";
+
+// The generated SDK against the production build on memory adapters.
+let server: ProductionServer;
+let token: string;
+
+beforeAll(async () => {
+	server = await productionServerStart({ databaseUrl: "memory://" });
+	const { authorization } = await authnMemoryTokenFetch({
+		clientId: "dev-client",
+		url: server.url,
+	});
+	token = authorization.replace(/^Bearer /, "");
+	sdkConfigure({ baseUrl: server.url, token });
+}, 30_000);
+
+afterAll(async () => {
+	await server?.stop();
+});
+
+describe("the SDK on the production build", { timeout: 30_000 }, () => {
+	it("creates, reads, lists and updates a Foo, typed by status", async () => {
+		const created = await fooCreate({ name: "Alpha" });
+		expect(created.status).toBe(201);
+		if (created.status !== 201) return;
+		expect(created.data).toMatchObject({ name: "Alpha" });
+		const { id } = created.data;
+
+		const read = await fooGet(id);
+		expect(read).toMatchObject({ data: { id, name: "Alpha" }, status: 200 });
+
+		const listed = await fooList({ limit: 10 });
+		expect(listed.status).toBe(200);
+		expect(listed.data.items.map((foo) => foo.id)).toContain(id);
+
+		const updated = await fooUpdate(id, { name: "Beta" });
+		expect(updated).toMatchObject({ data: { name: "Beta" }, status: 200 });
+
+		const missing = await fooGet("foo_00000000000000000000000000");
+		expect(missing).toMatchObject({
+			data: { code: "FooNotFound" },
+			status: 404,
+		});
+		// fooDelete is generated too; the production build answers a DELETE without a body 500
+		// (n8io/baseline#485), so it is checked here once that is fixed.
+		expect(fooDelete).toBeTypeOf("function");
+	});
+
+	it("takes a URL and token for one call over the configured ones", async () => {
+		const refused = await fooList(undefined, { token: "not-a-token" });
+		expect(refused.status).toBe(401);
+
+		const missing = await fooList(undefined, {
+			baseUrl: `${server.url}/nowhere`,
+		});
+		expect(missing.status).toBe(404);
+	});
+});

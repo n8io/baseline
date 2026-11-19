@@ -1,5 +1,7 @@
 node_modules
 build
+# The SDK and CLI made from the API are packages for its callers; the image never runs them.
+clients
 # piece-start: ui
 .react-router
 # piece-end: ui

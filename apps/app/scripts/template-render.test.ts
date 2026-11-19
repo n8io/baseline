@@ -25,6 +25,7 @@ import {
 	templateFileRender,
 	templateFilesRender,
 	templateFinish,
+	workspaceRender,
 } from "./template-render.ts";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
@@ -331,6 +332,48 @@ describe("templateFileRender", () => {
 			name: "invoicing",
 			private: true,
 		});
+	});
+
+	it("renders the SDK as pnpm sdk-generate writes it for a Project with no Domain", () => {
+		const render = (path: string, text: string) =>
+			templateFileRender({ path: `clients/sdk/${path}`, text }, answers)?.text;
+		const document = {
+			components: {
+				schemas: { FooResponse: {}, Problem: {} },
+				securitySchemes: { bearer: {} },
+			},
+			info: { title: "app", version: "1" },
+			paths: { "/api/v1/foos": {}, "/api/v1/foos/{fooId}": {} },
+		};
+
+		expect(
+			JSON.parse(render("package.json", '{ "name": "app-sdk" }') ?? ""),
+		).toEqual({ name: "invoicing-sdk" });
+		expect(
+			JSON.parse(render("openapi.json", JSON.stringify(document)) ?? ""),
+		).toEqual({
+			components: { schemas: { Problem: {} }, securitySchemes: { bearer: {} } },
+			info: { title: "invoicing", version: "1" },
+			paths: {},
+		});
+		expect(
+			render(
+				"sdk.ts",
+				'/**\n * Generated.\n */\nimport { sdkFetch } from "./sdk-fetch.ts";\nexport const fooGet = 1;\n',
+			),
+		).toBe("/**\n * Generated.\n */\n\n");
+	});
+});
+
+describe("workspaceRender", () => {
+	it("lists the root and clients/* in place of the monorepo's packages, inside the sdk piece", () => {
+		expect(
+			workspaceRender(
+				"packages:\n  - apps/*\n  - apps/app/clients/*\n  - packages/*\nautoInstallPeers: false\n",
+			),
+		).toBe(
+			'# piece-start: sdk\n# The root is the app; clients/ holds the packages made from its API.\npackages:\n  - "."\n  - clients/*\n# `pnpm add` in the root adds to the app, as in a Project without clients.\nignoreWorkspaceRootCheck: true\n# piece-end: sdk\nautoInstallPeers: false\n',
+		);
 	});
 });
 
