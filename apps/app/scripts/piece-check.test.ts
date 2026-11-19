@@ -91,6 +91,17 @@ describe("pieceCheckPlan", () => {
 		);
 	});
 
+	it("checks the cli by its folder, and the sdk after it", () => {
+		const installed = new Set(["orval", "clients/cli"]);
+		expect(plan({ installed }).checks).toEqual([
+			{ first: [], piece: "cli" },
+			{ first: ["cli"], piece: "sdk" },
+		]);
+		expect(plan({ installed: new Set(["orval"]) }).checks).toEqual([
+			{ first: [], piece: "sdk" },
+		]);
+	});
+
 	it("checks only the pieces asked for", () => {
 		expect(plan({ requested: ["cache"] }).checks).toEqual([
 			{ first: [], piece: "cache" },

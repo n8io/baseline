@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { domainsPairsFill } from "./domain-create.ts";
 import {
+	clientManifestPin,
 	domainsPairsFind,
 	filesRead,
 	fooBlocksFind,
@@ -362,6 +363,64 @@ describe("templateFileRender", () => {
 				'/**\n * Generated.\n */\nimport { sdkFetch } from "./sdk-fetch.ts";\nexport const fooGet = 1;\n',
 			),
 		).toBe("/**\n * Generated.\n */\n\n");
+	});
+
+	it("names the CLI, its command and its SDK after the Project", () => {
+		const render = (path: string, text: string) =>
+			templateFileRender({ path: `clients/cli/${path}`, text }, answers)?.text;
+		const manifest = {
+			name: "app-cli",
+			bin: { app: "./cli.ts" },
+			dependencies: {
+				"@n8io/baseline-cli": "^1.0.0",
+				"app-sdk": "workspace:*",
+			},
+		};
+
+		expect(
+			JSON.parse(render("package.json", JSON.stringify(manifest)) ?? ""),
+		).toEqual({
+			name: "invoicing-cli",
+			bin: { invoicing: "./cli.ts" },
+			dependencies: {
+				"@n8io/baseline-cli": "^1.0.0",
+				"invoicing-sdk": "workspace:*",
+			},
+		});
+		expect(
+			render(
+				"cli.ts",
+				'import * as sdk from "app-sdk";\nimport d from "app-sdk/openapi.json";\n',
+			),
+		).toBe(
+			'import * as sdk from "invoicing-sdk";\nimport d from "invoicing-sdk/openapi.json";\n',
+		);
+	});
+});
+
+describe("clientManifestPin", () => {
+	it("gives our own workspace packages the caret range pnpm pack writes, and leaves the rest", () => {
+		const manifest = JSON.stringify({
+			dependencies: {
+				"@n8io/baseline-cli": "workspace:^",
+				"app-sdk": "workspace:*",
+				commander: "^15.1.0",
+			},
+		});
+		expect(
+			JSON.parse(
+				clientManifestPin(manifest, { "@n8io/baseline-cli": "1.2.0" }),
+			),
+		).toEqual({
+			dependencies: {
+				"@n8io/baseline-cli": "^1.2.0",
+				"app-sdk": "workspace:*",
+				commander: "^15.1.0",
+			},
+		});
+		expect(() => clientManifestPin(manifest, {})).toThrow(
+			"no package is @n8io/baseline-cli",
+		);
 	});
 });
 

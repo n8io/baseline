@@ -1,0 +1,15 @@
+{
+	"name": "app-cli",
+	"private": true,
+	"type": "module",
+	"bin": {
+		"app": "./cli.ts"
+	},
+	"scripts": {
+		"start": "node cli.ts"
+	},
+	"dependencies": {
+		"@n8io/baseline-cli": "workspace:^",
+		"app-sdk": "workspace:*"
+	}
+}

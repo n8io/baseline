@@ -11,10 +11,11 @@ import { availableParallelism, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import {
 	filesNamedIn,
-	packagesInstalled,
 	pieceRemovals,
 	pieceRemove,
 	pieceSettingsRead,
+	pieceSign,
+	pieceSignsFind,
 	toolRun,
 } from "./piece-remove.ts";
 import { run } from "./template-render.ts";
@@ -33,6 +34,7 @@ export const pieceCheckPlan = ({
 	refusal,
 	requested,
 }: {
+	// Every pieceSign the Project shows.
 	installed: Set<string>;
 	kept: string[];
 	// Why a piece cannot be removed at all, as piece-remove would say.
@@ -40,8 +42,7 @@ export const pieceCheckPlan = ({
 	requested: string[];
 }): PieceCheckPlan => {
 	const plan: PieceCheckPlan = { checks: [], notes: [] };
-	const present = (piece: string) =>
-		installed.has(pieceRemovals[piece]?.packages[0] ?? "");
+	const present = (piece: string) => installed.has(pieceSign(piece));
 	for (const piece of Object.keys(pieceRemovals)) {
 		if (requested.length > 0 && !requested.includes(piece)) continue;
 		if (!present(piece)) {
@@ -346,7 +347,7 @@ const main = async () => {
 		return;
 	}
 	const plan = pieceCheckPlan({
-		installed: packagesInstalled(directory),
+		installed: pieceSignsFind(directory),
 		kept,
 		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
 		requested,
