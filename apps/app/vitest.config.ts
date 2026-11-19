@@ -52,7 +52,7 @@ export default defineConfig({
 					},
 					exclude: [
 						"src/**/*.{postgres,redis}.test.ts",
-						"src/domains/**/*.test.ts",
+						"src/contexts/**/*.test.ts",
 					],
 					// The same slow import in a beforeAll: it took over 10 s on a busy CI runner.
 					hookTimeout: 20_000,
@@ -74,12 +74,12 @@ export default defineConfig({
 					},
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					hookTimeout: 20_000,
-					include: ["src/domains/**/*.test.ts"],
+					include: ["src/contexts/**/*.test.ts"],
 					// Domain tests run on memory adapters and share no module state, so one module graph
 					// per worker is safe. Isolating each file cost ~96 s on a CI runner (six Domains),
 					// past the unit job's 2 min budget; without it they take a few seconds.
 					isolate: false,
-					name: "unit-domains",
+					name: "unit-contexts",
 					setupFiles: ["varlock/auto-load"],
 					testTimeout: 20_000,
 				},

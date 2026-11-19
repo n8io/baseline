@@ -6,10 +6,10 @@ Read when one Domain reads another (a Bridge), or when a Domain waits on what an
 
 A Bridge fills a reader port of the reading Domain by calling another Domain's `*Get` or `*List` Use case with its own machine Actor. Reads only. Never write across Domains: a write is an Event. `pnpm domain-create <name> --reads <target>` writes everything below (the reader port, the readers argument, the memory fake, the Bridge and its test, and the wiring); you then change what the reader returns. The code is what it writes in baseline's render test, where invoice lines read a customer's name; a test fails when this page and that code differ.
 
-The reading Domain declares the reader in `ports.ts`, adds it to its ports, and names the ports Bridges fill:
+The reading Domain declares the reader in `application/ports.ts`, adds it to its ports, and names the ports Bridges fill:
 
 ```ts
-// src/domains/invoice-line/ports.ts
+// src/contexts/invoice-line/application/ports.ts
 // What invoice lines read about a customer. The Bridge in
 // src/bridges/invoice-line-customer-reader.ts fills it from the customer Domain.
 export type InvoiceLineCustomerReader = {
@@ -18,7 +18,7 @@ export type InvoiceLineCustomerReader = {
 ```
 
 ```ts
-// src/domains/invoice-line/ports.ts
+// src/contexts/invoice-line/application/ports.ts
 // The ports Bridges fill: the second argument of invoiceLinePortsCreate.
 export type InvoiceLineReaders = Pick<
 	InvoiceLinePorts,
@@ -29,7 +29,7 @@ export type InvoiceLineReaders = Pick<
 `<domain>PortsCreate` takes the readers as its second argument, never optional, so a wiring that forgets a Bridge does not compile:
 
 ```ts
-// src/domains/invoice-line/spi/index.ts
+// src/contexts/invoice-line/adapters/outbound/index.ts
 export const invoiceLinePortsCreate = (
 	connections: Connections,
 	readers: InvoiceLineReaders,
@@ -75,10 +75,10 @@ const invoiceLineUseCases = telemetryUseCasesTrace(
 );
 ```
 
-The reading Domain's tests use a memory fake of the reader, `<domain><Target>ReaderMemoryCreate`, exported from its `spi/index.ts`. Its memory ports use it too:
+The reading Domain's tests use a memory fake of the reader, `<domain><Target>ReaderMemoryCreate`, exported from its `adapters/outbound/index.ts`. Its memory ports use it too:
 
 ```ts
-// src/domains/invoice-line/spi/invoice-line-customer-reader.memory.ts
+// src/contexts/invoice-line/adapters/outbound/invoice-line-customer-reader.memory.ts
 // The customer reader's fake for tests: it knows only the entries it is given.
 export const invoiceLineCustomerReaderMemoryCreate = (
 	entries: { id: Id<"customer">; name: string }[] = [],

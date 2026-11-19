@@ -46,7 +46,7 @@ import.meta.glob(["../AGENTS.md", "../CONTEXT.md", "../docs/**"], {
 const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
 const answers = { description: "Invoices for small shops.", name: "invoicing" };
-const domainsUrl = new URL("src/domains/", appRoot);
+const domainsUrl = new URL("src/contexts/", appRoot);
 // The template itself: foo is its only domain. A project, or this tree after a
 // domain-create, skips these tests.
 const template =
@@ -86,7 +86,7 @@ run({ command: process.execPath, args: ["-e", "process.stderr.write('error: coul
 describe("fooRename", () => {
 	it("spells each occurrence the way its place needs", () => {
 		const source = [
-			'import { fooCreate } from "#domains/foo/use-cases/foo-create.ts";',
+			'import { fooCreate } from "#contexts/foo/application/foo-create.ts";',
 			'const foo = idCreate("foo"); // Saves the foo.',
 			"const foos: Foo[] = state.foos;",
 			'span.setAttribute("baseline.foo.id", foo.id);',
@@ -100,7 +100,7 @@ describe("fooRename", () => {
 		expect(
 			fooRename({ text: source, names, path: "src/x.ts" }).split("\n"),
 		).toEqual([
-			'import { invoiceLineCreate } from "#domains/invoice-line/use-cases/invoice-line-create.ts";',
+			'import { invoiceLineCreate } from "#contexts/invoice-line/application/invoice-line-create.ts";',
 			'const invoiceLine = idCreate("invoice_line"); // Saves the invoice line.',
 			"const invoiceLines: InvoiceLine[] = state.invoiceLines;",
 			'span.setAttribute("baseline.invoice_line.id", invoiceLine.id);',
@@ -140,8 +140,13 @@ describe("fooRename", () => {
 
 	it("renames paths", () => {
 		expect(
-			fooPathRename("src/domains/foo/spi/foo-ports.memory.ts", names),
-		).toBe("src/domains/invoice-line/spi/invoice-line-ports.memory.ts");
+			fooPathRename(
+				"src/contexts/foo/adapters/outbound/foo-ports.memory.ts",
+				names,
+			),
+		).toBe(
+			"src/contexts/invoice-line/adapters/outbound/invoice-line-ports.memory.ts",
+		);
 		expect(fooPathRename("src/ui/routes/foo-list.tsx", names)).toBe(
 			"src/ui/routes/invoice-line-list.tsx",
 		);
@@ -160,7 +165,7 @@ describe("fooBlocksFind", () => {
 			"import {", // 0
 			"\ttype FooUseCases,",
 			"\tbarScopes,",
-			'} from "#domains/foo/index.ts";',
+			'} from "#contexts/foo/index.ts";',
 			"const bar = 1;", // 4
 			"const fooUseCases = trace(", // 5
 			"\tfooUseCasesCreate(ports),",
@@ -271,7 +276,7 @@ describe("templateFilesRender", () => {
 			templateFilesRender([{ path: "src/a.ts", text: "a\n" }], answers).map(
 				(f) => f.path,
 			),
-		).toEqual(["src/a.ts", "src/domains/.gitkeep"]);
+		).toEqual(["src/a.ts", "src/contexts/.gitkeep"]);
 	});
 });
 
@@ -288,7 +293,7 @@ describe("templateFileRender", () => {
 
 	it("deletes foo's own files and keeps the scripts as they are", () => {
 		for (const path of [
-			"src/domains/foo/index.ts",
+			"src/contexts/foo/index.ts",
 			"src/ui/routes/foo-list.tsx",
 			"src/ui/routes/foo-list.test.ts",
 			"src/ui/routes/home.tsx",
@@ -491,7 +496,7 @@ describe.runIf(template)("the template's own files", () => {
 			);
 
 		expect(leftovers).toEqual([]);
-		expect(rendered.map((f) => f.path)).toContain("src/domains/.gitkeep");
+		expect(rendered.map((f) => f.path)).toContain("src/contexts/.gitkeep");
 		// React Router serves static files from public/.
 		expect(rendered.map((f) => f.path)).toContain("public/.gitkeep");
 	});

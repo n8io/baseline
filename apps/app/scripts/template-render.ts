@@ -435,7 +435,7 @@ export const linesRemove = (
 
 // Files and folders that are foo's alone, deleted whole.
 const templateFooPaths = [
-	/^src\/domains\/foo\//,
+	/^src\/contexts\/foo\//,
 	/^src\/ui\/routes\/(foo-[^/]+|home)(\.test)?\.tsx?$/,
 	// Integration tests that drive foo are named foo-*.test.ts.
 	/^test\/integration\/foo-[^/]+\.test\.ts$/,
@@ -658,7 +658,7 @@ export const filesWrite = (root: string, files: TemplateFile[]): void => {
 	}
 };
 
-// Renders every file; src/domains/ stays as an empty folder the structure test reads.
+// Renders every file; src/contexts/ stays as an empty folder the structure test reads.
 export const templateFilesRender = (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
@@ -682,7 +682,7 @@ export const templateFilesRender = (
 					}
 				: (templateFileRender(file, answers) ?? []),
 		),
-		{ path: "src/domains/.gitkeep", text: "" },
+		{ path: "src/contexts/.gitkeep", text: "" },
 	];
 };
 

@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Domain tests a piece's behaviour in a file of its own (`use-cases/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Domain tests a piece's behaviour in a file of its own (`application/<domain>-use-cases-<piece>.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm domain-create` sees that a piece's package is gone and leaves the piece out of every new Domain.
 
 ## How to remove a piece
 
@@ -17,7 +17,7 @@ When `pnpm check` fails after the removal, the command undoes it (the tree is as
 
 Rules for code that belongs to a piece, so the removal stays clean:
 
-- Put it in a whole file named for the piece (`<domain>-use-cases-<piece>.test.ts`, `spi/<domain>-<piece>.ts`) where you can, and in blocks only where it shares a file.
+- Put it in a whole file named for the piece (`<domain>-use-cases-<piece>.test.ts`, `adapters/outbound/<domain>-<piece>.ts`) where you can, and in blocks only where it shares a file.
 - A variable or parameter used only inside a block must be declared inside it, or it is unused once the block goes. An import is never inside a block: piece-remove deletes the imports nothing uses.
 - Blocks of different pieces may nest; they may not cross. Biome sorts imports and exports and can pull a block apart: a file with blocks in its exports starts with `// biome-ignore-all assist/source/organizeImports: <why>`. `structure.test.ts` fails on a start without its end, and on blocks that cross.
 - Never wrap an import line in markers: Biome sorts imports and would carry one into or out of a block. Add a new import with the imports above the file's first `piece-start:` line, and an import only a piece uses to that piece's own file. When `pnpm format` has pulled a block apart (`structure.test.ts` or piece-remove says the markers do not balance), move the imports it carried back above the first marker and put each `piece-start:` and `piece-end:` line back around the code it held, then run `pnpm format` again and check the blocks are still whole.
@@ -51,17 +51,17 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain crea
 
 The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `api/*-live.ts` file and its test, and `use-cases/*-use-cases-live.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
 
 ## The cache
 
 `pnpm piece-remove cache`
 
-The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`spi/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`adapters/outbound/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
-While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `spi/index.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
+While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `adapters/outbound/index.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `spi/*-cached.ts` file and its test and `use-cases/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
+Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `adapters/outbound/*-cached.ts` file and its test and `application/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain.
 
 ## Redis
 
@@ -79,7 +79,7 @@ The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Sche
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `api/*-schedule.ts`, `api/*-schedule.test.ts`, `spi/*-transaction.postgres.test.ts`, `spi/index-queue.test.ts` and `use-cases/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` markers in `src/worker.ts` and `src/migrate.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts`, `adapters/outbound/index-queue.test.ts` and `application/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` markers in `src/worker.ts` and `src/migrate.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 ## Analytics
 
@@ -89,7 +89,7 @@ Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-op
 
 `MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 
-Add analytics back: `git revert` the "Remove analytics" commit. For each Domain created after it, copy every `piece-start: analytics` block and `use-cases/*-use-cases-analytics.test.ts` from the Domain in `apps/app/src/domains/` of the Template release named in `.template.json`, renamed to the Domain.
+Add analytics back: `git revert` the "Remove analytics" commit. For each Domain created after it, copy every `piece-start: analytics` block and `application/*-use-cases-analytics.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain.
 
 ## Error tracking
 

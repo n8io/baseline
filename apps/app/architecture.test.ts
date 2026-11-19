@@ -43,7 +43,7 @@ const samples = await samplesRead();
 
 describe("architecture", () => {
 	it("reads every source file and its imports", () => {
-		// Domain-generic, so it holds after template-render removes the example domain.
+		// Context-generic, so it holds after template-render removes foo.
 		const server = files.find((f) => f.path === "src/server.ts");
 		expect(files.length).toBeGreaterThan(10);
 		expect(server?.imports.map((imp) => imp.target)).toContain("src/env.ts");
@@ -72,7 +72,7 @@ describe("architecture", () => {
 		},
 		{
 			from: '"baz.created"',
-			name: "a14-column-without-consumer.txt",
+			name: "a14-column-without-handler.txt",
 			to: '"baz.deleted"',
 		},
 	])("$name passes once fixed", async ({ from, name, to }) => {
@@ -87,46 +87,46 @@ describe("architecture", () => {
 	});
 
 	// The passing side of each rule that A2, A14 and A25 loosened or added.
-	it("A2 lets a rule import a sibling rule and the id and result types", async () => {
+	it("A2 lets domain/ import a sibling file, zod and the id and result types", async () => {
 		const rule = await architectureFileCreate(
-			"src/domains/bar/rules/bar-open.ts",
-			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { barClosedIs } from "./bar-closed.ts";\n',
+			"src/contexts/bar/domain/bar-open.ts",
+			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { z } from "zod";\nimport { idSchemaCreate } from "../../../id-schema.ts";\nimport { barClosedIs } from "./bar-closed.ts";\n',
 		);
 		expect(architectureRules.A2?.([rule])).toEqual([]);
 		const value = await architectureFileCreate(
-			"src/domains/bar/rules/bar-open.ts",
+			"src/contexts/bar/domain/bar-open.ts",
 			'import { ok } from "@n8io/baseline-result";\n',
 		);
 		expect(architectureRules.A2?.([value])).toHaveLength(1);
 	});
 
-	it("A14 passes once the other domain's deleted Event has a Consumer", async () => {
+	it("A14 passes once the other context's deleted Event has an Event handler", async () => {
 		const sample = samples.find(
-			(s) => s.name === "a14-prefix-column-without-consumer.txt",
+			(s) => s.name === "a14-prefix-column-without-handler.txt",
 		);
 		expect(sample).toBeDefined();
-		const consumer = await architectureFileCreate(
-			"src/domains/trade/api/trade-team-deleted-consumer.ts",
+		const handler = await architectureFileCreate(
+			"src/contexts/trade/adapters/inbound/trade-team-deleted-handler.ts",
 			'export const x = "team.deleted";\n',
 		);
 		expect(
-			architectureRules.A14?.([...(sample?.files ?? []), consumer]),
+			architectureRules.A14?.([...(sample?.files ?? []), handler]),
 		).toEqual([]);
 	});
 
-	it("A14 counts only the longest domain name a column matches", async () => {
+	it("A14 counts only the longest context name a column matches", async () => {
 		const table = await architectureFileCreate(
-			"src/domains/trade/spi/trade-table.ts",
+			"src/contexts/trade/adapters/outbound/trade-table.ts",
 			'import { uuid } from "drizzle-orm/pg-core";\nexport const t = { workOrderId: uuid("work_order_id") };\n',
 		);
 		const files = [
 			table,
 			await architectureFileCreate(
-				"src/domains/order/index.ts",
+				"src/contexts/order/index.ts",
 				"export {};\n",
 			),
 			await architectureFileCreate(
-				"src/domains/work-order/index.ts",
+				"src/contexts/work-order/index.ts",
 				"export {};\n",
 			),
 		];
@@ -134,17 +134,27 @@ describe("architecture", () => {
 		expect(architectureRules.A14?.(files)[0]).toContain("a work-order id");
 	});
 
-	it("A25 lets api/ build its own schema from a model's shape", async () => {
+	it("A25 lets adapters/inbound/ build its own schema from a model's shape", async () => {
 		const route = await architectureFileCreate(
-			"src/domains/bar/api/bar-routes.ts",
-			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../models/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',
+			"src/contexts/bar/adapters/inbound/bar-routes.ts",
+			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../../domain/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',
 		);
 		expect(architectureRules.A25?.([route])).toEqual([]);
 	});
 
+	it("A12 reads the repository ports too", async () => {
+		const ports = await architectureFileCreate(
+			"src/contexts/bar/domain/repositories.ts",
+			"export type BarRepository = { close(): Promise<void> };\n",
+		);
+		expect(architectureRules.A12?.([ports])).toEqual([
+			expect.stringContaining("no port declares close"),
+		]);
+	});
+
 	it("A26 lets a Use case build a Date from a value", async () => {
 		const useCase = await architectureFileCreate(
-			"src/domains/bar/use-cases/bar-close.ts",
+			"src/contexts/bar/application/bar-close.ts",
 			"export const barClose = (ports: { barClock: { now(): Date } }) => ({\n\tclosedAt: ports.barClock.now(),\n\tdueAt: new Date(ports.barClock.now().getTime() + 1),\n});\n",
 		);
 		expect(architectureRules.A26?.([useCase])).toEqual([]);
@@ -153,15 +163,15 @@ describe("architecture", () => {
 	it("A27 skips comments, tests and adapters", async () => {
 		const files = await Promise.all([
 			architectureFileCreate(
-				"src/domains/bar/use-cases/bar-get.ts",
+				"src/contexts/bar/application/bar-get.ts",
 				"// The repository throws only for the unexpected.\n/* never throw here */\nexport const barGet = () => 1;\n",
 			),
 			architectureFileCreate(
-				"src/domains/bar/use-cases/bar-get.test.ts",
+				"src/contexts/bar/application/bar-get.test.ts",
 				'it("x", () => { throw new Error("x"); });\n',
 			),
 			architectureFileCreate(
-				"src/domains/bar/spi/bar-repository-postgres.ts",
+				"src/contexts/bar/adapters/outbound/bar-repository-postgres.ts",
 				"export const x = () => { try { return 1; } catch { throw new Error(); } };\n",
 			),
 		]);
@@ -188,20 +198,20 @@ describe("architecture", () => {
 		{ body: "return Promise .reject(e);", found: 1 },
 	])("A27 finds $found in: $body", async ({ body, found }) => {
 		const file = await architectureFileCreate(
-			"src/domains/bar/use-cases/bar-close.ts",
+			"src/contexts/bar/application/bar-close.ts",
 			body,
 		);
 		expect(architectureRules.A27?.([file])).toHaveLength(found);
 	});
 
-	it("A27 tells a Rule to return a plain value", async () => {
+	it("A27 tells domain/ to return a plain value", async () => {
 		const rule = await architectureFileCreate(
-			"src/domains/bar/rules/bar-open-can.ts",
+			"src/contexts/bar/domain/bar-open-can.ts",
 			'export const barOpenCan = () => {\n\tthrow new Error("closed");\n};\n',
 		);
 		expect(architectureRules.A27?.([rule])).toEqual([
 			expect.stringContaining(
-				"bar-open-can.ts:2: throw in a Rule; a Rule returns a plain value",
+				"bar-open-can.ts:2: throw in a domain/ file; domain/ returns a plain value",
 			),
 		]);
 	});

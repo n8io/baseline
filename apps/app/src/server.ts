@@ -36,8 +36,8 @@ import {
 import {
 	fooLiveRoutesCreate,
 	fooRoutesCreate,
-} from "#domains/foo/api/index.ts";
-import { fooScopes } from "#domains/foo/index.ts";
+} from "#contexts/foo/adapters/inbound/index.ts";
+import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
 import { serverDevCloseCreate } from "#ui/server-dev-close.ts";

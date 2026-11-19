@@ -36,7 +36,7 @@ const markerPattern =
 
 // The domain, its pages and the pages' unit tests.
 const copiedPaths = [
-	/^src\/domains\/foo\//,
+	/^src\/contexts\/foo\//,
 	/^src\/ui\/routes\/foo-(list|detail)(\.test)?\.tsx?$/,
 ];
 // home.tsx (the / redirect) and its test come back with the first domain that has pages, which
@@ -54,7 +54,7 @@ const pieces = [
 	{
 		name: "analytics",
 		package: "@n8io/baseline-analytics",
-		paths: [/^src\/domains\/foo\/.*-analytics\.test\.ts$/],
+		paths: [/^src\/contexts\/foo\/.*-analytics\.test\.ts$/],
 	},
 	// Owns no Domain file; listed so its blocks stay out once it is removed.
 	{
@@ -69,21 +69,21 @@ const pieces = [
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
-		paths: [/^src\/domains\/foo\/.*-live(\.test)?\.ts$/],
+		paths: [/^src\/contexts\/foo\/.*-live(\.test)?\.ts$/],
 	},
 	{
 		name: "cache",
 		package: "@n8io/baseline-cache",
-		paths: [/^src\/domains\/foo\/.*-cache(d|\.test)?\.ts$/],
+		paths: [/^src\/contexts\/foo\/.*-cache(d|\.test)?\.ts$/],
 	},
 	{
 		name: "queue",
 		package: "@n8io/baseline-queue",
 		paths: [
 			/^src\/worker\.ts$/,
-			/^src\/domains\/foo\/api\/foo-schedule(\.test)?\.ts$/,
-			/^src\/domains\/foo\/spi\/foo-transaction\.postgres\.test\.ts$/,
-			/^src\/domains\/foo\/.*-queue\.test\.ts$/,
+			/^src\/contexts\/foo\/adapters\/inbound\/foo-schedule(\.test)?\.ts$/,
+			/^src\/contexts\/foo\/adapters\/outbound\/foo-transaction\.postgres\.test\.ts$/,
+			/^src\/contexts\/foo\/.*-queue\.test\.ts$/,
 		],
 		// Env files carry no markers; this is the line piece-remove.ts drops from .env.schema.
 		lines:
@@ -171,9 +171,9 @@ const partPaths: Record<DomainPart, RegExp[]> = {
 	live: [],
 	pages: [/^src\/ui\/routes\/(foo-(list|detail)|home)(\.test)?\.tsx?$/],
 	schedule: [
-		/^src\/domains\/foo\/(api\/foo-schedule|use-cases\/foo-stale-archive|rules\/foo-stale-is)(\.test)?\.ts$/,
+		/^src\/contexts\/foo\/(adapters\/inbound\/foo-schedule|application\/foo-stale-archive|domain\/foo-stale-is)(\.test)?\.ts$/,
 	],
-	seed: [/^src\/domains\/foo\/api\/foo-seed(\.test)?\.ts$/],
+	seed: [/^src\/contexts\/foo\/adapters\/inbound\/foo-seed(\.test)?\.ts$/],
 };
 
 // The part a wiring line belongs to, from the file and the marker below it.
@@ -249,8 +249,8 @@ export const domainNameRefusal = (
 	if (names.plural === names.kebab) {
 		return "the plural must differ from the name";
 	}
-	if (existsSync(join(appDirectory, "src/domains", names.kebab))) {
-		return `src/domains/${names.kebab}/ already exists`;
+	if (existsSync(join(appDirectory, "src/contexts", names.kebab))) {
+		return `src/contexts/${names.kebab}/ already exists`;
 	}
 	const term = domainTerm(names.kebab);
 	const context = readFileSync(join(appDirectory, "CONTEXT.md"), "utf8");
@@ -486,8 +486,14 @@ export const domainReadsRefusal = ({
 		if (kebab === names.kebab) return `${kebab} cannot read itself`;
 		// The Template's own Domain is renamed with the copy, so it cannot be a target.
 		if (kebab.includes("foo")) return `--reads ${kebab}: contains foo`;
-		const ports = join(appDirectory, "src/domains", kebab, "ports.ts");
-		if (!existsSync(ports)) return `--reads ${kebab}: no src/domains/${kebab}/`;
+		const ports = join(
+			appDirectory,
+			"src/contexts",
+			kebab,
+			"application/ports.ts",
+		);
+		if (!existsSync(ports))
+			return `--reads ${kebab}: no src/contexts/${kebab}/`;
 		const back = `${pascalFromKebab(kebab)}${pascalFromKebab(names.kebab)}Reader`;
 		if (readFileSync(ports, "utf8").includes(back)) {
 			return `--reads ${kebab}: ${kebab} already reads ${names.kebab}; two Domains never read each other, so one reacts to the other's Events`;
@@ -574,7 +580,7 @@ const readerPort = (t: Target): string[] => [
 
 const readerMemory = (t: Target): string =>
 	`import type { Id } from "@n8io/baseline-id";
-import type { Foo${t.pascal}Reader } from "../ports.ts";
+import type { Foo${t.pascal}Reader } from "../../application/ports.ts";
 
 // The ${t.words} reader's fake for tests: it knows only the entries it is given.
 export const foo${t.pascal}ReaderMemoryCreate = (
@@ -589,8 +595,8 @@ export const foo${t.pascal}ReaderMemoryCreate = (
 
 const bridge = (t: Target): string =>
 	`import type { Actor } from "@n8io/baseline-authn";
-import type { ${t.pascal}UseCases } from "#domains/${t.kebab}/index.ts";
-import type { Foo${t.pascal}Reader } from "#domains/foo/index.ts";
+import type { ${t.pascal}UseCases } from "#contexts/${t.kebab}/index.ts";
+import type { Foo${t.pascal}Reader } from "#contexts/foo/index.ts";
 
 // The Bridge's own machine Actor: it only reads, so it holds no scope.
 const foo${t.pascal}ReaderActor: Actor = {
@@ -662,7 +668,7 @@ export const domainReadsApply = ({
 	const readersMemory = `{ ${targets.map((t) => `${field(t)}: ${memoryName(t)}()`).join(", ")} }`;
 	const changed = files.map(({ path, text }): TemplateFile => {
 		switch (path) {
-			case "src/domains/foo/ports.ts": {
+			case "src/contexts/foo/application/ports.ts": {
 				const withTypes = linesAt({
 					text,
 					path,
@@ -682,11 +688,11 @@ export const domainReadsApply = ({
 					text: `${withFields.trimEnd()}\n\n// The ports Bridges fill: the second argument of fooPortsCreate.\nexport type FooReaders = Pick<FooPorts, ${picked}>;\n`,
 				};
 			}
-			case "src/domains/foo/spi/index.ts": {
+			case "src/contexts/foo/adapters/outbound/index.ts": {
 				const typed = text
 					.replace(
-						'import type { FooPorts } from "../ports.ts";',
-						'import type { FooPorts, FooReaders } from "../ports.ts";',
+						'import type { FooPorts } from "../../application/ports.ts";',
+						'import type { FooPorts, FooReaders } from "../../application/ports.ts";',
 					)
 					.replace(
 						"(connections: Connections): FooPorts =>",
@@ -718,7 +724,7 @@ export const domainReadsApply = ({
 					}),
 				};
 			}
-			case "src/domains/foo/spi/foo-ports.memory.ts":
+			case "src/contexts/foo/adapters/outbound/foo-ports.memory.ts":
 				return {
 					path,
 					text: linesAt({
@@ -755,7 +761,7 @@ export const domainReadsApply = ({
 						path,
 						after: true,
 						anchor:
-							'import { fooPortsCreate } from "#domains/foo/spi/index.ts";',
+							'import { fooPortsCreate } from "#contexts/foo/adapters/outbound/index.ts";',
 						lines: targets.map(
 							(t) =>
 								`import { foo${t.pascal}ReaderCreate } from "#bridges/foo-${t.kebab}-reader.ts";`,
@@ -780,7 +786,7 @@ export const domainReadsApply = ({
 		...changed,
 		...targets.flatMap((t) => [
 			{
-				path: `src/domains/foo/spi/foo-${t.kebab}-reader.memory.ts`,
+				path: `src/contexts/foo/adapters/outbound/foo-${t.kebab}-reader.memory.ts`,
 				text: readerMemory(t),
 			},
 			{ path: `src/bridges/foo-${t.kebab}-reader.ts`, text: bridge(t) },
@@ -816,7 +822,7 @@ export const domainFilesCreate = ({
 		templateFull,
 		piecesRemovedFind(appDirectory),
 	);
-	const domains = join(appDirectory, "src/domains");
+	const domains = join(appDirectory, "src/contexts");
 	const firstDomain =
 		!existsSync(domains) ||
 		readdirSync(domains, { withFileTypes: true }).every(
@@ -963,10 +969,10 @@ export const nextStepsText = ({
 	parts: DomainPart[] | null;
 	reads: string[];
 }): string => {
-	const domain = `src/domains/${names.kebab}`;
+	const domain = `src/contexts/${names.kebab}`;
 	const has = (part: DomainPart) => parts === null || parts.includes(part);
 	const steps = [
-		`Edit the Model in ${domain}/models/${names.kebab}.ts and the table in ${domain}/spi/${names.kebab}-table.ts; delete the Use cases, API operations and Rules it does not need.`,
+		`Edit the Model in ${domain}/domain/${names.kebab}.ts and the table in ${domain}/adapters/outbound/${names.kebab}-table.ts; delete the Use cases, API operations and Rules it does not need.`,
 		...(migrated
 			? []
 			: [
@@ -974,15 +980,17 @@ export const nextStepsText = ({
 				]),
 		...reads.map(
 			(target) =>
-				`Read what ${names.kebab} needs from ${target} in src/bridges/${names.kebab}-${target}-reader.ts and its port in ${domain}/ports.ts.`,
+				`Read what ${names.kebab} needs from ${target} in src/bridges/${names.kebab}-${target}-reader.ts and its port in ${domain}/application/ports.ts.`,
 		),
 		...(has("schedule")
 			? [
-					`Change or delete the stale-archive Schedule in ${domain}/api/${names.kebab}-schedule.ts.`,
+					`Change or delete the stale-archive Schedule in ${domain}/adapters/inbound/${names.kebab}-schedule.ts.`,
 				]
 			: []),
 		...(has("seed")
-			? [`Seed what development needs in ${domain}/api/${names.kebab}-seed.ts.`]
+			? [
+					`Seed what development needs in ${domain}/adapters/inbound/${names.kebab}-seed.ts.`,
+				]
 			: []),
 		...(has("pages")
 			? [
@@ -1093,7 +1101,7 @@ const main = () => {
 		writeFileSync(target, file.text);
 	}
 	console.log(
-		`Wrote src/domains/${kebab}/ and wired it into ${wired.length} files; running pnpm check and pnpm test.`,
+		`Wrote src/contexts/${kebab}/ and wired it into ${wired.length} files; running pnpm check and pnpm test.`,
 	);
 	try {
 		domainFilesFormat({ appDirectory, paths: files.map((f) => f.path) });

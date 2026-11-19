@@ -90,23 +90,26 @@ const projectFiles: Record<string, string> = {
 	"docs/agents/pieces.md": `${block({ body: "Kept: docs are left alone.", piece: "live" })}\n`,
 	"package.json": `${JSON.stringify(manifest, null, "\t")}\n`,
 	"public/favicon.ico": "icon",
-	"src/domains/invoice/api/invoice-live.test.ts": "test\n",
-	"src/domains/invoice/api/invoice-live.ts": "live\n",
+	"src/contexts/invoice/adapters/inbound/invoice-live.test.ts": "test\n",
+	"src/contexts/invoice/adapters/inbound/invoice-live.ts": "live\n",
 	"src/analytics-open.ts": "analytics\n",
 	"src/api-reference.ts": "api reference\n",
 	"src/api-reference.test.ts": "api reference\n",
 	"test/integration/api-reference.test.ts": "api reference\n",
 	"src/error-tracking-open.ts": "error tracking\n",
-	"src/domains/invoice/api/invoice-schedule.ts": "schedule\n",
-	"src/domains/invoice/spi/invoice-cache.ts": "cache\n",
-	"src/domains/invoice/spi/invoice-cache.test.ts": "cache\n",
-	"src/domains/invoice/spi/invoice-cached.ts": "cache\n",
-	"src/domains/invoice/use-cases/invoice-use-cases-cache.test.ts": "cache\n",
+	"src/contexts/invoice/adapters/inbound/invoice-schedule.ts": "schedule\n",
+	"src/contexts/invoice/adapters/outbound/invoice-cache.ts": "cache\n",
+	"src/contexts/invoice/adapters/outbound/invoice-cache.test.ts": "cache\n",
+	"src/contexts/invoice/adapters/outbound/invoice-cached.ts": "cache\n",
+	"src/contexts/invoice/application/invoice-use-cases-cache.test.ts": "cache\n",
 	"src/cache-store-open.ts": "cache\n",
 	"src/ui/query-cache.ts": "ui\n",
-	"src/domains/invoice/spi/invoice-transaction.postgres.test.ts": "events\n",
-	"src/domains/invoice/spi/invoice-transaction.postgres.ts": "transaction\n",
-	"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts": "test\n",
+	"src/contexts/invoice/adapters/outbound/invoice-transaction.postgres.test.ts":
+		"events\n",
+	"src/contexts/invoice/adapters/outbound/invoice-transaction.postgres.ts":
+		"transaction\n",
+	"src/contexts/invoice/application/invoice-use-cases-analytics.test.ts":
+		"test\n",
 	"src/redis-open.ts": "redis\n",
 	"src/server.ts": [
 		'import { Hono } from "hono";',
@@ -222,7 +225,8 @@ describe("pieceRemoveRefusal", () => {
 
 	it("refuses the queue while a Consumer is left, but not for a test that uses one", () => {
 		const consumerTest = {
-			"src/domains/invoice/spi/invoice-events.test.ts": "queueConsumerCreate\n",
+			"src/contexts/invoice/adapters/outbound/invoice-events.test.ts":
+				"queueConsumerCreate\n",
 		};
 		using withTest = projectCreate(consumerTest);
 		expect(pieceRemoveRefusal(withTest.path, "queue")).toBeUndefined();
@@ -320,11 +324,19 @@ describe("pieceFilesRemove", () => {
 		const directory = folder.path;
 		pieceFilesRemove(directory, "live");
 		expect(
-			existsSync(join(directory, "src/domains/invoice/api/invoice-live.ts")),
+			existsSync(
+				join(
+					directory,
+					"src/contexts/invoice/adapters/inbound/invoice-live.ts",
+				),
+			),
 		).toBe(false);
 		expect(
 			existsSync(
-				join(directory, "src/domains/invoice/api/invoice-live.test.ts"),
+				join(
+					directory,
+					"src/contexts/invoice/adapters/inbound/invoice-live.test.ts",
+				),
 			),
 		).toBe(false);
 		expect(read(directory, "src/server.ts")).not.toContain("liveRoutes");
@@ -338,22 +350,24 @@ describe("pieceFilesRemove", () => {
 		using folder = projectCreate();
 		const directory = folder.path;
 		pieceFilesRemove(directory, "cache");
-		const spi = join(directory, "src/domains/invoice/spi");
-		expect(existsSync(join(spi, "invoice-cache.ts"))).toBe(false);
-		expect(existsSync(join(spi, "invoice-cache.test.ts"))).toBe(false);
-		expect(existsSync(join(spi, "invoice-cached.ts"))).toBe(false);
+		const outbound = join(directory, "src/contexts/invoice/adapters/outbound");
+		expect(existsSync(join(outbound, "invoice-cache.ts"))).toBe(false);
+		expect(existsSync(join(outbound, "invoice-cache.test.ts"))).toBe(false);
+		expect(existsSync(join(outbound, "invoice-cached.ts"))).toBe(false);
 		expect(
 			existsSync(
 				join(
 					directory,
-					"src/domains/invoice/use-cases/invoice-use-cases-cache.test.ts",
+					"src/contexts/invoice/application/invoice-use-cases-cache.test.ts",
 				),
 			),
 		).toBe(false);
 		expect(existsSync(join(directory, "src/cache-store-open.ts"))).toBe(false);
 		// Only a Domain's cache files go, not every file named like one.
 		expect(existsSync(join(directory, "src/ui/query-cache.ts"))).toBe(true);
-		expect(existsSync(join(spi, "invoice-transaction.postgres.ts"))).toBe(true);
+		expect(existsSync(join(outbound, "invoice-transaction.postgres.ts"))).toBe(
+			true,
+		);
 		expect(read(directory, "src/server.ts")).not.toContain("redisClient");
 	});
 
@@ -383,7 +397,7 @@ describe("pieceFilesRemove", () => {
 			existsSync(
 				join(
 					directory,
-					"src/domains/invoice/use-cases/invoice-use-cases-analytics.test.ts",
+					"src/contexts/invoice/application/invoice-use-cases-analytics.test.ts",
 				),
 			),
 		).toBe(false);
@@ -433,13 +447,19 @@ describe("pieceFilesRemove", () => {
 		const directory = folder.path;
 		pieceFilesRemove(directory, "queue");
 		expect(existsSync(join(directory, "src/worker.ts"))).toBe(false);
-		const domain = join(directory, "src/domains/invoice");
-		expect(existsSync(join(domain, "api/invoice-schedule.ts"))).toBe(false);
+		const domain = join(directory, "src/contexts/invoice");
 		expect(
-			existsSync(join(domain, "spi/invoice-transaction.postgres.test.ts")),
+			existsSync(join(domain, "adapters/inbound/invoice-schedule.ts")),
 		).toBe(false);
 		expect(
-			existsSync(join(domain, "spi/invoice-transaction.postgres.ts")),
+			existsSync(
+				join(domain, "adapters/outbound/invoice-transaction.postgres.test.ts"),
+			),
+		).toBe(false);
+		expect(
+			existsSync(
+				join(domain, "adapters/outbound/invoice-transaction.postgres.ts"),
+			),
 		).toBe(true);
 		expect(read(directory, ".env.schema")).not.toContain("SCHEDULE_");
 		expect(read(directory, ".env.schema")).not.toContain("domain-create");
@@ -614,9 +634,9 @@ describe("pieceRemove", () => {
 	it("filesNamedIn reads the paths Biome and tsc name once each", () => {
 		expect(
 			filesNamedIn(
-				"src/a.ts(3,1): error TS2304\n./src/domains/x/y.tsx:4:2 lint/foo\nsrc/a.ts:9:1 again",
+				"src/a.ts(3,1): error TS2304\n./src/contexts/x/y.tsx:4:2 lint/foo\nsrc/a.ts:9:1 again",
 			),
-		).toEqual(["src/a.ts", "src/domains/x/y.tsx"]);
+		).toEqual(["src/a.ts", "src/contexts/x/y.tsx"]);
 	});
 
 	it("undoes a removal whose check fails and names the file that used the piece outside its markers", () => {

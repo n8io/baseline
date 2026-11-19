@@ -1,0 +1,20 @@
+import { fooCreate } from "./foo-create.ts";
+import { fooDelete } from "./foo-delete.ts";
+import { fooGet } from "./foo-get.ts";
+import { fooList } from "./foo-list.ts";
+import { fooStaleArchive } from "./foo-stale-archive.ts";
+import { fooUpdate } from "./foo-update.ts";
+import type { FooPorts } from "./ports.ts";
+
+export const fooUseCasesCreate = (ports: FooPorts) => ({
+	fooCreate: fooCreate(ports),
+	fooDelete: fooDelete(ports),
+	fooGet: fooGet(ports),
+	fooList: fooList(ports),
+	// domain-create-start: schedule
+	fooStaleArchive: fooStaleArchive(ports),
+	// domain-create-end: schedule
+	fooUpdate: fooUpdate(ports),
+});
+
+export type FooUseCases = ReturnType<typeof fooUseCasesCreate>;

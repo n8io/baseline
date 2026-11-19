@@ -101,7 +101,7 @@ const projectCreate = (a: string): DisposableTempDir => {
 		"package.json": manifest,
 		"pnpm-lock.yaml": lockfile,
 		"src/a.ts": a,
-		"src/domains/.gitkeep": "",
+		"src/contexts/.gitkeep": "",
 	};
 	for (const [path, text] of Object.entries(files)) {
 		execFileSync("mkdir", ["-p", join(app, path, "..")]);

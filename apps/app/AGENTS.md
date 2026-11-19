@@ -18,7 +18,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - most of CI: `pnpm run ci` = check, unit, integration, piece-check (HEAD only, commit first); not oasdiff, migrations, sast, image
 - dev server: `pnpm dev` at the URL it prints (Vite's 5173; `PORT` only without the UI): starts Postgres and Redis, migrates, seeds, runs the Worker. `pnpm dev:reset` wipes their data
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
-- codegen: `pnpm codegen` (after editing a `spi/*-table.ts` file)
+- codegen: `pnpm codegen` (after editing a `*-table.ts` file)
 - new domain: `pnpm domain-create`
 - API check (oasdiff): `pnpm api-check`
 - pieces removable: `pnpm piece-check`
@@ -50,20 +50,21 @@ One Domain per business entity, added with `pnpm domain-create`.
 | Kind of work                                      | File                              |
 | ------------------------------------------------- | --------------------------------- |
 | Entry: exports for outside code, and the scopes   | `index.ts`                        |
-| Port types                                        | `ports.ts`                        |
-| Domain errors                                     | `<domain>-errors.ts`              |
-| Models, input Models, Event schemas (Zod)         | `models/<domain>.ts`              |
-| Rules: pure, one per file, with a test            | `rules/<domain>-<rule>.ts`        |
-| One Use case per file, tested on memory adapters  | `use-cases/<domain>-<verb>.ts`    |
-| Use cases factory and its type                    | `use-cases/<domain>-use-cases.ts` |
-| A helper two Use cases share                      | `use-cases/<domain>-<thing>.ts`   |
-| Routes, live streams, Consumers, Schedules, Seeds | `api/`                            |
-| Port implementations, tables, contract tests      | `spi/`                            |
+| Repository ports                                  | `domain/repositories.ts`          |
+| Other ports                                       | `application/ports.ts`            |
+| Domain errors                                     | `domain/errors.ts`                |
+| Models, input Models, Event schemas (Zod)         | `domain/<domain>.ts`              |
+| Rules: pure, one per file, with a test            | `domain/<domain>-<rule>.ts`       |
+| One Use case per file, tested on memory adapters  | `application/<domain>-<verb>.ts`  |
+| Use cases factory and its type                    | `application/*-use-cases.ts`      |
+| A helper two Use cases share                      | `application/<domain>-<thing>.ts` |
+| Routes, live streams, Consumers, Schedules, Seeds | `adapters/inbound/`               |
+| Port implementations, tables, contract tests      | `adapters/outbound/`              |
 | A unit test of one file, beside it                | `<file>.test.ts`                  |
 
-- Outside code imports only `index.ts`, `api/index.ts` and `spi/index.ts`.
-- The Domain never imports `api/` or `spi/`. Composition roots wire them.
-- A Use case applies Rules. The API and the SPI hold no business rules.
+- Outside code imports only `index.ts` and `adapters/*/index.ts`.
+- The Domain never imports `adapters/`. Composition roots wire them.
+- Use cases apply Rules; adapters hold none.
 - Name things generic to specific: the scope, then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
   - An exported name never starts with a verb.
   - Every exported function in a package starts with the package's name, and in a Domain with the Domain's name (`queueConsumerCreate`, `invoiceStaleIs`).
@@ -79,10 +80,10 @@ One Domain per business entity, added with `pnpm domain-create`.
 - One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` fails on a third parameter but misses `export default function` and type signatures such as ports, so check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
-- A Rule imports Models, other Rules of its Domain, and only the types of the authn, id and result packages (A2). Nothing else: move it to a Use case.
-- A Use case reads the time from its Domain's clock port, never `new Date()` or `Date.now()` (A26).
-- Use cases return `err()`; they and Rules never throw or catch (A27).
-- A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`), whatever it is named, needs that Domain's `deleted` Consumer (A14). `api/` never calls `.openapi(` on a model it imports; build its own schema (A25).
+- `domain/` imports only itself, Zod, `src/id-schema.ts` and the authn, id and result types (A2). Move the rest to a Use case.
+- A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
+- Use cases return `err()`; they and `domain/` never throw or catch (A27).
+- A table column built with another Domain's id prefix (`postgresIdColumnCreate("team")`) needs that Domain's `deleted` Consumer (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
 
 ### Stop and ask
 
@@ -104,7 +105,7 @@ Stop and ask the user when:
 
 For several Domains at once, one approved plan answers the Domain, term, verb and Event questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
 
-Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/domains/**`; every test asserts with `expect()`; Vitest is the only runner.
+Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/contexts/**`; every test asserts with `expect()`; Vitest is the only runner.
 
 ## Glossary rules
 

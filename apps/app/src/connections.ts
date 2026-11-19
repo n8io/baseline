@@ -1,5 +1,5 @@
 // The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
-// analytics and error tracking while the Project has those pieces. Each Domain's spi/index.ts picks its adapters
+// analytics and error tracking while the Project has those pieces. Each context's adapters/outbound/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
 import { postgresPoolCreate } from "@n8io/baseline-postgres";

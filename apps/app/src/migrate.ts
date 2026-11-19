@@ -2,7 +2,7 @@
 import { logger } from "@n8io/baseline-logger";
 import { postgresMigrate } from "@n8io/baseline-postgres";
 import { queueMigrate, queueSchedulesSync } from "@n8io/baseline-queue";
-import { fooSchedule } from "#domains/foo/api/index.ts";
+import { fooSchedule } from "#contexts/foo/adapters/inbound/index.ts";
 import { ENV } from "#env";
 
 if (ENV.DATABASE_URL === "memory://") {

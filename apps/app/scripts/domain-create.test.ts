@@ -47,7 +47,7 @@ import.meta.glob(["../CONTEXT.md"], { query: "?raw" });
 
 const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
-const domainsUrl = new URL("src/domains/", appRoot);
+const domainsUrl = new URL("src/contexts/", appRoot);
 // The template itself: foo is its only domain. A project, or this tree after a
 // domain-create, skips these tests.
 const template =
@@ -101,7 +101,7 @@ describe("domainNameRefusal", () => {
 
 describe("wiringInsert", () => {
 	const templateText = [
-		'import { fooRoutesCreate } from "#domains/foo/api/index.ts";',
+		'import { fooRoutesCreate } from "#contexts/foo/adapters/inbound/index.ts";',
 		'import { ENV } from "#env";',
 		"",
 		'app.route("/api/v1/foos", fooRoutesCreate(fooUseCases));',
@@ -110,7 +110,7 @@ describe("wiringInsert", () => {
 
 	it("adds the renamed lines above the same marker and after the imports", () => {
 		const project = [
-			'import { barRoutesCreate } from "#domains/bar/api/index.ts";',
+			'import { barRoutesCreate } from "#contexts/bar/adapters/inbound/index.ts";',
 			'import { ENV } from "#env";',
 			"",
 			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
@@ -126,9 +126,9 @@ describe("wiringInsert", () => {
 				pairsFill: false,
 			}).split("\n"),
 		).toEqual([
-			'import { barRoutesCreate } from "#domains/bar/api/index.ts";',
+			'import { barRoutesCreate } from "#contexts/bar/adapters/inbound/index.ts";',
 			'import { ENV } from "#env";',
-			'import { invoiceLineRoutesCreate } from "#domains/invoice-line/api/index.ts";',
+			'import { invoiceLineRoutesCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";',
 			"",
 			'app.route("/api/v1/bars", barRoutesCreate(barUseCases));',
 			'app.route("/api/v1/invoice-lines", invoiceLineRoutesCreate(invoiceLineUseCases));',
@@ -150,7 +150,7 @@ describe("wiringInsert", () => {
 
 	it("adds no line at a marker of a part the domain leaves out", () => {
 		const template = [
-			'import { fooLiveRoutesCreate } from "#domains/foo/api/index.ts";',
+			'import { fooLiveRoutesCreate } from "#contexts/foo/adapters/inbound/index.ts";',
 			"",
 			'app.route("/live/foo", fooLiveRoutesCreate(fooUseCases));',
 			"// domain-create: live",
@@ -167,7 +167,7 @@ describe("wiringInsert", () => {
 				partsLeftOut: ["live"],
 			}).split("\n"),
 		).toEqual([
-			'import { invoiceLineLiveRoutesCreate } from "#domains/invoice-line/api/index.ts";',
+			'import { invoiceLineLiveRoutesCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";',
 			"// domain-create: live",
 		]);
 	});
@@ -177,14 +177,16 @@ describe("domainReadsRefusal", () => {
 	it("refuses a target that is missing, itself, named twice or already reading the new domain", () => {
 		using folder = appCreate("**Invoice line**:\nA line.\n");
 		const app = folder.path;
-		mkdirSync(join(app, "src/domains/customer"), { recursive: true });
-		const ports = join(app, "src/domains/customer/ports.ts");
+		mkdirSync(join(app, "src/contexts/customer/application"), {
+			recursive: true,
+		});
+		const ports = join(app, "src/contexts/customer/application/ports.ts");
 		writeFileSync(ports, "export type CustomerPorts = {};\n");
 		const refusal = (reads: string[]) =>
 			domainReadsRefusal({ appDirectory: app, names, reads });
 
 		expect(refusal(["customer"])).toBeUndefined();
-		expect(refusal(["vendor"])).toContain("no src/domains/vendor/");
+		expect(refusal(["vendor"])).toContain("no src/contexts/vendor/");
 		expect(refusal(["invoice-line"])).toContain("cannot read itself");
 		expect(refusal(["foo"])).toContain("contains foo");
 		expect(refusal(["../customer"])).toContain("is not kebab-case");
@@ -339,9 +341,9 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 	it("copies the foo domain and both pages, renamed", () => {
 		const paths = files.map((f) => f.path);
 
-		expect(paths).toContain("src/domains/invoice-line/models/invoice-line.ts");
+		expect(paths).toContain("src/contexts/invoice-line/domain/invoice-line.ts");
 		expect(paths).toContain(
-			"src/domains/invoice-line/api/invoice-line-routes.ts",
+			"src/contexts/invoice-line/adapters/inbound/invoice-line-routes.ts",
 		);
 		expect(paths).toContain("src/ui/routes/invoice-line-list.tsx");
 		expect(paths).toContain("src/ui/routes/invoice-line-detail.tsx");
@@ -475,11 +477,11 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		).toEqual([]);
 		expect(bare.map((f) => f.path)).toEqual(
 			expect.arrayContaining([
-				"src/domains/invoice-line/models/invoice-line.ts",
-				"src/domains/invoice-line/spi/invoice-line-repository.contract.ts",
-				"src/domains/invoice-line/spi/invoice-line-transaction.postgres.ts",
-				"src/domains/invoice-line/use-cases/invoice-line-update.ts",
-				"src/domains/invoice-line/api/invoice-line-routes.ts",
+				"src/contexts/invoice-line/domain/invoice-line.ts",
+				"src/contexts/invoice-line/adapters/outbound/invoice-line-repository.contract.ts",
+				"src/contexts/invoice-line/adapters/outbound/invoice-line-transaction.postgres.ts",
+				"src/contexts/invoice-line/application/invoice-line-update.ts",
+				"src/contexts/invoice-line/adapters/inbound/invoice-line-routes.ts",
 			]),
 		);
 		expect(
@@ -513,16 +515,20 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 		const text = (path: string) =>
 			created.find((f) => f.path === path)?.text ?? "";
 
-		expect(text("src/domains/invoice-line/ports.ts")).toContain(
+		expect(text("src/contexts/invoice-line/application/ports.ts")).toContain(
 			'export type InvoiceLineReaders = Pick<InvoiceLinePorts, "invoiceLineCustomerReader">;',
 		);
-		expect(text("src/domains/invoice-line/spi/index.ts")).toContain(
-			"\treaders: InvoiceLineReaders,\n): InvoiceLinePorts =>",
-		);
-		expect(text("src/domains/invoice-line/spi/index.ts")).toContain(
+		expect(
+			text("src/contexts/invoice-line/adapters/outbound/index.ts"),
+		).toContain("\treaders: InvoiceLineReaders,\n): InvoiceLinePorts =>");
+		expect(
+			text("src/contexts/invoice-line/adapters/outbound/index.ts"),
+		).toContain(
 			'export { invoiceLineCustomerReaderMemoryCreate } from "./invoice-line-customer-reader.memory.ts";',
 		);
-		expect(text("src/domains/invoice-line/spi/index.test.ts")).toContain(
+		expect(
+			text("src/contexts/invoice-line/adapters/outbound/index.test.ts"),
+		).toContain(
 			"{ invoiceLineCustomerReader: invoiceLineCustomerReaderMemoryCreate() })",
 		);
 		expect(text("src/bridges/invoice-line-customer-reader.ts")).toContain(
@@ -638,7 +644,7 @@ describe.runIf(template)("domainFilesCreate on the template", () => {
 			names,
 		});
 		const paths = created.map((f) => f.path);
-		expect(paths).toContain("src/domains/invoice-line/ports.ts");
+		expect(paths).toContain("src/contexts/invoice-line/application/ports.ts");
 		expect(
 			paths.filter((p) =>
 				/^src\/(ui\/|worker\.ts)|-analytics\.|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test/.test(

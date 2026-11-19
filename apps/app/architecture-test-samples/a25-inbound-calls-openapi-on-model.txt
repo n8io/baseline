@@ -1,0 +1,7 @@
+// A25: adapters/inbound/ never calls .openapi( on a schema imported from domain/ or the entry
+// expect: src/contexts/bar/adapters/inbound/bar-routes.ts: Bar.openapi( is called on a schema imported from domain/
+// @file src/contexts/bar/adapters/inbound/bar-routes.ts
+import { z } from "@hono/zod-openapi";
+import { Bar } from "../../domain/bar.ts";
+
+export const BarList = z.object({ items: z.array(Bar.openapi("Bar")) });

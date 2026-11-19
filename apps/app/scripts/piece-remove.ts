@@ -211,7 +211,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 		packages: ["@n8io/baseline-cache"],
 		paths: ["src/cache-store-open.ts", "src/cache-store-open.test.ts"],
 		srcFiles:
-			/(\/spi\/[^/]*-cache(d|(\.[a-z]+)*)\.ts|-use-cases-cache\.test\.ts)$/,
+			/(\/adapters\/outbound\/[^/]*-cache(d|(\.[a-z]+)*)\.ts|-use-cases-cache\.test\.ts)$/,
 	},
 	"error-tracking": {
 		edit: (directory) => {
@@ -265,7 +265,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				? "Remove your Consumers first: they run only in the Worker."
 				: undefined,
 		srcFiles:
-			/(\/api\/[^/]*-schedule(\.test)?\.ts|\/spi\/[^/]*-transaction\.postgres\.test\.ts|-queue\.test\.ts)$/,
+			/(\/adapters\/inbound\/[^/]*-schedule(\.test)?\.ts|\/adapters\/outbound\/[^/]*-transaction\.postgres\.test\.ts|-queue\.test\.ts)$/,
 	},
 	redis: {
 		after: ["cache", "live"],

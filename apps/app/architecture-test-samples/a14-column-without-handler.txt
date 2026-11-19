@@ -1,0 +1,11 @@
+// A14: a column named <other context>_id requires an adapters/inbound/*-handler.ts handling "<other context>.deleted"
+// expect: src/contexts/bar/adapters/outbound/bar-table.ts: a column holding a baz id needs src/contexts/bar/adapters/inbound/bar-baz-deleted-handler.ts handling "baz.deleted"
+// @file src/contexts/bar/adapters/outbound/bar-table.ts
+import { pgSchema, text } from "drizzle-orm/pg-core";
+
+export const barSchema = pgSchema("bar");
+export const bar = barSchema.table("bar", { bazId: text("baz_id").notNull() });
+// @file src/contexts/bar/adapters/inbound/bar-baz-created-handler.ts
+export const barBazCreatedConsumer = "baz.created";
+// @file src/contexts/baz/index.ts
+export const bazScopes = [];

@@ -1,0 +1,73 @@
+import type { Actor } from "@n8io/baseline-authn";
+import { idCreate } from "@n8io/baseline-id";
+import type { RedisClient } from "@n8io/baseline-redis";
+import { describe, expect, it } from "vitest";
+import { liveHubOpen } from "../../../live-hub-open.ts";
+import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";
+import { fooUseCasesCreate } from "./foo-use-cases.ts";
+
+// The live updates each use case sends after commit; the live piece owns this file.
+const owner: Actor = { id: "owner", kind: "user", scopes: [] };
+const stranger: Actor = { id: "other", kind: "user", scopes: [] };
+
+const setup = async () => {
+	const { ports, state } = fooPortsMemoryCreate();
+	const sent = state.liveUpdatesSent;
+	const useCases = fooUseCasesCreate(ports);
+	const created = await useCases.fooCreate(owner, { name: "alpha" });
+	if (!created.ok) throw created.error;
+	await useCases.fooCreate(owner, { name: "beta" });
+	return { foo: created.value, sent, useCases };
+};
+
+describe("foo live updates", () => {
+	it("sends foo.updated after a rename and foo.deleted after a delete", async () => {
+		const { foo, sent, useCases } = await setup();
+
+		await useCases.fooUpdate(owner, { fooId: foo.id, name: "gamma" });
+		await useCases.fooDelete(owner, { fooId: foo.id });
+
+		expect(sent).toEqual([
+			{ id: foo.id, type: "foo.updated" },
+			{ id: foo.id, type: "foo.deleted" },
+		]);
+	});
+
+	it("sends nothing when the change fails", async () => {
+		const { foo, sent, useCases } = await setup();
+
+		await useCases.fooUpdate(stranger, { fooId: foo.id, name: "gamma" });
+		await useCases.fooUpdate(owner, { fooId: foo.id, name: "beta" });
+		await useCases.fooUpdate(owner, { fooId: idCreate("foo"), name: "gamma" });
+		await useCases.fooDelete(stranger, { fooId: foo.id });
+		await useCases.fooDelete(owner, { fooId: idCreate("foo") });
+
+		expect(sent).toEqual([]);
+	});
+
+	it("still reports the change when the hub cannot send", async () => {
+		const publish = async (): Promise<never> => {
+			throw new Error("Redis is down");
+		};
+		const liveHub = liveHubOpen({
+			redis: { publish } as unknown as RedisClient,
+			steps: [],
+		});
+		const { ports } = fooPortsMemoryCreate();
+		const useCases = fooUseCasesCreate({
+			...ports,
+			fooLiveUpdates: { send: (update) => liveHub.send("foo", update) },
+		});
+		const created = await useCases.fooCreate(owner, { name: "alpha" });
+		if (!created.ok) throw created.error;
+		const foo = created.value;
+
+		expect(
+			await useCases.fooUpdate(owner, { fooId: foo.id, name: "gamma" }),
+		).toMatchObject({ ok: true, value: { name: "gamma" } });
+		expect(await useCases.fooDelete(owner, { fooId: foo.id })).toEqual({
+			ok: true,
+			value: undefined,
+		});
+	});
+});

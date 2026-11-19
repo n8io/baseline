@@ -1,0 +1,14 @@
+// A14: a column helper hoisted into a sibling adapters/outbound/ file still holds another context's id
+// expect: src/contexts/trade/adapters/outbound/trade-table.ts: a column holding a team id needs src/contexts/trade/adapters/inbound/trade-team-deleted-handler.ts handling "team.deleted"
+// @file src/contexts/trade/adapters/outbound/trade-columns.ts
+import { uuid } from "drizzle-orm/pg-core";
+
+export const teamIdColumn = () => uuid("team_id").notNull();
+// @file src/contexts/trade/adapters/outbound/trade-table.ts
+import { pgSchema, text } from "drizzle-orm/pg-core";
+import { teamIdColumn } from "./trade-columns.ts";
+
+export const tradeSchema = pgSchema("trade");
+export const trade = tradeSchema.table("trade", { owner: teamIdColumn(), status: text() });
+// @file src/contexts/team/index.ts
+export const teamScopes = [];
