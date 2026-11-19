@@ -108,6 +108,27 @@ export const app = httpRouterCreate();
 app.use(httpRouteName);
 app.onError(httpErrorHandle);
 app.use(httpSecureHeaders);
+// bodyLimit reads a body with no Content-Length (a DELETE with no body, a chunked POST) and copies
+// the request with `new Request(raw, init)`. The Node adapter's request is not a native Request, so
+// that copy throws ERR_INVALID_URL; give bodyLimit a native one to copy.
+app.use("/api/*", async (c, next) => {
+	const { body, headers, method, signal, url } = c.req.raw;
+	if (
+		body &&
+		(!headers.has("content-length") || headers.has("transfer-encoding"))
+	) {
+		// A stream body needs `duplex`, which TypeScript's DOM RequestInit does not list yet.
+		const init: RequestInit & { duplex: "half" } = {
+			body,
+			duplex: "half",
+			headers,
+			method,
+			signal,
+		};
+		c.req.raw = new Request(url, init);
+	}
+	await next();
+});
 // A body over 1 MB throws a 413 that httpErrorHandle answers as PayloadTooLarge.
 app.use("/api/*", bodyLimit({ maxSize: 1024 * 1024 }));
 // Cookies ride along on a cross-site request, so cookie routes refuse one; /api uses bearer tokens.

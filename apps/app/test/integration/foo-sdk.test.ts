@@ -32,7 +32,7 @@ afterAll(async () => {
 });
 
 describe("the SDK on the production build", { timeout: 30_000 }, () => {
-	it("creates, reads, lists and updates a Foo, typed by status", async () => {
+	it("creates, reads, lists, updates and deletes a Foo, typed by status", async () => {
 		const created = await fooCreate({ name: "Alpha" });
 		expect(created.status).toBe(201);
 		if (created.status !== 201) return;
@@ -54,9 +54,9 @@ describe("the SDK on the production build", { timeout: 30_000 }, () => {
 			data: { code: "FooNotFound" },
 			status: 404,
 		});
-		// fooDelete is generated too; the production build answers a DELETE without a body 500
-		// (n8io/baseline#485), so it is checked here once that is fixed.
-		expect(fooDelete).toBeTypeOf("function");
+		const deleted = await fooDelete(id);
+		expect(deleted.status).toBe(204);
+		expect((await fooGet(id)).status).toBe(404);
 	});
 
 	it("takes a URL and token for one call over the configured ones", async () => {
