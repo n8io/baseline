@@ -16,7 +16,7 @@ import {
 	fooDeleteCan,
 	fooErrorStatus,
 	fooUpdateCan,
-} from "#domains/foo/index.ts";
+} from "#contexts/foo/index.ts";
 import {
 	AlertDialog,
 	AlertDialogAction,

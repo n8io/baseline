@@ -42,32 +42,32 @@ const structureViolations = (paths: string[], context: string): string[] => {
 		if (!terms.has(termOf(name).toLowerCase()) && !problems.includes(message))
 			problems.push(message);
 	};
-	const byDomain = new Map<string, string[]>();
+	const byContext = new Map<string, string[]>();
 	for (const path of paths) {
 		const [, , name, ...rest] = path.split("/");
 		if (name)
-			byDomain.set(name, [...(byDomain.get(name) ?? []), rest.join("/")]);
+			byContext.set(name, [...(byContext.get(name) ?? []), rest.join("/")]);
 	}
-	for (const [name, files] of byDomain) {
-		const base = `src/domains/${name}`;
-		const allowed = new Set([
-			"index.ts",
-			"ports.ts",
-			`${name}-errors.ts`,
-			`${name}-error-status.ts`,
-		]);
-		const folders = ["models", "use-cases", "rules", "api", "spi"];
+	for (const [name, files] of byContext) {
+		const base = `src/contexts/${name}`;
+		const allowed = new Set(["index.ts", `${name}-error-status.ts`]);
+		const folders = [
+			"domain",
+			"application",
+			"adapters/inbound",
+			"adapters/outbound",
+		];
 		termCheck(name);
-		for (const file of ["index.ts", "ports.ts"]) {
+		for (const file of ["index.ts", "application/ports.ts"]) {
 			if (!files.includes(file)) problems.push(`${base}/${file}: add ${file}`);
 		}
-		for (const folder of ["models", "use-cases"]) {
+		for (const folder of ["domain", "application"]) {
 			if (!files.some((f) => f.startsWith(`${folder}/`)))
 				problems.push(
 					`${base}/${folder}/: add at least one file in ${folder}/`,
 				);
 		}
-		for (const folder of ["api", "spi"]) {
+		for (const folder of ["adapters/inbound", "adapters/outbound"]) {
 			if (
 				files.some((f) => f.startsWith(`${folder}/`)) &&
 				!files.includes(`${folder}/index.ts`)
@@ -76,16 +76,24 @@ const structureViolations = (paths: string[], context: string): string[] => {
 			}
 		}
 		for (const file of files) {
-			const top = file.split("/")[0] ?? "";
-			if (!allowed.has(file) && !folders.includes(top)) {
+			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
+			if (!allowed.has(file) && !inFolder) {
 				problems.push(
-					`${base}/${file}: a domain root holds only index.ts, ports.ts, ${name}-errors.ts and ${name}-error-status.ts; put models in models/, rules in rules/, use cases in use-cases/, inbound adapters in api/, outbound adapters in spi/`,
+					`${base}/${file}: a context root holds only index.ts and ${name}-error-status.ts; put the model, its rules, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
 				);
 			}
 		}
+		// Each model in domain/ is a glossary term. Errors, repository ports and Rules are not; a
+		// Rule is the file with a test beside it (one per file, with a test).
 		for (const file of files) {
-			const match = /^models\/([^/]+)\.ts$/.exec(file);
-			if (match?.[1] && !match[1].endsWith(".test")) termCheck(match[1]);
+			const stem = /^domain\/([^/]+)\.ts$/.exec(file)?.[1];
+			if (
+				stem &&
+				!stem.endsWith(".test") &&
+				!["errors", "repositories"].includes(stem) &&
+				!files.includes(`domain/${stem}.test.ts`)
+			)
+				termCheck(stem);
 		}
 	}
 	return problems;
@@ -188,27 +196,37 @@ const agentsMaxBytes = 14_000;
 
 const context = "**Bar**:\nA thing.\n";
 const barBase = [
-	"src/domains/bar/index.ts",
-	"src/domains/bar/ports.ts",
-	"src/domains/bar/models/bar.ts",
-	"src/domains/bar/use-cases/bar-create.ts",
+	"src/contexts/bar/index.ts",
+	"src/contexts/bar/application/ports.ts",
+	"src/contexts/bar/domain/bar.ts",
+	"src/contexts/bar/application/bar-create.ts",
 ];
 const without = (path: string) => barBase.filter((p) => p !== path);
 
-describe("domain structure", () => {
+describe("context structure", () => {
 	it("holds for the real tree", () => {
-		const domains = new URL("src/domains/", appRoot);
-		const paths = filesList(domains, "src/domains");
+		const contexts = new URL("src/contexts/", appRoot);
+		const paths = filesList(contexts, "src/contexts");
 		const text = readFileSync(new URL("CONTEXT.md", appRoot), "utf8");
-		// A rendered project starts with no domain, so only the folder must exist.
-		expect(existsSync(domains)).toBe(true);
+		// A rendered project starts with no context, so only the folder must exist.
+		expect(existsSync(contexts)).toBe(true);
 		expect(structureViolations(paths, text)).toEqual([]);
 	});
 
-	it("passes a complete domain", () => {
+	it("passes a complete context", () => {
 		expect(
 			structureViolations(
-				[...barBase, "src/domains/bar/api/index.ts"],
+				[
+					...barBase,
+					"src/contexts/bar/bar-error-status.ts",
+					"src/contexts/bar/domain/errors.ts",
+					"src/contexts/bar/domain/repositories.ts",
+					"src/contexts/bar/domain/bar-points-total.ts",
+					"src/contexts/bar/domain/bar-points-total.test.ts",
+					"src/contexts/bar/application/helpers/bar-x.ts",
+					"src/contexts/bar/adapters/inbound/index.ts",
+					"src/contexts/bar/adapters/outbound/index.ts",
+				],
 				context,
 			),
 		).toEqual([]);
@@ -216,35 +234,41 @@ describe("domain structure", () => {
 
 	it.each([
 		{
-			message: "src/domains/bar/ports.ts: add ports.ts",
-			paths: without("src/domains/bar/ports.ts"),
-			name: "missing ports.ts",
+			message:
+				"src/contexts/bar/application/ports.ts: add application/ports.ts",
+			paths: without("src/contexts/bar/application/ports.ts"),
+			name: "missing application/ports.ts",
+		},
+		{
+			message: "src/contexts/bar/domain/: add at least one file in domain/",
+			paths: without("src/contexts/bar/domain/bar.ts"),
+			name: "missing domain/",
 		},
 		{
 			message:
-				"src/domains/bar/use-cases/: add at least one file in use-cases/",
-			paths: without("src/domains/bar/use-cases/bar-create.ts"),
-			name: "missing use-cases/",
-		},
-		{
-			message: "src/domains/bar/api/index.ts: add index.ts to api/",
-			paths: [...barBase, "src/domains/bar/api/bar-routes.ts"],
-			name: "api/ without index.ts",
+				"src/contexts/bar/adapters/inbound/index.ts: add index.ts to adapters/inbound/",
+			paths: [...barBase, "src/contexts/bar/adapters/inbound/bar-routes.ts"],
+			name: "adapters/inbound/ without index.ts",
 		},
 		{
 			message:
-				"src/domains/bar/helper.ts: a domain root holds only index.ts, ports.ts, bar-errors.ts and bar-error-status.ts",
-			paths: [...barBase, "src/domains/bar/helper.ts"],
+				"src/contexts/bar/helper.ts: a context root holds only index.ts and bar-error-status.ts",
+			paths: [...barBase, "src/contexts/bar/helper.ts"],
 			name: "a stray root file",
 		},
 		{
-			message: "src/domains/bar/helpers/x.ts: a domain root holds only",
-			paths: [...barBase, "src/domains/bar/helpers/x.ts"],
+			message: "src/contexts/bar/helpers/x.ts: a context root holds only",
+			paths: [...barBase, "src/contexts/bar/helpers/x.ts"],
 			name: "a stray root folder",
 		},
 		{
+			message: "src/contexts/bar/adapters/x.ts: a context root holds only",
+			paths: [...barBase, "src/contexts/bar/adapters/x.ts"],
+			name: "a file in adapters/ itself",
+		},
+		{
 			message: "CONTEXT.md: add a **Bar line**: term for bar-line",
-			paths: [...barBase, "src/domains/bar/models/bar-line.ts"],
+			paths: [...barBase, "src/contexts/bar/domain/bar-line.ts"],
 			name: "a model with no glossary term",
 		},
 	])("fails on $name", ({ message, paths }) => {
@@ -253,14 +277,14 @@ describe("domain structure", () => {
 		]);
 	});
 
-	it("fails on a domain with no glossary term", () => {
+	it("fails on a context with no glossary term", () => {
 		expect(structureViolations(barBase, "**Baz**:\n")).toEqual([
 			"CONTEXT.md: add a **Bar**: term for bar",
 		]);
 	});
 
 	it("passes a model once the glossary has its term", () => {
-		const paths = [...barBase, "src/domains/bar/models/bar-line.ts"];
+		const paths = [...barBase, "src/contexts/bar/domain/bar-line.ts"];
 		expect(structureViolations(paths, `${context}**Bar line**:\n`)).toEqual([]);
 	});
 });
@@ -277,8 +301,8 @@ describe("test placement", () => {
 				"src/env.test.ts",
 				"src/server.ts",
 				"src/server-open.test.ts",
-				"src/domains/bar/spi/bar-repository.postgres.ts",
-				"src/domains/bar/spi/bar-repository.postgres.test.ts",
+				"src/contexts/bar/adapters/outbound/bar-repository.postgres.ts",
+				"src/contexts/bar/adapters/outbound/bar-repository.postgres.test.ts",
 				"scripts/glossary-check.ts",
 				"scripts/glossary-check.test.ts",
 				"structure.test.ts",

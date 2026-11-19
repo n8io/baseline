@@ -4,10 +4,10 @@ Read when adding, changing, testing or removing a Schedule. A Schedule calls one
 
 ## The file pair
 
-One file per Schedule in the Domain's `api/`. It exports two things: `<domain>Schedule`, the name and cron that migrate syncs, and `<domain>ScheduleCreate`, which the Worker starts with the Domain's Use cases.
+One file per Schedule in the Domain's `adapters/inbound/`. It exports two things: `<domain>Schedule`, the name and cron that migrate syncs, and `<domain>ScheduleCreate`, which the Worker starts with the Domain's Use cases.
 
 ```ts
-// src/domains/bar/api/bar-schedule.ts
+// src/contexts/bar/adapters/inbound/bar-schedule.ts
 const barScheduleActor: Actor = {
 	id: "bar-schedule",
 	kind: "client",
@@ -28,13 +28,13 @@ export const barScheduleCreate = (u: BarUseCases) =>
 
 - The Actor is a `client` with id `<domain>-schedule` and only the scopes its Use case checks.
 - The name is `<domain>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
-- Two Schedules in one Domain: one file each, `api/<domain>-<words>-schedule.ts` exporting `<domain><Words>Schedule` and `<domain><Words>ScheduleCreate` (`tournamentStartSchedule`, `tournamentStartScheduleCreate`). They may share one Actor in `api/<domain>-schedule-actor.ts`.
+- Two Schedules in one Domain: one file each, `adapters/inbound/<domain>-<words>-schedule.ts` exporting `<domain><Words>Schedule` and `<domain><Words>ScheduleCreate` (`tournamentStartSchedule`, `tournamentStartScheduleCreate`). They may share one Actor in `adapters/inbound/<domain>-schedule-actor.ts`.
 
 ## Wiring
 
 `pnpm domain-create` wires a new Domain's first Schedule. For another one, add the same four things by hand:
 
-1. Export the pair from the Domain's `api/index.ts`, inside its `piece-start: queue` block.
+1. Export the pair from the Domain's `adapters/inbound/index.ts`, inside its `piece-start: queue` block.
 2. Add `barSchedule,` to the `schedules` list that `src/migrate.ts` passes to `queueSchedulesSync`, above `// domain-create: schedules`.
 3. Add `barScheduleCreate(useCases.barUseCases),` to the `schedules` list that `src/worker.ts` passes to `queueSchedulesStart`, above the same marker.
 4. Declare its override in `.env.schema`, above `# domain-create: schedules`, with the decorator line, or boot fails while it is unset:
@@ -55,7 +55,7 @@ A Schedule's Use case is an ordinary Use case. It may publish Events inside its 
 It handles everything due as of now, not a fixed batch: one run must catch up on any number of missed ticks, and a repeat must change nothing. pg-boss enqueues one run for all the ticks missed during an outage, skips a tick while a run is still active, and retries a failed run, so a run can come late, once for several ticks, or twice.
 
 ```ts
-// src/domains/bar/use-cases/bar-stale-archive.ts
+// src/contexts/bar/application/bar-stale-archive.ts
 export const barStaleArchive =
 	({
 		barClock,
@@ -73,7 +73,7 @@ export const barStaleArchive =
 The test for "due" is not a Rule. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. A Rule may compute the method's inputs (`barStaleBefore(now)` gives the cut-off). The adapters may not import Rules, so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
 
 ```ts
-// src/domains/bar/spi/bar-repository.postgres.ts
+// src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
 archiveStale: async (before, now) => {
 	const archived = await db
 		.update(bar)
@@ -85,7 +85,7 @@ archiveStale: async (before, now) => {
 ```
 
 ```ts
-// src/domains/bar/spi/bar-repository.memory.ts
+// src/contexts/bar/adapters/outbound/bar-repository.memory.ts
 archiveStale: async (before, now) => {
 	let archived = 0;
 	for (const bar of state.bars.values()) {
@@ -107,7 +107,7 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 - The Schedule: build the Domain's Use cases on memory ports, call `run()`, and check the result and the rows. That is also how to run a Schedule on demand in any test: never wait for the cron.
 
 ```ts
-// src/domains/bar/api/bar-schedule.test.ts
+// src/contexts/bar/adapters/inbound/bar-schedule.test.ts
 const schedule = barScheduleCreate(barUseCasesCreate(ports));
 
 expect(schedule).toMatchObject(barSchedule);

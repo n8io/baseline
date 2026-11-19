@@ -7,7 +7,7 @@ import {
 	shutdownHandleCreate,
 } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
-import { fooScheduleCreate } from "#domains/foo/api/index.ts";
+import { fooScheduleCreate } from "#contexts/foo/adapters/inbound/index.ts";
 import { ENV } from "#env";
 import { connectionsOpen } from "./connections.ts";
 import { domainsUseCasesCreate } from "./use-cases.ts";

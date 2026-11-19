@@ -1,6 +1,6 @@
 import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
-import { fooUseCasesCreate } from "#domains/foo/index.ts";
-import { fooPortsCreate } from "#domains/foo/spi/index.ts";
+import { fooPortsCreate } from "#contexts/foo/adapters/outbound/index.ts";
+import { fooUseCasesCreate } from "#contexts/foo/index.ts";
 import type { Connections } from "./connections.ts";
 
 // Builds every Domain's Use cases, traced, from the connections a composition root opened. The

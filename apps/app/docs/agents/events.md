@@ -4,11 +4,11 @@ Read when adding a Consumer, an Event or a repository. A Domain that reads anoth
 
 ## Consumer with the inbox
 
-A Consumer lives in the reacting Domain's `api/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// domain-create: consumers`.
+A Consumer lives in the reacting Domain's `adapters/inbound/`, one file per Event. It is subscribed in `server.ts` and `worker.ts` and runs only in `worker.ts`. Wire it at `// domain-create: consumers`.
 
 ```ts
-// src/domains/billing/api/billing-order-placed-consumer.ts
-import { orderPlaced } from "#domains/order/index.ts"; // the one allowed cross-domain import: Event schemas only
+// src/contexts/billing/adapters/inbound/billing-order-placed-handler.ts
+import { orderPlaced } from "#contexts/order/index.ts"; // the one allowed cross-domain import: Event schemas only
 const billingOrderPlacedConsumerActor: Actor = {
 	id: "billing-order-placed-consumer",
 	kind: "client",
@@ -82,9 +82,9 @@ A Consumer that writes many rows for one Event (open a Tournament: one row per T
 
 ## Holding another Domain's id
 
-A table column that holds another Domain's id ships with the Consumer that cleans it up, in the same PR. Rule A14 fails the check otherwise: a table in `src/domains/<domain>/spi/` with a `<other>` id column needs `src/domains/<domain>/api/<domain>-<other>-deleted-consumer.ts` consuming `"<other>.deleted"`. So when you land tables first, land these Consumers and their Use cases with them.
+A table column that holds another Domain's id ships with the Consumer that cleans it up, in the same PR. Rule A14 fails the check otherwise: a table in `src/contexts/<domain>/adapters/outbound/` with a `<other>` id column needs `src/contexts/<domain>/adapters/inbound/<domain>-<other>-deleted-handler.ts` consuming `"<other>.deleted"`. So when you land tables first, land these Consumers and their Use cases with them.
 
-The repository side is one bulk method per clean-up, repeated in the memory adapter and held equal by `spi/<domain>-repository.contract.ts`:
+The repository side is one bulk method per clean-up, repeated in the memory adapter and held equal by `adapters/outbound/<domain>-repository.contract.ts`:
 
 - Rows that cannot live without the other entity: `deleteByTeamId(teamId)` deletes them and returns the ids it removed, sorted, so the Use case can publish `<entity>.deleted` for each, in the same transaction and in id order (each publish locks its Event key until the transaction ends, so two clean-ups publishing in different orders deadlock).
 - Rows that can: `clearByTeamId(teamId)` sets the column to null (or removes the child rows) and returns the ids of the roots it touched, so the Use case can recompute or notify them.
@@ -96,7 +96,7 @@ With an inbox the transaction returns `Result<void, E>`, so a value the Use case
 Run the Consumer as the worker does, on memory ports, with `queueTestConsumerRun` from `@n8io/baseline-queue/testing`:
 
 ```ts
-// src/domains/billing/api/billing-order-placed-consumer.test.ts
+// src/contexts/billing/adapters/inbound/billing-order-placed-consumer.test.ts
 const { ports, state } = billingPortsMemoryCreate();
 const consumer = billingOrderPlacedConsumerCreate(billingUseCasesCreate(ports));
 const result = await queueTestConsumerRun({
@@ -115,7 +115,7 @@ expect([...state.invoices.values()]).toMatchObject([{ amountCents: 1200 }]);
 
 During a rollout, workers of the old release and the new one run side by side for minutes, and an Event published by one may reach the other. An Event also keeps its shape for as long as it waits: through its retries, then up to 7 days as a blocked key. A worker that rejects the shape retries it five times and then blocks its Event key, and every later Event of that entity waits behind it.
 
-Consumers validate with the definition the publishing Domain exports (`#domains/<publisher>/index.ts`), so widening is one edit there. The Template defines Events with Zod `z.object`, which drops keys it does not know. Never use `.strict()` or `z.strictObject` for an Event: an old worker would then reject every new field.
+Consumers validate with the definition the publishing Domain exports (`#contexts/<publisher>/index.ts`), so widening is one edit there. The Template defines Events with Zod `z.object`, which drops keys it does not know. Never use `.strict()` or `z.strictObject` for an Event: an old worker would then reject every new field.
 
 **One release** is enough to add an optional field that an old worker may ignore. An old worker drops it; a new worker reads it as absent on Events published before the release.
 
@@ -140,6 +140,6 @@ Never rename an Event or remove a required field in one release. A new Event wit
 
 ## Aggregate
 
-- One repository per Aggregate root, named after it. Its tables live in `spi/`.
+- One repository per Aggregate root, named after it. Its tables live in `adapters/outbound/`.
 - A supporting Model gets no repository. Save and load it through the root's repository.
 - A transaction may change more than one Aggregate, but only within one Domain.

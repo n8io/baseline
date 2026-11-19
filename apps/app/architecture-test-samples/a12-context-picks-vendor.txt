@@ -1,0 +1,9 @@
+// A12: a vendor's factory, and so its `vendor` settings, is called only in the wiring files
+// expect: src/contexts/bar/adapters/outbound/index.ts: analyticsMixpanelCreate( picks a vendor and takes its settings
+// @file src/contexts/bar/adapters/outbound/index.ts
+import { analyticsMixpanelCreate } from "@n8io/baseline-analytics";
+
+export const barAnalytics = analyticsMixpanelCreate({
+	token: "token",
+	vendor: { host: "api-eu.mixpanel.com" },
+});

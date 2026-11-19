@@ -100,7 +100,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`               |
 | Add a Domain                                          | `pnpm domain-create <name>` |
 | Remove a piece                                        | `pnpm piece-remove <piece>` |
-| Generate a migration after editing a `spi/*-table.ts` | `pnpm codegen`              |
+| Generate a migration after you edit any `*-table.ts`. | `pnpm codegen`              |
 | Pull the newest Template release                      | `pnpm template-upgrade`     |
 
 > [!TIP]
@@ -120,7 +120,7 @@ Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creati
 
 ```text
 .github/workflows/  ci.yml (this repo), app-ci.yml (called by Projects), release.yml
-apps/app/           the Template: src/domains/foo is the example Domain
+apps/app/           the Template: src/contexts/foo is the example Domain
 packages/*          the @n8io/baseline-* Packages
 scripts/            app-create.ts, and readme-svg/ for these diagrams
 test/               app-create tests and the render-and-test check

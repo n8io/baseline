@@ -191,20 +191,28 @@ describe("server wiring", { timeout: 30_000 }, () => {
 		});
 
 		// SDK methods and CLI commands are named from these two fields (docs/agents/api.md).
-		it("names every operation after its Use case and tags it with its Domain", async () => {
+		it("names every operation after its Use case and tags it with its Aggregate", async () => {
 			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
 				paths: Record<
 					string,
 					Record<string, { operationId?: string; tags?: string[] }>
 				>;
 			};
-			const folder = new URL("../../src/domains", import.meta.url);
-			const domains = (
+			// The Aggregates: every file in a context's domain/ but its errors and repository ports.
+			const folder = new URL("../../src/contexts/", import.meta.url);
+			const aggregates = (
 				existsSync(folder) ? readdirSync(folder, { withFileTypes: true }) : []
 			)
 				.filter((entry) => entry.isDirectory())
-				.map(({ name }) =>
-					name.replace(/-(.)/g, (_, c: string) => c.toUpperCase()),
+				.flatMap(({ name }) => {
+					const domain = new URL(`${name}/domain/`, folder);
+					return existsSync(domain) ? readdirSync(domain) : [];
+				})
+				.filter((file) => /^[a-z0-9-]+\.ts$/.test(file))
+				.map((file) => file.slice(0, -".ts".length))
+				.filter((stem) => !["errors", "repositories"].includes(stem))
+				.map((stem) =>
+					stem.replace(/-(.)/g, (_, c: string) => c.toUpperCase()),
 				);
 			const operations = Object.entries(doc.paths).flatMap(([path, methods]) =>
 				Object.entries(methods).map(([method, operation]) => ({
@@ -215,7 +223,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 			for (const { at, operationId, tags } of operations) {
 				expect(tags, at).toHaveLength(1);
 				const tag = tags?.[0] ?? "";
-				expect(domains, at).toContain(tag);
+				expect(aggregates, at).toContain(tag);
 				expect(operationId?.startsWith(tag), `${at}: ${operationId}`).toBe(
 					true,
 				);

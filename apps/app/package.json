@@ -11,7 +11,7 @@
 	"imports": {
 		"#authn": "./src/authn.ts",
 		"#bridges/*": "./src/bridges/*",
-		"#domains/*": "./src/domains/*",
+		"#contexts/*": "./src/contexts/*",
 		"#env": "./src/env.ts",
 		"#ui/*": "./src/ui/*"
 	},
@@ -33,7 +33,7 @@
 		"piece-remove": "node --import ./scripts/node-version-require.ts scripts/piece-remove.ts",
 		"seed": "node --import ./src/preload.ts src/seed.ts",
 		"template-upgrade": "node --import ./scripts/node-version-require.ts scripts/template-upgrade.ts",
-		"test": "vitest run --project unit --project unit-domains",
+		"test": "vitest run --project unit --project unit-contexts",
 		"test:integration": "pnpm build && vitest run --project integration"
 	},
 	"dependencies": {

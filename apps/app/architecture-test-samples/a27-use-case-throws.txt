@@ -1,6 +1,6 @@
-// A27: a Use case returns err() for an expected outcome; neither it nor a Rule throws or catches
-// expect: src/domains/bar/use-cases/bar-get.ts:6: throw in a Use case; return err(new <Name>Error())
-// @file src/domains/bar/use-cases/bar-get.ts
+// A27: a Use case returns err() for an expected outcome; neither it nor domain/ throws or catches
+// expect: src/contexts/bar/application/bar-get.ts:6: throw in a Use case; return err(new <Name>Error())
+// @file src/contexts/bar/application/bar-get.ts
 import { ok } from "@n8io/baseline-result";
 
 export const barGet = (ports: { barRepository: { get(id: string): Promise<{ id: string } | undefined> } }) =>

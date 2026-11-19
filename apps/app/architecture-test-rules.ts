@@ -21,7 +21,7 @@ export type ArchitectureFile = {
 export type ArchitectureRule = (files: ArchitectureFile[]) => string[];
 
 const aliasDirs: [string, string][] = [
-	["#domains/", "src/domains/"],
+	["#contexts/", "src/contexts/"],
 	["#bridges/", "src/bridges/"],
 	["#ui/", "src/ui/"],
 ];
@@ -104,26 +104,35 @@ export const architectureSrcRead = async (
 	);
 };
 
-// Where a path sits: its domain, and the domain-relative parts (`["models", "bar.ts"]`).
-const domainOf = (p: string): string | undefined =>
-	/^src\/domains\/([^/]+)\//.exec(p)?.[1];
+// Where a path sits: its context, and the context-relative parts (`["domain", "bar.ts"]`).
+const contextOf = (p: string): string | undefined =>
+	/^src\/contexts\/([^/]+)\//.exec(p)?.[1];
 const partsOf = (p: string): string[] => p.split("/").slice(3);
-const layerOf = (p: string): string | undefined => {
-	if (!domainOf(p)) return undefined;
-	const parts = partsOf(p);
-	return parts.length === 1 ? "root" : parts[0];
+// A layer is "root" (index.ts), "domain", "application", "adapters/inbound" or "adapters/outbound".
+const layerOfParts = (parts: string[]): string | undefined => {
+	if (parts.length === 1) return "root";
+	return parts[0] === "adapters" && parts.length > 2
+		? `adapters/${parts[1]}`
+		: parts[0];
 };
+const layerOf = (p: string): string | undefined =>
+	contextOf(p) ? layerOfParts(partsOf(p)) : undefined;
 const testIs = (p: string): boolean => /\.test\.tsx?$/.test(p);
+// application/ holds the Use cases and ports.ts, the ports they take.
+const applicationUseCaseIs = (p: string): boolean =>
+	layerOf(p) === "application" &&
+	!testIs(p) &&
+	!p.endsWith("/application/ports.ts");
 const businessIs = (p: string): boolean =>
-	["root", "models", "rules", "use-cases"].includes(layerOf(p) ?? "");
-const domainsOf = (files: ArchitectureFile[]): string[] => [
-	...new Set(files.flatMap((f) => domainOf(f.path) ?? [])),
+	["root", "domain", "application"].includes(layerOf(p) ?? "");
+const contextsOf = (files: ArchitectureFile[]): string[] => [
+	...new Set(files.flatMap((f) => contextOf(f.path) ?? [])),
 ];
 const camel = (kebab: string): string =>
 	kebab.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 const snake = (kebab: string): string => kebab.replaceAll("-", "_");
 const tableIs = (p: string): boolean =>
-	/^src\/domains\/[^/]+\/spi\/[^/]+-table\.ts$/.test(p);
+	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
 // Where Use cases are built: domainsUseCasesCreate, and any composition root that still does.
 const useCasesBuilders = [...roots, "src/use-cases.ts"];
@@ -135,7 +144,7 @@ const importsCheck = ({
 	files,
 }: {
 	check: (found: {
-		domain: string | undefined;
+		context: string | undefined;
 		f: ArchitectureFile;
 		imp: ArchitectureImport;
 	}) => string | undefined;
@@ -144,7 +153,7 @@ const importsCheck = ({
 }): string[] =>
 	files.filter(fileIs).flatMap((f) =>
 		f.imports.flatMap((imp) => {
-			const reason = check({ domain: domainOf(f.path), f, imp });
+			const reason = check({ context: contextOf(f.path), f, imp });
 			return reason ? [`${f.path} imports ${imp.specifier}: ${reason}`] : [];
 		}),
 	);
@@ -168,11 +177,21 @@ const textCheck = ({
 		}),
 	);
 
-const sameDomainParts = (
+const sameContextParts = (
 	imp: ArchitectureImport,
-	domain: string | undefined,
+	context: string | undefined,
 ): string[] | undefined =>
-	domain && domainOf(imp.target) === domain ? partsOf(imp.target) : undefined;
+	context && contextOf(imp.target) === context
+		? partsOf(imp.target)
+		: undefined;
+// The layer an import reaches in the importing file's own context.
+const sameContextLayer = (
+	imp: ArchitectureImport,
+	context: string | undefined,
+): string | undefined => {
+	const parts = sameContextParts(imp, context);
+	return parts ? layerOfParts(parts) : undefined;
+};
 
 // A23 reads every exported function. React Router's own export names, React hooks and
 // components are exempt from all of it; `ok` and `err` are the result package's two constructors.
@@ -197,38 +216,40 @@ const exportedPredicate =
 const exportedUntypedFunction =
 	/^export (?:const (\w+)\s*=\s*(?:async\s*)?(?:<[^=;]*?>\s*)?\(|(?:async )?function (\w+))/gm;
 const thingWords =
-	/(Body|Cache|Column|Consumer|Handle|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
-// The scope a file's exports start with: its package (packages/<name>/src) or Domain.
+	/(Body|Cache|Column|Consumer|Handle|Handler|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
+// The scope a file's exports start with: its package (packages/<name>/src) or context.
 const scopeOf = (p: string): string | undefined => {
 	const pkg = /^packages\/([^/]+)\/src\//.exec(p)?.[1];
-	const domain = /(?:^|\/)src\/domains\/([^/]+)\//.exec(p)?.[1];
-	const scope = pkg ?? domain;
+	const context = /(?:^|\/)src\/contexts\/([^/]+)\//.exec(p)?.[1];
+	const scope = pkg ?? context;
 	return scope ? camel(scope) : undefined;
 };
 
-// The packages whose types a Rule may name: the Actor, an id and a Result.
-const ruleTypePackages = new Set([
+// What domain/ imports from outside its context: Zod and the id schema, and the shared kernel's
+// types (the Actor, an id and a Result).
+const domainImportsAllowed = new Set(["src/id-schema.ts", "zod"]);
+const domainTypePackages = new Set([
 	"@n8io/baseline-authn",
 	"@n8io/baseline-id",
 	"@n8io/baseline-result",
 ]);
 
-// The names a file imports as values from its own domain's models/ or entry.
+// The names a file imports as values from its own context's domain/ or entry.
 const sharedSchemaNames = (f: ArchitectureFile): string[] => {
-	const domain = domainOf(f.path);
+	const context = contextOf(f.path);
 	const names: string[] = [];
 	for (const m of f.source.matchAll(
 		/^import\s+\{([^}]*)\}\s*from\s*["']([^"']+)["']/gm,
 	)) {
-		const parts = sameDomainParts(
+		const parts = sameContextParts(
 			{
 				specifier: m[2] ?? "",
 				target: importTarget(f.path, m[2] ?? ""),
 				typeOnly: false,
 			},
-			domain,
+			context,
 		);
-		if (parts && (parts[0] === "models" || parts.join("/") === "index.ts")) {
+		if (parts && (parts[0] === "domain" || parts.join("/") === "index.ts")) {
 			for (const part of (m[1] ?? "").split(",")) {
 				if (/^\s*type\s/.test(part)) continue;
 				const name = part
@@ -247,10 +268,9 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		importsCheck({
 			files,
 			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
-			check: ({ domain, imp }) => {
-				const parts = sameDomainParts(imp, domain);
-				return parts?.[0] === "api" || parts?.[0] === "spi"
-					? "business code never imports api/ or spi/; declare what it needs as a port in ports.ts and let the composition roots wire the adapter"
+			check: ({ context, imp }) => {
+				return sameContextParts(imp, context)?.[0] === "adapters"
+					? "business code never imports adapters/; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let the composition roots wire the adapter"
 					: undefined;
 			},
 		}),
@@ -258,101 +278,104 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A2: (files) =>
 		importsCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) === "rules" && !testIs(f.path),
-			check: ({ domain, imp }) =>
-				sameDomainParts(imp, domain)?.[0] === "models" ||
-				sameDomainParts(imp, domain)?.[0] === "rules" ||
-				(ruleTypePackages.has(imp.target) && imp.typeOnly)
+			fileIs: (f) => layerOf(f.path) === "domain" && !testIs(f.path),
+			check: ({ context, imp }) =>
+				sameContextLayer(imp, context) === "domain" ||
+				domainImportsAllowed.has(imp.target) ||
+				(domainTypePackages.has(imp.target) && imp.typeOnly)
 					? undefined
-					: "rules are pure functions over models/, other rules/ of the same domain and the types of the authn, id and result packages; move this to a use case in use-cases/",
+					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts and the types of the authn, id and result packages; move this to a Use case in application/",
 		}),
 
 	A3: (files) =>
 		importsCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) === "api" && !testIs(f.path),
-			check: ({ domain, imp }) => {
-				const parts = sameDomainParts(imp, domain);
+			fileIs: (f) => layerOf(f.path) === "adapters/inbound" && !testIs(f.path),
+			check: ({ context, imp }) => {
+				const parts = sameContextParts(imp, context);
 				if (!parts) return undefined;
-				if (parts[0] === "spi") {
-					return "api/ never imports spi/; the composition roots pass use cases built on the adapters";
+				const layer = layerOfParts(parts);
+				if (layer === "adapters/outbound") {
+					return "adapters/inbound/ never imports adapters/outbound/; the composition roots pass use cases built on the adapters";
 				}
 				const allowed =
-					(parts.length === 1 && parts[0] === "index.ts") ||
-					parts[0] === "models" ||
-					parts[0] === "api" ||
-					(parts[0] === "use-cases" && imp.typeOnly);
+					parts.join("/") === "index.ts" ||
+					layer === "domain" ||
+					layer === "adapters/inbound" ||
+					(layer === "application" && imp.typeOnly);
 				return allowed
 					? undefined
-					: "api/ reaches the domain only through its index.ts, models/ and use-case types";
+					: "adapters/inbound/ reaches the context only through its index.ts, domain/ and Use case types";
 			},
 		}),
 
 	A4: (files) =>
 		importsCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) === "spi" && !testIs(f.path),
-			check: ({ domain, imp }) => {
-				const parts = sameDomainParts(imp, domain);
-				if (!parts || !domain) return undefined;
+			fileIs: (f) => layerOf(f.path) === "adapters/outbound" && !testIs(f.path),
+			check: ({ context, imp }) => {
+				const parts = sameContextParts(imp, context);
+				if (!parts) return undefined;
+				const layer = layerOfParts(parts);
 				const allowed =
-					parts[0] === "models" ||
-					parts[0] === "spi" ||
-					(parts.length === 1 &&
-						(parts[0] === "ports.ts" || parts[0] === `${domain}-errors.ts`));
+					layer === "domain" ||
+					layer === "adapters/outbound" ||
+					parts.join("/") === "application/ports.ts";
 				return allowed
 					? undefined
-					: `spi/ implements ports: from its domain it imports only ports.ts, models/ and ${domain}-errors.ts`;
+					: "adapters/outbound/ implements ports: from its context it imports only domain/ and application/ports.ts";
 			},
 		}),
 
 	A5: (files) =>
 		importsCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) === undefined,
+			fileIs: (f) => contextOf(f.path) === undefined,
 			check: ({ imp }) => {
-				const target = domainOf(imp.target);
+				const target = contextOf(imp.target);
 				if (!target) return undefined;
 				const entry = partsOf(imp.target).join("/");
-				return ["index.ts", "api/index.ts", "spi/index.ts"].includes(entry)
+				return [
+					"index.ts",
+					"adapters/inbound/index.ts",
+					"adapters/outbound/index.ts",
+				].includes(entry)
 					? undefined
-					: `outside a domain, import only src/domains/${target}/index.ts, api/index.ts or spi/index.ts; export what you need from one of them`;
+					: `outside a context, import only src/contexts/${target}/index.ts, adapters/inbound/index.ts or adapters/outbound/index.ts; export what you need from one of them`;
 			},
 		}),
 
 	A6: (files) =>
 		importsCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) !== undefined,
-			check: ({ domain, f, imp }) => {
-				const target = domainOf(imp.target);
-				if (!target || target === domain) return undefined;
-				const consumer =
-					layerOf(f.path) === "api" && f.path.endsWith("-consumer.ts");
-				return consumer && partsOf(imp.target).join("/") === "index.ts"
+			fileIs: (f) => contextOf(f.path) !== undefined,
+			check: ({ context, f, imp }) => {
+				const target = contextOf(imp.target);
+				if (!target || target === context) return undefined;
+				const handler =
+					layerOf(f.path) === "adapters/inbound" &&
+					f.path.endsWith("-handler.ts");
+				return handler && partsOf(imp.target).join("/") === "index.ts"
 					? undefined
-					: `domains never import each other; read ${target} through a bridge in src/bridges/, or consume its event in api/${domain}-${target}-<event>-consumer.ts`;
+					: `contexts never import each other; read ${target} through a bridge in src/bridges/, or handle its event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
 			},
 		}),
 
 	A7: (files) => [
 		...importsCheck({
 			files,
-			fileIs: (f) =>
-				layerOf(f.path) === "models" ||
-				f.path ===
-					`src/domains/${domainOf(f.path)}/${domainOf(f.path)}-errors.ts`,
+			fileIs: (f) => layerOf(f.path) === "domain",
 			check: ({ imp }) =>
 				imp.specifier.startsWith("@hono/")
-					? "models and errors stay free of HTTP; put OpenAPI schemas in api/<domain>-routes.ts"
+					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<context>-routes.ts"
 					: undefined,
 		}),
 		...textCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) !== "api",
+			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
 			pattern: /\.openapi\(/g,
 			reason: () =>
-				".openapi( appears only in a domain's api/; put OpenAPI schemas and routes in api/<domain>-routes.ts",
+				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<context>-routes.ts",
 		}),
 	],
 
@@ -365,8 +388,8 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					return "src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span";
 				}
 				return imp.specifier === "@n8io/baseline-telemetry/span" &&
-					layerOf(f.path) !== "use-cases"
-					? "only use cases touch spans; set span attributes in use-cases/, and wrap use cases with telemetryUseCasesTrace in src/use-cases.ts"
+					layerOf(f.path) !== "application"
+					? "only use cases touch spans; set span attributes in application/, and wrap use cases with telemetryUseCasesTrace in src/use-cases.ts"
 					: undefined;
 			},
 		}),
@@ -375,11 +398,11 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		importsCheck({
 			files,
 			fileIs: (f) =>
-				(f.path.startsWith("src/domains/") || f.path.startsWith("src/ui/")) &&
+				(f.path.startsWith("src/contexts/") || f.path.startsWith("src/ui/")) &&
 				f.path !== "src/ui/entry.server.tsx",
 			check: ({ imp }) =>
 				imp.specifier === "@n8io/baseline-logger"
-					? "domains and the UI never log; return an error or set a span attribute, and log in the composition roots (src/ui/entry.server.tsx for page errors)"
+					? "contexts and the UI never log; return an error or set a span attribute, and log in the composition roots (src/ui/entry.server.tsx for page errors)"
 					: undefined,
 		}),
 
@@ -387,17 +410,17 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		importsCheck({
 			files,
 			fileIs: (f) =>
-				(f.path.startsWith("src/ui/") || domainOf(f.path) !== undefined) &&
+				(f.path.startsWith("src/ui/") || contextOf(f.path) !== undefined) &&
 				!testIs(f.path),
 			check: ({ f, imp }) => {
 				if (f.path.startsWith("src/ui/")) {
-					const target = domainOf(imp.target);
+					const target = contextOf(imp.target);
 					return target && partsOf(imp.target).join("/") !== "index.ts"
-						? `the UI calls domains only through src/domains/${target}/index.ts; loaders and actions get use cases from the load context`
+						? `the UI calls contexts only through src/contexts/${target}/index.ts; loaders and actions get use cases from the load context`
 						: undefined;
 				}
 				return imp.target.startsWith("src/ui/")
-					? "domains never import the UI; the UI calls the domain"
+					? "contexts never import the UI; the UI calls the context"
 					: undefined;
 			},
 		}),
@@ -407,23 +430,25 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			(f) => f.path.startsWith("src/bridges/") && !testIs(f.path),
 		);
 		const messages = bridges.flatMap((f) => {
-			const domainImports = f.imports.filter((imp) => domainOf(imp.target));
-			const entryMisses = domainImports
+			const contextImports = f.imports.filter((imp) => contextOf(imp.target));
+			const entryMisses = contextImports
 				.filter((imp) => partsOf(imp.target).join("/") !== "index.ts")
 				.map(
 					(imp) =>
-						`${f.path} imports ${imp.specifier}: a bridge imports only each domain's index.ts`,
+						`${f.path} imports ${imp.specifier}: a bridge imports only each context's index.ts`,
 				);
-			const domains = [
-				...new Set(domainImports.flatMap((imp) => domainOf(imp.target) ?? [])),
+			const contexts = [
+				...new Set(
+					contextImports.flatMap((imp) => contextOf(imp.target) ?? []),
+				),
 			];
 			const countMiss =
-				domains.length === 2
+				contexts.length === 2
 					? []
 					: [
-							`${f.path}: a bridge connects exactly two domains through their index.ts; it imports ${domains.length} (${domains.join(", ") || "none"})`,
+							`${f.path}: a bridge connects exactly two contexts through their index.ts; it imports ${contexts.length} (${contexts.join(", ") || "none"})`,
 						];
-			const callMisses = domains.flatMap((d) =>
+			const callMisses = contexts.flatMap((d) =>
 				[
 					...f.source.matchAll(
 						new RegExp(`\\b(${camel(d)}[A-Z]\\w*)\\s*\\(`, "g"),
@@ -433,46 +458,48 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					.filter((name) => !/(Get|List)$/.test(name))
 					.map(
 						(name) =>
-							`${f.path}: a bridge only reads, so it calls only *Get and *List use cases, not ${name}; a change belongs in a use case of the domain that owns it`,
+							`${f.path}: a bridge only reads, so it calls only *Get and *List use cases, not ${name}; a change belongs in a use case of the context that owns it`,
 					),
 			);
 			return [...entryMisses, ...countMiss, ...callMisses];
 		});
-		const domainImports = importsCheck({
+		const contextImports = importsCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) !== undefined,
+			fileIs: (f) => contextOf(f.path) !== undefined,
 			check: ({ imp }) =>
 				imp.target.startsWith("src/bridges/")
-					? "no domain imports a bridge; the composition roots pass the bridge in as the domain's read port"
+					? "no context imports a bridge; the composition roots pass the bridge in as the context's read port"
 					: undefined,
 		});
-		return [...messages, ...domainImports];
+		return [...messages, ...contextImports];
 	},
 
 	A12: (files) => [
 		...textCheck({
 			files,
 			fileIs: (f) =>
-				domainOf(f.path) !== undefined &&
-				partsOf(f.path).join("/") === "ports.ts",
+				contextOf(f.path) !== undefined &&
+				["application/ports.ts", "domain/repositories.ts"].includes(
+					partsOf(f.path).join("/"),
+				),
 			pattern: /\bclose\s*\??\s*[(:<]/g,
 			reason: () =>
 				"no port declares close; the composition roots open and close connections",
 		}),
 		...textCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) !== undefined && !testIs(f.path),
+			fileIs: (f) => contextOf(f.path) !== undefined && !testIs(f.path),
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <domain>PortsCreate through src/use-cases.ts`,
+				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>PortsCreate through src/use-cases.ts`,
 		}),
 		...textCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) !== undefined && !testIs(f.path),
+			fileIs: (f) => contextOf(f.path) !== undefined && !testIs(f.path),
 			pattern: /\bcacheStoreRedisCreate\(/g,
 			reason: () =>
-				"cacheStoreRedisCreate( picks the cache's backend; src/cache-store-open.ts does that, and a Domain builds its cache on connections.cacheStore",
+				"cacheStoreRedisCreate( picks the cache's backend; src/cache-store-open.ts does that, and a context builds its cache on connections.cacheStore",
 		}),
 		...textCheck({
 			files,
@@ -492,53 +519,53 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => !tableIs(f.path) && !testIs(f.path),
 			pattern: /\bpgSchema\(|\bpgTable\(|\.table\(\s*["'`]/g,
 			reason: () =>
-				"tables live only in src/domains/<domain>/spi/<domain>-table.ts",
+				"tables live only in src/contexts/<context>/adapters/outbound/<context>-table.ts",
 		}),
 		...textCheck({
 			files,
 			fileIs: (f) => tableIs(f.path),
 			pattern: /\bpgTable\b/g,
 			reason: (_m, f) =>
-				`no bare pgTable; define tables with pgSchema("${snake(domainOf(f.path) ?? "")}").table(...)`,
+				`no bare pgTable; define tables with pgSchema("${snake(contextOf(f.path) ?? "")}").table(...)`,
 		}),
 		...files
 			.filter(
 				(f) => tableIs(f.path) && !f.source.includes("// glossary-rename:"),
 			)
 			.flatMap((f) => {
-				const schema = snake(domainOf(f.path) ?? "");
+				const schema = snake(contextOf(f.path) ?? "");
 				return new RegExp(`\\bpgSchema\\(\\s*["'\`]${schema}["'\`]`).test(
 					f.source,
 				)
 					? []
 					: [
-							`${f.path}: tables use pgSchema("${schema}"), named after the domain folder; mark a deliberate rename with // glossary-rename: <why>`,
+							`${f.path}: tables use pgSchema("${schema}"), named after the context folder; mark a deliberate rename with // glossary-rename: <why>`,
 						];
 			}),
 		...importsCheck({
 			files,
 			fileIs: () => true,
-			check: ({ domain, imp }) => {
-				const owner = tableIs(imp.target) ? domainOf(imp.target) : undefined;
-				return owner && owner !== domain
-					? `another domain's table is private to ${owner}; read ${owner} through a bridge`
+			check: ({ context, imp }) => {
+				const owner = tableIs(imp.target) ? contextOf(imp.target) : undefined;
+				return owner && owner !== context
+					? `another context's table is private to ${owner}; read ${owner} through a bridge`
 					: undefined;
 			},
 		}),
 	],
 
 	A14: (files) => {
-		const domains = domainsOf(files);
+		const contexts = contextsOf(files);
 		return files
 			.filter((f) => tableIs(f.path))
 			.flatMap((f) => {
-				const domain = domainOf(f.path) ?? "";
-				const consumers = files.filter(
+				const context = contextOf(f.path) ?? "";
+				const handlers = files.filter(
 					(c) =>
-						c.path.startsWith(`src/domains/${domain}/api/`) &&
-						c.path.endsWith("-consumer.ts"),
+						c.path.startsWith(`src/contexts/${context}/adapters/inbound/`) &&
+						c.path.endsWith("-handler.ts"),
 				);
-				// A column helper hoisted into a sibling spi file still builds the column, so the
+				// A column helper hoisted into a sibling adapters/outbound/ file still builds the column, so the
 				// files the table imports from its own folder are read with it.
 				const folder = f.path.slice(0, f.path.lastIndexOf("/") + 1);
 				const imported = [
@@ -547,15 +574,15 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					.map((m) => files.find((c) => c.path === `${folder}${m[1]}.ts`))
 					.map((c) => c?.source ?? "");
 				const source = [f.source, ...imported].join("\n");
-				// Another domain's id is a column built with that domain's id prefix, whatever it is
+				// Another context's id is a column built with that context's id prefix, whatever it is
 				// named (proposer_team_id); a plain uuid("proposer_team_id") or a column named
 				// <other>_id counts too.
-				const held = domains
+				const held = contexts
 					.filter((other) => {
 						const camelOther = camel(other);
 						const capital = `${camelOther.charAt(0).toUpperCase()}${camelOther.slice(1)}`;
 						return (
-							other !== domain &&
+							other !== context &&
 							new RegExp(
 								`postgresIdColumnCreate(?:<[^>]*>)?\\(\\s*["'\`](?:${other}|${snake(other)}|${camelOther})["'\`]\\s*,?\\s*\\)|["'\`](?:[a-z0-9_]*_)?${snake(other)}_id["'\`]|(?:\\b${camelOther}|[a-z0-9]${capital})Id\\s*:`,
 							).test(source)
@@ -569,13 +596,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				return held
 					.filter(
 						(other) =>
-							!consumers.some((c) =>
+							!handlers.some((c) =>
 								new RegExp(`["'\`]${other}\\.deleted["'\`]`).test(c.source),
 							),
 					)
 					.map(
 						(other) =>
-							`${f.path}: a column holding a ${other} id needs src/domains/${domain}/api/${domain}-${other}-deleted-consumer.ts consuming "${other}.deleted", so rows never point at a deleted ${other}`,
+							`${f.path}: a column holding a ${other} id needs src/contexts/${context}/adapters/inbound/${context}-${other}-deleted-handler.ts handling "${other}.deleted", so rows never point at a deleted ${other}`,
 					);
 			});
 	},
@@ -583,17 +610,17 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A15: (files) =>
 		textCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) === "spi",
+			fileIs: (f) => layerOf(f.path) === "adapters/outbound",
 			pattern: /\bsql\.raw\b/g,
 			reason: () =>
-				"sql.raw is banned in spi/; build queries with Drizzle or the sql`` template, which binds parameters",
+				"sql.raw is banned in adapters/outbound/; build queries with Drizzle or the sql`` template, which binds parameters",
 		}),
 
 	A16: (files) =>
 		files
-			.filter((f) => layerOf(f.path) === "use-cases" && !testIs(f.path))
+			.filter((f) => applicationUseCaseIs(f.path))
 			.flatMap((f) => {
-				const domain = snake(domainOf(f.path) ?? "");
+				const context = snake(contextOf(f.path) ?? "");
 				// A key that is not a plain string literal reads as itself and fails the pattern.
 				const single = [
 					...f.source.matchAll(/\.setAttribute\(\s*([^,)]+)/g),
@@ -614,13 +641,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					].map((k) => k[2] ?? k[3] ?? ""),
 				);
 				const valid = new RegExp(
-					`^baseline\\.${domain}\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
+					`^baseline\\.${context}\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
 				);
 				return [...single, ...many]
 					.filter((key) => !valid.test(key))
 					.map(
 						(key) =>
-							`${f.path}: span attribute ${key} must be baseline.${domain}.id or baseline.${domain}.<thing>_id, or a baseline.${domain}.<thing>_count; never put names or other personal data on spans`,
+							`${f.path}: span attribute ${key} must be baseline.${context}.id or baseline.${context}.<thing>_id, or a baseline.${context}.<thing>_count; never put names or other personal data on spans`,
 					);
 			}),
 
@@ -629,7 +656,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			files,
 			fileIs: (f) =>
 				f.path === "src/ui/routes.ts" ||
-				(layerOf(f.path) === "api" &&
+				(layerOf(f.path) === "adapters/inbound" &&
 					!testIs(f.path) &&
 					/-(routes|live)\.ts$/.test(f.path)),
 			pattern: /(["'`])([^"'`\n]*\/[^"'`\n]*)\1/g,
@@ -648,23 +675,23 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		}),
 
 	A18: (files) => {
-		const domains = domainsOf(files);
+		const contexts = contextsOf(files);
 		const server = files.find((f) => f.path === "src/server.ts");
-		const mounted = domains
+		const mounted = contexts
 			.filter(
 				(d) =>
 					!server?.imports.some((imp) =>
-						imp.target.startsWith(`src/domains/${d}/`),
+						imp.target.startsWith(`src/contexts/${d}/`),
 					),
 			)
 			.map(
 				(d) =>
-					`src/server.ts: never imports src/domains/${d}; mount its routes there, with its use cases from src/use-cases.ts`,
+					`src/server.ts: never imports src/contexts/${d}; mount its routes there, with its use cases from src/use-cases.ts`,
 			);
 		const unwrapped = files
 			.filter((f) => useCasesBuilders.includes(f.path))
 			.flatMap((f) =>
-				domains.flatMap((d) =>
+				contexts.flatMap((d) =>
 					[
 						...f.source.matchAll(
 							new RegExp(
@@ -685,22 +712,24 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		importsCheck({
 			files,
 			fileIs: (f) =>
-				domainOf(f.path) !== undefined &&
-				layerOf(f.path) !== "spi" &&
+				contextOf(f.path) !== undefined &&
+				layerOf(f.path) !== "adapters/outbound" &&
 				!testIs(f.path),
 			check: ({ imp }) =>
-				/^src\/domains\/[^/]+\/spi\/.*\.memory\.ts$/.test(imp.target)
-					? "only *.test.ts files (and spi/) import memory adapters; production code gets ports from <domain>PortsCreate in spi/index.ts"
+				/^src\/contexts\/[^/]+\/adapters\/outbound\/.*\.memory\.ts$/.test(
+					imp.target,
+				)
+					? "only *.test.ts files (and adapters/outbound/) import memory adapters; production code gets ports from <context>PortsCreate in adapters/outbound/index.ts"
 					: undefined,
 		}),
 
 	A20: (files) =>
 		textCheck({
 			files,
-			fileIs: (f) => domainOf(f.path) !== undefined,
+			fileIs: (f) => contextOf(f.path) !== undefined,
 			pattern: /@ts-(expect-error|ignore)\b/g,
 			reason: (m) =>
-				`@ts-${m[1]} is banned in src/domains/; fix the type instead`,
+				`@ts-${m[1]} is banned in src/contexts/; fix the type instead`,
 		}),
 
 	A21: (files) =>
@@ -715,19 +744,17 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				}
 				if (
 					imp.specifier === "@n8io/baseline-telemetry/span" &&
-					layerOf(f.path) === "use-cases"
+					layerOf(f.path) === "application"
 				) {
 					return undefined;
 				}
 				const typeAllowed =
 					imp.typeOnly &&
 					(pkg === "@n8io/baseline-queue" || pkg === "@n8io/baseline-authn") &&
-					(partsOf(f.path).join("/") === "ports.ts" ||
-						layerOf(f.path) === "rules" ||
-						layerOf(f.path) === "use-cases");
+					["domain", "application"].includes(layerOf(f.path) ?? "");
 				return typeAllowed
 					? undefined
-					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in use-cases/ and `import type` of Inbox (queue) and Actor (authn) in ports.ts, rules/ and use-cases/; reach any other shared package through a port implemented in spi/";
+					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in application/ and `import type` of Inbox (queue) and Actor (authn) in domain/ and application/; reach any other shared package through a port implemented in adapters/outbound/";
 			},
 		}),
 
@@ -804,7 +831,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					unscopedNames.has(name) ||
 					new RegExp(`^${scope}(?:[A-Z0-9]|$)`).test(name)
 					? undefined
-					: `${name} is exported from ${scope}; start every exported function with its package or Domain name: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+					: `${name} is exported from ${scope}; start every exported function with its package or context name: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 			},
 		}),
 	],
@@ -819,11 +846,11 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: undefined,
 		}),
 
-	// A7 keeps OpenAPI out of models/. A model is plain Zod, so `.openapi` is missing on it until
+	// A7 keeps OpenAPI out of domain/. A model is plain Zod, so `.openapi` is missing on it until
 	// @hono/zod-openapi has loaded: a call on one works or throws with test order.
 	A25: (files) =>
 		files
-			.filter((f) => layerOf(f.path) === "api" && !testIs(f.path))
+			.filter((f) => layerOf(f.path) === "adapters/inbound" && !testIs(f.path))
 			.flatMap((f) => {
 				const names = sharedSchemaNames(f);
 				if (names.length === 0) return [];
@@ -833,7 +860,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				);
 				return [...f.source.matchAll(pattern)].map(
 					(m) =>
-						`${f.path}: ${m[1]}.openapi( is called on a schema imported from models/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
+						`${f.path}: ${m[1]}.openapi( is called on a schema imported from domain/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
 				);
 			}),
 
@@ -841,23 +868,23 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	A26: (files) =>
 		textCheck({
 			files,
-			fileIs: (f) => layerOf(f.path) === "use-cases" && !testIs(f.path),
+			fileIs: (f) => applicationUseCaseIs(f.path),
 			pattern: /\bnew Date\(\s*\)|\bDate\.now\(\s*\)/g,
 			reason: (m) =>
-				`${m[0]} reads the system time in a Use case; read <domain>Clock.now() from the ports, so a test sets the time`,
+				`${m[0]} reads the system time in a Use case; read <context>Clock.now() from the ports, so a test sets the time`,
 		}),
 
-	// An expected outcome is part of the return type, so every caller sees it. Only adapters (spi/,
+	// An expected outcome is part of the return type, so every caller sees it. Only adapters (adapters/outbound/,
 	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw. A
 	// bug that cannot happen may `throw new Error(...)` directly under a one-line
-	// `// unreachable: <why>`, so a request fails loudly and a Consumer's Event retries: an err would
+	// `// unreachable: <why>`, so a request fails loudly and an Event handler's Event retries: an err would
 	// complete the Event. Strings are blanked first and then comments, keeping offsets, so neither
 	// hides code from the other and the word "throw" in either never counts.
 	A27: (files) =>
 		files
 			.filter(
 				(f) =>
-					["rules", "use-cases"].includes(layerOf(f.path) ?? "") &&
+					["domain", "application"].includes(layerOf(f.path) ?? "") &&
 					!testIs(f.path),
 			)
 			.flatMap((f) => {
@@ -867,7 +894,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					(c) => (c.startsWith("/") ? c : blank(c)),
 				);
 				const code = noStrings.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, blank);
-				const kind = layerOf(f.path) === "rules" ? "Rule" : "Use case";
+				const kind = layerOf(f.path) === "domain" ? "domain/ file" : "Use case";
 				const lines = noStrings.split("\n");
 				return [
 					...code.matchAll(
@@ -888,12 +915,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					const where = `${f.path}:${line}: ${word} in a ${kind}`;
 					if (word !== "throw") {
 						return [
-							`${where}; move the call that throws behind a port in spi/, which returns its failure as a Result`,
+							`${where}; move the call that throws behind a port in adapters/outbound/, which returns its failure as a Result`,
 						];
 					}
 					const instead =
-						kind === "Rule"
-							? "a Rule returns a plain value (a boolean or a reason) and the Use case turns it into err(...)"
+						kind === "domain/ file"
+							? "domain/ returns a plain value (a boolean or a reason) and the Use case turns it into err(...)"
 							: "return err(new <Name>Error()) and add the error to the Use case's error union";
 					return [
 						`${where}; ${instead}. Only a bug that cannot happen throws (never not-found, forbidden, conflict or validation): throw new Error(...) directly under a one-line "// unreachable: <why, in a few words>"`,

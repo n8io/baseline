@@ -9,7 +9,7 @@ import {
 	type RouterContext,
 	RouterContextProvider,
 } from "react-router";
-import type { FooUseCases } from "#domains/foo/index.ts";
+import type { FooUseCases } from "#contexts/foo/index.ts";
 import type { DomainsUseCases } from "../use-cases.ts";
 
 // The request's CSP nonce, for every inline script the server renders.

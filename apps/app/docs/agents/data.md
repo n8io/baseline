@@ -11,11 +11,11 @@ Read when touching a table, a migration or SQL.
 - Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; CI's `check` job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
 - Tables hold UUIDs; code and the API speak prefixed ids (`invoice_…`). `postgresIdColumnCreate("invoice")` converts at the column; in raw values use `idToUuid` and `idFromUuid` from `@n8io/baseline-id`.
 - No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
-- Do not use `sql.raw` in `spi/`.
+- Do not use `sql.raw` in `adapters/outbound/`.
 
 ## Lists
 
-A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` (Postgres) or `cursorMemoryPage` (memory) takes the page after it, and `cursorEncode` writes the next one (see a Domain's `spi/` repositories). A cursor that does not decode reads as none: the first page.
+A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` (Postgres) or `cursorMemoryPage` (memory) takes the page after it, and `cursorEncode` writes the next one (see a Domain's `adapters/outbound/` repositories). A cursor that does not decode reads as none: the first page.
 
 - Give each sort the `CursorKind` of its column: `integer` for an `integer` column, so a cursor with a fraction or past int4 reads as none: the first page, not a 500. `number` is for `real` and `double precision`. Sort on an `integer` column, not `smallint`: `postgresKeysetCreate` refuses kind `integer` on any other column.
 - The repository contract test pages every value of the sort enum with `cursorTestPagesCheck` (`src/cursor-test-pages-check.ts`), on items with ties on each sort value that allows them.
@@ -34,4 +34,4 @@ A transaction alone does not stop a lost write: two transactions can read the sa
 
 ## An Aggregate with a child table
 
-When an Aggregate owns a list (a team's roster), keep both tables in the Domain's one `spi/<domain>-table.ts`. The root repository loads and saves the whole Aggregate: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Aggregate as one value, and the shared repository tests (`spi/<domain>-repository.contract.ts`) check that the children round-trip on both adapters.
+When an Aggregate owns a list (a team's roster), keep both tables in the Domain's one `adapters/outbound/<domain>-table.ts`. The root repository loads and saves the whole Aggregate: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Aggregate as one value, and the shared repository tests (`adapters/outbound/<domain>-repository.contract.ts`) check that the children round-trip on both adapters.

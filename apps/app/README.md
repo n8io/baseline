@@ -30,7 +30,7 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 
 ## Domains
 
-A Domain is one business entity: a folder in `src/domains/` with the API, Use cases, Rules, ports and SPI in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The Domains are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
+A Domain is one business entity: a folder in `src/contexts/` with the API, Use cases, Rules, ports and SPI in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The Domains are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
 
 ```sh
 pnpm domain-create invoice --bare   # the core only; pnpm domain-create --help lists the parts

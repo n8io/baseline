@@ -4,8 +4,8 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { logger } from "@n8io/baseline-logger";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
-import { fooSeed } from "#domains/foo/api/index.ts";
-import { fooScopes } from "#domains/foo/index.ts";
+import { fooSeed } from "#contexts/foo/adapters/inbound/index.ts";
+import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { connectionsOpen } from "./connections.ts";
 import { type DomainsUseCases, domainsUseCasesCreate } from "./use-cases.ts";

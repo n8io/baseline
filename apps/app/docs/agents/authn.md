@@ -11,7 +11,7 @@ Read when a task depends on who may do what: a new role, a scope, a Use case onl
 
 - A Domain's entry exports its scopes, `<domain>Scopes` (`invoiceScopes = ["invoice:refund"] as const`). `src/server.ts` spreads each into the one `scopes` list; `pnpm domain-create` adds the new Domain's there.
 - A scope means a permission, not a role. A role is a set of scopes the provider grants a group.
-- A Rule in `rules/` reads the Actor and answers yes or no: `actor.scopes.includes("invoice:refund") || invoice.createdBy === actor.id`. The Use case calls it and returns the Domain's forbidden error; the route and the page never check a scope themselves.
+- A Rule in `domain/` reads the Actor and answers yes or no: `actor.scopes.includes("invoice:refund") || invoice.createdBy === actor.id`. The Use case calls it and returns the Domain's forbidden error; the route and the page never check a scope themselves.
 - Only a machine may call it: `actor.kind === "client"`, in a Rule such as `invoiceImportCan`. A user holding every scope still fails it.
 
 ## Actors that are not a person

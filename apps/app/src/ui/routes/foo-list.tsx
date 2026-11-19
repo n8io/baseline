@@ -1,7 +1,7 @@
 import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
-import { FooCreateInput, FooListInput } from "#domains/foo/index.ts";
+import { FooCreateInput, FooListInput } from "#contexts/foo/index.ts";
 import { Button } from "#ui/components/button.tsx";
 import {
 	Card,

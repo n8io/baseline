@@ -1,6 +1,6 @@
-// A27: a Use case returns err() for an expected outcome; neither it nor a Rule throws or catches
-// expect: src/domains/bar/rules/bar-name-valid-is.ts:2: try in a Rule; move the call that throws behind a port
-// @file src/domains/bar/rules/bar-name-valid-is.ts
+// A27: a Use case returns err() for an expected outcome; neither it nor domain/ throws or catches
+// expect: src/contexts/bar/domain/bar-name-valid-is.ts:2: try in a domain/ file; move the call that throws behind a port
+// @file src/contexts/bar/domain/bar-name-valid-is.ts
 export const barNameValidIs = (name: string): boolean => {
 	try {
 		return new RegExp(name).test(name);

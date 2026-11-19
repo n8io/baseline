@@ -1,7 +1,7 @@
-// A10: src/ui/** imports domains only through index.ts; nothing in src/domains/** imports src/ui/**
-// expect: src/ui/routes/bar-list.tsx imports #domains/bar/models/bar.ts: the UI calls domains only through src/domains/bar/index.ts
+// A10: src/ui/** imports contexts only through index.ts; nothing in src/contexts/** imports src/ui/**
+// expect: src/ui/routes/bar-list.tsx imports #contexts/bar/domain/bar.ts: the UI calls contexts only through src/contexts/bar/index.ts
 // @file src/ui/routes/bar-list.tsx
-import { Bar } from "#domains/bar/models/bar.ts";
+import { Bar } from "#contexts/bar/domain/bar.ts";
 
 export default function BarList() {
 	return <p>{Bar.description}</p>;

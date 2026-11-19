@@ -1,6 +1,6 @@
-// A7: models/ and <domain>-errors.ts import nothing from @hono/*; .openapi( appears only in api/
-// expect: src/domains/bar/models/bar.ts imports @hono/zod-openapi: models and errors stay free of HTTP
-// @file src/domains/bar/models/bar.ts
+// A7: domain/ imports nothing from @hono/*; .openapi( appears only in adapters/inbound/
+// expect: src/contexts/bar/domain/bar.ts imports @hono/zod-openapi: domain/ stays free of HTTP
+// @file src/contexts/bar/domain/bar.ts
 import { z } from "@hono/zod-openapi";
 
 export const Bar = z.object({ name: z.string() }).openapi("Bar");
