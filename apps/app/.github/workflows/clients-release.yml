@@ -1,0 +1,48 @@
+name: clients-release
+
+# Publishes the SDK (clients/sdk) and the command line tool (clients/cli) to npm after each push to
+# main that changed them: scripts/clients-release.ts picks the version, docs/agents/clients.md says
+# how. Off, and green, until the repository variable CLIENTS_NPM_SCOPE names the npm scope.
+on:
+  push:
+    branches: [main]
+
+# One publish at a time, none cancelled: each reads the version the one before published.
+concurrency:
+  group: clients-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  off:
+    if: vars.CLIENTS_NPM_SCOPE == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: echo "::notice::CLIENTS_NPM_SCOPE is not set, so nothing is published. docs/agents/clients.md says how to turn publishing on."
+
+  publish:
+    if: vars.CLIENTS_NPM_SCOPE != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # id-token: npm trusted publishing (OIDC), so no npm token is stored.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/clients-release.ts
+        env:
+          CLIENTS_NPM_SCOPE: ${{ vars.CLIENTS_NPM_SCOPE }}
+          # npm accepts provenance only from a public repository.
+          NPM_CONFIG_PROVENANCE: ${{ !github.event.repository.private }}
