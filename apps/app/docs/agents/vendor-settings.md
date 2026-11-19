@@ -35,6 +35,6 @@ Rules:
 - Postgres reads TLS from one place. With `sslmode` or another `ssl*` parameter in `DATABASE_URL`, pg ignores `vendor.ssl`, so the Package refuses the pair. A Project that sets `vendor.ssl` on the pool passes the same to `postgresMigrate` and `queueMigrate`.
 - Leave a key out to leave it unset. `vendor: { ssl: undefined }` is a type error; spread it in instead: `vendor: { ...(ca ? { ssl: { ca } } : {}) }`.
 - `vendor` is outside what the Package promises. The Package does not test it, and a vendor swap deletes it. Search for `vendor:` to see what a swap must solve again.
-- Never reach a vendor from a Domain, the UI or a composition root. Architecture rule A12 allows these factories only in the files named above. For a vendor-only call at run time (a Redis command, say), write an adapter of your own in `adapters/outbound/` behind a Domain port, built on what `connections` holds.
+- Never reach a vendor from a bounded context, the UI or a composition root. Architecture rule A12 allows these factories only in the files named above. For a vendor-only call at run time (a Redis command, say), write an adapter of your own in `adapters/outbound/` behind a port, built on what `connections` holds.
 - The logger and telemetry have no `vendor` option: both start from the environment before any of these files run.
 - A setting every Project needs is not a `vendor` setting. Ask for a named option.

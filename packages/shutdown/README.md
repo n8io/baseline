@@ -49,12 +49,12 @@ Test it with fake timers: spy on `process.on` to catch its listeners and on `pro
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })` | Owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash. A second signal is ignored. |
 | `ShutdownHandle`                                                           | `isShuttingDown()`, for `/readyz`.                                                                                                                                                         |
-| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Consumers) or resource (queue, pools, clients, health, telemetry).                                                               |
+| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Event handlers) or resource (queue, pools, clients, health, telemetry).                                                          |
 
 The steps, counted from the signal:
 
 1. Waits `drainDelayMs` (default 5 s; pass 0 outside production) while readiness answers 503.
-2. Closes every intake (HTTP server, live streams, Consumers) at once. One still open at the cutoff (`deadlineMs` minus 5 s) is logged at warn, and shutdown moves on.
+2. Closes every intake (HTTP server, live streams, Event handlers) at once. One still open at the cutoff (`deadlineMs` minus 5 s) is logged at warn, and shutdown moves on.
 3. Closes each resource (queue, pools, clients, health, telemetry last) in order. One still open at the deadline is logged at error, with every resource after it.
 4. Gives up at `deadlineMs` (default 25 s), keeping the last 5 s for the resources, and logs `Shutdown finished` with the exit code.
 </details>

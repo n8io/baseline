@@ -7,10 +7,10 @@
 // Other files (UI, composition roots) are held to every glossary's aliases. Given a glossary
 // instead of a map (Baseline runs it over the monorepo with its root CONTEXT.md), that glossary
 // holds every file. Only prose counts: comments and string literals in code files, every line of
-// other text files; migrations, JSON, the glossaries and a string that is the value of `kind:` are
-// skipped. A glossary term on the line is blanked first, so "Domain event" is no hit for "Domain";
-// an alias written capitalized ("Rule") matches only that case, so "architecture rule" passes; an
-// `_Allowed until <when>_:` line lists aliases not checked yet. Warnings only: the agent judges
+// other text files; migrations, JSON, the glossaries and a string that is the value of `kind:`,
+// in code or quoted in text, are skipped. A glossary term on the line is blanked first, so "Event
+// key" is no hit for an alias "Event"; an alias written capitalized ("DTO") matches only that case,
+// so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. Warnings only: the agent judges
 // each hit, so it always exits 0.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -56,8 +56,8 @@ export const glossaryAliasesRead = (context: string): GlossaryAlias[] => {
 	return aliases.filter((a) => !allowed.has(a.alias.toLowerCase()));
 };
 
-// Every `**Term**:` heading, longest first, so a term that holds an alias ("Domain event") is
-// blanked before the alias ("Domain") is matched.
+// Every `**Term**:` heading, longest first, so a term that holds an alias ("Event key") is
+// blanked before the alias ("Event") is matched.
 export const glossaryTermsRead = (context: string): string[] =>
 	[...context.matchAll(/^\*\*(.+)\*\*:\s*$/gm)]
 		.map((m) => m[1] ?? "")
@@ -105,6 +105,8 @@ const glossarySkipIs = (file: string): boolean =>
 // (`=>`, `>=`), generics followed by a call or an assignment, and code with `;` `=` `|` `(` `)` do not match.
 const jsxTextPattern =
 	/(?<=[\w"'}\]])>([^<>{};=|&()]*[A-Za-z][^<>{};=|&()]*)(?=[<{])/g;
+
+const kindValuePattern = /\bkind:\s*(["'])[^"'\n]*\1/g;
 
 const codeIs = (mode: string | undefined): boolean =>
 	mode === undefined || mode === "code";
@@ -303,8 +305,8 @@ export const glossaryLanguageOf = ({
 };
 
 // Not inside a word or a path: test/integration, test:integration and integration.test.ts are
-// no Bridge. A word written capitalized ("Rule", "SPI", another context's "Golfer") matches only
-// as written, as prose writes a glossary term; "an architecture rule" and "a golfer id" pass.
+// no hit for "integration". A word written capitalized ("DTO", another context's "Golfer")
+// matches only as written, as prose writes a glossary term; "an architecture rule" and "a golfer id" pass.
 // `plural` also takes "Golfers".
 const wordPattern = ({
 	global = "",
@@ -333,7 +335,7 @@ const languagePatterns = (language: GlossaryLanguage): LanguagePatterns => ({
 	})),
 	words: [
 		...language.terms.map((term) => ({
-			// "Domain events" is the term "Domain event", not the alias "Domain".
+			// "Event keys" is the term "Event key", not an alias "Event".
 			pattern: new RegExp(
 				`(?<![\\w-])${RegExp.escape(term)}(?:e?s)?(?![\\w-])`,
 				"gi",
@@ -380,6 +382,9 @@ export const glossaryHitsFind = ({
 			}
 			if (lines === null) continue;
 			prose = lines[added.line - 1] ?? "";
+		} else {
+			// A Markdown line quoting code (`kind: "client"`) skips the `kind:` value, as code does.
+			prose = prose.replace(kindValuePattern, (value) => " ".repeat(value.length));
 		}
 		const language = languageOf(added.file);
 		let patterns = compiled.get(language);
@@ -418,8 +423,8 @@ export const glossaryHitFormat = (
 
 // What is wrong with an app's glossaries: CONTEXT.md holds only the shared terms, CONTEXT-MAP.md
 // has one row per folder in src/contexts/ with a subdomain type and its CONTEXT.md, that file says
-// the same subdomain, and each relationship joins two listed contexts through an ACL, Domain
-// events or both. `glossaryRead` returns undefined for a missing file.
+// the same subdomain, and each relationship joins two listed contexts through an ACL,
+// Domain events or both. `glossaryRead` returns undefined for a missing file.
 export const contextMapViolations = ({
 	appGlossary,
 	contexts,

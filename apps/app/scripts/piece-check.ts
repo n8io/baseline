@@ -27,7 +27,7 @@ export type PieceCheckPlan = {
 	notes: string[];
 };
 
-// Which pieces to check: those installed, not kept, and not blocked by a Consumer.
+// Which pieces to check: those installed, not kept, and not blocked by an Event handler.
 export const pieceCheckPlan = ({
 	installed,
 	kept,

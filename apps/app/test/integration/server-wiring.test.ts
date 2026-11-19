@@ -94,7 +94,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 		expect(res.status).toBe(401);
 	});
 
-	// Every guard below sits in base code, outside any piece block and any Domain, so a Project
+	// Every guard below sits in base code, outside any piece block and any bounded context, so a Project
 	// runs these too. test/render/api-only.ts checks the main ones on a Project with every piece removed.
 	describe("security guards in every piece combination", () => {
 		const evil = { Origin: "https://evil.example" };
@@ -143,7 +143,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 			},
 		);
 
-		it("sets the session cookie as __Host-: Secure, HttpOnly, SameSite=Lax, Path=/ and no Domain", async () => {
+		it("sets the session cookie as __Host-: Secure, HttpOnly, SameSite=Lax, Path=/ and no domain attribute", async () => {
 			const res = await request("/auth/sign-in", {
 				body: new URLSearchParams({ who: "dev-user" }),
 				headers: { Origin: server.url },

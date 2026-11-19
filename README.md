@@ -15,7 +15,7 @@ Run `pnpm app-create` from a clone of this repo after `fnm use && pnpm install`,
 
 <details><summary><b>What the two commands do</b></summary>
 
-**`pnpm app-create`** renders the latest `app@` release with no Domain yet, creates a private GitHub repo whose main takes squash-merged pull requests only and needs every CI check, and runs CI once on main.
+**`pnpm app-create`** renders the latest `app@` release with no bounded context yet, creates a private GitHub repo whose main takes squash-merged pull requests only and needs every CI check, and runs CI once on main.
 
 ```sh
 git clone https://github.com/n8io/baseline && cd baseline
@@ -33,8 +33,8 @@ It asks two questions; pass them as flags instead with `--name --description [--
 
 <table>
 <tr>
-<td width="33%" valign="top"><b>Domains, not folders of stuff</b><br>API, Use cases, Rules, ports and SPI in one layout per Domain. <code>pnpm context-create</code> and <code>pnpm aggregate-create</code> add a context and its Aggregates, wired and tested, once their terms are in <code>CONTEXT.md</code>.</td>
-<td width="33%" valign="top"><b>Events that keep their order</b><br>An Event commits with the write that caused it, reaches each Consumer in order per Event key, and an inbox skips a repeat. Schedules run in the Worker.</td>
+<td width="33%" valign="top"><b>Bounded contexts, not folders of stuff</b><br>Aggregates with their transitions, Use cases, ports and adapters in one layout per bounded context. <code>pnpm context-create</code> and <code>pnpm aggregate-create</code> add a context and its Aggregates, wired and tested, once their terms are in <code>CONTEXT.md</code>.</td>
+<td width="33%" valign="top"><b>Events that keep their order</b><br>An Event commits with the write that caused it, reaches each Event handler in order per Event key, and an inbox skips a repeat. Schedules run in the Worker.</td>
 <td width="33%" valign="top"><b>An API that documents itself</b><br>An OpenAPI document and an interactive reference at <code>/api/v1/docs</code>. CI fails a breaking change to it.</td>
 </tr>
 <tr>
@@ -60,7 +60,7 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `ui`             | React Router pages, their components and the Vite dev server       | The API, sign-in, live update streams and the Worker, served by Hono |
 | `api-reference`  | The interactive reference at `/api/v1/docs`                        | The OpenAPI document at `/api/v1/openapi.json`                       |
 | `live`           | Live update streams to open pages                                  | Pages that show data as of their load                                |
-| `cache`          | The read-through cache on each Domain's get                        | Every get reads Postgres                                             |
+| `cache`          | The read-through cache on each Aggregate's get                     | Every get reads Postgres                                             |
 | `redis`          | The Redis connection and its Docker service (after live and cache) | Postgres as the only data store                                      |
 | `queue`          | Events, Schedules and the Worker process                           | One long-running process; plain Postgres transactions                |
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
@@ -75,7 +75,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | I need to…                                                                 | Package                                     | Runs on            |
 | -------------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
 | save an aggregate in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
-| tell another Domain something happened, or run on a Schedule               | [`queue`](packages/queue)                   | pg-boss            |
+| tell another context something happened, or run on a Schedule              | [`queue`](packages/queue)                   | pg-boss            |
 | refresh open pages when data changes                                       | [`live`](packages/live)                     | SSE, Redis pub/sub |
 | skip a slow read, and keep working when the store is down                  | [`cache`](packages/cache)                   | Redis or memory    |
 | share one connection between the cache and live updates                    | [`redis`](packages/redis)                   | node-redis         |
@@ -121,7 +121,7 @@ Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creati
 
 ```text
 .github/workflows/  ci.yml (this repo), app-ci.yml (called by Projects), release.yml
-apps/app/           the Template: src/contexts/foo is the example Domain
+apps/app/           the Template: src/contexts/foo is the example bounded context
 packages/*          the @n8io/baseline-* Packages
 scripts/            app-create.ts, and readme-svg/ for these diagrams
 test/               app-create tests and the render-and-test check

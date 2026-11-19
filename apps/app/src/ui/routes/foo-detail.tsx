@@ -220,7 +220,7 @@ const FooDetail = ({ actionData, loaderData }: Route.ComponentProps) => {
 export default FooDetail;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	// Branch on the error's type, not fooErrorStatus: a value import from the Domain would ship its code to the browser.
+	// Branch on the error's type, not fooErrorStatus: a value import from the context would ship its code to the browser.
 	const type = isRouteErrorResponse(error)
 		? (error.data as { type?: FooError["type"] } | null)?.type
 		: undefined;

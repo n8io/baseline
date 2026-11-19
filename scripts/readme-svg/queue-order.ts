@@ -1,4 +1,4 @@
-// The queue README's order diagram: three Event keys feed one Consumer. Each key's Events go one
+// The queue README's order diagram: three Event keys feed one Event handler. Each key's Events go one
 // at a time; order_2's second Event fails once, waits for its retry while #3 holds behind it, then
 // succeeds, and #3 follows. Every Event ends handled, in order. The resting frame is that end.
 import {
@@ -15,10 +15,10 @@ const height = 300;
 const period = 12;
 const laneTop = 78;
 const laneGap = 62;
-// Event #1 waits nearest the Consumer.
+// Event #1 waits nearest the Event handler.
 const slotX = [300, 240, 180] as const;
 const consumerX = 470;
-// Handled Events line up right of the Consumer, #1 furthest along.
+// Handled Events line up right of the Event handler, #1 furthest along.
 const handledX = [820, 765, 710] as const;
 const moveSeconds = 0.5;
 const runSeconds = 0.8;
@@ -108,7 +108,7 @@ export default svgDocument({
 			anchor: "middle",
 			className: "mono dim",
 			fontSize: 12,
-			text: "Consumer",
+			text: "Event handler",
 			x: consumerX,
 			y: laneTop - 22,
 		}),
@@ -143,6 +143,6 @@ export default svgDocument({
 	motionCss: motion.join("\n"),
 	theme,
 	title:
-		"Events of one Event key reach the Consumer one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop",
+		"Events of one Event key reach the Event handler one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop",
 	width,
 });

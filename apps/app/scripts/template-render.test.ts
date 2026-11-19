@@ -370,7 +370,7 @@ describe("templateFileRender", () => {
 		});
 	});
 
-	it("renders the SDK as pnpm sdk-generate writes it for a Project with no Domain", () => {
+	it("renders the SDK as pnpm sdk-generate writes it for a Project with no bounded context", () => {
 		const render = (path: string, text: string) =>
 			templateFileRender({ path: `clients/sdk/${path}`, text }, answers)?.text;
 		const document = {

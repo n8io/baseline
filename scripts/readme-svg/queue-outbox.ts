@@ -1,5 +1,5 @@
 // The queue README's outbox diagram: a publish writes the Event in the caller's transaction. On
-// COMMIT it reaches the queue and the Consumer; on ROLLBACK neither the row nor the Event exists.
+// COMMIT it reaches the queue and the Event handler; on ROLLBACK neither the row nor the Event exists.
 // The resting frame is the committed state.
 import {
 	readmeSvgThemes,
@@ -40,7 +40,7 @@ const css = [
 	`.consumer rect{stroke:${theme.ok}}`,
 ].join("\n");
 
-// 0–50%: the transaction commits and the Event travels to the Consumer. 50–100%: it rolls back.
+// 0–50%: the transaction commits and the Event travels to the Event handler. 50–100%: it rolls back.
 const motion = [
 	`@keyframes travel{0%,12%{transform:translateX(0);opacity:0}14%{transform:translateX(0);opacity:1}26%,44%{transform:translateX(${travel}px);opacity:1}48%,100%{transform:translateX(${travel}px);opacity:0}}.travel{animation:travel ${period}s ease-in-out infinite}`,
 	`@keyframes queued{0%,25%{opacity:0}26%,46%{opacity:1}48%,100%{opacity:0}}.queued{animation:queued ${period}s linear infinite}`,
@@ -92,7 +92,7 @@ export default svgDocument({
 			className: "consumer",
 			fontSize: 13,
 			height: 40,
-			label: "Consumer",
+			label: "Event handler",
 			theme,
 			width: 120,
 			x: queueLeft + chipWidth - 120,
@@ -111,6 +111,6 @@ export default svgDocument({
 	motionCss: motion,
 	theme,
 	title:
-		"A publish writes the Event in the caller's transaction: on commit it reaches the queue and its Consumer; on rollback neither the row nor the Event exists",
+		"A publish writes the Event in the caller's transaction: on commit it reaches the queue and its Event handler; on rollback neither the row nor the Event exists",
 	width,
 });

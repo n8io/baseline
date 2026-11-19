@@ -223,7 +223,7 @@ describe("pieceRemoveRefusal", () => {
 		expect(pieceRemoveRefusal(directory, "redis")).toBeUndefined();
 	});
 
-	it("refuses the queue while a Consumer is left, but not for a test that uses one", () => {
+	it("refuses the queue while an Event handler is left, but not for a test that uses one", () => {
 		const consumerTest = {
 			"src/contexts/invoice/adapters/outbound/invoice-events.test.ts":
 				"queueConsumerCreate\n",
@@ -235,7 +235,7 @@ describe("pieceRemoveRefusal", () => {
 		};
 		using withConsumer = projectCreate(consumer);
 		expect(pieceRemoveRefusal(withConsumer.path, "queue")).toBe(
-			"Remove your Consumers first: they run only in the Worker.",
+			"Remove your Event handlers first: they run only in the Worker.",
 		);
 	});
 });
@@ -363,7 +363,7 @@ describe("pieceFilesRemove", () => {
 			),
 		).toBe(false);
 		expect(existsSync(join(directory, "src/cache-store-open.ts"))).toBe(false);
-		// Only a Domain's cache files go, not every file named like one.
+		// Only a context's cache files go, not every file named like one.
 		expect(existsSync(join(directory, "src/ui/query-cache.ts"))).toBe(true);
 		expect(existsSync(join(outbound, "invoice-transaction.postgres.ts"))).toBe(
 			true,

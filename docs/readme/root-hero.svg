@@ -19,7 +19,7 @@
 <rect x="36" y="146" width="64" height="6" rx="3" fill="#FF5A36"/>
 <text x="34" y="190" class="display" font-size="17" font-weight="600">From nothing to a running,</text>
 <text x="34" y="214" class="display" font-size="17" font-weight="600">tested app in two commands.</text>
-<text x="34" y="250" class="mono dim" font-size="12">TypeScript · Domains · Events</text>
+<text x="34" y="250" class="mono dim" font-size="12">TypeScript · DDD · Domain events</text>
 <text x="34" y="268" class="mono dim" font-size="12">one CI for every Project</text>
 <rect x="310" y="56" width="545" height="300" rx="14" fill="#221915" stroke="#55433A"/>
 <circle cx="330" cy="76" r="5" fill="#55433A"/><circle cx="348" cy="76" r="5" fill="#55433A"/><circle cx="366" cy="76" r="5" fill="#55433A"/>

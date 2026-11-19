@@ -78,7 +78,7 @@ export default defineConfig({
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					hookTimeout: 20_000,
 					include: ["src/contexts/**/*.test.ts"],
-					// Domain tests run on memory adapters and share no module state, so one module graph
+					// Context tests run on memory adapters and share no module state, so one module graph
 					// per worker is safe. Isolating each file cost ~96 s on a CI runner (six Domains),
 					// past the unit job's 2 min budget; without it they take a few seconds.
 					isolate: false,

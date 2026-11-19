@@ -10,12 +10,12 @@ Read when touching a table, a migration or SQL.
 - On a migration conflict, delete your migration, rebase and run `pnpm codegen` again. Never use `--fix-conflicts` or `--hints`.
 - Destructive SQL (`DROP`, `RENAME`, `ALTER COLUMN ... TYPE`, `SET NOT NULL`) needs a `destructive.md`. Adding one is a stop-and-ask. The file is `migrations/<folder>/destructive.md` and says why the change is safe now; CI's `check` job fails a new `migration.sql` with `DROP TABLE`, `COLUMN`, `SCHEMA`, `INDEX`, `CONSTRAINT`, `TYPE`, `VIEW` or `SEQUENCE`, `RENAME`, `ALTER COLUMN ... TYPE` or `SET NOT NULL` and no such file.
 - Tables hold UUIDs; code and the API speak prefixed ids (`invoice_…`). `postgresIdColumnCreate("invoice")` converts at the column; in raw values use `idToUuid` and `idFromUuid` from `@n8io/baseline-id`.
-- No foreign keys across Domains. Store another Domain's id as a plain indexed `uuid` column.
+- No foreign keys across bounded contexts. Store another context's id as a plain indexed `uuid` column.
 - Do not use `sql.raw` in `adapters/outbound/`.
 
 ## Lists
 
-A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` (Postgres) or `cursorMemoryPage` (memory) takes the page after it, and `cursorEncode` writes the next one (see a Domain's `adapters/outbound/` repositories). A cursor that does not decode reads as none: the first page.
+A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` (Postgres) or `cursorMemoryPage` (memory) takes the page after it, and `cursorEncode` writes the next one (see a context's `adapters/outbound/` repositories). A cursor that does not decode reads as none: the first page.
 
 - Give each sort the `CursorKind` of its column: `integer` for an `integer` column, so a cursor with a fraction or past int4 reads as none: the first page, not a 500. `number` is for `real` and `double precision`. Sort on an `integer` column, not `smallint`: `postgresKeysetCreate` refuses kind `integer` on any other column.
 - The repository contract test pages every value of the sort enum with `cursorTestPagesCheck` (`src/cursor-test-pages-check.ts`), on items with ties on each sort value that allows them.
@@ -25,13 +25,13 @@ A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` 
 A transaction alone does not stop a lost write: two transactions can read the same row, and the later write undoes the earlier one. Under Postgres's READ COMMITTED:
 
 - Read a row you will write back through the repository's `findByIdForUpdate` (Drizzle `.for("update")`) inside the transaction, as the update and delete Use cases `pnpm aggregate-create` writes do. A concurrent write then waits until you commit. Lock several rows in id order (`.orderBy(asc(table.id)).for("update")`), so two transactions cannot deadlock.
-- A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<domain>:<owner id>")` first, then count and insert.
+- A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<aggregate>:<owner id>")` first, then count and insert.
 - Change a counter with one statement (``set({ count: sql`${table.count} + 1` })``), never read, add and write back.
-- A write that finds its row gone (deleted since the read) returns the Domain's NotFound error, never throws: the route answers 404, not 500.
-- A repository error the Use case knows cannot happen (a roster save that changes no unique column) is a bug, not an outcome: `throw new Error(...)` directly under a one-line `// unreachable: <why>`, the one throw A27 allows. The request then fails with a 500 and a Consumer's Event retries and holds its key; an `err` would complete the Event with nothing changed.
+- A write that finds its row gone (deleted since the read) returns the Aggregate's NotFound error, never throws: the route answers 404, not 500.
+- A repository error the Use case knows cannot happen (a roster save that changes no unique column) is a bug, not an outcome: `throw new Error(...)` directly under a one-line `// unreachable: <why>`, the one throw A27 allows. The request then fails with a 500 and an Event handler's Event retries and holds its key; an `err` would complete the Event with nothing changed.
 - Postgres takes at most 65,535 bind parameters per statement: chunk a fan-out insert (rows × columns) under it.
-- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<domain>-update.postgres.test.ts` that `pnpm aggregate-create` writes).
+- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<aggregate>-update.postgres.test.ts` that `pnpm aggregate-create` writes).
 
 ## An Aggregate with a child table
 
-When an Aggregate owns a list (a team's roster), keep both tables in the Domain's one `adapters/outbound/<domain>-table.ts`. The root repository loads and saves the whole Aggregate: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Aggregate as one value, and the shared repository tests (`adapters/outbound/<domain>-repository.contract.ts`) check that the children round-trip on both adapters.
+When an Aggregate owns a list (a team's roster), keep both tables in the Aggregate's one `adapters/outbound/<aggregate>-table.ts`. The root repository loads and saves the whole Aggregate: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Aggregate as one value, and the shared repository tests (`adapters/outbound/<domain>-repository.contract.ts`) check that the children round-trip on both adapters.

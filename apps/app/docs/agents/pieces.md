@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Domain tests a piece's behaviour in a file of its own (`application/<domain>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<domain>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm aggregate-create` see that a piece's package is gone and leave the piece out of every new context and Aggregate.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Aggregate's piece behaviour is tested in a file of its own (`application/<aggregate>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<aggregate>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm aggregate-create` see that a piece's package is gone and leave the piece out of every new context and Aggregate.
 
 ## How to remove a piece
 
@@ -17,7 +17,7 @@ When `pnpm check` fails after the removal, the command undoes it (the tree is as
 
 Rules for code that belongs to a piece, so the removal stays clean:
 
-- Put it in a whole file named for the piece (`<domain>-use-cases-<piece>.test.ts`, `adapters/outbound/<domain>-<piece>.ts`) where you can, and in blocks only where it shares a file.
+- Put it in a whole file named for the piece (`<aggregate>-use-cases-<piece>.test.ts`, `adapters/outbound/<aggregate>-<piece>.ts`) where you can, and in blocks only where it shares a file.
 - A variable or parameter used only inside a block must be declared inside it, or it is unused once the block goes. An import is never inside a block: piece-remove deletes the imports nothing uses.
 - Blocks of different pieces may nest; they may not cross. Biome sorts imports and exports and can pull a block apart: a file with blocks in its exports starts with `// biome-ignore-all assist/source/organizeImports: <why>`. `structure.test.ts` fails on a start without its end, and on blocks that cross.
 - Never wrap an import line in markers: Biome sorts imports and would carry one into or out of a block. Add a new import with the imports above the file's first `piece-start:` line, and an import only a piece uses to that piece's own file. When `pnpm format` has pulled a block apart (`structure.test.ts` or piece-remove says the markers do not balance), move the imports it carried back above the first marker and put each `piece-start:` and `piece-end:` line back around the code it held, then run `pnpm format` again and check the blocks are still whole.
@@ -25,7 +25,7 @@ Rules for code that belongs to a piece, so the removal stays clean:
 
 ## Keeping every piece removable
 
-`pnpm piece-check [piece...]` runs `pnpm check` and `pnpm test` on `HEAD` unmodified and, when they fail, reports only "fix the tree first", so a broken tree blames no piece. It removes each installed piece on its own throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The unmodified tree is checked first, alone, which also fills the pnpm store; then the pieces are checked two at a time (more at once fight over the CPUs and run slower); each piece prints one result line, and a failing piece's output is printed at the end. A check that crashes, is killed (often out of memory), whose install fails or whose removal's `pnpm remove`, `pnpm add` or `pnpm install` fails (registry error, network) is reported as "could not be checked" and blames no piece: run it again. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates, and `sdk` after `cli`; `queue` is skipped, with a note, while a Consumer exists.
+`pnpm piece-check [piece...]` runs `pnpm check` and `pnpm test` on `HEAD` unmodified and, when they fail, reports only "fix the tree first", so a broken tree blames no piece. It removes each installed piece on its own throwaway worktree of `HEAD` and runs `pnpm check` and `pnpm test` on the result, so new code that forgets its markers fails here instead of on the day someone removes the piece. The unmodified tree is checked first, alone, which also fills the pnpm store; then the pieces are checked two at a time (more at once fight over the CPUs and run slower); each piece prints one result line, and a failing piece's output is printed at the end. A check that crashes, is killed (often out of memory), whose install fails or whose removal's `pnpm remove`, `pnpm add` or `pnpm install` fails (registry error, network) is reported as "could not be checked" and blames no piece: run it again. The `pieces` job of `app-ci.yml` runs it on every pull request, and it is a required check. `redis` is checked after the cache and live updates, and `sdk` after `cli`; `queue` is skipped, with a note, while an Event handler exists.
 
 A Project that will never remove a piece lists it in `.template.json`: `"piecesKept": ["live", "cache"]`. `piece-check` skips it, and new code needs no markers for it. Decide that once, on purpose; the Template's own pieces stay removable.
 
@@ -35,7 +35,7 @@ A Project's own file that belongs to a piece, such as a test of the pages under 
 
 ## How to add a piece back
 
-`git revert` the "Remove <piece>" commit, run `pnpm install`, then follow the piece's steps below for each Domain created after the removal. Add Redis back before the cache or live updates.
+`git revert` the "Remove <piece>" commit, run `pnpm install`, then follow the piece's steps below for each context created after the removal. Add Redis back before the cache or live updates.
 
 ## UI pages
 
@@ -43,25 +43,25 @@ A Project's own file that belongs to a piece, such as a test of the pages under 
 
 The React Router pages, their components and styles, and the Vite dev server. The API, sign-in, live update streams and the Worker stay. Without UI pages, `src/server.ts` serves its Hono app with `@hono/node-server`, Vite builds it into `build/server/index.js` as before, and `pnpm dev` runs it with `node --watch`.
 
-Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Domain, and add their lines at the `wiring:` markers in `src/ui/routes.ts` and `src/ui/context.ts`.
+Add the UI pages back: `git revert` the "Remove ui" commit. For each Aggregate created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Aggregate, and add their lines at the `wiring:` markers in `src/ui/routes.ts` and `src/ui/context.ts`.
 
 ## Live updates
 
 `pnpm piece-remove live`
 
-The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
+The live update streams (`/live/<aggregate>/<id>`, `@n8io/baseline-live`) and each context's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, with its route inside the `piece-start: live` block of the context's `index.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Aggregate created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, with its route inside the `piece-start: live` block of the context's `index.ts`.
 
 ## The cache
 
 `pnpm piece-remove cache`
 
-The cache store (`src/cache-store-open.ts`), each Domain's cache port and its adapter (`adapters/outbound/<domain>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each context's cache port and its adapter (`adapters/outbound/<aggregate>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
 While you keep it: a cached read can be stale. A Use case clears the entry after its change commits, and when that clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `adapters/outbound/index.ts`, or leave it out of the cache. A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Domain created after it, copy every `piece-start: cache` block, the `adapters/outbound/*-cached.ts` file and its test and `application/*-use-cases-cache.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain.
+Add the cache back: `git revert` the "Remove cache" commit. For each Aggregate created after it, copy every `piece-start: cache` block, the `adapters/outbound/*-cached.ts` file and its test and `application/*-use-cases-cache.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate.
 
 ## Redis
 
@@ -75,27 +75,27 @@ Add Redis back: `git revert` the "Remove redis" commit, before you add back the 
 
 `pnpm piece-remove queue`
 
-The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry), and the `blocked-keys` command (`src/blocked-keys.ts`). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and anti-corruption layers stay; an ACL reads in process and runs in the server. A Project with Consumers removes them first; the command refuses while any is left outside a test.
+The queue (`@n8io/baseline-queue` on pg-boss), each context's Domain events and its Schedules, the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry), and the `blocked-keys` command (`src/blocked-keys.ts`). Each context's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and anti-corruption layers stay; an ACL reads in process and runs in the server. A Project with Event handlers removes them first; the command refuses while any is left outside a test.
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` and `adapters/outbound/index-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Aggregate created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` and `adapters/outbound/index-queue.test.ts` files from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 ## Analytics
 
 `pnpm piece-remove analytics`
 
-Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Domain's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
+Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each context's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` and `.env.production`. Nothing else uses it, so it can go in any order.
 
 `MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 
-Add analytics back: `git revert` the "Remove analytics" commit. For each Domain created after it, copy every `piece-start: analytics` block and `application/*-use-cases-analytics.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain.
+Add analytics back: `git revert` the "Remove analytics" commit. For each Aggregate created after it, copy every `piece-start: analytics` block and `application/*-use-cases-analytics.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate.
 
 ## Error tracking
 
 `pnpm piece-remove error-tracking`
 
-Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` and `.env.production`. Code reports an error by logging it, so no Domain holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
+Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` and `.env.production`. Code reports an error by logging it, so no context holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
 
 It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the composition root has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
 

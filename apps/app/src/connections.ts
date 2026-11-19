@@ -101,7 +101,7 @@ export const connectionsOpen = async ({
 		...(await queueOpen({ database, intakes, resources, role })),
 		// piece-end: queue
 		// piece-start: redis
-		// For a Project's own adapters. A Domain's cache goes through cacheStore instead.
+		// For a Project's own adapters. A bounded context's cache goes through cacheStore instead.
 		redis,
 		// piece-end: redis
 		resources,

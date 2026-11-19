@@ -9,18 +9,18 @@ Read when a task depends on who may do what: a new role, a scope, a Use case onl
 
 ## Scopes and specifications
 
-- A Domain's entry exports its scopes, `<domain>Scopes` (`invoiceScopes = ["invoice:refund"] as const`). `src/server.ts` spreads each into the one `scopes` list; `pnpm aggregate-create` adds the new Aggregate's there.
+- A context's `index.ts` exports its scopes, `<context>Scopes` (`invoiceScopes = ["invoice:refund"] as const`). `src/server.ts` spreads each into the one `scopes` list; `pnpm aggregate-create` adds the new Aggregate's there.
 - A scope means a permission, not a role. A role is a set of scopes the provider grants a group.
 - A specification in `domain/<aggregate>.ts` reads the Actor and answers yes or no: `actor.scopes.includes("invoice:refund") || invoice.createdBy === actor.id`. The transition that needs it calls it and returns the forbidden error (`invoiceRefund(invoice, { actor, now })`), so no Use case can skip it; a delete, which has no transition, checks it in the Use case; the route and the page never check a scope themselves.
 - Only a machine may call it: `actor.kind === "client"`, in a specification such as `invoiceImportCan`. A user holding every scope still fails it.
 
 ## Actors that are not a person
 
-A Consumer, a Bridge and a Schedule call Use cases with an Actor they build themselves, `{ id: "invoice-schedule", kind: "client", scopes: [] }`. The Use case checks it like any other, so give it only the scopes that Use case's specifications need. Never hand it a list of every scope.
+An Event handler, an anti-corruption layer and a Schedule call Use cases with an Actor they build themselves, `{ id: "invoice-schedule", kind: "client", scopes: [] }`. The Use case checks it like any other, so give it only the scopes that Use case's specifications need. Never hand it a list of every scope.
 
 ## One dev user per role
 
-`authnMemoryUsersCreate` returns Dev user (no scopes) and Dev admin (every scope). When a Domain has a role between them, add a user for it, so the sign-in page offers it and a developer can try what that role sees:
+`authnMemoryUsersCreate` returns Dev user (no scopes) and Dev admin (every scope). When a context has a role between them, add a user for it, so the sign-in page offers it and a developer can try what that role sees:
 
 ```ts
 { id: "dev-manager", name: "Dev manager", scopes: ["invoice:refund"] },

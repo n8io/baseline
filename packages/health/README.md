@@ -56,7 +56,7 @@ Test it the way a probe sees it: pick a free port, pass it, and `fetch` `/livez`
 
 - The Server and the Worker open the health port only after their connections open, so a process that cannot reach the database exits at boot and never answers a probe: a rollout stalls with the old pods still serving.
 - The Server's `isAlive()` is always true; the Worker's is false only when its own poll loops hang (60 s), which a restart fixes. A database outage never fails liveness.
-- The Server calls `ready()` once its port is bound, the Worker once its Consumers and Schedules start. On SIGTERM `/readyz` turns 503 and the Server keeps serving for the drain delay while the balancer drops it, then closes. Health closes after the connections and before telemetry.
+- The Server calls `ready()` once its port is bound, the Worker once its Event handlers and Schedules start. On SIGTERM `/readyz` turns 503 and the Server keeps serving for the drain delay while the balancer drops it, then closes. Health closes after the connections and before telemetry.
 - Probe settings for Kubernetes are in the Template's `docs/agents/deploy-kubernetes.md`.
 </details>
 

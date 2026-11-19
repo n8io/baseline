@@ -282,7 +282,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 						"queueConsumerCreate",
 					),
 			)
-				? "Remove your Consumers first: they run only in the Worker."
+				? "Remove your Event handlers first: they run only in the Worker."
 				: undefined,
 		srcFiles:
 			/(\/adapters\/inbound\/[^/]*-schedule(\.test)?\.ts|\/adapters\/outbound\/[^/]*-transaction\.postgres\.test\.ts|-queue\.test\.ts)$/,

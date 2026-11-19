@@ -135,7 +135,7 @@ describe("glossary-check", () => {
 	});
 
 	it("skips an alias inside a path or script name but not at a sentence end", () => {
-		const aliases = [{ alias: "integration", term: "Bridge" }];
+		const aliases = [{ alias: "integration", term: "Anti-corruption layer" }];
 		const pathDiff = [
 			"+++ b/src/a.ts",
 			"@@ -0,0 +1,3 @@",
@@ -210,6 +210,15 @@ describe("glossary-check", () => {
 			expect(hitsIn("src/a.tsx", text)).toEqual([]);
 		});
 
+		it("skips a kind value quoted in Markdown, not the prose around it", () => {
+			const text = [
+				'A Schedule builds `{ id: "a", kind: "client", scopes: [] }`.',
+				"A machine client calls it.",
+			].join("\n");
+
+			expect(hitsIn("docs/a.md", text)).toEqual([2]);
+		});
+
 		it("reads JSX text, on one line and across lines, and leaves code that looks like it", () => {
 			const text = [
 				"const page = (",
@@ -260,11 +269,11 @@ describe("glossary-check", () => {
 
 describe("an alias written capitalized", () => {
 	it("matches only as written, so a plain English word passes", () => {
-		const text = "// A Rule holds.\n// An architecture rule holds.\n";
+		const text = "// A DTO holds.\n// A dto holds.\n";
 		const hits = glossaryHitsFind({
 			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
 			languageOf: everyFile({
-				aliases: [{ alias: "Rule", term: "Invariant" }],
+				aliases: [{ alias: "DTO", term: "Entity" }],
 			}),
 			textRead: () => text,
 		});
@@ -288,11 +297,11 @@ describe("an alias written capitalized", () => {
 describe("a plural", () => {
 	it("is its term, so it holds no alias", () => {
 		const glossary =
-			"**Domain event**:\nA fact.\n\n**Bounded context**:\nA scope.\n_Avoid_: Domain\n";
+			"**Event key**:\nAn id.\n\n**Domain event**:\nA fact.\n_Avoid_: Event\n";
 		const hits = glossaryHitsFind({
 			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
 			languageOf: () => glossaryLanguageRead(glossary),
-			textRead: () => "// Publishes Domain events.\n// One Domain.\n",
+			textRead: () => "// Names Event keys.\n// One Event.\n",
 		});
 
 		expect(hits.map((h) => h.line)).toEqual([2]);

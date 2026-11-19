@@ -7,9 +7,9 @@ Read when adding a log line, a span, a span attribute or a metric.
 One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every script runs `node --import ./src/preload.ts`, the image sets it in `NODE_OPTIONS`) does all of it:
 
 - **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
-- **Into the worker.** An Event carries the publishing request's trace on its pg-boss job row. The Consumer runs in that trace, retries included.
+- **Into the worker.** An Event carries the publishing request's trace on its pg-boss job row. The Event handler runs in that trace, retries included.
 - **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
-- **Logs.** Every `logger` line inside a request, job or Consumer has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
+- **Logs.** Every `logger` line inside a request, job or Event handler has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
 - **Error reports.** Every `logger.error` or `logger.fatal` with an `err` is also an Error report in Sentry when the Project has `SENTRY_DSN`, tagged with the same `trace_id`. So log only the unexpected there: an err a Use case returns is expected and is not logged at error.
 
@@ -31,25 +31,25 @@ Never start a span:
 - per loop iteration or per item. One span covers the loop and an attribute holds the count;
 - to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
 - for an error. Return an err; the Use case span records `error.type`;
-- in an SPI adapter. A call with no span means no instrumentation covers that library, and adding one is a stop-and-ask.
+- in an outbound adapter. A call with no span means no instrumentation covers that library, and adding one is a stop-and-ask.
 
 Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
 
-Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<domain>` the Domain the Use case is in, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
+Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<scope>` the context the Use case is in, or one of its Aggregates, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
 
-- `baseline.<domain>.id`, its own id.
-- `baseline.<domain>.<thing>_id`, another Domain's id or any other id (`baseline.trade.team_id`, `baseline.trade.proposer_team_id`).
-- `baseline.<domain>.<thing>_count`, a count (`baseline.invoice.row_count`).
+- `baseline.<scope>.id`, its own id.
+- `baseline.<scope>.<thing>_id`, another context's id or any other id (`baseline.trade.team_id`, `baseline.trade.proposer_team_id`).
+- `baseline.<scope>.<thing>_count`, a count (`baseline.invoice.row_count`).
 
 Names, emails and other personal data never go on a span.
 
-One Event hop makes these spans. `<queue>` is the Consumer's queue name with `.ordered` added (`billing.customer-deleted.ordered`; the name is `<consumer domain>.<event entity>-<event verb>`):
+One Event hop makes these spans. `<queue>` is the Event handler's queue name with `.ordered` added (`billing.customer-deleted.ordered`; the name is `<handling context>.<event entity>-<event verb>`):
 
-1. `send <queue>`, one per subscribed Consumer, in the trace of the Use case that published the Event (a request, or the Schedule's tick).
+1. `send <queue>`, one per subscribed Event handler, in the trace of the Use case that published the Event (a request, or the Schedule's tick).
 2. `process <queue>`, written by the Worker, and `complete <queue>` or `fail <queue>` when it settles the job. A Worker fetch has no span of its own.
-3. The Use case the Consumer calls, named as the Use case (`billingCustomerDeletedHandle`). When one fetch brings several jobs, `process` is in its own trace with links, and each Use case span hangs off its `send`.
+3. The Use case the Event handler calls, named as the Use case (`billingCustomerDeletedHandle`). When one fetch brings several jobs, `process` is in its own trace with links, and each Use case span hangs off its `send`.
 
-Search for `process <queue>` to find the Consumer's run.
+Search for `process <queue>` to find the Event handler's run.
 
 ```ts
 const rows = await telemetrySpanRun("invoiceImport parse", () => {
@@ -59,4 +59,4 @@ const rows = await telemetrySpanRun("invoiceImport parse", () => {
 });
 ```
 
-A Domain never imports `@opentelemetry/api`: `telemetrySpanAttributesSet` and `telemetrySpanRun` are the whole surface, and a throw inside `telemetrySpanRun` sets status Error and `error.type`, and is rethrown.
+A bounded context never imports `@opentelemetry/api`: `telemetrySpanAttributesSet` and `telemetrySpanRun` are the whole surface, and a throw inside `telemetrySpanRun` sets status Error and `error.type`, and is rethrown.

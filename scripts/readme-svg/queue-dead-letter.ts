@@ -15,7 +15,7 @@ const width = 880;
 const height = 340;
 const period = 16;
 const laneTops = [84, 146] as const;
-// Event #1 waits nearest the Consumer.
+// Event #1 waits nearest the Event handler.
 const slotX = [300, 240, 180] as const;
 const consumerX = 470;
 const handledX = [820, 765, 710] as const;
@@ -48,7 +48,7 @@ type ChipOptions = { index: number; name: string; top: number; x: number };
 const chip = ({ index, name, top, x }: ChipOptions) =>
 	`<g class="${name}"><rect x="${x - 22}" y="${top + 2}" width="44" height="26" rx="${theme.radius}" fill="${theme.accent}"/>${svgText({ anchor: "middle", className: "mono chip", fontSize: 12, text: `#${index + 1}`, weight: 700, x, y: top + 20 })}</g>`;
 
-// An Event that is handled: it moves to the Consumer, runs, then joins the handled line.
+// An Event that is handled: it moves to the Event handler, runs, then joins the handled line.
 type HandledOptions = { index: number; name: string; plan: Plan; x: number };
 
 const handled = ({ index, name, plan, x }: HandledOptions) => {
@@ -92,7 +92,7 @@ const plan = (start: number, run: number): Plan => ({
 				`@keyframes held{0%,${at(failArrived)}{opacity:1}${[0, 1, 2, 3, 4, 5, 6, 7].map((step) => `${at(failArrived + 0.5 + step * 0.9)}{opacity:.4}${at(failArrived + 0.95 + step * 0.9)}{opacity:1}`).join("")}${at(lastStart)},100%{opacity:1}}.${name} rect{animation-name:${name}c,held}`,
 			);
 		} else {
-			// #2: reaches the Consumer and flashes red at each failed attempt. It stays there, failed,
+			// #2: reaches the Event handler and flashes red at each failed attempt. It stays there, failed,
 			// holding its key until it is given up; a copy drops into .dead when it fails for good.
 			const toConsumer = consumerX - x;
 			const start = failArrived - moveSeconds;
@@ -121,7 +121,7 @@ const plan = (start: number, run: number): Plan => ({
 	});
 });
 
-// Labels under order_2, right of the Consumer: each attempt, the held key, then the release.
+// Labels under order_2, right of the Event handler: each attempt, the held key, then the release.
 const labelTop = (laneTops[1] ?? 0) + 44;
 const labels = [
 	...Array.from({ length: attempts }, (_, attempt) => ({
@@ -169,7 +169,7 @@ export default svgDocument({
 			anchor: "middle",
 			className: "mono dim",
 			fontSize: 12,
-			text: "Consumer",
+			text: "Event handler",
 			x: consumerX,
 			y: (laneTops[0] ?? 0) - 22,
 		}),

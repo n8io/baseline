@@ -3,7 +3,7 @@
 //   (no arguments)             lists every blocked key
 //   retry <consumer> <key>     runs the failed Event again, before the Events waiting behind it
 //   give-up <consumer> <key>   deletes the failed Event, so the key moves on (its dead-letter copy stays)
-// <consumer> is the Consumer's queueName. It exits 1 when it released nothing.
+// <consumer> is the Event handler's queueName. It exits 1 when it released nothing.
 // `pnpm piece-remove queue` deletes this file.
 import type { Queue } from "@n8io/baseline-queue";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";

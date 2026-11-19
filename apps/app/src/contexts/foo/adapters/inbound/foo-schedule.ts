@@ -12,7 +12,7 @@ const fooScheduleActor: Actor = {
 // When it runs: src/migrate.ts syncs this to the database, once per deploy.
 export const fooSchedule = { cron: "0 3 * * *", name: "foo.stale-archive" };
 
-// What it runs: src/worker.ts starts this with the Domain's Use cases.
+// What it runs: src/worker.ts starts this with the context's Use cases.
 export const fooScheduleCreate = (u: FooUseCases) =>
 	queueScheduleCreate({
 		...fooSchedule,

@@ -188,7 +188,7 @@ export default svgDocument({
 			fontSize: 13,
 			height: 44,
 			label:
-				"the core: Domains · API · Use cases · Postgres · sign-in · telemetry · health",
+				"the core: bounded contexts · API · Use cases · Postgres · sign-in · telemetry · health",
 			theme,
 			width: pieces.length * pieceWidth + (pieces.length - 1) * pieceGap,
 			x: left,
