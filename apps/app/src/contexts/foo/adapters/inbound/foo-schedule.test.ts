@@ -26,6 +26,7 @@ describe("foo's schedule", () => {
 		const fooId = created.value.id;
 		clock.set(new Date("2026-06-01T00:00:00Z"));
 		const schedule = schedules.find((s) => s.name === "foo.stale-archive");
+		expect(schedule).toMatchObject(fooSchedules[0] ?? {});
 
 		expect(await schedule?.run()).toEqual(ok(1));
 		const archived = await useCases.fooGet(owner, { fooId });

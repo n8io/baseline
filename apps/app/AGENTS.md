@@ -40,7 +40,7 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
 - A Package's test helpers come from `@n8io/baseline-<package>/testing`, imported only by `*.test.ts(x)` and `test/` files (A24). Use them and its memory adapter; never copy its internals.
 - `structure.test.ts` fails on a test anywhere else (no `test/unit/`) or one reading undeclared app files.
-- Test a context through its interface on memory connections; past it, only a seam with two adapters or a race.
+- Test a context through its interface on memory connections; past it, only a seam with two adapters, a race or an invariant no read shows.
 - Biome reads a helper named `use<Name>` as a React hook and `before` or `after` as a test hook: name helpers otherwise.
 
 ## Where new work goes

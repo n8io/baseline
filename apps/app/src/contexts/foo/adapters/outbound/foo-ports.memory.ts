@@ -10,35 +10,14 @@ import {
 } from "./foo-transaction.memory.ts";
 
 // Every port of the context in memory, plus the state they share: committed rows and, with the
-// queue, committed events. The clock stands still until the test moves it. The state also records
-// what the live updates and analytics ports were given, in order, for a test to read.
+// queue, committed events. The clock stands still until the test moves it. A context test builds
+// the context through contextsCreate instead; this is for the repository suites and race tests.
 export const fooPortsMemoryCreate = () => {
 	const clock: ClockMemory = clockMemoryCreate();
-	const state = {
-		...fooMemoryStateCreate(),
-		// piece-start: analytics
-		// `committed`: whether the foo was already committed when the event was tracked.
-		fooAnalyticsTracked: [] as (Parameters<
-			FooPorts["fooAnalytics"]["track"]
-		>[0] & { committed: boolean })[],
-		// piece-end: analytics
-		// piece-start: live
-		fooLiveUpdatesSent: [] as Parameters<
-			FooPorts["fooLiveUpdates"]["send"]
-		>[0][],
-		// piece-end: live
-		// wiring: memory-records
-	};
+	const state = fooMemoryStateCreate();
 	const ports: FooPorts = {
 		// piece-start: analytics
-		fooAnalytics: {
-			track: (event) => {
-				state.fooAnalyticsTracked.push({
-					...event,
-					committed: state.foos.has(event.fooId),
-				});
-			},
-		},
+		fooAnalytics: { track: () => undefined },
 		// piece-end: analytics
 		// piece-start: cache
 		fooCache: cacheCreate(cacheStoreMemoryCreate(), {
@@ -48,11 +27,7 @@ export const fooPortsMemoryCreate = () => {
 		}),
 		// piece-end: cache
 		// piece-start: live
-		fooLiveUpdates: {
-			send: async (update) => {
-				state.fooLiveUpdatesSent.push(update);
-			},
-		},
+		fooLiveUpdates: { send: async () => undefined },
 		// piece-end: live
 		barReadRepository: barRepositoryMemoryCreate(state),
 		fooReadRepository: fooRepositoryMemoryCreate(state),

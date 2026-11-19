@@ -116,6 +116,7 @@ if (!created.ok) throw created.error;
 const bazId = created.value.id;
 clock.set(new Date("2026-06-01T00:00:00Z"));
 const schedule = schedules.find((s) => s.name === "baz.stale-archive");
+expect(schedule).toMatchObject(bazSchedules[0] ?? {});
 
 expect(await schedule?.run()).toEqual(ok(1));
 const archived = await useCases.bazGet(owner, { bazId });
