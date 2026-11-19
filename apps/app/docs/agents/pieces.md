@@ -51,7 +51,7 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Domain crea
 
 The live update streams (`/live/<domain>/<id>`, `@n8io/baseline-live`) and each Domain's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its route at the `live` marker in `src/server.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Domain created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, with its route inside the `piece-start: live` block of the context's `index.ts`.
 
 ## The cache
 
@@ -79,7 +79,7 @@ The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Sche
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts`, `adapters/outbound/index-queue.test.ts` and `application/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` markers in `src/worker.ts` and `src/migrate.ts` and its `SCHEDULE_*` line at the one in `.env.schema`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Domain created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts`, `adapters/outbound/index-queue.test.ts` and `application/*-use-cases-queue.test.ts` files from the Domain in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Domain, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts`, the context's `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`, and its `SCHEDULE_*` line at the one in `.env.schema`.
 
 ## Analytics
 

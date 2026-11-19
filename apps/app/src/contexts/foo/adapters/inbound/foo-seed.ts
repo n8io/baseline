@@ -1,5 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
-import { type Foo, FooListInput, type FooUseCases } from "../../index.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
+import { type Foo, FooListInput } from "../../domain/foo.ts";
 
 const fooNames = ["Alpha", "Beta", "Gamma"];
 

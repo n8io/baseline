@@ -85,7 +85,7 @@ A page test sits beside its page and calls `loader` and `action` directly, with 
 const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = (actor: Actor | null = owner) => {
-	const useCases = domainsUseCasesCreate(connections).bazUseCases;
+	const useCases = contextsCreate(connections).bazContext.useCases;
 	const context = routerContextCreate(actor ?? undefined, [
 		[bazUseCasesContext, useCases],
 	]);

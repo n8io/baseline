@@ -1,0 +1,13 @@
+// A18: src/use-cases.ts builds every context
+// expect: src/use-cases.ts: never builds and returns bazContext; build every context in contextsCreate
+// @file src/use-cases.ts
+import { barContextCreate } from "#contexts/bar/index.ts";
+
+export const contextsCreate = () => {
+	const barContext = barContextCreate();
+	return { barContext };
+};
+// @file src/contexts/bar/index.ts
+export const barContextCreate = () => ({ useCases: {} });
+// @file src/contexts/baz/index.ts
+export const bazContextCreate = () => ({ useCases: {} });

@@ -1,14 +1,3 @@
-diff --git a/src/contexts/invoice-line/adapters/inbound/index.ts b/src/contexts/invoice-line/adapters/inbound/index.ts
-index c65c90f..c507c2a 100644
---- a/src/contexts/invoice-line/adapters/inbound/index.ts
-+++ b/src/contexts/invoice-line/adapters/inbound/index.ts
-@@ -1,5 +1,6 @@
- // biome-ignore-all assist/source/organizeImports: piece markers keep each piece's exports together
- // The context's inbound adapters, for the composition roots.
- 
-+export { invoiceLineCustomerDeletedHandlerCreate } from "./invoice-line-customer-deleted-handler.ts";
- export { invoiceLineRoutesCreate } from "./invoice-line-routes.ts";
- // wiring: exports
 diff --git a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts b/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
 index 1ed7175..166a272 100644
 --- a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
@@ -161,6 +150,28 @@ index bce2886..ccbedfc 100644
 +	customerClear(customerId: Id<"customer">): Promise<number>;
  };
  // wiring: repositories
+diff --git a/src/contexts/invoice-line/index.ts b/src/contexts/invoice-line/index.ts
+index 8ae4aa7..06cad43 100644
+--- a/src/contexts/invoice-line/index.ts
++++ b/src/contexts/invoice-line/index.ts
+@@ -1,8 +1,9 @@
+ // The context's interface: outside code imports only this file. invoiceLineContextCreate builds the
+ // context and hands back what the composition roots mount; the rest is its Published language.
+ 
+ import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
+ import type { Connections } from "../../connections.ts";
++import { invoiceLineCustomerDeletedHandlerCreate } from "./adapters/inbound/invoice-line-customer-deleted-handler.ts";
+ import { invoiceLineRoutesCreate } from "./adapters/inbound/invoice-line-routes.ts";
+ import { invoiceLinePortsCreate } from "./adapters/outbound/index.ts";
+ import { invoiceLineUseCasesCreate } from "./application/invoice-line-use-cases.ts";
+@@ -32,6 +33,7 @@ export const invoiceLineContextCreate = ({
+ 		],
+ 		// piece-start: queue
+ 		handlers: [
++			invoiceLineCustomerDeletedHandlerCreate(useCases),
+ 			// wiring: handlers
+ 		],
+ 		schedules: [
 diff --git a/src/env.d.ts b/src/env.d.ts
 index 1e18757..4a65e68 100644
 --- a/src/env.d.ts
@@ -217,47 +228,3 @@ index 1e18757..4a65e68 100644
    }
  }
 \ No newline at end of file
-diff --git a/src/server.ts b/src/server.ts
-index 1e4b3c9..38db60f 100644
---- a/src/server.ts
-+++ b/src/server.ts
-@@ -39,7 +39,10 @@ import { basketRoutesCreate } from "#contexts/basket/adapters/inbound/index.ts";
- import { basketScopes } from "#contexts/basket/index.ts";
- import { customerRoutesCreate } from "#contexts/customer/adapters/inbound/index.ts";
- import { customerScopes } from "#contexts/customer/index.ts";
--import { invoiceLineRoutesCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";
-+import {
-+	invoiceLineCustomerDeletedHandlerCreate,
-+	invoiceLineRoutesCreate,
-+} from "#contexts/invoice-line/adapters/inbound/index.ts";
- import { invoiceLineScopes } from "#contexts/invoice-line/index.ts";
- import { paymentRoutesCreate } from "#contexts/payment/adapters/inbound/index.ts";
- import { paymentScopes } from "#contexts/payment/index.ts";
-@@ -107,6 +110,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
- // Creates queues and subscriptions; consumers run only in the worker.
- if (connections.events !== "memory") {
- 	await connections.events.consumersSubscribe([
-+		invoiceLineCustomerDeletedHandlerCreate(useCases.invoiceLineUseCases),
- 		// wiring: consumers
- 	]);
- }
-diff --git a/src/worker.ts b/src/worker.ts
-index 7c95a49..529f464 100644
---- a/src/worker.ts
-+++ b/src/worker.ts
-@@ -7,6 +7,7 @@ import {
- 	shutdownHandleCreate,
- } from "@n8io/baseline-shutdown";
- import { telemetryShutdown } from "@n8io/baseline-telemetry";
-+import { invoiceLineCustomerDeletedHandlerCreate } from "#contexts/invoice-line/adapters/inbound/index.ts";
- import { paymentScheduleCreate } from "#contexts/payment/adapters/inbound/index.ts";
- import {
- 	vendorContactScheduleCreate,
-@@ -40,6 +41,7 @@ const useCases = domainsUseCasesCreate(connections);
- // wiring: contexts-end
- 
- await events.consumersStart([
-+	invoiceLineCustomerDeletedHandlerCreate(useCases.invoiceLineUseCases),
- 	// wiring: consumers
- ]);
- // Starts the Schedules migrate has synced; it changes none of them.

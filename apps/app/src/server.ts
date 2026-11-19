@@ -33,11 +33,6 @@ import {
 	authnMemoryUsersCreate,
 	authnProviderOptionsCreate,
 } from "#authn";
-import {
-	barRoutesCreate,
-	fooLiveRoutesCreate,
-	fooRoutesCreate,
-} from "#contexts/foo/adapters/inbound/index.ts";
 import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
@@ -46,7 +41,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
 import { seedsRun } from "./seed.ts";
-import { domainsUseCasesCreate } from "./use-cases.ts";
+import { type ContextMounts, contextsCreate } from "./use-cases.ts";
 
 // piece-start: ui
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is
@@ -75,20 +70,24 @@ if (import.meta.env.DEV) {
 }
 // piece-end: ui
 // wiring: contexts-start
-const useCases = domainsUseCasesCreate(connections);
+const contexts = contextsCreate(connections);
 // wiring: contexts-end
-// wiring: contexts-start
+// Every context, built in order; the Server mounts what each returns.
+const mounts: ContextMounts[] = [
+	// wiring: contexts-start
+	...Object.values(contexts),
+	// wiring: contexts-end
+];
 if (ENV.APP_ENV === "development" && connections.database === "memory") {
-	await seedsRun(useCases);
+	await seedsRun(mounts);
 }
-// wiring: contexts-end
 
 // piece-start: queue
 // Creates queues and subscriptions; consumers run only in the worker.
 if (connections.events !== "memory") {
-	await connections.events.consumersSubscribe([
-		// wiring: consumers
-	]);
+	await connections.events.consumersSubscribe(
+		mounts.flatMap((m) => m.handlers),
+	);
 }
 // piece-end: queue
 
@@ -130,16 +129,9 @@ app.use(
 	),
 );
 app.route("/auth", authnRoutesCreate(authn));
-app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
-app.route("/api/v1/foos", barRoutesCreate(useCases.fooUseCases));
-// wiring: routes
-// piece-start: live
-app.route(
-	"/live/foo",
-	fooLiveRoutesCreate(useCases.fooUseCases, connections.liveHub),
-);
-// wiring: live
-// piece-end: live
+for (const { path, router } of mounts.flatMap((m) => m.routes)) {
+	app.route(path, router);
+}
 // piece-start: api-reference
 // Public like openapi.json (the guard above exempts /api/v1/docs); without this piece it is a 404.
 app.route("/api/v1/docs", apiReferenceRoutesCreate());
@@ -199,7 +191,7 @@ export default await createHonoServer({
 		uiLoadContextCreate(
 			c,
 			// wiring: contexts-start
-			useCases,
+			contexts,
 			// wiring: contexts-end
 		),
 	listeningListener: serverListening,

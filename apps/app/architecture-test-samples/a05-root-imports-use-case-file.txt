@@ -1,6 +1,0 @@
-// A5: outside a context, code imports only its index.ts, adapters/inbound/index.ts and adapters/outbound/index.ts
-// expect: src/server.ts imports #contexts/bar/application/bar-get.ts: outside a context, import only src/contexts/bar/index.ts
-// @file src/server.ts
-import { barGet } from "#contexts/bar/application/bar-get.ts";
-
-export const get = barGet;

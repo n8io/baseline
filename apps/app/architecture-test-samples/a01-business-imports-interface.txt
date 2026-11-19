@@ -1,0 +1,6 @@
+// A1: business code never imports its context's index.ts
+// expect: src/contexts/bar/application/bar-create.ts imports ../index.ts: business code never imports its context's index.ts
+// @file src/contexts/bar/application/bar-create.ts
+import { barScopes } from "../index.ts";
+
+export const barCreate = () => barScopes;

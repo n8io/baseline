@@ -63,8 +63,23 @@ describe("architecture", () => {
 		);
 	});
 
-	// The regex checks of A11, A14 and A28 also pass the corrected sample.
+	// The regex checks of A5, A11, A14, A18 and A28 pass once the failing file is fixed.
 	it.each([
+		{
+			from: "#contexts/bar/adapters/inbound/bar-routes.ts",
+			name: "a05-root-imports-adapter-entry.txt",
+			to: "#contexts/bar/index.ts",
+		},
+		{
+			from: "return { barContext };",
+			name: "a18-context-unbuilt.txt",
+			to: "const bazContext = bazContextCreate();\n\treturn { barContext, bazContext };",
+		},
+		{
+			from: "useCases: barUseCasesCreate()",
+			name: "a18-use-cases-unwrapped.txt",
+			to: "useCases: telemetryUseCasesTrace(barUseCasesCreate())",
+		},
 		{
 			from: "\tensure: (name) => u.bazCreate(actor, { name }),\n",
 			name: "a11-bridge-writes.txt",

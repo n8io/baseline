@@ -164,8 +164,14 @@ describe.runIf(template)("context-create on the template", () => {
 		expect(file("src/contexts/billing/application/ports.ts")).not.toContain(
 			"Repository",
 		);
-		expect(file("src/use-cases.ts")).toContain(
+		expect(file("src/contexts/billing/index.ts")).toContain(
 			"billingUseCasesCreate(billingPortsCreate(connections))",
+		);
+		expect(file("src/contexts/billing/index.ts")).toContain(
+			"// wiring: routes",
+		);
+		expect(file("src/use-cases.ts")).toContain(
+			"billingContextCreate({ connections })",
 		);
 	});
 });

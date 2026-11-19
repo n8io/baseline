@@ -5,7 +5,7 @@ import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { fooUseCasesCreate } from "../../index.ts";
+import { fooUseCasesCreate } from "../../application/foo-use-cases.ts";
 import { fooPortsCreate } from "../outbound/index.ts";
 import { fooLiveRoutesCreate } from "./foo-live.ts";
 

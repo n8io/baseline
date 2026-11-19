@@ -2,7 +2,7 @@
 
 Read when adding a bounded context or an Aggregate to one. Two commands copy the Template's own context under new names. Neither writes a migration or commits.
 
-- `pnpm context-create <context>` writes the context's shell: `src/contexts/<context>/` with its `index.ts`, ports, transaction, Use cases entry, adapters' entries, errors, repositories file and its `CONTEXT.md` (the map's subdomain type and an empty `## Language`), and its wiring into `src/use-cases.ts` and the composition roots. It has no Aggregate yet, so `pnpm check` fails until it has one. It formats and runs no check.
+- `pnpm context-create <context>` writes the context's shell: `src/contexts/<context>/` with its `index.ts` (`<context>ContextCreate` and its Published language), ports, transaction, Use cases entry, outbound adapters' entry, errors, repositories file and its `CONTEXT.md` (the map's subdomain type and an empty `## Language`), and its wiring into `src/use-cases.ts` and the composition roots. It has no Aggregate yet, so `pnpm check` fails until it has one. It formats and runs no check.
 - `pnpm aggregate-create <context> <aggregate>` adds an Aggregate to that context: the Template Aggregate's files under the new name, its lines in the context's shared files and in the composition roots and UI, then the `sdk-generate` script when the Project has the SDK (its new routes would leave it stale), `pnpm check` and `pnpm test`. A context's first Aggregate is often named after the context (`invoice invoice`).
 
 ## Before you run them
@@ -39,9 +39,9 @@ Read when adding a bounded context or an Aggregate to one. Two commands copy the
 
 `context-create` takes one flag:
 
-| Flag                | Writes                                                                                                                                                                                                                                                                                                                 |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--reads <context>` | A reader port, `readers` as the required second argument of `<context>PortsCreate`, a memory fake exported from `adapters/outbound/index.ts`, the Bridge `src/bridges/<context>-<target>-reader.ts` and its test, and the wiring in `src/use-cases.ts`. Repeat it for each context read. See [bridges.md](bridges.md). |
+| Flag                | Writes                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--reads <context>` | A reader port, `readers` as the required second argument of `<context>PortsCreate`, a memory fake exported from `adapters/outbound/index.ts`, the Bridge `src/bridges/<context>-<target>-reader.ts` and its test, its `upstream` argument on `<context>ContextCreate`, the reader types exported from `index.ts` for the Bridge, and the wiring in `src/use-cases.ts`. Repeat it for each context read. See [bridges.md](bridges.md). |
 
 `aggregate-create` takes the parts:
 

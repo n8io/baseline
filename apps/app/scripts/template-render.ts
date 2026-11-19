@@ -688,7 +688,10 @@ export const templateFileRender = (
 		: path === "compose.yaml"
 			? composeProjectRender(text, answers.name)
 			: text;
-	if (!fooLineIs(rendered)) return { path, text: rendered };
+	// A root with no foo line, such as the Worker, may still hold a pair to empty.
+	if (!fooLineIs(rendered) && domainsPairsFind(rendered, path).length === 0) {
+		return { path, text: rendered };
+	}
 	const emptied = domainsPairsEmpty(rendered, path);
 	return { path, text: linesRemove(emptied, fooBlocksFind(emptied, path)) };
 };

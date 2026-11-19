@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { queueScheduleCreate } from "@n8io/baseline-queue";
-import type { FooUseCases } from "../../index.ts";
+import type { FooUseCases } from "../../application/foo-use-cases.ts";
 
 const fooScheduleActor: Actor = {
 	id: "foo-schedule",

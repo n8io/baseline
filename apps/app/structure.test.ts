@@ -88,13 +88,15 @@ const structureViolations = (
 					`${base}/${folder}/: add at least one file in ${folder}/`,
 				);
 		}
-		for (const folder of ["adapters/inbound", "adapters/outbound"]) {
-			if (
-				files.some((f) => f.startsWith(`${folder}/`)) &&
-				!files.includes(`${folder}/index.ts`)
-			) {
-				problems.push(`${base}/${folder}/index.ts: add index.ts to ${folder}/`);
-			}
+		// adapters/outbound/index.ts picks the ports' adapters; the inbound adapters need no entry
+		// of their own, since the context's index.ts mounts each one.
+		if (
+			files.some((f) => f.startsWith("adapters/outbound/")) &&
+			!files.includes("adapters/outbound/index.ts")
+		) {
+			problems.push(
+				`${base}/adapters/outbound/index.ts: add index.ts to adapters/outbound/`,
+			);
 		}
 		for (const file of files) {
 			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
@@ -275,7 +277,7 @@ describe("context structure", () => {
 					"src/contexts/bar/domain/bar-points-total.ts",
 					"src/contexts/bar/domain/bar-points-total.test.ts",
 					"src/contexts/bar/application/helpers/bar-x.ts",
-					"src/contexts/bar/adapters/inbound/index.ts",
+					"src/contexts/bar/adapters/inbound/bar-routes.ts",
 					"src/contexts/bar/adapters/outbound/index.ts",
 				],
 				() => context,
@@ -297,9 +299,12 @@ describe("context structure", () => {
 		},
 		{
 			message:
-				"src/contexts/bar/adapters/inbound/index.ts: add index.ts to adapters/inbound/",
-			paths: [...barBase, "src/contexts/bar/adapters/inbound/bar-routes.ts"],
-			name: "adapters/inbound/ without index.ts",
+				"src/contexts/bar/adapters/outbound/index.ts: add index.ts to adapters/outbound/",
+			paths: [
+				...barBase,
+				"src/contexts/bar/adapters/outbound/bar-repository.postgres.ts",
+			],
+			name: "adapters/outbound/ without index.ts",
 		},
 		{
 			message:
