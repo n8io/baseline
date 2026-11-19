@@ -19,9 +19,11 @@ import { run } from "./template-render.ts";
 type PieceRemoval = {
 	// Pieces that must go first, when installed.
 	after?: string[];
-	// The packages it removes; the first one is how domain-create and this script tell it is gone.
+	// The packages it removes; the first one is how domain-create and this script tell it is gone,
+	// unless the piece has a folder.
 	packages: string[];
-	// For a piece that adds no package to the app: the folder that tells it is there instead.
+	// For a piece that adds no package to the app: the package folder (its package.json) that tells
+	// it is there instead. A folder left with only ignored files, such as node_modules, does not.
 	folder?: string;
 	// Paths from the Project root, deleted when present.
 	paths: string[];
@@ -110,7 +112,8 @@ export const pieceSignsFind = (directory: string): Set<string> =>
 	new Set([
 		...packagesInstalled(directory),
 		...Object.values(pieceRemovals).flatMap(({ folder }) =>
-			folder !== undefined && existsSync(join(directory, folder))
+			folder !== undefined &&
+			existsSync(join(directory, folder, "package.json"))
 				? [folder]
 				: [],
 		),
@@ -327,7 +330,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"test/integration/foo-sdk.test.ts",
 		],
 		refusal: (directory) =>
-			existsSync(join(directory, "clients/cli"))
+			existsSync(join(directory, "clients/cli/package.json"))
 				? "Remove the cli first: it runs on the SDK."
 				: undefined,
 	},
@@ -693,8 +696,9 @@ export const pieceRemove = (
 		if (packages !== undefined && packages.length > 0) {
 			pnpm(["remove", ...packages]);
 		} else if (pieceRemovals[piece]?.folder !== undefined) {
-			// The folder was a workspace package: the lockfile drops its importer.
-			pnpm(["install"]);
+			// The folder was a workspace package: the lockfile drops its importer. Under CI pnpm
+			// installs frozen by default and would keep it.
+			pnpm(["install", "--no-frozen-lockfile"]);
 		}
 		if (piece === "ui" && !installed.has("@hono/node-server")) {
 			pnpm(["add", "@hono/node-server@^2.1.6"]);

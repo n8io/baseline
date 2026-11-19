@@ -162,6 +162,6 @@ Read the one that matches before you start.
 - Opening something that must be closed in a test, a script or a helper (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - Passing a setting only a vendor has (TLS for Postgres, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - Adding a script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
-- Removing, restoring or keeping (`piecesKept`) a piece (UI, live, cache, Redis, queue, analytics, error tracking, API docs): [docs/agents/pieces.md](docs/agents/pieces.md)
+- Removing, restoring or keeping (`piecesKept`) a piece (UI, live, cache, Redis, queue, analytics, error tracking, API docs, SDK, CLI): [docs/agents/pieces.md](docs/agents/pieces.md)
 - Planning a build of several Domains (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
 - Working on a fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

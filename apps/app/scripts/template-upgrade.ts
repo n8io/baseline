@@ -236,6 +236,14 @@ const pieceInRelease = (files: TemplateFile[]) => {
 	};
 };
 
+// A piece that must go before a removed one (the cli before the sdk) cannot arrive without it.
+const piecesRemovedWith = (removed: string[]): string[] => [
+	...new Set([
+		...removed,
+		...removed.flatMap((piece) => pieceRemovals[piece]?.after ?? []),
+	]),
+];
+
 export const templateUpgrade = async ({
 	appDirectory,
 	to,
@@ -279,7 +287,9 @@ export const templateUpgrade = async ({
 			project,
 		}),
 		tools,
-		removed: piecesGoneFind(appDirectory).filter(pieceInRelease(fromFiles)),
+		removed: piecesRemovedWith(
+			piecesGoneFind(appDirectory).filter(pieceInRelease(fromFiles)),
+		),
 		labels: { from: template.release, to },
 	});
 	const workspace = join(appDirectory, "pnpm-workspace.yaml");

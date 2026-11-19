@@ -13,12 +13,21 @@ import {
 let server: ProductionServer;
 const config = mkdtempDisposableSync(join(tmpdir(), "foo-cli-"));
 
+// Without the shell's APP_URL, APP_TOKEN and APP_CLIENT_SECRET, and with a login store of its own.
+const cliEnv: NodeJS.ProcessEnv = {
+	...process.env,
+	XDG_CONFIG_HOME: config.path,
+};
+for (const name of ["APP_URL", "APP_TOKEN", "APP_CLIENT_SECRET"]) {
+	delete cliEnv[name as keyof typeof cliEnv];
+}
+
 const cli = async (args: string[]) => {
 	try {
 		const { stderr, stdout } = await promisify(execFile)(
 			"node",
 			["clients/cli/cli.ts", ...args, "--url", server.url],
-			{ env: { ...process.env, XDG_CONFIG_HOME: config.path } },
+			{ env: cliEnv },
 		);
 		return { code: 0, stderr, stdout };
 	} catch (error) {

@@ -1,7 +1,7 @@
 // node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
 // does, with the customer Domain, and drives the rendered Project's own `pnpm piece-remove`:
-// - each of ui, live, cache, queue, analytics, error-tracking, api-reference and cli removed alone passes check, unit tests and
-//   build, and git revert of its commit gives back the starting tree;
+// - each of ui, live, cache, queue, analytics, error-tracking, api-reference and cli removed alone, and sdk
+//   after cli, passes check, unit tests and build, and git revert of its commits gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it, and sdk alone, because the cli runs on it;
 // - all ten removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
@@ -296,7 +296,6 @@ const main = async () => {
 		"analytics",
 		"error-tracking",
 		"api-reference",
-		"cli",
 	] as const) {
 		const before = head();
 		pieceRemove({ directory, piece, scripts: checkTestBuild });
@@ -305,6 +304,16 @@ const main = async () => {
 			`api-only: ${piece} alone passes check, test and build, and reverts`,
 		);
 	}
+
+	// The CLI runs on the SDK: cli alone, then sdk after it, each passing check, test and build.
+	const clientsBefore = head();
+	for (const piece of ["cli", "sdk"] as const) {
+		pieceRemove({ directory, piece, scripts: checkTestBuild });
+	}
+	revertTo(directory, clientsBefore);
+	console.log(
+		"api-only: cli alone, then sdk, pass check, test and build, and revert",
+	);
 
 	const refused = spawnSync("pnpm", ["piece-remove", "redis"], {
 		cwd: directory,

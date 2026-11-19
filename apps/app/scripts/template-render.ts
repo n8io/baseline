@@ -862,16 +862,24 @@ export const clientManifestPin = (
 	text: string,
 	versions: Record<string, string>,
 ): string => {
-	const manifest = JSON.parse(text) as {
-		dependencies?: Record<string, string>;
-	};
-	for (const [name, range] of Object.entries(manifest.dependencies ?? {})) {
-		if (!name.startsWith("@n8io/baseline-") || range !== "workspace:^") {
-			continue;
+	const manifest = JSON.parse(text) as Partial<
+		Record<"dependencies" | "devDependencies", Record<string, string>>
+	>;
+	for (const field of ["dependencies", "devDependencies"] as const) {
+		for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+			if (
+				!name.startsWith("@n8io/baseline-") ||
+				!range.startsWith("workspace:")
+			) {
+				continue;
+			}
+			const version = versions[name];
+			if (version === undefined) throw new Error(`no package is ${name}`);
+			if (range !== "workspace:^") {
+				throw new Error(`${name}: use workspace:^, not ${range}`);
+			}
+			manifest[field] = { ...manifest[field], [name]: `^${version}` };
 		}
-		const version = versions[name];
-		if (version === undefined) throw new Error(`no package is ${name}`);
-		manifest.dependencies = { ...manifest.dependencies, [name]: `^${version}` };
 	}
 	return `${JSON.stringify(manifest, null, "\t")}\n`;
 };
