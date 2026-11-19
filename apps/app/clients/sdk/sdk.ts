@@ -256,6 +256,9 @@ const getFooCreateUrl = () => {
 	return `/api/v1/foos`;
 };
 
+/**
+ * @summary Create one foo
+ */
 export const fooCreate = async (
 	fooCreateBody: FooCreateBody,
 	options?: Parameters<typeof sdkFetch>[1],
@@ -298,6 +301,9 @@ const getFooListUrl = (params?: FooListParams) => {
 		: `/api/v1/foos`;
 };
 
+/**
+ * @summary List foos, one page at a time
+ */
 export const fooList = async (
 	params?: FooListParams,
 	options?: Parameters<typeof sdkFetch>[1],
@@ -331,6 +337,9 @@ const getFooGetUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 
+/**
+ * @summary Get one foo
+ */
 export const fooGet = async (
 	fooId: string,
 	options?: Parameters<typeof sdkFetch>[1],
@@ -380,6 +389,9 @@ const getFooUpdateUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 
+/**
+ * @summary Update one foo
+ */
 export const fooUpdate = async (
 	fooId: string,
 	fooUpdateBody: FooUpdateBody,
@@ -429,6 +441,9 @@ const getFooDeleteUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}`;
 };
 
+/**
+ * @summary Delete one foo
+ */
 export const fooDelete = async (
 	fooId: string,
 	options?: Parameters<typeof sdkFetch>[1],
@@ -472,6 +487,9 @@ const getBarCreateUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}/bars`;
 };
 
+/**
+ * @summary Create one bar under its foo
+ */
 export const barCreate = async (
 	fooId: string,
 	barCreateBody: BarCreateBody,
@@ -511,6 +529,9 @@ const getBarListUrl = (fooId: string) => {
 	return `/api/v1/foos/${fooId}/bars`;
 };
 
+/**
+ * @summary List a foo's bars, one page at a time
+ */
 export const barList = async (
 	fooId: string,
 	options?: Parameters<typeof sdkFetch>[1],

@@ -191,11 +191,14 @@ describe("server wiring", { timeout: 30_000 }, () => {
 		});
 
 		// SDK methods and CLI commands are named from these two fields (docs/agents/api.md).
-		it("names every operation after its Use case and tags it with its Aggregate", async () => {
+		it("names every operation after its Use case, tags it with its Aggregate and sums it up", async () => {
 			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
 				paths: Record<
 					string,
-					Record<string, { operationId?: string; tags?: string[] }>
+					Record<
+						string,
+						{ operationId?: string; summary?: string; tags?: string[] }
+					>
 				>;
 			};
 			// The Aggregates: every file in a context's domain/ but its errors and repository ports.
@@ -220,7 +223,9 @@ describe("server wiring", { timeout: 30_000 }, () => {
 					...operation,
 				})),
 			);
-			for (const { at, operationId, tags } of operations) {
+			for (const { at, operationId, summary, tags } of operations) {
+				// The CLI's help and the SDK's doc comment for the operation.
+				expect(summary?.trim(), `${at}: summary`).toBeTruthy();
 				expect(tags, at).toHaveLength(1);
 				const tag = tags?.[0] ?? "";
 				expect(aggregates, at).toContain(tag);

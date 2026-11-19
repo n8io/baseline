@@ -99,6 +99,7 @@
 		"/api/v1/foos": {
 			"post": {
 				"operationId": "fooCreate",
+				"summary": "Create one foo",
 				"tags": ["foo"],
 				"requestBody": {
 					"required": true,
@@ -152,6 +153,7 @@
 			},
 			"get": {
 				"operationId": "fooList",
+				"summary": "List foos, one page at a time",
 				"tags": ["foo"],
 				"parameters": [
 					{
@@ -209,6 +211,7 @@
 		"/api/v1/foos/{fooId}": {
 			"get": {
 				"operationId": "fooGet",
+				"summary": "Get one foo",
 				"tags": ["foo"],
 				"parameters": [
 					{
@@ -265,6 +268,7 @@
 			},
 			"patch": {
 				"operationId": "fooUpdate",
+				"summary": "Update one foo",
 				"tags": ["foo"],
 				"parameters": [
 					{
@@ -391,6 +395,7 @@
 			},
 			"delete": {
 				"operationId": "fooDelete",
+				"summary": "Delete one foo",
 				"tags": ["foo"],
 				"parameters": [
 					{
@@ -473,6 +478,7 @@
 		"/api/v1/foos/{fooId}/bars": {
 			"post": {
 				"operationId": "barCreate",
+				"summary": "Create one bar under its foo",
 				"tags": ["bar"],
 				"parameters": [
 					{
@@ -568,6 +574,7 @@
 			},
 			"get": {
 				"operationId": "barList",
+				"summary": "List a foo's bars, one page at a time",
 				"tags": ["bar"],
 				"parameters": [
 					{

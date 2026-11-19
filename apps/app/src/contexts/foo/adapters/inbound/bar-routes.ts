@@ -48,6 +48,7 @@ const json = <S extends z.ZodType>(schema: S, description: string) => ({
 // A Bar is reached through its Foo: /api/v1/foos/{fooId}/bars.
 const barCreateRoute = createRoute({
 	operationId: "barCreate",
+	summary: "Create one bar under its foo",
 	tags: ["bar"],
 	method: "post",
 	path: "/{fooId}/bars",
@@ -70,6 +71,7 @@ const barCreateRoute = createRoute({
 
 const barListRoute = createRoute({
 	operationId: "barList",
+	summary: "List a foo's bars, one page at a time",
 	tags: ["bar"],
 	method: "get",
 	path: "/{fooId}/bars",
