@@ -112,3 +112,11 @@ The interactive API reference at `/api/v1/docs`: Swagger UI (`swagger-ui-dist`, 
 The page works under the Template's CSP unchanged: both script tags carry the request's nonce. Swagger UI's two `data:` icons stay blocked by `default-src`; do not loosen `img-src` for them.
 
 Add the API reference back: `git revert` the "Remove api-reference" commit.
+
+## The SDK
+
+`pnpm piece-remove sdk`
+
+The typed TypeScript SDK in `clients/sdk`, a package of its own (`<project>-sdk`) beside the app in the pnpm workspace: one function per API operation, named by its operationId (`invoiceCreate(body)`), each resolving to `{ status, data, headers }` typed by status. A caller sets the API's URL and a token once with `sdkConfigure({ baseUrl, token })`, and may pass either for one call as the function's last argument; it installs no runtime dependency. `pnpm sdk-generate` (`scripts/sdk-generate.ts`, the one file that names the generator, orval) writes `clients/sdk/openapi.json` from the app's document and `clients/sdk/sdk.ts` from that; `sdk-fetch.ts` is the hand-written fetch they call. Run it after any route change and after adding an Aggregate's routes; CI's `check` job fails while the committed files are stale. The image never holds `clients/` (`.dockerignore`). The command also drops the `sdk-generate` script and the `esbuild` line and the workspace `packages:` block from `pnpm-workspace.yaml`. Nothing else uses it, so it can go in any order.
+
+Add the SDK back: `git revert` the "Remove sdk" commit, then run `pnpm sdk-generate`.

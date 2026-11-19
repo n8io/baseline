@@ -1,5 +1,5 @@
 // pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
-// redis, queue, analytics, error-tracking or api-reference). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// redis, queue, analytics, error-tracking, api-reference or sdk). It deletes the piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
 // commits. When the check fails it undoes the removal and lists the files that use the piece outside
 // its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
@@ -291,6 +291,18 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				? undefined
 				: "Remove the cache and live updates first: both run on Redis.";
 		},
+	},
+	sdk: {
+		edit: (directory) =>
+			manifestEdit(directory, (manifest) => {
+				delete manifest.scripts?.["sdk-generate"];
+			}),
+		packages: ["orval"],
+		paths: [
+			"clients/sdk",
+			"scripts/sdk-generate.ts",
+			"test/integration/foo-sdk.test.ts",
+		],
 	},
 	ui: {
 		edit: uiEdit,

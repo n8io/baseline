@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - apps/app/clients/*
   - packages/*
 # pnpm reads only auth and registry lines from .npmrc; every other setting lives here.
 # Peers install only where a manifest lists them, so build-only peers stay out of the image.
@@ -11,6 +12,10 @@ minimumReleaseAgeExclude:
   - "@n8io/baseline-*"
 allowBuilds:
   protobufjs: false
+  # piece-start: sdk
+  # orval, which pnpm sdk-generate runs, needs no install script.
+  esbuild: false
+  # piece-end: sdk
   # piece-start: api-reference
   # swagger-ui-dist's only dependency is an install-time analytics script; keep it off.
   "@scarf/scarf": false

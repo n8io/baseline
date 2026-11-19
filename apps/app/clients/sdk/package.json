@@ -1,0 +1,8 @@
+{
+	"name": "app-sdk",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./index.ts"
+	}
+}

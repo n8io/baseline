@@ -135,6 +135,16 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
+      # app-ci's check runs this on each render, which has no foo; this checks foo's SDK.
+      - name: The SDK matches the OpenAPI document
+        run: |
+          pnpm sdk-generate
+          if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
+            git status --porcelain -- clients/sdk
+            echo "::error::The API changed without its SDK. Run pnpm sdk-generate in apps/app and commit apps/app/clients/sdk/."
+            exit 1
+          fi
+        working-directory: apps/app
       # CI enforces the budget on the command, the job limit is only a backstop.
       - run: |
           status=0
