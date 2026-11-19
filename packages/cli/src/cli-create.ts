@@ -53,7 +53,10 @@ const valueRead = (kind: CliField["kind"] | undefined, value: string) => {
 
 // A value outside the schema's `enum` fails here, before any request.
 const choiceCheck = (field: CliField, value: string): string => {
-	if (field.choices !== undefined && !field.choices.includes(value)) {
+	const kind = field.kind === "array" ? field.itemKind : field.kind;
+	// `--level 01` is the number 1.
+	const text = kind === "number" ? String(Number(value)) : value;
+	if (field.choices !== undefined && !field.choices.includes(text)) {
 		throw new InvalidArgumentError(
 			`Allowed choices are ${field.choices.join(", ")}.`,
 		);
@@ -72,7 +75,7 @@ const valueParse = (field: CliField) => (value: string, previous: unknown) =>
 // `sort (query): the order (choices: name, -name) (default: -name)`.
 const helpOf = (field: CliField): string =>
 	[
-		`${field.name} (${field.in}${field.required ? ", required" : ""})${field.description === undefined ? "" : `: ${field.description}`}`,
+		`${field.name} (${field.in}${field.required ? ", required" : ""})${field.description === undefined ? "" : `: ${field.description.replace(/\s+/g, " ").trim()}`}`,
 		...(field.choices === undefined
 			? []
 			: [`(choices: ${field.choices.join(", ")})`]),

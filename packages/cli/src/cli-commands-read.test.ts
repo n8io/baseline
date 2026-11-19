@@ -25,7 +25,9 @@ describe("cliCommandsRead", () => {
 		const list = cliCommandsRead(cliTestDocument).find(
 			(command) => command.operationId === "fooList",
 		);
-		expect(list?.fields.slice(2)).toEqual([
+		expect(
+			list?.fields.filter(({ name }) => ["count", "sort"].includes(name)),
+		).toEqual([
 			{
 				default: false,
 				description: "Count every match",
@@ -46,8 +48,11 @@ describe("cliCommandsRead", () => {
 				required: false,
 			},
 		]);
-		const nullableEnum = cliCommandsRead(
-			operationDocument({
+		const nullableEnum = cliCommandsRead({
+			components: {
+				schemas: { Order: { enum: ["up", "down"], type: "string" } },
+			},
+			...operationDocument({
 				operationId: "fooCreate",
 				parameters: [
 					{
@@ -60,17 +65,56 @@ describe("cliCommandsRead", () => {
 					{
 						in: "query",
 						name: "tags",
-						schema: { items: { enum: ["a", "b"] }, type: "array" },
+						schema: {
+							anyOf: [
+								{ items: { enum: ["a", "b"], type: "string" }, type: "array" },
+								{ type: "null" },
+							],
+						},
+					},
+					{
+						in: "query",
+						name: "order",
+						schema: {
+							$ref: "#/components/schemas/Order",
+							default: "up",
+							description: "Beside the $ref",
+						},
 					},
 				],
 				tags: ["foo"],
 			}),
-		)[0]?.fields;
+		})[0]?.fields;
 		expect(
-			nullableEnum?.map(({ choices, kind }) => ({ choices, kind })),
+			nullableEnum?.map((field) => ({
+				choices: field.choices,
+				default: field.default,
+				description: field.description,
+				itemKind: field.itemKind,
+				kind: field.kind,
+			})),
 		).toEqual([
-			{ choices: ["1", "2"], kind: "number" },
-			{ choices: ["a", "b"], kind: "array" },
+			{
+				choices: ["1", "2"],
+				default: undefined,
+				description: undefined,
+				itemKind: undefined,
+				kind: "number",
+			},
+			{
+				choices: ["a", "b"],
+				default: undefined,
+				description: undefined,
+				itemKind: "string",
+				kind: "array",
+			},
+			{
+				choices: ["up", "down"],
+				default: "up",
+				description: "Beside the $ref",
+				itemKind: undefined,
+				kind: "string",
+			},
 		]);
 	});
 

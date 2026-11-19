@@ -108,19 +108,34 @@ const kindOf = (document: CliDocument, node: Node): CliFieldKind => {
 	return "json";
 };
 
-// The `enum` of a schema, looking through `anyOf` and `oneOf`, without the null a nullable adds.
+// A schema and the members of its `anyOf` and `oneOf` (Zod's nullable), resolved.
+const membersOf = (document: CliDocument, node: Node): Node[] => [
+	node,
+	...[node.anyOf, node.oneOf]
+		.flatMap((members) => (Array.isArray(members) ? members : []))
+		.map((member) => refResolve(document, member)),
+];
+
+// The `enum` of a schema, as the text a flag takes, without the null a nullable adds.
 const choicesOf = (document: CliDocument, node: Node): string[] | undefined => {
-	const values = [
-		node,
-		...[node.anyOf, node.oneOf]
-			.flatMap((members) => (Array.isArray(members) ? members : []))
-			.map((member) => refResolve(document, member)),
-	]
+	const values = membersOf(document, node)
 		.flatMap((member) => (Array.isArray(member.enum) ? member.enum : []))
 		.filter((value) => value !== null)
-		.map(String);
+		.map((value) =>
+			typeof value === "string" ? value : JSON.stringify(value),
+		);
 	return values.length === 0 ? undefined : [...new Set(values)];
 };
+
+// The first non-empty text of `key` on the schema as written, then on what its `$ref` names.
+const siblingRead = (nodes: Node[], key: "default" | "description") =>
+	nodes
+		.map((node) => node[key])
+		.find((value) =>
+			key === "default"
+				? value !== undefined
+				: typeof value === "string" && value !== "",
+		);
 
 // How a field's flag reads and describes its value: kind, allowed values, default and description.
 const schemaRead = (
@@ -132,7 +147,16 @@ const schemaRead = (
 > => {
 	const node = refResolve(document, schema);
 	const kind = kindOf(document, node);
-	const items = refResolve(document, node.items);
+	// OpenAPI 3.1 lets `default` and `description` sit beside a `$ref`; those win.
+	const written = nodeIs(schema) ? [schema, node] : [node];
+	const fallback = siblingRead(written, "default");
+	const description = siblingRead(written, "description");
+	// A nullable array keeps its `items` in the non-null member.
+	const items = refResolve(
+		document,
+		membersOf(document, node).find((member) => member.items !== undefined)
+			?.items,
+	);
 	// A boolean is a switch, so its values are not listed.
 	const choices =
 		kind === "boolean"
@@ -140,10 +164,8 @@ const schemaRead = (
 			: choicesOf(document, kind === "array" ? items : node);
 	return {
 		...(choices === undefined ? {} : { choices }),
-		...(node.default === undefined ? {} : { default: node.default }),
-		...(typeof node.description === "string" && node.description !== ""
-			? { description: node.description }
-			: {}),
+		...(fallback === undefined ? {} : { default: fallback }),
+		...(typeof description === "string" ? { description } : {}),
 		...(kind === "array" ? { itemKind: kindOf(document, items) } : {}),
 		kind,
 	};
