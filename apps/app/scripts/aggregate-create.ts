@@ -245,6 +245,10 @@ const pieces = [
 	{ name: "api-reference", package: "swagger-ui-dist", paths: [] },
 	// Owns no context file either (src/redis-open.ts is not a context's).
 	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
+	// The SDK and the command line tool own no context file; checksRun regenerates the SDK. The
+	// command line tool adds no package to the app, so its folder tells it is there.
+	{ name: "sdk", package: "orval", paths: [] },
+	{ folder: "clients/cli", name: "cli", paths: [] },
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
@@ -281,7 +285,13 @@ export const piecesRemovedFind = (appDirectory: string): string[] => {
 		...manifest.dependencies,
 		...manifest.devDependencies,
 	};
-	return pieces.filter((p) => !(p.package in installed)).map((p) => p.name);
+	return pieces
+		.filter((p) =>
+			p.package === undefined
+				? !existsSync(join(appDirectory, p.folder ?? "", "package.json"))
+				: !(p.package in installed),
+		)
+		.map((p) => p.name);
 };
 
 // Drops every block from a `piece-start: <name>` line through its `piece-end: <name>` line.
@@ -1396,7 +1406,9 @@ export const checksRun = ({
 	command: string;
 }): void => {
 	try {
-		for (const script of ["check", "test"]) {
+		// New routes make the committed SDK stale, and CI's check job fails on a stale SDK.
+		const sdk = existsSync(join(appDirectory, "clients/sdk/package.json"));
+		for (const script of [...(sdk ? ["sdk-generate"] : []), "check", "test"]) {
 			run({
 				command: "pnpm",
 				args: ["run", script],
