@@ -20,7 +20,7 @@ What every bounded context shares and changes together: the result, id and authn
 
 **Aggregate**:
 An Aggregate root with the entities and value objects it owns, saved and loaded as one unit through one Repository. Every change to it goes through a transition in its `domain/` file, so a Use case cannot save one that breaks an invariant. One Aggregate per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
-_Avoid_: Entity graph, root object
+_Avoid_: entity graph, root object
 
 **Aggregate root**:
 The entity an Aggregate is held, loaded and saved by. Its schema, its value objects, its transitions and its specifications live in `domain/<aggregate>.ts`.
@@ -39,14 +39,14 @@ _Avoid_: Rule
 
 **Specification**:
 A reusable predicate over an Aggregate, in its `domain/` file, named ending in `Is`, `Has` or `Can` (`invoicePaidIs`).
-_Avoid_: Policy, validator
+_Avoid_: policy, validator
 
 **Domain service**:
 Logic over several Aggregates that belongs to none of them, as a pure function in its own `domain/` file.
 
 **Use case**:
 One operation a bounded context performs, in `application/`, such as creating a foo (`fooCreate`). It loads an Aggregate through its ports, calls a transition, saves the result and publishes. Each gets its ports from a factory: `fooCreate(ports)` returns the function.
-_Avoid_: Service, interactor
+_Avoid_: service, interactor
 
 **Module**:
 Anything with an interface and an implementation, at any scale: a function, a file, a Package or a bounded context. A bounded context is one deep module: a lot of behaviour behind a small interface.
@@ -63,7 +63,7 @@ A concrete thing that satisfies an interface at a seam, named for the slot it fi
 
 **Port**:
 The interface at a seam: what a bounded context declares it needs from outside, such as saving an Aggregate or caching. A port stays only where two adapters exist, a production one and a memory one. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
-_Avoid_: Contract, gateway
+_Avoid_: contract, gateway
 
 **Repository**:
 The port that saves and loads one Aggregate. Each Aggregate root has exactly one, named after it; the rest of the Aggregate is saved through it.
@@ -75,11 +75,11 @@ _Avoid_: API layer, HTTP layer, controllers, transport
 
 **Outbound adapter**:
 An adapter that a bounded context drives through a port, with real technology or in memory: Postgres repositories and tables, memory fakes and anti-corruption layers, in `adapters/outbound/`. It holds no business logic, and `domain/` and `application/` never import it.
-_Avoid_: SPI, Infrastructure, providers, drivers
+_Avoid_: SPI, infrastructure, providers, drivers
 
 **Clock**:
 The port a bounded context reads the current time from (`<context>Clock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
-_Avoid_: Time provider, now function
+_Avoid_: time provider, now function
 
 **Actor**:
 Who is performing a use case: a signed-in user or a machine client.

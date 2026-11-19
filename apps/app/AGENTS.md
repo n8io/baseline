@@ -109,7 +109,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Glossary rules
 
-- Names in code, tests, UI copy, tickets, PRs and commits come from the glossaries. No `_Avoid_` alias, nor another context's term outside an adapter.
+- Names in code, tests, UI copy, tickets, PRs and commits come from the glossaries. No `_Avoid_` alias, nor an upstream context's term outside adapters.
 - Never edit `CONTEXT.md`; propose changes to baseline.
 - Ask before adding or changing a term or a context, giving the term, its definition and `_Avoid_` list. Never add one the user did not answer.
 - The entry lands in the same PR, listed in its "Glossary" section.

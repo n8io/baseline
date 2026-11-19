@@ -305,9 +305,18 @@ export const glossaryLanguageOf = ({
 // Not inside a word or a path: test/integration, test:integration and integration.test.ts are
 // no Bridge. A word written capitalized ("Rule", "SPI", another context's "Golfer") matches only
 // as written, as prose writes a glossary term; "an architecture rule" and "a golfer id" pass.
-const wordPattern = (word: string, global = ""): RegExp =>
+// `plural` also takes "Golfers".
+const wordPattern = ({
+	global = "",
+	plural = "",
+	word,
+}: {
+	global?: string;
+	plural?: string;
+	word: string;
+}): RegExp =>
 	new RegExp(
-		`(?<![\\w-]|[/.:])${RegExp.escape(word)}(?![\\w-]|[/.]\\w)`,
+		`(?<![\\w-]|[/.:])${RegExp.escape(word)}${plural}(?![\\w-]|[/.]\\w)`,
 		`${global}${/^[a-z]/.test(word) ? "i" : ""}`,
 	);
 
@@ -320,16 +329,20 @@ type LanguagePatterns = {
 const languagePatterns = (language: GlossaryLanguage): LanguagePatterns => ({
 	aliases: language.aliases.map((a) => ({
 		...a,
-		pattern: wordPattern(a.alias),
+		pattern: wordPattern({ word: a.alias }),
 	})),
 	words: [
 		...language.terms.map((term) => ({
-			pattern: new RegExp(`(?<![\\w-])${RegExp.escape(term)}(?![\\w-])`, "gi"),
+			// "Domain events" is the term "Domain event", not the alias "Domain".
+			pattern: new RegExp(
+				`(?<![\\w-])${RegExp.escape(term)}(?:e?s)?(?![\\w-])`,
+				"gi",
+			),
 			term,
 		})),
 		...language.foreign.map(({ context, term }) => ({
 			context,
-			pattern: wordPattern(term, "g"),
+			pattern: wordPattern({ global: "g", plural: "(?:e?s)?", word: term }),
 			term,
 		})),
 	].sort((a, b) => b.term.length - a.term.length),

@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	contextFilesCreate,
-	contextGlossary,
+	contextGlossaryText,
 	contextNextStepsText,
 	contextRefusal,
 } from "./context-create.ts";
@@ -71,10 +71,10 @@ describe("contextRefusal", () => {
 	});
 });
 
-describe("contextGlossary", () => {
+describe("contextGlossaryText", () => {
 	it("names the subdomain type and leaves the language for the Aggregates' terms", () => {
 		expect(
-			contextGlossary({ context: "order-desk", subdomain: "supporting" }),
+			contextGlossaryText({ context: "order-desk", subdomain: "supporting" }),
 		).toBe(
 			"# Order desk\n\nSubdomain: supporting\n\nWhat the order desk context does and the Aggregates it holds, in a sentence or two.\n\n## Language\n",
 		);

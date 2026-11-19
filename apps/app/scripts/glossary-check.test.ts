@@ -271,6 +271,32 @@ describe("an alias written capitalized", () => {
 
 		expect(hits.map((h) => h.line)).toEqual([1]);
 	});
+
+	it("leaves a lower-case alias matching in any case", () => {
+		const hits = glossaryHitsFind({
+			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
+			languageOf: everyFile({
+				aliases: [{ alias: "service", term: "Use case" }],
+			}),
+			textRead: () => "// the billing service\n// A Service.\n",
+		});
+
+		expect(hits.map((h) => h.line)).toEqual([1, 2]);
+	});
+});
+
+describe("a plural", () => {
+	it("is its term, so it holds no alias", () => {
+		const glossary =
+			"**Domain event**:\nA fact.\n\n**Bounded context**:\nA scope.\n_Avoid_: Domain\n";
+		const hits = glossaryHitsFind({
+			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
+			languageOf: () => glossaryLanguageRead(glossary),
+			textRead: () => "// Publishes Domain events.\n// One Domain.\n",
+		});
+
+		expect(hits.map((h) => h.line)).toEqual([2]);
+	});
 });
 
 // A sample app: league reads tour through an ACL. Each has its own language.
@@ -367,10 +393,10 @@ describe("the context map", () => {
 			expect(
 				hitsIn(
 					"src/contexts/league/domain/roster.md",
-					"The Service sets the lineup from each Golfer's Score.",
+					"The Service sets the lineup from the Golfers' Score.",
 				),
 			).toEqual([
-				'apps/app/src/contexts/league/domain/roster.md:1: "Golfer" is a term of the tour context',
+				'apps/app/src/contexts/league/domain/roster.md:1: "Golfers" is a term of the tour context',
 				'apps/app/src/contexts/league/domain/roster.md:1: "Score" is a term of the tour context',
 				'apps/app/src/contexts/league/domain/roster.md:1: "Service" is an alias of "Use case"',
 				'apps/app/src/contexts/league/domain/roster.md:1: "lineup" is an alias of "Roster"',
@@ -487,7 +513,9 @@ describe("the context map", () => {
 			expect(
 				contextMapViolations({
 					appGlossary: read("CONTEXT.md") ?? "",
-					contexts: readdirSync(contexts).filter((n) => !n.startsWith(".")),
+					contexts: readdirSync(contexts, { withFileTypes: true })
+						.filter((d) => d.isDirectory())
+						.map((d) => d.name),
 					glossaryRead: read,
 					map: read("CONTEXT-MAP.md") ?? "",
 				}),

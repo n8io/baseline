@@ -72,7 +72,7 @@ export const contextRefusal = ({
 
 // The context's own glossary: its subdomain type, a line to fill in, and an empty language that
 // aggregate-create needs each Aggregate's term in.
-export const contextGlossary = ({
+export const contextGlossaryText = ({
 	context,
 	subdomain,
 }: {
@@ -138,7 +138,7 @@ export const contextFilesCreate = ({
 		...own,
 		{
 			path: `src/contexts/${context}/CONTEXT.md`,
-			text: contextGlossary({
+			text: contextGlossaryText({
 				context,
 				// context-create refuses a context the map lacks; tests may skip the map.
 				subdomain:
@@ -206,7 +206,7 @@ export const contextNextStepsText = ({
 		`  2. pnpm aggregate-create ${context} <aggregate> adds its first Aggregate (often ${context} itself); pnpm check passes once it has one.`,
 		...reads.map(
 			(target, k) =>
-				`  ${k + 3}. Read what ${context} needs from ${target} in src/bridges/${context}-${target}-reader.ts and its port in src/contexts/${context}/application/ports.ts.`,
+				`  ${k + 3}. Read what ${context} needs from ${target} in src/bridges/${context}-${target}-reader.ts and its port in src/contexts/${context}/application/ports.ts, and add "| ${context} | ${target} | ACL |" under ## Relationships in CONTEXT-MAP.md.`,
 		),
 	].join("\n");
 

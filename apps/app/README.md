@@ -61,4 +61,4 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Model a
 
 ## For AI agents
 
-Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the glossary every name follows. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one.
+Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one.
