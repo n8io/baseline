@@ -46,7 +46,7 @@ export const fooTransactionPostgresCreate = (
 				if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 					return ok(undefined) as Result<T, E>;
 				}
-				// An Aggregate's Events port, publishing on this transaction's client. The Use case
+				// An Aggregate's Events port, publishing on this transaction's connection. The Use case
 				// gets publish only: committed() is this file's to call.
 				const eventsCreate = <M extends Record<string, unknown>>() => {
 					const publisher = events.publisherCreate<M>(pgClient);

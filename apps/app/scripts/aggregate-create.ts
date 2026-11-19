@@ -57,7 +57,7 @@ export const contextFilePaths = new Set(
 	].map((path) => `src/contexts/foo/${path}`),
 );
 
-// Bar, foo's second Aggregate, is a sample: neither command ever copies it.
+// Bar, foo's second Aggregate, stays in the Template: neither command ever copies it.
 const barPathIs = (path: string): boolean =>
 	/^src\/contexts\/foo\/(.+\/)?bar[-.][^/]*$/.test(path) ||
 	/^migrations\/[^/]*_foo_bar_[^/]*\//.test(path);
