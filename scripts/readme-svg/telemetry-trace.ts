@@ -1,6 +1,6 @@
 // The telemetry README's diagram: one trace as a waterfall. A request's span, its Use case span
 // and its queries draw in on the Server; the Event it publishes carries the trace to the Worker,
-// whose Consumer runs in the same trace. Bars grow by CSS transform, so the resting frame is the
+// whose Event handler runs in the same trace. Bars grow by CSS transform, so the resting frame is the
 // whole trace.
 import {
 	keyframePercent,
@@ -39,7 +39,7 @@ const publishRow: Row = {
 const consumerRow: Row = {
 	from: 0.62,
 	kind: "use case",
-	label: "the Consumer's Use case",
+	label: "the Event handler's Use case",
 	process: "Worker",
 	until: 1,
 };
@@ -133,7 +133,7 @@ export default svgDocument({
 		svgText({
 			className: "display",
 			fontSize: 15,
-			text: "One trace, from the request to the Consumer",
+			text: "One trace, from the request to the Event handler",
 			weight: 700,
 			x: 40,
 			y: 44,
@@ -176,6 +176,6 @@ export default svgDocument({
 	motionCss: `${grows}\n${handoffGlow}`,
 	theme,
 	title:
-		"One trace as a waterfall: on the Server, the request span, the fooCreate Use case span and its two queries; the published Event carries the trace to the Worker, where the Consumer's Use case and its query join the same trace",
+		"One trace as a waterfall: on the Server, the request span, the fooCreate Use case span and its two queries; the published Event carries the trace to the Worker, where the Event handler's Use case and its query join the same trace",
 	width,
 });

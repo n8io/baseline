@@ -92,7 +92,7 @@ describe("app-create", () => {
 		expect(() =>
 			appCreateArgsRead(["--github-only", "--name", "golf"]),
 		).toThrow("reads the name and description from the render");
-		// The first Domain is the first pull request's job now.
+		// The first bounded context is the first pull request's job now.
 		expect(() => appCreateArgsRead(["--domain", "golfer"])).toThrow("--domain");
 	});
 

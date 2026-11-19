@@ -1,6 +1,7 @@
-// The Template README's diagram: one write through a Domain on the Server, and the Event it
-// publishes on its way through the Worker to another Domain. A dot runs the top row, turns the
-// corner as the transaction commits, and runs the bottom row back; each box lights as it passes.
+// The Template README's diagram: one write through a bounded context on the Server, and the
+// Domain event it publishes on its way through the Worker to another context. A dot runs the top
+// row, turns the corner as the transaction commits, and runs the bottom row back; each box lights
+// as it passes.
 import {
 	keyframePercent,
 	readmeSvgThemes,
@@ -25,19 +26,19 @@ const topY = 74;
 const bottomY = 222;
 
 const serverBoxes = [
-	{ label: "API", sublabel: "HTTP route" },
-	{ label: "Use case", sublabel: "applies Rules" },
+	{ label: "HTTP route", sublabel: "inbound adapter" },
+	{ label: "Use case", sublabel: "calls a transition" },
 	{ label: "Repository", sublabel: "a port" },
-	{ label: "SPI", sublabel: "database adapter" },
+	{ label: "Postgres", sublabel: "outbound adapter" },
 	{ label: "Transaction", sublabel: "the row + its Event" },
 ];
 // Read right to left: the dot comes back along the bottom row.
 const workerBoxes = [
 	{ label: "Inbox", sublabel: "same transaction" },
 	{ label: "Use case", sublabel: "skips a repeat" },
-	{ label: "Consumer", sublabel: "another Domain" },
+	{ label: "Event handler", sublabel: "another context" },
 	{ label: "Worker", sublabel: "per Event key" },
-	{ label: "Event", sublabel: "in the queue" },
+	{ label: "Domain event", sublabel: "in the queue" },
 ];
 
 const centres = boxLefts.map((left) => left + boxWidth / 2);
@@ -145,6 +146,6 @@ export default svgDocument({
 	motionCss: [...topGlows, ...bottomGlows, commit].join("\n"),
 	theme,
 	title:
-		"A write and its Event, end to end: a request runs through a Domain's API, Use case, Repository and SPI into one transaction that commits the row and its Event; the Worker delivers each Event, one at a time per Event key in commit order, to another Domain's Consumer, whose Use case records it in the Inbox so a repeat is skipped.",
+		"A write and its Domain event, end to end: a request runs through a context's HTTP route, Use case, Repository and Postgres adapter into one transaction that commits the row and its Domain event; the Worker delivers each Domain event, one at a time per Event key in commit order, to another context's Event handler, whose Use case records it in the Inbox so a repeat is skipped.",
 	width,
 });

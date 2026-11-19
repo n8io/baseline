@@ -62,14 +62,14 @@ describe("pieceCheckPlan", () => {
 		expect(plan({ installed }).notes).toContain("ui: not installed");
 	});
 
-	it("skips the queue while a Consumer needs it", () => {
+	it("skips the queue while an Event handler needs it", () => {
 		const blocked = plan({
 			refusal: (piece) =>
-				piece === "queue" ? "Remove your Consumers first." : undefined,
+				piece === "queue" ? "Remove your Event handlers first." : undefined,
 		});
 		expect(blocked.checks.map((c) => c.piece)).not.toContain("queue");
 		expect(blocked.notes).toContain(
-			"queue: skipped, Remove your Consumers first.",
+			"queue: skipped, Remove your Event handlers first.",
 		);
 	});
 

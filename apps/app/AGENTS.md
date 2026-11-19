@@ -45,53 +45,53 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 
 ## Where new work goes
 
-One context per business area, one Aggregate per entity in it (see context-create.md).
+One context per business area, holding its Aggregates (context-create.md).
 
-| Kind of work                                      | File                              |
-| ------------------------------------------------- | --------------------------------- |
-| Entry: exports for outside code, and the scopes   | `index.ts`                        |
-| Repository ports                                  | `domain/repositories.ts`          |
-| Other ports                                       | `application/ports.ts`            |
-| Domain errors                                     | `domain/errors.ts`                |
-| Aggregate: schemas, transitions, specifications   | `domain/<aggregate>.ts`           |
-| Domain service: logic over several Aggregates     | `domain/<name>.ts`                |
-| One Use case per file, tested on memory adapters  | `application/<domain>-<verb>.ts`  |
-| Use cases factory and its type                    | `application/*-use-cases.ts`      |
-| A helper two Use cases share                      | `application/<domain>-<thing>.ts` |
-| Routes, live streams, Consumers, Schedules, Seeds | `adapters/inbound/`               |
-| Port implementations, tables, contract tests      | `adapters/outbound/`              |
-| A test through the context's interface            | `<file>.test.ts`                  |
+| Kind of work                                      | File                                 |
+| ------------------------------------------------- | ------------------------------------ |
+| Entry: exports for outside code, and the scopes   | `index.ts`                           |
+| Repository ports                                  | `domain/repositories.ts`             |
+| Other ports                                       | `application/ports.ts`               |
+| Errors the context returns                        | `domain/errors.ts`                   |
+| Aggregate: schemas, transitions, specifications   | `domain/<aggregate>.ts`              |
+| Domain service: logic over several Aggregates     | `domain/<name>.ts`                   |
+| One Use case per file, tested on memory adapters  | `application/<aggregate>-<verb>.ts`  |
+| Use cases factory and its type                    | `application/*-use-cases.ts`         |
+| A helper two Use cases share                      | `application/<aggregate>-<thing>.ts` |
+| Routes, streams, Event handlers, Schedules, Seeds | `adapters/inbound/`                  |
+| Port implementations, tables, contract tests      | `adapters/outbound/`                 |
+| A test through the context's interface            | `<file>.test.ts`                     |
 
 - Outside code imports only `index.ts`, the context's one interface (A5).
 - `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
 - Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
-- Name things generic to specific: the scope, then the subject, then the action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
+- Name things generic to specific: scope, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
   - An exported name never starts with a verb.
-  - Every exported function in a package starts with the package's name, and in a Domain with the Domain's name (`queueConsumerCreate`, `invoiceStaleIs`).
+  - Every exported function in a package starts with its package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
   - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`.
   - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`.
-  - Exceptions, each for a reason:
+  - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
     - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- Up to two inputs (the second strongly coupled, maybe optional) may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- Up to two inputs (the second strongly coupled, maybe optional) may stay positional. Three or more take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
-- UI pages live in `src/ui/`. They import Domains only through `index.ts`.
+- UI pages live in `src/ui/`. They import contexts only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result package and the authn and id types (A2).
 - A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
 - Use cases return `err()`; they and `domain/` never throw or catch (A27).
-- A table column built with another context's id prefix (`postgresIdColumnCreate("team")`) needs that context's `deleted` Consumer (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
+- A table column built with another context's id prefix (`postgresIdColumnCreate("team")`) needs that context's `deleted` Event handler (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
 
 ### Stop and ask
 
 Stop and ask the user when:
 
-- the work fits no single Domain;
+- the work fits no single context;
 - a glossary term is new or changes meaning, or a new business verb or Event is needed;
-- a new Domain is needed (propose a name and a one-line definition);
+- a new context is needed (propose a name and a one-line definition);
 - a new dependency is needed, including any UI dependency beyond Tailwind, shadcn/ui, `cn()` and lucide;
 - a hard rule, its check or a budget would change;
 - a second pattern would be added for something that has one;
@@ -103,7 +103,7 @@ Stop and ask the user when:
 - an OpenTelemetry instrumentation would be added;
 - a secret cannot come from `.env.schema` and Infisical.
 
-For several Domains at once, one approved plan answers the questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
+For several contexts at once, one approved plan answers the questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
 
 Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/contexts/**`; every test asserts with `expect()`; Vitest is the only runner.
 
@@ -119,10 +119,10 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Rules no tool checks
 
-- An action calls exactly one write Use case. A loader may call any number of read Use cases across Domains.
+- An action calls exactly one write Use case. A loader may call any number of read Use cases across contexts.
 - Do one write per Use case where possible.
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
-- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Domain's analytics port lists every name it sends.
+- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Aggregate's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch: one run covers any number of missed ticks, and a repeat changes nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
 - Reuse a shadcn component before making one; add one only with `pnpm exec shadcn add <name>`, never by hand.
@@ -137,7 +137,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Privacy
 
-- Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
+- Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never an Aggregate, an input or error message text.
 - Paths and queries never carry personal data. Path parameters are ids.
 - Card numbers never enter the app.
 
@@ -147,7 +147,7 @@ Read the one that matches before you start.
 
 - A role, a scope, a dev user or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
 - Adding a context or an Aggregate, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
-- A Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
+- An Event handler, a Domain event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A context reading another (an ACL), or a saga across contexts: [docs/agents/acl.md](docs/agents/acl.md)
 - A table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding, testing or removing a Schedule: [docs/agents/schedules.md](docs/agents/schedules.md)
@@ -164,5 +164,5 @@ Read the one that matches before you start.
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Removing, restoring or keeping (`piecesKept`) a piece (UI, cache, queue and the rest): [docs/agents/pieces.md](docs/agents/pieces.md)
 - Publishing the SDK and CLI to npm (versions, first publish): [docs/agents/clients.md](docs/agents/clients.md)
-- Planning a build of several Domains (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
+- Planning a build of several contexts (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
 - A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

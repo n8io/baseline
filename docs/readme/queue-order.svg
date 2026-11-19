@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="Events of one Event key reach the Consumer one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop">
-<title>Events of one Event key reach the Consumer one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="Events of one Event key reach the Event handler one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop">
+<title>Events of one Event key reach the Event handler one at a time, in commit order; order_2's second Event fails once, #3 waits behind it while it retries, then both are handled and the other keys never stop</title>
 <style>
 .display{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#DCEBF7}
@@ -46,7 +46,7 @@
 <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 0V20M0 0H20" fill="none" stroke="#14304F" stroke-width="2"/></pattern></defs><rect width="880" height="300" rx="6" fill="url(#grid)"/>
 <text x="30" y="44" class="display" font-size="15" font-weight="700">Ordered per Event key, even through a retry</text>
 <rect x="430" y="64" width="80" height="186" rx="2" fill="none" stroke="#5FA8D3" stroke-width="1.5"/>
-<text x="470" y="56" text-anchor="middle" class="mono dim" font-size="12">Consumer</text>
+<text x="470" y="56" text-anchor="middle" class="mono dim" font-size="12">Event handler</text>
 <text x="765" y="56" text-anchor="middle" class="mono dim" font-size="12">handled</text>
 <text x="30" y="98" class="mono" font-size="13">order_1</text>
 <line x1="120" y1="93" x2="420" y2="93" stroke="#5FA8D3" stroke-dasharray="3 5"/>

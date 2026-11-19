@@ -1,12 +1,12 @@
 # @n8io/baseline-telemetry
 
-**One trace from the request to the Consumer, with one preload and one wrapper**: the preload starts traces, metrics and logs before the app loads, and every Use case gets its own span and duration metric. `@n8io/baseline-queue` carries the trace across each Event.
+**One trace from the request to the Event handler, with one preload and one wrapper**: the preload starts traces, metrics and logs before the app loads, and every Use case gets its own span and duration metric. `@n8io/baseline-queue` carries the trace across each Event.
 
 ```sh
 pnpm add @n8io/baseline-telemetry import-in-the-middle
 ```
 
-<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/telemetry-trace.svg" width="880" alt="One trace drawn as a waterfall. On the Server, the POST /api/v1/foos span holds the fooCreate Use case span and its two queries, one of which publishes foo.created. The Event carries the trace to the Worker, where the Consumer's Use case and its query join the same trace."></p>
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/telemetry-trace.svg" width="880" alt="One trace drawn as a waterfall. On the Server, the POST /api/v1/foos span holds the fooCreate Use case span and its two queries, one of which publishes foo.created. The Event carries the trace to the Worker, where the Event handler's Use case and its query join the same trace."></p>
 
 ## Guarantees
 

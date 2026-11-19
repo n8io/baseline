@@ -2,8 +2,7 @@
 
 ## Architecture
 
-The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`. Code and paths keep the old words until the tickets that move them land; `glossary-check` lets the old words pass until then:
-_Allowed until n8io/baseline#473 (added 2026-11-18)_: Domain, Model, Rule, API layer, SPI, Consumer, Bridge, Outcome Events
+The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`:
 
 **Bounded context**:
 The scope of one model and its language, holding one or more Aggregates grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward.

@@ -593,8 +593,8 @@ const workerHealthPortRender = (text: string, name: string): string =>
 	);
 
 // The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
-// them for a Project with no Domain: the document without foo's operations and schemas, and an
-// sdk.ts that is only its header comment.
+// them for a Project with no bounded context: the document without foo's operations and schemas,
+// and an sdk.ts that is only its header comment.
 const sdkFileRender = (
 	file: TemplateFile,
 	answers: TemplateAnswers,

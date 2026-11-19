@@ -171,10 +171,10 @@ const main = async () => {
 	// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
-	// app-create makes no Domain, so a Project's first commit is this tree.
-	console.log("HEAD with no Domain: check, test and build");
+	// app-create makes no bounded context, so a Project's first commit is this tree.
+	console.log("HEAD with no bounded context: check, test and build");
 	for (const script of ["check", "test", "build"]) pnpmRun(directory, [script]);
-	// The render writes the SDK as pnpm sdk-generate does for a Project with no Domain.
+	// The render writes the SDK as pnpm sdk-generate does for a Project with no bounded context.
 	const sdkFiles = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
 	const sdkRead = () =>
 		sdkFiles.map((path) => readFileSync(join(directory, path), "utf8"));
@@ -253,7 +253,7 @@ const main = async () => {
 	});
 	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
 	pnpmRun(directory, ["codegen"]);
-	// The Domains added routes, so the SDK is regenerated, as a Project does after aggregate-create.
+	// The contexts added routes, so the SDK is regenerated, as a Project does after aggregate-create.
 	pnpmRun(directory, ["sdk-generate"]);
 	pnpmRun(directory, ["check"]);
 	pnpmRun(directory, ["test"]);

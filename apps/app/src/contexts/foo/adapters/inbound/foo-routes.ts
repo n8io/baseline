@@ -12,7 +12,7 @@ import type { FooError } from "../../domain/errors.ts";
 import { Foo, FooListInput } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
 
-// The route table is the API's view of the Domain's statuses; it fails type-checking if the two disagree.
+// The route table is the API's view of the context's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;
 
 // The API's own schemas: models carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
@@ -71,7 +71,7 @@ const json = <S extends z.ZodType>(schema: S, description: string) => ({
 	description,
 });
 
-// Each operation is named after the Use case it calls and tagged with its Domain; SDK methods
+// Each operation is named after the Use case it calls and tagged with its Aggregate; SDK methods
 // and CLI commands take their names from both (docs/agents/api.md).
 const fooCreateRoute = createRoute({
 	operationId: "fooCreate",

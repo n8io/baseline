@@ -122,7 +122,7 @@ export default svgDocument({
 		svgText({
 			className: "mono dim",
 			fontSize: 12,
-			text: "TypeScript · Domains · Events",
+			text: "TypeScript · DDD · Domain events",
 			x: 34,
 			y: 250,
 		}),

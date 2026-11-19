@@ -21,7 +21,7 @@ export type EventsPublisher<M> = {
 	committed(): Promise<void>;
 };
 
-// How Events travel between Domains. A composition root opens one (queueEventsCreate) and nothing
+// How Events travel between contexts. A composition root opens one (queueEventsCreate) and nothing
 // else names the transport.
 export type Events = {
 	// false only when this process's own receiving loop is stuck, which a restart fixes; report it

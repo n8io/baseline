@@ -1,10 +1,10 @@
 # Schedules
 
-Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `baz` Domain whose Schedule archives stale bazs; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
+Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `baz` context whose Aggregate Baz has a Schedule that archives stale bazs; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
 
 ## The file pair
 
-One file per Schedule in the Domain's `adapters/inbound/`. It exports two things: `<domain>Schedule`, the name and cron that migrate syncs, and `<domain>ScheduleCreate`, which the Worker starts with the Domain's Use cases.
+One file per Schedule in the context's `adapters/inbound/`. It exports two things: `<aggregate>Schedule`, the name and cron that migrate syncs, and `<aggregate>ScheduleCreate`, which the Worker starts with the context's Use cases.
 
 ```ts
 // src/contexts/baz/adapters/inbound/baz-schedule.ts
@@ -18,7 +18,7 @@ const bazScheduleActor: Actor = {
 // When it runs: src/migrate.ts syncs this to the database, once per deploy.
 export const bazSchedule = { cron: "0 3 * * *", name: "baz.stale-archive" };
 
-// What it runs: src/worker.ts starts this with the Domain's Use cases.
+// What it runs: src/worker.ts starts this with the context's Use cases.
 export const bazScheduleCreate = (u: BazUseCases) =>
 	queueScheduleCreate({
 		...bazSchedule,
@@ -26,9 +26,9 @@ export const bazScheduleCreate = (u: BazUseCases) =>
 	});
 ```
 
-- The Actor is a `client` with id `<domain>-schedule` and only the scopes its Use case checks.
-- The name is `<domain>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
-- Two Schedules in one Domain: one file each, `adapters/inbound/<domain>-<words>-schedule.ts` exporting `<domain><Words>Schedule` and `<domain><Words>ScheduleCreate` (`tournamentStartSchedule`, `tournamentStartScheduleCreate`). They may share one Actor in `adapters/inbound/<domain>-schedule-actor.ts`.
+- The Actor is a `client` with id `<aggregate>-schedule` and only the scopes its Use case checks.
+- The name is `<aggregate>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
+- Two Schedules for one Aggregate: one file each, `adapters/inbound/<aggregate>-<words>-schedule.ts` exporting `<aggregate><Words>Schedule` and `<aggregate><Words>ScheduleCreate` (`tournamentStartSchedule`, `tournamentStartScheduleCreate`). They may share one Actor in `adapters/inbound/<aggregate>-schedule-actor.ts`.
 
 ## Wiring
 
@@ -102,7 +102,7 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 
 ## Tests
 
-- The repository method: one case in `<domain>-repository.contract.ts`, so the memory and Postgres adapters agree on the boundary.
+- The repository method: one case in `<aggregate>-repository.contract.ts`, so the memory and Postgres adapters agree on the boundary.
 - The Use case: build the context through its interface on memory connections with a memory clock ([tests.md](tests.md)), create rows at times due and not due, move the clock, run it, and read which rows changed.
 - The Schedule: take it from the context's `schedules`, call `run()`, and check the result and a later read. That is also how to run a Schedule on demand in any test: never wait for the cron.
 
@@ -124,4 +124,4 @@ expect(archived.ok && archived.value.archivedAt).toBeInstanceOf(Date);
 expect(await schedule?.run()).toEqual(ok(0));
 ```
 
-The Worker refuses `DATABASE_URL=memory://`, so no Schedule or Consumer runs in memory mode. To watch one run, set `SCHEDULE_<NAME>="* * * * *"` and restart `pnpm dev`: it runs migrate on Postgres before it starts the Worker.
+The Worker refuses `DATABASE_URL=memory://`, so no Schedule or Event handler runs in memory mode. To watch one run, set `SCHEDULE_<NAME>="* * * * *"` and restart `pnpm dev`: it runs migrate on Postgres before it starts the Worker.

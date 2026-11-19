@@ -1,6 +1,6 @@
 # @n8io/baseline-http
 
-**Every API error answers in one shape**: RFC 9457 problem bodies with the request's trace id, OpenAPI error responses checked against your Domain's errors, and secure defaults for the Hono app around them.
+**Every API error answers in one shape**: RFC 9457 problem bodies with the request's trace id, OpenAPI error responses checked against your Use cases' errors, and secure defaults for the Hono app around them.
 
 ```sh
 pnpm add @n8io/baseline-http
@@ -19,11 +19,11 @@ pnpm add @n8io/baseline-http
 
 | You get                                       | How                                                                                                                                                                 |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One error shape**                           | Validation failures, Domain errors, refused requests and crashes all answer `application/problem+json`: `status`, `title`, `code`, `traceId`.                       |
+| **One error shape**                           | Validation failures, business errors, refused requests and crashes all answer `application/problem+json`: `status`, `title`, `code`, `traceId`.                     |
 | **No leaked text**                            | A body never carries a thrown error's message or the caller's input; validation details name only what the schema expects. A crash is a logged 500 `InternalError`. |
 | **Errors you can find**                       | `traceId` is the request's trace, so a caller's report leads straight to its spans and logs.                                                                        |
 | **Pointers to bad input**                     | A failed request validation is 400 `ValidationFailed` with one JSON Pointer per issue.                                                                              |
-| **Docs that match the code**                  | `httpErrorResponsesCreate` declares a route's error responses from the same table it answers with; a Domain error missing from the table fails type-checking.       |
+| **Docs that match the code**                  | `httpErrorResponsesCreate` declares a route's error responses from the same table it answers with; a business error missing from the table fails type-checking.     |
 | **New error codes are not breaking**          | Codes are an `x-extensible-enum`, so the API diff accepts a new code on a status a route already declares.                                                          |
 | **Secure headers and a nonce CSP**            | HSTS, `nosniff`, `Referrer-Policy` and an enforced CSP whose `script-src` takes a fresh nonce per request.                                                          |
 | **CSRF refused on cookie routes**             | A cross-site form, multipart or text POST answers 403; JSON and bearer requests pass. Works behind a TLS proxy.                                                     |
@@ -48,7 +48,7 @@ httpServerKeepAlive(server);
 // On shutdown: await httpServerClose(server);
 ```
 
-Then a route maps each Domain error to a status once, and its docs and answers both read that map:
+Then a route maps each business error to a status once, and its docs and answers both read that map:
 
 ```ts
 const fooErrorStatus = {
@@ -78,10 +78,10 @@ Test a route with Hono's `app.request()`: the problem body comes back as JSON, w
 | `httpRouterCreate()`                                           | An `OpenAPIHono` router whose request validation answers 400 `ValidationFailed` with a problem body.                                                                                                                                                                                      |
 | `httpErrorHandle`                                              | `app.onError`. A thrown error with a 4xx `httpStatus` and a `type` (authn's 401s) answers that status and code; a Hono 4xx `HTTPException` answers its status (400 `ValidationFailed`, 413 `PayloadTooLarge`, 415 `UnsupportedMediaType`); anything else is a logged 500 `InternalError`. |
 | `httpNotFoundHandle`                                           | The API's not-found route: a JSON 404 `NotFound`, never HTML.                                                                                                                                                                                                                             |
-| `httpErrorBodyCreate(error, status)`                           | The problem body for a Domain error; `code` is the error's `type`.                                                                                                                                                                                                                        |
+| `httpErrorBodyCreate(error, status)`                           | The problem body for a business error; `code` is the error's `type`.                                                                                                                                                                                                                      |
 | `httpProblemHeaders`                                           | `Content-Type: application/problem+json`.                                                                                                                                                                                                                                                 |
 | `HttpProblem`                                                  | The problem body type: `status`, `title`, `code`, optional `traceId` and `errors` (`{ pointer, detail }[]`). `traceId` is absent only when nothing traces the request.                                                                                                                    |
-| `HttpErrorStatus<E>`                                           | A Domain's map from error `type` to status; a missing type fails type-checking.                                                                                                                                                                                                           |
+| `HttpErrorStatus<E>`                                           | A bounded context's map from error `type` to status; a missing type fails type-checking.                                                                                                                                                                                                  |
 | `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses` | A route's OpenAPI error responses: one `application/problem+json` entry per status, listing the error types that answer with it, typed so the handler may return those statuses.                                                                                                          |
 | `httpRouteName`                                                | Middleware that names the HTTP server span after the route that answered and sets `http.route`. Catch-all routes (a pattern ending in `*`) keep the name something else gave them.                                                                                                        |
 | `httpCsrf`                                                     | Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.                                                          |

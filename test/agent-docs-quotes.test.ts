@@ -50,7 +50,7 @@ describe.each(docs)("docs/agents/%s", (doc) => {
 });
 
 // The render drops every line that names foo from a Project's copy of a file, so a page that names
-// foo reaches a Project with lines missing. Every agent doc names another Domain instead.
+// foo reaches a Project with lines missing. Every agent doc names another context instead.
 const agentDocs = [
 	"AGENTS.md",
 	...readdirSync(new URL("docs/agents/", app)).map(

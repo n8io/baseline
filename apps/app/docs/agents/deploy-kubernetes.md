@@ -7,7 +7,7 @@ Read when running a Project on Kubernetes or on more than one instance. It is wr
 One image, three entries (see the `Dockerfile` header):
 
 - **Server**: a Deployment behind a Service. Serves pages, the API and live updates.
-- **Worker**: a Deployment with no Service. Runs Consumers and Schedules.
+- **Worker**: a Deployment with no Service. Runs Event handlers and Schedules.
 - **migrate**: a Job, run once per rollout, before any pod of the new version starts. It migrates the tables and the queue, and it alone adds, updates and removes Schedules. Do not make it an init container: a pod of the previous version that restarts mid-rollout would run the old migrate and undo the new Schedules.
 
 Give migrate the same variables as the Worker (put any `SCHEDULE_<NAME>` in the shared Secret or on both): a cron override acts only in migrate, and a Worker reads only `off`. A Worker that logs "Schedule is not in the database" started without a migrate: run it, then restart the Worker.
@@ -24,7 +24,7 @@ Values: startup `/livez` every 2 s, 30 failures allowed; readiness `/readyz` eve
 
 ## Pool sizing
 
-Every process opens at most `DATABASE_POOL_MAX` Postgres connections (unset: 10 in a Server, 5 in a Worker). The queue shares that pool. A Worker runs at most pool max minus 1 Events and Schedule runs at once, whatever its number of Consumers, so raise `DATABASE_POOL_MAX` on Workers to run more per pod.
+Every process opens at most `DATABASE_POOL_MAX` Postgres connections (unset: 10 in a Server, 5 in a Worker). The queue shares that pool. A Worker runs at most pool max minus 1 Events and Schedule runs at once, whatever its number of Event handlers, so raise `DATABASE_POOL_MAX` on Workers to run more per pod.
 
 ```
 (Server pods + surge) x Server max + (Worker pods + surge) x Worker max + 5
@@ -71,7 +71,7 @@ With no identity, a reference that is not set fails the boot with `Invalid env v
 Set `terminationGracePeriodSeconds: 30`. The process ends itself within 25 s of SIGTERM and needs no `preStop` hook.
 
 - Server: `/readyz` turns 503 and it keeps serving for `SHUTDOWN_DRAIN_DELAY_MS` (5 s when unset) while the Service drops the pod, then finishes open requests and closes live streams (to second 20 at most), then closes its connections.
-- Worker: stops fetching at once and gives running Events and Schedule runs 15 s. One still running after that is failed and retried after the usual wait (10 s or more), and that counts as one of its five attempts. A Worker that is killed is noticed within 30 to 90 s. So keep a Consumer short and safe to run twice (the Inbox).
+- Worker: stops fetching at once and gives running Events and Schedule runs 15 s. One still running after that is failed and retried after the usual wait (10 s or more), and that counts as one of its five attempts. A Worker that is killed is noticed within 30 to 90 s. So keep an Event handler short and safe to run twice (the Inbox).
 
 ## Load balancer
 
@@ -115,8 +115,8 @@ Sentinel or Cluster addressed directly needs node-redis's `createSentinel` or `c
 
 ## Alerts
 
-- A blocked Event key: `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Error tracking gets a `QueueBlockedKeyError` (its message names the Consumer, never the key), reported again every 24 h while a key stays blocked; log "Event key is blocked until released". Run `node src/blocked-keys.ts` and release it (Event order, above).
-- `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events held back behind blocked keys), per Consumer, as the maximum across pods. Alert on the age well before 604800 (7 days, after which the queue deletes the Event; `deleteAt` in the listing gives the exact time), and on the waiting count for a Consumer whose backlog cannot wait that long. Both read 0 when nothing is blocked.
+- A blocked Event key: `baseline.queue.blocked_keys` above 0, as the maximum across pods, never the sum. Error tracking gets a `QueueBlockedKeyError` (its message names the Event handler's queue, never the key), reported again every 24 h while a key stays blocked; log "Event key is blocked until released". Run `node src/blocked-keys.ts` and release it (Event order, above).
+- `baseline.queue.blocked_key_age` (seconds since the oldest blocked key failed) and `baseline.queue.blocked_key_waiting` (Events held back behind blocked keys), per Event handler, as the maximum across pods. Alert on the age well before 604800 (7 days, after which the queue deletes the Event; `deleteAt` in the listing gives the exact time), and on the waiting count for an Event handler whose backlog cannot wait that long. Both read 0 when nothing is blocked.
 - A warning "Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first": a day is left. Release the key now.
 - `baseline.queue.blocked_keys_expired` above 0, or a `QueueBlockedKeyExpiredError` ("Blocked Event was deleted unreleased; its key moved on without it"): the queue deleted a failed Event nobody released, and the Events behind it ran without it. Find it in `<queueName>.dead` and repair its effects by hand.
 - `baseline.cache.store_errors` and `baseline.live.sends_failed` rising: Redis is down. One warning per 30 s per cache or hub on each pod, not one per call.
@@ -130,7 +130,7 @@ Sentinel or Cluster addressed directly needs node-redis's `createSentinel` or `c
 - A query timeout (15 s) rejects in the app and closes the connection. It does not cancel the statement, which Postgres may still finish.
 - Readiness does not check dependencies on a running pod, and nothing logs that Postgres is back.
 - A Worker that started before migrate added a Schedule runs it only after a restart.
-- One Consumer whose poll loop hangs is hidden from liveness while the Worker's other loops turn.
+- One Event handler whose poll loop hangs is hidden from liveness while the Worker's other loops turn.
 - Inbox pruning does not count toward a Worker's limit of runs at once.
 
 ## Deferred
