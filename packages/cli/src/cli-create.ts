@@ -51,20 +51,44 @@ const valueRead = (kind: CliField["kind"] | undefined, value: string) => {
 	}
 };
 
+// A value outside the schema's `enum` fails here, before any request.
+const choiceCheck = (field: CliField, value: string): string => {
+	if (field.choices !== undefined && !field.choices.includes(value)) {
+		throw new InvalidArgumentError(
+			`Allowed choices are ${field.choices.join(", ")}.`,
+		);
+	}
+	return value;
+};
+
 const valueParse = (field: CliField) => (value: string, previous: unknown) =>
 	field.kind === "array"
 		? [
 				...(Array.isArray(previous) ? previous : []),
-				valueRead(field.itemKind, value),
+				valueRead(field.itemKind, choiceCheck(field, value)),
 			]
-		: valueRead(field.kind, value);
+		: valueRead(field.kind, choiceCheck(field, value));
+
+// `sort (query): the order (choices: name, -name) (default: -name)`.
+const helpOf = (field: CliField): string =>
+	[
+		`${field.name} (${field.in}${field.required ? ", required" : ""})${field.description === undefined ? "" : `: ${field.description}`}`,
+		...(field.choices === undefined
+			? []
+			: [`(choices: ${field.choices.join(", ")})`]),
+		...(field.default === undefined
+			? []
+			: [
+					`(default: ${typeof field.default === "string" ? field.default : JSON.stringify(field.default)})`,
+				]),
+	].join(" ");
 
 const optionAdd = (command: Command, field: CliField): void => {
 	const flags =
 		field.kind === "boolean"
 			? `--${field.flag}`
 			: `--${field.flag} <${field.kind === "array" ? "values..." : "value"}>`;
-	const description = `${field.name} (${field.in}${field.required ? ", required" : ""})`;
+	const description = helpOf(field);
 	if (field.kind === "boolean") {
 		command.option(flags, description).option(`--no-${field.flag}`);
 	} else if (field.in === "path") {

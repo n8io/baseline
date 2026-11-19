@@ -185,6 +185,36 @@ describe("cliCreate", () => {
 		expect(create.stdout).toContain("--name <value>");
 	});
 
+	it("shows each flag's description, allowed values and default in --help", async () => {
+		const { stdout } = await cliRun(["foo", "list", "--help"]);
+		// commander wraps long help lines.
+		const help = stdout.replace(/\s+/g, " ");
+		expect(help).toContain(
+			"--sort <value> sort (query): The order of the page (choices: createdAt, -createdAt, name, -name) (default: -createdAt)",
+		);
+		expect(help).toContain(
+			"--count count (query): Count every match (default: false)",
+		);
+	});
+
+	it("refuses a value outside the schema's enum before any request, and sends one inside it", async () => {
+		const bogus = await cliRun(["foo", "list", "--sort", "bogus"], {
+			ACME_APP_URL: url,
+		});
+		expect(bogus.code).toBe(1);
+		expect(bogus.stdout).toBe("");
+		expect(bogus.stderr).toContain(
+			"Allowed choices are createdAt, -createdAt, name, -name.",
+		);
+		const name = await cliRun(["foo", "list", "--sort", "name", "--count"], {
+			ACME_APP_URL: url,
+		});
+		expect(JSON.parse(name.stdout).args).toEqual([
+			{ count: true, sort: "name" },
+			{ baseUrl: url },
+		]);
+	});
+
 	it("throws when operations lacks one of the document's operations", () => {
 		const { fooGet: _, ...operations } = cliTestOperations;
 		expect(() =>

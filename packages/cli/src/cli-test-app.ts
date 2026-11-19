@@ -29,6 +29,22 @@ export const cliTestDocument: CliDocument = {
 				parameters: [
 					{ in: "query", name: "limit", schema: { type: "integer" } },
 					{ in: "query", name: "name_prefix", schema: { type: "string" } },
+					{
+						description: "Count every match",
+						in: "query",
+						name: "count",
+						schema: { default: false, type: "boolean" },
+					},
+					{
+						in: "query",
+						name: "sort",
+						schema: {
+							default: "-createdAt",
+							description: "The order of the page",
+							enum: ["createdAt", "-createdAt", "name", "-name"],
+							type: "string",
+						},
+					},
 				],
 				summary: "List foos",
 				tags: ["foo"],

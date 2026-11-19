@@ -21,6 +21,59 @@ describe("cliCommandsRead", () => {
 		]);
 	});
 
+	it("reads a field's allowed values, default and description from its schema", () => {
+		const list = cliCommandsRead(cliTestDocument).find(
+			(command) => command.operationId === "fooList",
+		);
+		expect(list?.fields.slice(2)).toEqual([
+			{
+				default: false,
+				description: "Count every match",
+				flag: "count",
+				in: "query",
+				kind: "boolean",
+				name: "count",
+				required: false,
+			},
+			{
+				choices: ["createdAt", "-createdAt", "name", "-name"],
+				default: "-createdAt",
+				description: "The order of the page",
+				flag: "sort",
+				in: "query",
+				kind: "string",
+				name: "sort",
+				required: false,
+			},
+		]);
+		const nullableEnum = cliCommandsRead(
+			operationDocument({
+				operationId: "fooCreate",
+				parameters: [
+					{
+						in: "query",
+						name: "level",
+						schema: {
+							anyOf: [{ enum: [1, 2], type: "integer" }, { type: "null" }],
+						},
+					},
+					{
+						in: "query",
+						name: "tags",
+						schema: { items: { enum: ["a", "b"] }, type: "array" },
+					},
+				],
+				tags: ["foo"],
+			}),
+		)[0]?.fields;
+		expect(
+			nullableEnum?.map(({ choices, kind }) => ({ choices, kind })),
+		).toEqual([
+			{ choices: ["1", "2"], kind: "number" },
+			{ choices: ["a", "b"], kind: "array" },
+		]);
+	});
+
 	it("reads body fields through $ref, with their kind and whether they are required", () => {
 		const create = cliCommandsRead(cliTestDocument).find(
 			(command) => command.operationId === "fooCreate",

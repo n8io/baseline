@@ -68,6 +68,7 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 
 - A path field is a required flag. A body field that the schema requires is marked required in its help but may come from `--data` instead.
 - `integer` and `number` fields are parsed as numbers; a `boolean` field is `--flag` for true and `--no-flag` for false; an `array` field takes several values (`--ids 4 5`), each parsed by its item type; any other field takes JSON (falling back to the text). A field's type is read through `anyOf` and `oneOf`, so a nullable string stays text, and a string `enum` is text.
+- A field's help shows its `description`, its `enum` values and its `default`. A value outside the `enum` exits 1 before any request. The default is only shown: the CLI leaves an unset field out, and the API applies its own default.
 - `--url`, `--token`, `--data` and `--help` belong to the CLI, and so do the commands `login` and `help`; `cliCreate` throws on a field or command with one of those names, or on two fields with the same flag. An operation's parameter replaces the path item's one with the same name.
 - `$ref`s inside the document are followed.
 
