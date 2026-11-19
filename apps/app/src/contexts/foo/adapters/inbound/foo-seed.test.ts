@@ -4,22 +4,18 @@ import { clockMemoryCreate } from "../../../../clock.ts";
 import { connectionsOpen } from "../../../../connections.ts";
 import { contextsCreate } from "../../../../use-cases.ts";
 import type { FooUseCases } from "../../application/foo-use-cases.ts";
-import { type Foo, FooListInput } from "../../domain/foo.ts";
+import { FooListInput } from "../../domain/foo.ts";
+import { fooSeed } from "./foo-seed.ts";
 
 const actor: Actor = { id: "dev-seed", kind: "client", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });
 
-// The context with its seed, which the seed command runs as `actor`.
+// The seed on the context's Use cases, as its `seeds` entry runs it for the seed command. A
+// context's `seeds` holds one per Aggregate, so the test calls this Aggregate's own.
 const setup = () => {
 	const clock = clockMemoryCreate();
-	const { seeds, useCases } = contextsCreate({
-		...connections,
-		clock,
-	}).fooContext;
-	const seed = async () => {
-		const results = await Promise.all(seeds.map((each) => each(actor)));
-		return results[0] as Foo[];
-	};
+	const { useCases } = contextsCreate({ ...connections, clock }).fooContext;
+	const seed = () => fooSeed(useCases, actor);
 	return { clock, seed, useCases };
 };
 
