@@ -622,9 +622,12 @@ const sdkFileRender = (
 		info: { title: string };
 		paths: Record<string, unknown>;
 	};
+	// A schema of foo's context that names foo only inside (Bar's, with its fooId) goes too.
 	const fooless = (record: Record<string, unknown>) =>
 		Object.fromEntries(
-			Object.entries(record).filter(([key]) => !fooLineIs(key)),
+			Object.entries(record).filter(
+				([key, value]) => !fooLineIs(key) && !fooLineIs(JSON.stringify(value)),
+			),
 		);
 	document.info.title = answers.name;
 	document.paths = fooless(document.paths);
