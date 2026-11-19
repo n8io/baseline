@@ -153,6 +153,7 @@ describe("contextAggregateRename", () => {
 			'import { fooDeleteCan } from "#contexts/foo/domain/foo-delete-can.ts";',
 			"export const fooDelete = (ports: FooPorts) => ports.fooTransaction(async (t) => t.fooRepository);",
 			'const key = "foo.deleted";',
+			'export const fooSchema = pgSchema("foo");',
 		].join("\n");
 
 		expect(
@@ -168,6 +169,7 @@ describe("contextAggregateRename", () => {
 			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line-delete-can.ts";',
 			"export const invoiceLineDelete = (ports: BillingPorts) => ports.billingTransaction(async (t) => t.invoiceLineRepository);",
 			'const key = "invoice-line.deleted";',
+			'export const invoiceLineSchema = pgSchema("billing");',
 		]);
 	});
 

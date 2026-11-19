@@ -138,6 +138,20 @@ describe("architecture", () => {
 		]);
 	});
 
+	it("A16 lets an Aggregate's Use case name its span attributes after the Aggregate", async () => {
+		const table = await architectureFileCreate(
+			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
+			"",
+		);
+		const useCase = await architectureFileCreate(
+			"src/contexts/billing/application/invoice-line-get.ts",
+			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
+		);
+		expect(architectureRules.A16?.([table, useCase])).toEqual([
+			expect.stringContaining("span attribute baseline.note.id"),
+		]);
+	});
+
 	it("A23 lets a context's export start with one of its Aggregates' names", async () => {
 		const table = await architectureFileCreate(
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",

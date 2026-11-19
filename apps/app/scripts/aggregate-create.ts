@@ -65,9 +65,9 @@ export const barLineIs = (line: string): boolean =>
 	/(?<![A-Za-z])(bar|Bar|BAR)s?(?![a-z])/.test(line);
 
 // A foo that names the context, not the Foo Aggregate: its ports, transaction, Use cases, readers
-// and memory state, and the paths of its folder and its own files.
+// and memory state, its Postgres schema, and the paths of its folder and its own files.
 const contextFooPattern =
-	/\b(foo|Foo)(?=(?:Ports|PortsCreate|PortsMemoryCreate|Readers|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*Reader(?:MemoryCreate|Create|Actor)?)\b)|(?<=contexts\/)foo(?=\/)|(?<=bridges\/)foo(?=-)|\bfoo(?=-(?:use-cases|ports\.memory|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-reader(?:\.memory)?\.ts\b)/g;
+	/\b(foo|Foo)(?=(?:Ports|PortsCreate|PortsMemoryCreate|Readers|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*Reader(?:MemoryCreate|Create|Actor)?)\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|(?<=bridges\/)foo(?=-)|\bfoo(?=-(?:use-cases|ports\.memory|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-reader(?:\.memory)?\.ts\b)/g;
 const contextPlaceholder = (text: string): string =>
 	text.replace(contextFooPattern, (foo) => (foo === "Foo" ? "Qqctx" : "qqctx"));
 

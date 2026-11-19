@@ -649,8 +649,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						),
 					].map((k) => k[2] ?? k[3] ?? ""),
 				);
+				// An Aggregate's Use cases may name the Aggregate instead: baseline.invoice_line.id.
+				const scopes = [
+					context,
+					...aggregatesOf(files, contextOf(f.path) ?? "").map(snake),
+				].join("|");
 				const valid = new RegExp(
-					`^baseline\\.${context}\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
+					`^baseline\\.(${scopes})\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
 				);
 				return [...single, ...many]
 					.filter((key) => !valid.test(key))
