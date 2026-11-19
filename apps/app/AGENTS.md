@@ -1,6 +1,6 @@
 # App
 
-The glossary is [CONTEXT.md](CONTEXT.md). Use its terms for every name. The next line loads it in Claude Code, so it stays alone on its line:
+Glossaries: [CONTEXT.md](CONTEXT.md), shared, and each context's own, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md). The next line loads the first; keep it alone:
 
 @CONTEXT.md
 
@@ -23,7 +23,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - API check (oasdiff): `pnpm api-check`
 - pieces removable: `pnpm piece-check`
 - template upgrade: `pnpm template-upgrade`
-- glossary aliases: `pnpm glossary-check`
+- glossary: `pnpm glossary-check`
 
 There is no coverage tooling.
 
@@ -109,13 +109,12 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Glossary rules
 
-- `CONTEXT.md` is the source of truth for names in code, tests, UI copy, tickets, PRs and commits. Never use an `_Avoid_` alias.
-- Never edit `## Architecture`. Propose the change to baseline.
-- Ask before adding or changing a term. Give the term, the definition and the `_Avoid_` list. Never add or edit a term the user did not answer.
-- The entry lands in the same PR. The PR body has a "Glossary" section listing each change as agreed.
-- Removing a Domain removes its glossary entry in the same PR.
-- Existing code that uses another word for a term gets a rename ticket, one per term. Do not rename in passing.
-- Renames go everywhere, with expand then contract.
+- Names in code, tests, UI copy, tickets, PRs and commits come from the glossaries. No `_Avoid_` alias, nor an upstream context's term outside adapters.
+- Never edit `CONTEXT.md`; propose changes to baseline.
+- Ask before adding or changing a term or a context, giving the term, its definition and `_Avoid_` list. Never add one the user did not answer.
+- The entry lands in the same PR, listed in its "Glossary" section.
+- A context's `CONTEXT-MAP.md` row comes before `pnpm context-create` and goes with the context.
+- Code using another word for a term gets a rename ticket per term, never a rename in passing. Renames go everywhere, expand then contract.
 - Run `pnpm glossary-check` before a PR and judge each hit.
 
 ## Rules no tool checks

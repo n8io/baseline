@@ -22,7 +22,7 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
 - **Nothing is lost.** Every feature, export, env var, runbook and upgrade note in the old README stays, folded into `<details>` if it is reference. Shorter at the top, never thinner overall.
 - **Examples** are 3 to 15 lines _(test: 15, in a Package README above Reference)_ of real calls that compile against the current exports. Show Zod where a caller passes a schema ([packages.md](packages.md#schemas)).
 - **Accurate.** Check every claim against the code on main. A number appears only where a README or test already measures it.
-- **Glossary terms** from [CONTEXT.md](../../CONTEXT.md) and [apps/app/CONTEXT.md](../../apps/app/CONTEXT.md), never their `_Avoid_` aliases.
+- **Glossary terms** from [CONTEXT.md](../../CONTEXT.md) and the glossaries [apps/app/CONTEXT-MAP.md](../../apps/app/CONTEXT-MAP.md) lists, never their `_Avoid_` aliases.
 - **Vendor names** go only in a "Runs on" column or the Needs line, never in an API description.
 - **Changesets.** A Package whose README changes gets a patch changeset, so npmjs shows the new page. The root README and diagrams need none.
 

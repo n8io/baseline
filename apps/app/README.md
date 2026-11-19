@@ -30,10 +30,11 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 
 ## Domains
 
-A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its API, Use cases, transitions, ports and adapters in the same layout, named by its term in [CONTEXT.md](CONTEXT.md). The contexts are the folders there; a new Project starts with none. Agree the term, add its `**Term**:` entry under Language, then:
+A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its API, Use cases, transitions, ports and adapters in the same layout, listed with its subdomain type in [CONTEXT-MAP.md](CONTEXT-MAP.md) and named by the terms in its own `CONTEXT.md`. The contexts are the folders there; a new Project starts with none. Agree the context and add its row to the map, then:
 
 ```sh
-pnpm context-create invoice && pnpm aggregate-create invoice invoice --bare   # the core only; --help lists the parts
+pnpm context-create invoice                 # then add **Invoice**: to src/contexts/invoice/CONTEXT.md
+pnpm aggregate-create invoice invoice --bare   # the core only; --help lists the parts
 pnpm codegen --name invoice_create  # its migration, after you shape the Model and its table
 ```
 
@@ -60,4 +61,4 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Model a
 
 ## For AI agents
 
-Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the glossary every name follows. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one.
+Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one.

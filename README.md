@@ -115,7 +115,7 @@ Built to be read cold. Start with these files, in this order:
 
 1. [`AGENTS.md`](AGENTS.md): this repo's verify commands and test rules, as a short index.
 2. [`CONTEXT-MAP.md`](CONTEXT-MAP.md): the glossaries. Use their terms in code, tests, PRs and commits.
-3. [`apps/app/AGENTS.md`](apps/app/AGENTS.md) and [`apps/app/CONTEXT.md`](apps/app/CONTEXT.md): the rules and terms every Project inherits.
+3. [`apps/app/AGENTS.md`](apps/app/AGENTS.md) and [`apps/app/CONTEXT-MAP.md`](apps/app/CONTEXT-MAP.md): the rules every Project inherits, and its context map, which links the architecture terms and each context's language.
 
 Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creating a Project with docs/agents/project-create.md."
 

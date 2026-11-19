@@ -19,9 +19,15 @@ import.meta.glob(
 	],
 	{ query: "?raw" },
 );
-import.meta.glob(["./AGENTS.md", "./CONTEXT.md", "./docs/agents/**"], {
-	query: "?raw",
-});
+import.meta.glob(
+	[
+		"./AGENTS.md",
+		"./CONTEXT.md",
+		"./docs/agents/**",
+		"./src/contexts/*/CONTEXT.md",
+	],
+	{ query: "?raw" },
+);
 
 const appRoot = new URL("./", import.meta.url);
 
@@ -30,15 +36,19 @@ const termOf = (name: string) => {
 	return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(" ");
 };
 
-const structureViolations = (paths: string[], context: string): string[] => {
+// `glossaryOf` gives a context's own CONTEXT.md, which holds its Aggregates' terms.
+const structureViolations = (
+	paths: string[],
+	glossaryOf: (context: string) => string,
+): string[] => {
 	const problems: string[] = [];
-	const terms = new Set(
-		[...context.matchAll(/^\*\*(.+?)\*\*:/gm)].map((m) =>
-			(m[1] ?? "").toLowerCase(),
-		),
-	);
-	const termCheck = (name: string) => {
-		const message = `CONTEXT.md: add a **${termOf(name)}**: term for ${name}`;
+	const termCheck = (name: string, context: string) => {
+		const terms = new Set(
+			[...glossaryOf(context).matchAll(/^\*\*(.+?)\*\*:/gm)].map((m) =>
+				(m[1] ?? "").toLowerCase(),
+			),
+		);
+		const message = `src/contexts/${context}/CONTEXT.md: add a **${termOf(name)}**: term for ${name}`;
 		if (!terms.has(termOf(name).toLowerCase()) && !problems.includes(message))
 			problems.push(message);
 	};
@@ -69,7 +79,6 @@ const structureViolations = (paths: string[], context: string): string[] => {
 			"adapters/inbound",
 			"adapters/outbound",
 		];
-		termCheck(name);
 		for (const file of ["index.ts", "application/ports.ts"]) {
 			if (!files.includes(file)) problems.push(`${base}/${file}: add ${file}`);
 		}
@@ -106,7 +115,7 @@ const structureViolations = (paths: string[], context: string): string[] => {
 				!["errors", "repositories"].includes(stem) &&
 				(aggregates.includes(stem) || !files.includes(`domain/${stem}.test.ts`))
 			)
-				termCheck(stem);
+				termCheck(stem, name);
 		}
 	}
 	return problems;
@@ -246,10 +255,13 @@ describe("context structure", () => {
 	it("holds for the real tree", () => {
 		const contexts = new URL("src/contexts/", appRoot);
 		const paths = filesList(contexts, "src/contexts");
-		const text = readFileSync(new URL("CONTEXT.md", appRoot), "utf8");
+		const glossaryOf = (context: string) => {
+			const glossary = new URL(`${context}/CONTEXT.md`, contexts);
+			return existsSync(glossary) ? readFileSync(glossary, "utf8") : "";
+		};
 		// A rendered project starts with no context, so only the folder must exist.
 		expect(existsSync(contexts)).toBe(true);
-		expect(structureViolations(paths, text)).toEqual([]);
+		expect(structureViolations(paths, glossaryOf)).toEqual([]);
 	});
 
 	it("passes a complete context", () => {
@@ -266,7 +278,7 @@ describe("context structure", () => {
 					"src/contexts/bar/adapters/inbound/index.ts",
 					"src/contexts/bar/adapters/outbound/index.ts",
 				],
-				context,
+				() => context,
 			),
 		).toEqual([]);
 	});
@@ -306,19 +318,26 @@ describe("context structure", () => {
 			name: "a file in adapters/ itself",
 		},
 		{
-			message: "CONTEXT.md: add a **Bar line**: term for bar-line",
+			message:
+				"src/contexts/bar/CONTEXT.md: add a **Bar line**: term for bar-line",
 			paths: [...barBase, "src/contexts/bar/domain/bar-line.ts"],
 			name: "a model with no glossary term",
 		},
 	])("fails on $name", ({ message, paths }) => {
-		expect(structureViolations(paths, context)).toEqual([
+		expect(structureViolations(paths, () => context)).toEqual([
 			expect.stringContaining(message),
 		]);
 	});
 
-	it("fails on a context with no glossary term", () => {
-		expect(structureViolations(barBase, "**Baz**:\n")).toEqual([
-			"CONTEXT.md: add a **Bar**: term for bar",
+	it("reads each context's own glossary for its Aggregates' terms", () => {
+		const paths = [
+			...barBase,
+			...barBase.map((path) => path.replaceAll("bar", "baz")),
+		];
+		const glossaryOf = (name: string) => (name === "baz" ? context : "");
+		expect(structureViolations(paths, glossaryOf)).toEqual([
+			expect.stringContaining("src/contexts/bar/CONTEXT.md: add a **Bar**:"),
+			expect.stringContaining("src/contexts/baz/CONTEXT.md: add a **Baz**:"),
 		]);
 	});
 
@@ -331,18 +350,22 @@ describe("context structure", () => {
 			"src/contexts/bar/adapters/outbound/index.ts",
 			"src/contexts/bar/domain/bar-note.ts",
 		];
-		expect(structureViolations(paths, `${context}**Bar note**:\n`)).toEqual([]);
+		expect(
+			structureViolations(paths, () => `${context}**Bar note**:\n`),
+		).toEqual([]);
 		expect(
 			structureViolations(
 				[...barBase, "src/contexts/bar/baz-error-status.ts"],
-				context,
+				() => context,
 			),
 		).toEqual([expect.stringContaining("a context root holds only")]);
 	});
 
 	it("passes a model once the glossary has its term", () => {
 		const paths = [...barBase, "src/contexts/bar/domain/bar-line.ts"];
-		expect(structureViolations(paths, `${context}**Bar line**:\n`)).toEqual([]);
+		expect(
+			structureViolations(paths, () => `${context}**Bar line**:\n`),
+		).toEqual([]);
 	});
 
 	it("term-checks an Aggregate's file even with a test beside it, but not a domain service", () => {
@@ -355,7 +378,7 @@ describe("context structure", () => {
 			"src/contexts/bar/domain/bar-line-merge.ts",
 			"src/contexts/bar/domain/bar-line-merge.test.ts",
 		];
-		expect(structureViolations(paths, context)).toEqual([
+		expect(structureViolations(paths, () => context)).toEqual([
 			expect.stringContaining("**Bar line**"),
 		]);
 	});

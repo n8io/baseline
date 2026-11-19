@@ -23,8 +23,6 @@ import {
 } from "../apps/app/scripts/template-render.ts";
 import { releaseRender } from "../apps/app/scripts/template-upgrade.ts";
 
-type GlossaryTerm = { term: string; definition: string };
-
 // The app-ci.yml jobs a pull request must pass: every job there but `changes`, which only reads the
 // diff for the others (glossary aliases warn inside `check`).
 export const requiredJobs = [
@@ -59,13 +57,6 @@ export const appRender = async ({
 	templateFinish(directory, toolsDirectory);
 };
 
-// Puts the project's terms under CONTEXT.md's `## Language`, which the render leaves empty.
-export const contextLanguageWrite = (text: string, terms: GlossaryTerm[]) => {
-	if (terms.length === 0) return text;
-	const entries = terms.map((t) => `**${t.term}**:\n${t.definition}\n`);
-	return `${text.trimEnd()}\n\n${entries.join("\n")}`;
-};
-
 // A fresh AUTHN_SECRET for development.
 export const envFilesWrite = (directory: string): void => {
 	const development = join(directory, ".env.development");
@@ -78,21 +69,14 @@ export const envFilesWrite = (directory: string): void => {
 	);
 };
 
-// Writes the answers a rendered project keeps: CONTEXT.md terms, env files and .template.json.
+// Writes the answers a rendered project keeps: env files and .template.json.
 export const answersWrite = ({
 	answers,
 	directory,
-	terms,
 }: {
 	answers: TemplateAnswers & { release: string };
 	directory: string;
-	terms: GlossaryTerm[];
 }): void => {
-	const context = join(directory, "CONTEXT.md");
-	writeFileSync(
-		context,
-		contextLanguageWrite(readFileSync(context, "utf8"), terms),
-	);
 	envFilesWrite(directory);
 	writeFileSync(
 		join(directory, ".template.json"),
@@ -506,7 +490,7 @@ const githubSteps = ({
 const nextSteps = (directory: string): string =>
 	[
 		`Next: cd ${directory} && pnpm dev`,
-		"Then add your first context's term to CONTEXT.md, run `pnpm context-create <context>`, then `pnpm aggregate-create <context> <aggregate> --bare` (docs/agents/context-create.md).",
+		"Then add your first context's row to CONTEXT-MAP.md, run `pnpm context-create <context>`, add its Aggregate's term to the context's CONTEXT.md, then `pnpm aggregate-create <context> <aggregate> --bare` (docs/agents/context-create.md).",
 	].join("\n");
 
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -549,7 +533,6 @@ const projectRender = async (answers: TemplateAnswers): Promise<string> => {
 		answersWrite({
 			directory,
 			answers: { ...answers, release },
-			terms: [],
 		});
 		await npmVersionsWait({
 			packages: baselinePackagesPinned(

@@ -51,7 +51,9 @@ import.meta.glob(
 	],
 	{ query: "?raw" },
 );
-import.meta.glob(["../CONTEXT.md"], { query: "?raw" });
+import.meta.glob(["../CONTEXT.md", "../src/contexts/*/CONTEXT.md"], {
+	query: "?raw",
+});
 
 const appRoot = new URL("../", import.meta.url);
 const names = { kebab: "invoice-line", plural: "invoice-lines" };
@@ -68,7 +70,9 @@ const template =
 const appCreate = (context: string): DisposableTempDir => {
 	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
 	const directory = folder.path;
-	writeFileSync(join(directory, "CONTEXT.md"), context);
+	// The billing context's own glossary, which aggregate-create reads its Aggregates' terms from.
+	mkdirSync(join(directory, "src/contexts/billing"), { recursive: true });
+	writeFileSync(join(directory, "src/contexts/billing/CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
 	const dependencies = {
 		"@n8io/baseline-analytics": "^1.0.0",
@@ -94,7 +98,11 @@ describe("nameRefusal and aggregateRefusal", () => {
 
 		expect(nameTerm("invoice-line")).toBe("Invoice line");
 		expect(
-			nameRefusal({ appDirectory: app, kebab: "invoice-line" }),
+			nameRefusal({
+				appDirectory: app,
+				context: "billing",
+				kebab: "invoice-line",
+			}),
 		).toBeUndefined();
 		expect(
 			aggregateRefusal({

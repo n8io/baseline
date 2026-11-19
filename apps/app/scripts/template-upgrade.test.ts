@@ -16,6 +16,7 @@ import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import { filesWrite, type TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
+	languageKeep,
 	secretKeep,
 	templateUpgradeRun,
 	type UpgradeTools,
@@ -536,6 +537,95 @@ describe("workspaceExcludesDedupe", () => {
 		const other = 'minimumReleaseAgeExclude:\n  - "react@19.0.0"\n';
 		expect(workspaceExcludesDedupe(`${template}${other}`)).toBe(
 			`${template}${other}`,
+		);
+	});
+});
+
+describe("languageKeep", () => {
+	const language = "## Language\n\n**Invoice**:\nA bill.\n";
+
+	it("carries the Project's terms into every render's CONTEXT.md", () => {
+		const files = [
+			{
+				path: "CONTEXT.md",
+				text: "# T.\n\n## Architecture\n\nold\n\n## Language\n",
+			},
+			{ path: "src/a.ts", text: "a\n" },
+		];
+
+		expect(languageKeep({ files, project: `# Mine.\n\n${language}` })).toEqual([
+			{
+				path: "CONTEXT.md",
+				text: `# T.\n\n## Architecture\n\nold\n\n${language}`,
+			},
+			{ path: "src/a.ts", text: "a\n" },
+		]);
+		expect(
+			languageKeep({
+				files: [
+					{ path: "CONTEXT.md", text: "# T.\n\n## Architecture\n\nnew\n" },
+				],
+				project: `# Mine.\n\n${language}`,
+			}),
+		).toEqual([
+			{
+				path: "CONTEXT.md",
+				text: `# T.\n\n## Architecture\n\nnew\n\n${language}`,
+			},
+		]);
+	});
+
+	it("leaves the renders alone when the Project has no terms there", () => {
+		const files = [{ path: "CONTEXT.md", text: "# T.\n\n## Language\n" }];
+
+		expect(languageKeep({ files, project: "# Mine.\n\n## Language\n" })).toBe(
+			files,
+		);
+		expect(languageKeep({ files, project: "# Mine.\n" })).toBe(files);
+	});
+
+	it("lets an upgrade drop the Template's ## Language without a conflict", async () => {
+		const release = (
+			architecture: string,
+			heading: boolean,
+		): TemplateFile[] => [
+			{
+				path: "CONTEXT.md",
+				text: `# Template.\n\n## Architecture\n\n${architecture}\n${heading ? "\n## Language\n" : ""}`,
+			},
+			{ path: "package.json", text: releaseManifest },
+		];
+		const contexts: Record<string, TemplateFile[]> = {
+			"3.0.0": release("old", true),
+			"4.0.0": release("new", false),
+		};
+		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+		const app = folder.path;
+		git(app, "init", "--quiet", "--initial-branch=main");
+		git(app, "config", "user.email", "test@example.com");
+		git(app, "config", "user.name", "Test");
+		writeFileSync(
+			join(app, ".template.json"),
+			'{ "release": "3.0.0", "description": "Invoices." }\n',
+		);
+		writeFileSync(join(app, "package.json"), manifest);
+		writeFileSync(
+			join(app, "CONTEXT.md"),
+			`# Invoices.\n\n## Architecture\n\nold\n\n${language}`,
+		);
+		git(app, "add", ".");
+		git(app, "commit", "--quiet", "-m", "project");
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "4.0.0",
+				...runCapture(),
+				tools: { fetch: (v) => contexts[v] ?? [], finish: () => {} },
+			}),
+		).toBe(0);
+		expect(readFileSync(join(app, "CONTEXT.md"), "utf8")).toBe(
+			`# Invoices.\n\n## Architecture\n\nnew\n\n${language}`,
 		);
 	});
 });

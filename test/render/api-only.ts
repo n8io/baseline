@@ -35,6 +35,7 @@ import {
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
+import { contextMapDefine, contextTermAdd } from "./glossary.ts";
 
 const answers = { description: "An API without pages.", name: "api-only" };
 const customer = {
@@ -68,6 +69,7 @@ const contextAdd = ({
 	files: ReturnType<typeof checkoutExport>;
 	names: typeof customer;
 }) => {
+	contextMapDefine({ context: names.kebab, directory });
 	const refusal = contextRefusal({
 		appDirectory: directory,
 		context: names.kebab,
@@ -79,6 +81,12 @@ const contextAdd = ({
 		templateFull: files,
 	});
 	filesWrite(directory, shell);
+	contextTermAdd({
+		context: names.kebab,
+		definition: names.definition,
+		directory,
+		term: glossaryTerm(names.kebab),
+	});
 	const refused = aggregateRefusal({
 		aggregate: names,
 		appDirectory: directory,
@@ -106,7 +114,19 @@ const contextAdd = ({
 		unusedImports,
 		...paths,
 	]);
-	pnpmRun(directory, ["exec", "biome", "check", "--write", ...paths]);
+	// The map's new row and the context's language, as a Project's pnpm format leaves them.
+	const glossaries = [
+		"CONTEXT-MAP.md",
+		`src/contexts/${names.kebab}/CONTEXT.md`,
+	];
+	pnpmRun(directory, [
+		"exec",
+		"biome",
+		"check",
+		"--write",
+		...paths,
+		...glossaries,
+	]);
 };
 
 type OpenApiDocument = {
@@ -290,14 +310,7 @@ const main = async () => {
 	}
 	const files = checkoutExport();
 	await appRender({ directory, files, answers });
-	answersWrite({
-		directory,
-		answers: { ...answers, release: "checkout" },
-		terms: [customer, invoiceLine].map((d) => ({
-			definition: d.definition,
-			term: glossaryTerm(d.kebab),
-		})),
-	});
+	answersWrite({ directory, answers: { ...answers, release: "checkout" } });
 	run({
 		command: "git",
 		args: ["init", "--quiet", "--initial-branch=main"],

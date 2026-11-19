@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)). Code, paths and `CONTEXT-MAP.md` keep the old words and shape until the tickets that move them land; `glossary-check` lets the old words pass until then:
+The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`. Code and paths keep the old words until the tickets that move them land; `glossary-check` lets the old words pass until then:
 _Allowed until n8io/baseline#473 (added 2026-11-18)_: Domain, Model, Rule, API layer, SPI, Consumer, Bridge, Outcome Events
 
 **Bounded context**:
@@ -10,17 +10,17 @@ The scope of one model and its language, holding one or more Aggregates grouped 
 _Avoid_: Domain, feature
 
 **Subdomain**:
-The kind of business area a bounded context serves: core, supporting or generic. Each context's language file names its type.
+The kind of business area a bounded context serves: core, supporting or generic. `CONTEXT-MAP.md` and the context's own `CONTEXT.md` both name its type.
 
 **Context map**:
 `CONTEXT-MAP.md`: each bounded context, its subdomain type, and its relationships to the others: upstream or downstream, anti-corruption layer, Published language, Shared kernel.
 
 **Shared kernel**:
-What every bounded context shares and changes together: the result, id and authn Packages. Their types are the only imports `domain/` may take from outside itself.
+What every bounded context shares and changes together: the result, id and authn Packages. Their types, and the result Package's `ok` and `err`, are the only imports `domain/` may take from outside itself, besides Zod and the id schema.
 
 **Aggregate**:
 An Aggregate root with the entities and value objects it owns, saved and loaded as one unit through one Repository. Every change to it goes through a transition in its `domain/` file, so a Use case cannot save one that breaks an invariant. One Aggregate per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
-_Avoid_: Entity graph, root object
+_Avoid_: entity graph, root object
 
 **Aggregate root**:
 The entity an Aggregate is held, loaded and saved by. Its schema, its value objects, its transitions and its specifications live in `domain/<aggregate>.ts`.
@@ -39,14 +39,14 @@ _Avoid_: Rule
 
 **Specification**:
 A reusable predicate over an Aggregate, in its `domain/` file, named ending in `Is`, `Has` or `Can` (`invoicePaidIs`).
-_Avoid_: Policy, validator
+_Avoid_: policy, validator
 
 **Domain service**:
 Logic over several Aggregates that belongs to none of them, as a pure function in its own `domain/` file.
 
 **Use case**:
 One operation a bounded context performs, in `application/`, such as creating a foo (`fooCreate`). It loads an Aggregate through its ports, calls a transition, saves the result and publishes. Each gets its ports from a factory: `fooCreate(ports)` returns the function.
-_Avoid_: Service, interactor
+_Avoid_: service, interactor
 
 **Module**:
 Anything with an interface and an implementation, at any scale: a function, a file, a Package or a bounded context. A bounded context is one deep module: a lot of behaviour behind a small interface.
@@ -63,7 +63,7 @@ A concrete thing that satisfies an interface at a seam, named for the slot it fi
 
 **Port**:
 The interface at a seam: what a bounded context declares it needs from outside, such as saving an Aggregate or caching. A port stays only where two adapters exist, a production one and a memory one. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
-_Avoid_: Contract, gateway
+_Avoid_: contract, gateway
 
 **Repository**:
 The port that saves and loads one Aggregate. Each Aggregate root has exactly one, named after it; the rest of the Aggregate is saved through it.
@@ -75,11 +75,11 @@ _Avoid_: API layer, HTTP layer, controllers, transport
 
 **Outbound adapter**:
 An adapter that a bounded context drives through a port, with real technology or in memory: Postgres repositories and tables, memory fakes and anti-corruption layers, in `adapters/outbound/`. It holds no business logic, and `domain/` and `application/` never import it.
-_Avoid_: SPI, Infrastructure, providers, drivers
+_Avoid_: SPI, infrastructure, providers, drivers
 
 **Clock**:
 The port a bounded context reads the current time from (`<context>Clock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
-_Avoid_: Time provider, now function
+_Avoid_: time provider, now function
 
 **Actor**:
 Who is performing a use case: a signed-in user or a machine client.
@@ -152,12 +152,3 @@ _Avoid_: job runner, background process
 **Seed**:
 An inbound adapter that creates example data for local development by calling its bounded context's own Use cases.
 _Avoid_: fixture, sample data
-
-## Language
-
-**Foo**:
-The Template's example bounded context, `foo`, and its Aggregate root: a named record that shows every pattern a context uses. A project never contains it: it starts with no context, `context-create` copies foo's context-level files under a new context's name, and `aggregate-create` copies Foo under each new Aggregate's name.
-_Avoid_: widget, example, sample
-
-**Bar**:
-The Template's second example Aggregate in `foo`: a short note on one Foo, deleted with its Foo in the same transaction. It shows a context holding several Aggregates and a transaction across two under an invariant. Neither command copies it.
