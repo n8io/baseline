@@ -1,0 +1,11 @@
+// A29: a Use case never builds an Aggregate root as a literal
+// expect: src/contexts/billing/application/invoice-open.ts:2: : InvoiceLine = { makes or changes a InvoiceLine in a Use case
+// @file src/contexts/billing/application/invoice-open.ts
+export const invoiceOpen = (ports) => async (actor, input) => {
+	const line: InvoiceLine = { id: input.id, invoiceId: input.invoiceId };
+	return ports.billingTransaction((t) => t.invoiceLineRepository.insert(line));
+};
+// @file src/contexts/billing/domain/invoice-line.ts
+export type InvoiceLine = { id: string; invoiceId: string };
+// @file src/contexts/billing/adapters/outbound/invoice-line-table.ts
+export const invoiceLine = pgSchema("billing").table("invoice_line", {});

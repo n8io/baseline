@@ -1,6 +1,6 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { ok, type Result } from "@n8io/baseline-result";
-import { fooStaleBefore } from "../domain/foo-stale-is.ts";
+import { fooStaleBefore } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
 // The schedule's use case: archives every foo that is stale as of now and returns how many.

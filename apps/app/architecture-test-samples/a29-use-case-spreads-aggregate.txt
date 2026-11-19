@@ -1,0 +1,12 @@
+// A29: a Use case changes an Aggregate only through a transition in domain/, never by copying it with changes
+// expect: src/contexts/billing/application/invoice-rename.ts:4: ...invoice makes or changes a Invoice in a Use case; do it only through a transition in domain/invoice.ts
+// @file src/contexts/billing/application/invoice-rename.ts
+export const invoiceRename = (ports) => (actor, input) =>
+	ports.billingTransaction(async (t) => {
+		const invoice = await t.invoiceRepository.findByIdForUpdate(input.invoiceId);
+		return t.invoiceRepository.update({ ...invoice, name: input.name });
+	});
+// @file src/contexts/billing/domain/invoice.ts
+export const invoiceRename = (invoice, name) => ok({ ...invoice, name });
+// @file src/contexts/billing/adapters/outbound/invoice-table.ts
+export const invoice = pgSchema("billing").table("invoice", {});

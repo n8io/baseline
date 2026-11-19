@@ -237,13 +237,16 @@ const scopeOf = (p: string): string | undefined => {
 	return scope ? camel(scope) : undefined;
 };
 
-// What domain/ imports from outside its context: Zod and the id schema, and the shared kernel's
-// types (the Actor, an id and a Result).
-const domainImportsAllowed = new Set(["src/id-schema.ts", "zod"]);
+// What domain/ imports from outside its context: Zod, the id schema and the result package (a
+// transition returns ok or err), and the shared kernel's types (the Actor and an id).
+const domainImportsAllowed = new Set([
+	"@n8io/baseline-result",
+	"src/id-schema.ts",
+	"zod",
+]);
 const domainTypePackages = new Set([
 	"@n8io/baseline-authn",
 	"@n8io/baseline-id",
-	"@n8io/baseline-result",
 ]);
 
 // The names a file imports as values from its own context's domain/ or entry.
@@ -275,6 +278,59 @@ const sharedSchemaNames = (f: ArchitectureFile): string[] => {
 	return names;
 };
 
+// The functions a context's domain/ exports: its transitions, specifications and domain services.
+const domainFunctionNames = (
+	files: ArchitectureFile[],
+	context: string,
+): Set<string> =>
+	new Set(
+		files
+			.filter(
+				(f) =>
+					contextOf(f.path) === context &&
+					layerOf(f.path) === "domain" &&
+					!testIs(f.path),
+			)
+			.flatMap((f) =>
+				[...f.source.matchAll(exportedFunction)].map((m) => m[1] ?? m[2] ?? ""),
+			),
+	);
+
+// Adapters translate; the Aggregate's transitions and specifications run only in Use cases.
+const adapterDomainLogicImports = (
+	files: ArchitectureFile[],
+	layer: string,
+): string[] =>
+	files
+		.filter((f) => layerOf(f.path) === layer && !testIs(f.path))
+		.flatMap((f) => {
+			const context = contextOf(f.path);
+			const logic = domainFunctionNames(files, context ?? "");
+			// A namespace import reaches every function, so it is refused outright.
+			const namespaces = [
+				...f.source.matchAll(
+					/^import\s+\*\s+as\s+(\w+)\s+from\s*["']([^"']+)["']/gm,
+				),
+			].filter((m) => {
+				const parts = sameContextParts(
+					{
+						specifier: m[2] ?? "",
+						target: importTarget(f.path, m[2] ?? ""),
+						typeOnly: false,
+					},
+					context,
+				);
+				return parts?.[0] === "domain" || parts?.join("/") === "index.ts";
+			});
+			return [
+				...sharedSchemaNames(f).filter((name) => logic.has(name)),
+				...namespaces.map((m) => `* as ${m[1]}`),
+			].map(
+				(name) =>
+					`${f.path} imports ${name}: ${layer}/ holds no business logic; call a Use case that applies the transition or specification`,
+			);
+		});
+
 export const architectureRules: Record<string, ArchitectureRule> = {
 	A1: (files) =>
 		importsCheck({
@@ -296,11 +352,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				domainImportsAllowed.has(imp.target) ||
 				(domainTypePackages.has(imp.target) && imp.typeOnly)
 					? undefined
-					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts and the types of the authn, id and result packages; move this to a Use case in application/",
+					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result package and the types of the authn and id packages; move this to a Use case in application/",
 		}),
 
-	A3: (files) =>
-		importsCheck({
+	A3: (files) => [
+		...adapterDomainLogicImports(files, "adapters/inbound"),
+		...importsCheck({
 			files,
 			fileIs: (f) => layerOf(f.path) === "adapters/inbound" && !testIs(f.path),
 			check: ({ context, imp }) => {
@@ -320,9 +377,11 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: "adapters/inbound/ reaches the context only through its index.ts, domain/ and Use case types";
 			},
 		}),
+	],
 
-	A4: (files) =>
-		importsCheck({
+	A4: (files) => [
+		...adapterDomainLogicImports(files, "adapters/outbound"),
+		...importsCheck({
 			files,
 			fileIs: (f) => layerOf(f.path) === "adapters/outbound" && !testIs(f.path),
 			check: ({ context, imp }) => {
@@ -338,6 +397,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: "adapters/outbound/ implements ports: from its context it imports only domain/ and application/ports.ts";
 			},
 		}),
+	],
 
 	A5: (files) =>
 		importsCheck({
@@ -948,7 +1008,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					}
 					const instead =
 						kind === "domain/ file"
-							? "domain/ returns a plain value (a boolean or a reason) and the Use case turns it into err(...)"
+							? "a transition returns err(new <Name>Error()) and names the error in its Result"
 							: "return err(new <Name>Error()) and add the error to the Use case's error union";
 					return [
 						`${where}; ${instead}. Only a bug that cannot happen throws (never not-found, forbidden, conflict or validation): throw new Error(...) directly under a one-line "// unreachable: <why, in a few words>"`,
@@ -994,6 +1054,45 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						: [
 								`${f.path}:${line + 1}: one transaction writes ${[...repositories].sort().join(" and ")}; keep one Aggregate per transaction, or say the invariant that needs both in a "// invariant: <what>" comment above it`,
 							];
+				});
+			}),
+
+	// An Aggregate changes only through its transitions, so a Use case never builds one or copies
+	// one with changes: no literal typed as or cast to the root, no spread of or assignment to a
+	// variable named for it or loaded by a repository find, and no literal handed to its
+	// repository's write. Text, not types, like A23: it reads names, so an untyped literal under
+	// another name slips by. A type brand would make every adapter and test cast its rows.
+	A29: (files) =>
+		files
+			.filter((f) => applicationUseCaseIs(f.path) && !f.path.includes("-test-"))
+			.flatMap((f) => {
+				const context = contextOf(f.path) ?? "";
+				const code = f.source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, (c) =>
+					c.replace(/[^\n]/g, " "),
+				);
+				const loaded = [
+					...code.matchAll(
+						/\b(?:const|let)\s+(\w+)\s*=\s*await\s+[\w.]*Repository\s*\.\s*find\w*\(/g,
+					),
+				].map((m) => m[1] ?? "");
+				return aggregatesOf(files, context).flatMap((kebab) => {
+					const variable = camel(kebab);
+					const pascal = variable.charAt(0).toUpperCase() + variable.slice(1);
+					const names = [variable, `\\w+${pascal}`, ...loaded].join("|");
+					const pattern = new RegExp(
+						[
+							`:\\s*${pascal}\\s*=\\s*\\{`,
+							`\\b(?:as|satisfies)\\s+${pascal}\\b`,
+							`\\.\\.\\.\\s*(?:[\\w.]*\\.)?(?:${names})\\b(?!\\s*[(.])`,
+							`\\b(?:${names})\\.\\w+\\s*=(?![=>])`,
+							`\\b${variable}Repository\\s*\\.\\s*(?:insert|update|save|upsert)\\s*\\(\\s*\\{`,
+						].join("|"),
+						"g",
+					);
+					return [...code.matchAll(pattern)].map((m) => {
+						const line = code.slice(0, m.index).split("\n").length;
+						return `${f.path}:${line}: ${m[0].trim()} makes or changes a ${pascal} in a Use case; do it only through a transition in domain/${kebab}.ts that returns Result, so its invariants hold`;
+					});
 				});
 			}),
 };

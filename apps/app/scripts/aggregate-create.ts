@@ -360,7 +360,7 @@ const partPaths: Record<AggregatePart, RegExp[]> = {
 	live: [],
 	pages: [/^src\/ui\/routes\/(foo-(list|detail)|home)(\.test)?\.tsx?$/],
 	schedule: [
-		/^src\/contexts\/foo\/(adapters\/inbound\/foo-schedule|application\/foo-stale-archive|domain\/foo-stale-is)(\.test)?\.ts$/,
+		/^src\/contexts\/foo\/(adapters\/inbound\/foo-schedule|application\/foo-stale-archive)(\.test)?\.ts$/,
 	],
 	seed: [/^src\/contexts\/foo\/adapters\/inbound\/foo-seed(\.test)?\.ts$/],
 };
@@ -1348,7 +1348,7 @@ export const nextStepsText = ({
 	const name = aggregate.kebab;
 	const has = (part: AggregatePart) => parts === null || parts.includes(part);
 	const steps = [
-		`Edit the Aggregate in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; delete the Use cases, API operations and Rules it does not need.`,
+		`Edit the Aggregate in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; give it its own transitions and specifications there, and delete the Use cases and API operations it does not need.`,
 		...(migrated
 			? []
 			: [
@@ -1369,7 +1369,7 @@ export const nextStepsText = ({
 					`Change the pages in src/ui/routes/${name}-list.tsx and ${name}-detail.tsx.`,
 				]
 			: []),
-		"Business Rules, Event handlers and outcome Events are yours to write: docs/agents/context-create.md.",
+		"Business transitions and specifications, Event handlers and outcome Events are yours to write: docs/agents/context-create.md.",
 	];
 	return ["Next:", ...steps.map((step, k) => `  ${k + 1}. ${step}`)].join("\n");
 };
@@ -1449,7 +1449,7 @@ pnpm context-create, and add <aggregate>'s **Term**: entry to CONTEXT.md.
   --seed             with --bare: development rows
   -h, --help         this help
 
-Never generated: business Rules, Event handlers, outcome Events. See docs/agents/context-create.md.`;
+Never generated: business transitions, Event handlers, outcome Events. See docs/agents/context-create.md.`;
 
 const fail = (message: string): never => {
 	console.error(`aggregate-create: ${message}`);

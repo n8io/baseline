@@ -1,0 +1,8 @@
+// A4: adapters/outbound/ never applies an Aggregate's specification or transition
+// expect: src/contexts/billing/adapters/outbound/invoice-repository.memory.ts imports invoiceOverdueIs: adapters/outbound/ holds no business logic
+// @file src/contexts/billing/adapters/outbound/invoice-repository.memory.ts
+import { Invoice, invoiceOverdueIs } from "../../domain/invoice.ts";
+export const invoiceRepositoryMemoryCreate = () => ({ overdue: (all) => all.filter(invoiceOverdueIs).map((i) => Invoice.parse(i)) });
+// @file src/contexts/billing/domain/invoice.ts
+export const Invoice = z.object({});
+export const invoiceOverdueIs = (invoice) => invoice.dueAt < new Date();

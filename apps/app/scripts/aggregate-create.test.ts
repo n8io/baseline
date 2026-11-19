@@ -164,7 +164,7 @@ describe("contextAggregateRename", () => {
 		const text = [
 			'import type { FooPorts } from "../application/ports.ts";',
 			'import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";',
-			'import { fooDeleteCan } from "#contexts/foo/domain/foo-delete-can.ts";',
+			'import { fooDeleteCan } from "#contexts/foo/domain/foo.ts";',
 			"export const fooDelete = (ports: FooPorts) => ports.fooTransaction(async (t) => t.fooRepository);",
 			'const key = "foo.deleted";',
 			'export const fooSchema = pgSchema("foo");',
@@ -180,7 +180,7 @@ describe("contextAggregateRename", () => {
 		).toEqual([
 			'import type { BillingPorts } from "../application/ports.ts";',
 			'import { billingPortsMemoryCreate } from "../adapters/outbound/billing-ports.memory.ts";',
-			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line-delete-can.ts";',
+			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line.ts";',
 			"export const invoiceLineDelete = (ports: BillingPorts) => ports.billingTransaction(async (t) => t.invoiceLineRepository);",
 			'const key = "invoice-line.deleted";',
 			'export const invoiceLineSchema = pgSchema("billing");',
@@ -777,7 +777,7 @@ describe.runIf(template)(
 			schedule: (created) =>
 				created.some(
 					(f) =>
-						/StaleArchive|archiveStale|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
+						/StaleArchive|archiveStale|StaleBefore|STALE_DAYS|INVOICE_LINE_STALE_ARCHIVE|invoiceLineSchedule/.test(
 							f.text,
 						) || /stale|schedule/.test(f.path),
 				),

@@ -27,7 +27,7 @@ Decide in this order:
 
 Never start a span:
 
-- for a Rule, a helper, or anything that takes microseconds;
+- for a transition, a specification, a helper, or anything that takes microseconds;
 - per loop iteration or per item. One span covers the loop and an attribute holds the count;
 - to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
 - for an error. Return an err; the Use case span records `error.type`;

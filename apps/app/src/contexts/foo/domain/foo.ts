@@ -1,5 +1,9 @@
+import type { Actor } from "@n8io/baseline-authn";
+import type { Id } from "@n8io/baseline-id";
+import { err, ok, type Result } from "@n8io/baseline-result";
 import { z } from "zod";
 import { idSchemaCreate } from "../../../id-schema.ts";
+import { FooForbiddenError } from "./errors.ts";
 
 export const Foo = z.object({
 	id: idSchemaCreate("foo"),
@@ -44,6 +48,53 @@ export type FooList = {
 	nextCursor: string | null;
 	total?: number;
 };
+
+// Foo guards its invariants here: a Use case builds or changes a Foo only through these, so it
+// cannot save one that breaks a rule. Each is pure; the Use case passes in the id and the time.
+
+// A new Foo, owned by the Actor creating it.
+export const fooNew = ({
+	actor,
+	id,
+	input,
+	now,
+}: {
+	actor: Actor;
+	id: Id<"foo">;
+	input: FooCreateInput;
+	now: Date;
+}): Foo => ({
+	id,
+	name: input.name,
+	createdBy: actor.id,
+	createdAt: now,
+	updatedAt: now,
+	archivedAt: null,
+});
+
+// The owner or a holder of foo:update may change a foo.
+export const fooUpdateCan = (foo: Foo, actor: Actor): boolean =>
+	actor.scopes.includes("foo:update") || foo.createdBy === actor.id;
+
+// The owner or a holder of foo:delete may delete a foo.
+export const fooDeleteCan = (foo: Foo, actor: Actor): boolean =>
+	actor.scopes.includes("foo:delete") || foo.createdBy === actor.id;
+
+export const fooRename = (
+	foo: Foo,
+	{ actor, name, now }: { actor: Actor; name: string; now: Date },
+): Result<Foo, FooForbiddenError> =>
+	fooUpdateCan(foo, actor)
+		? ok({ ...foo, name, updatedAt: now })
+		: err(new FooForbiddenError(foo.id));
+
+// aggregate-create-start: schedule
+export const FOO_STALE_DAYS = 30;
+
+// A foo nobody has changed since this cut-off, and that is not archived yet, is stale.
+export const fooStaleBefore = (now: Date): Date =>
+	new Date(now.getTime() - FOO_STALE_DAYS * 86_400_000);
+// aggregate-create-end: schedule
 
 // piece-start: queue
 export const fooCreated = z.object({ fooId: idSchemaCreate("foo") });

@@ -1,13 +1,11 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { idCreate } from "@n8io/baseline-id";
-import { err, ok, type Result } from "@n8io/baseline-result";
+import { err, type Result } from "@n8io/baseline-result";
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
-import type { Bar, BarCreateInput } from "../domain/bar.ts";
-import { FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
-import { fooUpdateCan } from "../domain/foo-update-can.ts";
+import { type Bar, type BarCreateInput, barNew } from "../domain/bar.ts";
+import { type FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
 import type { FooPorts } from "./ports.ts";
 
-// Whoever may change a Foo may add a Bar to it.
 export const barCreate =
 	(ports: FooPorts) =>
 	async (
@@ -23,18 +21,15 @@ export const barCreate =
 					input.fooId,
 				);
 				if (!foo) return err(new FooNotFoundError(input.fooId));
-				if (!fooUpdateCan(foo, actor)) {
-					return err(new FooForbiddenError(input.fooId));
-				}
-				const bar: Bar = {
+				const bar = barNew({
+					actor,
+					foo,
 					id: idCreate("bar"),
-					fooId: foo.id,
-					text: input.text,
-					createdBy: actor.id,
-					createdAt: ports.fooClock.now(),
-				};
-				await transaction.barRepository.insert(bar);
-				return ok(bar);
+					input,
+					now: ports.fooClock.now(),
+				});
+				if (bar.ok) await transaction.barRepository.insert(bar.value);
+				return bar;
 			},
 		);
 	};
