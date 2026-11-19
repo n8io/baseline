@@ -4,7 +4,7 @@ import {
 	productionServerStart,
 } from "./production-server.ts";
 
-// The 1 MB body limit on /api, against the production build. A request with no Content-Length
+// The 1 MB body limit on /api, against the production build (csp.test.ts covers a Content-Length over it). A request with no Content-Length
 // (a DELETE with no body, a chunked POST) is the one the limit has to read to measure.
 let server: ProductionServer;
 
@@ -33,9 +33,6 @@ const chunkedPost = (bytes: number): Promise<Response> => {
 	return fetch(`${server.url}/api/v1/anything`, init);
 };
 
-const problemCode = async (res: Response): Promise<unknown> =>
-	((await res.json()) as { code?: unknown }).code;
-
 describe("the API body limit", { timeout: 30_000 }, () => {
 	it("passes a DELETE with no body on to authentication", async () => {
 		const res = await fetch(`${server.url}/api/v1/anything`, {
@@ -54,16 +51,6 @@ describe("the API body limit", { timeout: 30_000 }, () => {
 	it("answers 413 PayloadTooLarge to a chunked POST over 1 MB", async () => {
 		const res = await chunkedPost(1024 * 1024 + 1);
 		expect(res.status).toBe(413);
-		expect(await problemCode(res)).toBe("PayloadTooLarge");
-	});
-
-	it("answers 413 PayloadTooLarge to a Content-Length over 1 MB", async () => {
-		const res = await fetch(`${server.url}/api/v1/anything`, {
-			body: "x".repeat(1024 * 1024 + 1),
-			headers: { "content-type": "application/json" },
-			method: "POST",
-		});
-		expect(res.status).toBe(413);
-		expect(await problemCode(res)).toBe("PayloadTooLarge");
+		expect(await res.json()).toMatchObject({ code: "PayloadTooLarge" });
 	});
 });
