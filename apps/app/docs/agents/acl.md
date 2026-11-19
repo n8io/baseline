@@ -73,18 +73,17 @@ const invoiceLineContext = invoiceLineContextCreate({
 });
 ```
 
-Tests build the real upstream on memory adapters with `<context>TestUpstreamCreate`, and `<context>PortsMemoryCreate` takes it like `<context>PortsCreate` does. A file that builds ports shares one upstream across its tests; a test that needs an upstream row builds its own and creates the row through the upstream's Use cases:
+Tests build the context through `contextsCreate` on memory connections ([tests.md](tests.md)), which builds the real upstream too; a test that needs an upstream row creates it through the upstream's Use cases. A test past the interface (a repository contract test) builds ports with `<context>TestUpstreamCreate` and `<context>PortsMemoryCreate`, which takes the upstream like `<context>PortsCreate` does.
 
 ```ts
 // src/contexts/invoice-line/application/invoice-line-customer-assign.test.ts
-// The real customer context on memory adapters holds the customer: no fake stands in for it.
+// The real customer context on memory connections holds the customer: no fake stands in for it.
 const setup = async () => {
-	const upstream = await invoiceLineTestUpstreamCreate();
-	const customer = await upstream.customer.useCases.customerCreate(owner, {
+	const { customerContext, invoiceLineContext } = contextsCreate(connections);
+	const customer = await customerContext.useCases.customerCreate(owner, {
 		name: "Acme",
 	});
 	if (!customer.ok) throw customer.error;
-	const memory = invoiceLinePortsMemoryCreate(upstream);
 ```
 
 - **Build order.** `contextsCreate` builds a context after every context it reads. Two contexts never read each other: when they would, one of them reacts to the other's Domain events instead. Add the relationship to `CONTEXT-MAP.md` (`| invoice-line | customer | ACL |`).

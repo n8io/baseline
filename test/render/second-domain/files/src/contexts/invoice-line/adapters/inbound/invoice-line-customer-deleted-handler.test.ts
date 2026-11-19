@@ -1,43 +1,70 @@
-import { idCreate } from "@n8io/baseline-id";
+import type { Actor } from "@n8io/baseline-authn";
+import { queueTestConsumerRun } from "@n8io/baseline-queue/testing";
 import { ok } from "@n8io/baseline-result";
-import { describe, expect, it, vi } from "vitest";
-import type { InvoiceLineUseCases } from "../../application/invoice-line-use-cases.ts";
-import { invoiceLineCustomerDeletedHandlerCreate } from "./invoice-line-customer-deleted-handler.ts";
+import { describe, expect, it } from "vitest";
+import { connectionsOpen } from "../../../../connections.ts";
+import { contextsCreate } from "../../../../use-cases.ts";
+
+const owner: Actor = { id: "owner", kind: "user", scopes: [] };
+const connections = await connectionsOpen({ role: "publisher" });
+
+// The handler as the Worker runs it, through the context's interface on memory connections.
+const setup = async () => {
+	const { customerContext, invoiceLineContext } = contextsCreate(connections);
+	const { handlers, useCases } = invoiceLineContext;
+	const handler = handlers.find(
+		(each) => each.eventName === "customer.deleted",
+	);
+	if (!handler) throw new Error("no customer.deleted handler");
+	const customer = await customerContext.useCases.customerCreate(owner, {
+		name: "Acme",
+	});
+	if (!customer.ok) throw customer.error;
+	const created = await useCases.invoiceLineCreate(owner, { name: "alpha" });
+	if (!created.ok) throw created.error;
+	const assigned = await useCases.invoiceLineCustomerAssign(owner, {
+		customerId: customer.value.id,
+		invoiceLineId: created.value.id,
+	});
+	if (!assigned.ok) throw assigned.error;
+	return {
+		customerId: customer.value.id,
+		handler,
+		invoiceLineId: created.value.id,
+		useCases,
+	};
+};
 
 describe("invoiceLineCustomerDeletedHandlerCreate", () => {
-	const invoiceLineCustomerClear = vi.fn(async () => ok(undefined));
-	const handler = invoiceLineCustomerDeletedHandlerCreate({
-		invoiceLineCustomerClear,
-	} as unknown as InvoiceLineUseCases);
+	it("listens for customer.deleted on its own queue", async () => {
+		const { handler } = await setup();
 
-	it("listens for customer.deleted on its own queue", () => {
 		expect(handler).toMatchObject({
 			eventName: "customer.deleted",
 			queueName: "invoice-line.customer-deleted",
 		});
 	});
 
-	it("clears the customer with its own actor and the job's inbox", async () => {
-		const customerId = idCreate("customer");
-		const inbox = {
-			consumer: "invoice-line.customer-deleted",
-			eventId: "job-1",
-		};
+	it("clears the deleted customer from its invoice lines", async () => {
+		const { customerId, handler, invoiceLineId, useCases } = await setup();
 
-		expect(await handler.run({ customerId }, inbox)).toEqual(ok(undefined));
-		expect(invoiceLineCustomerClear).toHaveBeenCalledWith(
-			{
-				id: "invoice-line-customer-deleted-handler",
-				kind: "client",
-				scopes: [],
-			},
-			{ customerId, inbox },
-		);
+		const result = await queueTestConsumerRun({
+			consumer: handler,
+			data: { customerId },
+		});
+
+		expect(result).toEqual(ok(undefined));
+		expect(await useCases.invoiceLineGet(owner, { invoiceLineId })).toEqual({
+			ok: true,
+			value: expect.not.objectContaining({ customerId }),
+		});
 	});
 
 	it("fails the job on an event that does not parse", async () => {
+		const { handler } = await setup();
+
 		await expect(
-			handler.run({ customerId: "nope" }, { consumer: "c", eventId: "e" }),
+			queueTestConsumerRun({ consumer: handler, data: { customerId: "nope" } }),
 		).rejects.toThrow();
 	});
 });

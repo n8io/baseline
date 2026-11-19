@@ -384,7 +384,9 @@ export const glossaryHitsFind = ({
 			prose = lines[added.line - 1] ?? "";
 		} else {
 			// A Markdown line quoting code (`kind: "client"`) skips the `kind:` value, as code does.
-			prose = prose.replace(kindValuePattern, (value) => " ".repeat(value.length));
+			prose = prose.replace(kindValuePattern, (value) =>
+				" ".repeat(value.length),
+			);
 		}
 		const language = languageOf(added.file);
 		let patterns = compiled.get(language);
