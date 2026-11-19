@@ -81,15 +81,13 @@ describe("queryBooleansTyped", () => {
 		).toStrictEqual(list({ default: false, type: "boolean" }));
 	});
 
-	it("leaves a string default, a path parameter and a typed boolean alone", () => {
-		for (const document of [
-			list({ default: "false", type: "string" }),
-			list({ default: false, type: "string" }, "path"),
-			list({ default: false, type: "boolean" }),
-		]) {
-			expect(queryBooleansTyped(structuredClone(document))).toStrictEqual(
-				document,
-			);
-		}
+	it.each([
+		["a string default", list({ default: "false", type: "string" })],
+		["a path parameter", list({ default: false, type: "string" }, "path")],
+		["a typed boolean", list({ default: false, type: "boolean" })],
+	])("leaves %s alone", (_, document) => {
+		expect(queryBooleansTyped(structuredClone(document))).toStrictEqual(
+			document,
+		);
 	});
 });
