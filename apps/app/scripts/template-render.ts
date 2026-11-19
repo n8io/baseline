@@ -384,13 +384,15 @@ export const linesBlocksFind = ({
 				if (
 					low < 0 ||
 					depths[before]?.open === true ||
-					/=\s*$/.test(lines[before] ?? "")
+					// A type argument list spread over lines (`Parameters<` … `>[0][],`) counts too.
+					/(=|<)\s*$/.test(lines[before] ?? "")
 				) {
 					start--;
 				} else if (
 					depth > 0 ||
 					depths[end]?.open === true ||
-					/=\s*$/.test(lines[end] ?? "")
+					/(=|<)\s*$/.test(lines[end] ?? "") ||
+					/^\s*>/.test(lines[end + 1] ?? "")
 				) {
 					end++;
 				} else if (

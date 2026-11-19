@@ -218,6 +218,21 @@ describe("fooBlocksFind", () => {
 		).toThrow("src/x.ts:1: cannot find the statement");
 	});
 
+	it("takes a type argument list spread over lines with its statement", () => {
+		const text = [
+			"const state = {",
+			"\tfooSent: [] as Parameters<", // 1
+			'\t\tFooPorts["fooLive"]["send"]',
+			"\t>[0][],",
+			"\tbarSent: [] as Parameters<", // 4
+			'\t\tBarPorts["send"]',
+			"\t>[0][],",
+			"};",
+		].join("\n");
+
+		expect(fooBlocksFind(text, "src/x.ts")).toEqual([[1, 3]]);
+	});
+
 	it("takes an env item's decorator lines with it", () => {
 		const text = [
 			"# schedule overrides",
