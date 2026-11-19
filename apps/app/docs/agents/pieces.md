@@ -75,7 +75,7 @@ Add Redis back: `git revert` the "Remove redis" commit, before you add back the 
 
 `pnpm piece-remove queue`
 
-The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry), and the `blocked-keys` command (`src/blocked-keys.ts`). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and Bridges stay; a Bridge is a read port and runs in the server. A Project with Consumers removes them first; the command refuses while any is left outside a test.
+The queue (`@n8io/baseline-queue` on pg-boss), each Domain's Events and its Schedules, the Worker (`src/worker.ts`, its `compose.yaml` entry and its image entry), and the `blocked-keys` command (`src/blocked-keys.ts`). Each Domain's transaction becomes a plain Postgres transaction, and its Use cases stop publishing. The API, sign-in, the pages, live updates, the cache and anti-corruption layers stay; an ACL reads in process and runs in the server. A Project with Consumers removes them first; the command refuses while any is left outside a test.
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 

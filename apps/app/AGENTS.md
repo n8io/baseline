@@ -78,7 +78,7 @@ One context per business area, one Aggregate per entity in it (see context-creat
     - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
 - One input, or two strongly coupled inputs (the second may be optional), may stay positional. Three or more inputs take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures such as ports: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
-- A read across Domains goes through a Bridge in `src/bridges/`. A reaction goes through an Event.
+- A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
 - UI pages live in `src/ui/`. They import Domains only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result package and the authn and id types (A2).
 - A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
@@ -148,7 +148,7 @@ Read the one that matches before you start.
 - A role, a scope, a dev user or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
 - Adding a context or an Aggregate, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
 - A Consumer, an Event or a repository: [docs/agents/events.md](docs/agents/events.md)
-- A Domain reading another Domain (a Bridge), or an outcome other Domains wait on: [docs/agents/bridges.md](docs/agents/bridges.md)
+- A context reading another (an ACL), or a saga across contexts: [docs/agents/acl.md](docs/agents/acl.md)
 - A table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
 - Adding, testing or removing a Schedule: [docs/agents/schedules.md](docs/agents/schedules.md)
 - Adding, changing, testing or removing a page: [docs/agents/ui.md](docs/agents/ui.md)

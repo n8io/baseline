@@ -1,7 +1,8 @@
 import type { Actor } from "@n8io/baseline-authn";
-import { idCreate } from "@n8io/baseline-id";
+import type { Id } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import { invoiceLinePortsMemoryCreate } from "../adapters/outbound/invoice-line-ports.memory.ts";
+import { invoiceLineTestUpstreamCreate } from "../adapters/outbound/invoice-line-test-upstream.ts";
 import { invoiceLineCreate } from "./invoice-line-create.ts";
 import { invoiceLineCustomerAssign } from "./invoice-line-customer-assign.ts";
 import { invoiceLineCustomerClear } from "./invoice-line-customer-clear.ts";
@@ -12,16 +13,22 @@ const consumer: Actor = {
 	kind: "client",
 	scopes: [],
 };
-const deleted = idCreate("customer");
-const kept = idCreate("customer");
 
+// Two customers in the real customer context on memory adapters: one deleted, one kept.
 const setup = async () => {
-	const memory = invoiceLinePortsMemoryCreate();
-	const ports = {
-		...memory.ports,
-		invoiceLineCustomerReader: { get: async () => ({ name: "Acme" }) },
+	const upstream = await invoiceLineTestUpstreamCreate();
+	const customerAdd = async (name: string) => {
+		const customer = await upstream.customer.useCases.customerCreate(owner, {
+			name,
+		});
+		if (!customer.ok) throw customer.error;
+		return customer.value.id;
 	};
-	const billed = async (name: string, customerId: typeof deleted) => {
+	const deleted = await customerAdd("Acme");
+	const kept = await customerAdd("Globex");
+	const memory = invoiceLinePortsMemoryCreate(upstream);
+	const { ports } = memory;
+	const billed = async (name: string, customerId: Id<"customer">) => {
 		const created = await invoiceLineCreate(ports)(owner, { name });
 		if (!created.ok) throw created.error;
 		const assigned = await invoiceLineCustomerAssign(ports)(owner, {
@@ -31,12 +38,12 @@ const setup = async () => {
 		if (!assigned.ok) throw assigned.error;
 		return created.value.id;
 	};
-	return { ...memory, billed, ports };
+	return { ...memory, billed, deleted, kept };
 };
 
 describe("invoiceLineCustomerClear", () => {
 	it("removes the deleted customer from its invoice lines only", async () => {
-		const { billed, ports, state } = await setup();
+		const { billed, deleted, kept, ports, state } = await setup();
 		const first = await billed("alpha", deleted);
 		const other = await billed("beta", kept);
 
@@ -51,7 +58,7 @@ describe("invoiceLineCustomerClear", () => {
 	});
 
 	it("skips a repeated event: the inbox already holds it", async () => {
-		const { billed, ports, state } = await setup();
+		const { billed, deleted, ports, state } = await setup();
 		const inbox = {
 			consumer: "invoice-line.customer-deleted",
 			eventId: "event-1",

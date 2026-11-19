@@ -1,4 +1,4 @@
-// A6: no context imports another context, except adapters/inbound/*-handler.ts importing event schemas from its index.ts
+// A6: no context imports another context, except an Event handler, a seed's types or its ACL (adapters/outbound/<context>-<upstream>-acl.ts) importing that context's index.ts
 // expect: src/contexts/bar/application/bar-get.ts imports ../../baz/index.ts: contexts never import each other
 // @file src/contexts/bar/application/bar-get.ts
 import { bazGet } from "../../baz/index.ts";

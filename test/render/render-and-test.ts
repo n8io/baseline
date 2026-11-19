@@ -53,7 +53,7 @@ const answers = {
 	name: "render-test",
 	release: "",
 };
-// customer first: invoice-line reads it through a Bridge. `parts` null is an aggregate-create
+// customer first: invoice-line reads it through an anti-corruption layer. `parts` null is an aggregate-create
 // without --bare. `context` names an existing context to add the Aggregate to; without it,
 // context-create makes a context of the Aggregate's name first.
 const domains: {
