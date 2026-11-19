@@ -98,7 +98,7 @@ export const fooRepositoryContract = (
 		// piece-start: queue
 		it("skips a repeated inbox and commits nothing", async () => {
 			const ports = await create();
-			const inbox = { consumer: "bar.foo-created", eventId: "event-1" };
+			const inbox = { consumer: "baz.foo-created", eventId: "event-1" };
 			const first = fooBuild();
 			const repeat = fooBuild();
 			for (const foo of [first, repeat]) {

@@ -39,13 +39,13 @@ beforeAll(async () => {
 	// Stand-in consumers, so pg-boss copies each event into a queue we can read.
 	await queueEventsCreate(queue).consumersSubscribe([
 		queueConsumerCreate({
-			queueName: "bar.foo-created",
+			queueName: "baz.foo-created",
 			eventName: "foo.created",
 			schema: fooCreated,
 			run: async () => ok(undefined),
 		}),
 		queueConsumerCreate({
-			queueName: "bar.foo-deleted",
+			queueName: "baz.foo-deleted",
 			eventName: "foo.deleted",
 			schema: fooDeleted,
 			run: async () => ok(undefined),
@@ -73,20 +73,20 @@ describe("foo events on Postgres", () => {
 		const u = fooUseCasesCreate(ports());
 		const created = await u.fooCreate(actor, { name: "Committed" });
 		if (!created.ok) throw created.error;
-		expect(await jobsData("bar.foo-created")).toContainEqual({
+		expect(await jobsData("baz.foo-created")).toContainEqual({
 			fooId: created.value.id,
 		});
 
 		const deleted = await u.fooDelete(actor, { fooId: created.value.id });
 		expect(deleted.ok).toBe(true);
-		expect(await jobsData("bar.foo-deleted")).toEqual([
+		expect(await jobsData("baz.foo-deleted")).toEqual([
 			{ fooId: created.value.id },
 		]);
 	});
 
 	it("publishes nothing when the transaction rolls back on err or a throw", async () => {
 		const { fooTransaction } = ports();
-		const before = await jobsData("bar.foo-created");
+		const before = await jobsData("baz.foo-created");
 		const fooId = idCreate("foo");
 
 		const rolledBack = await fooTransaction(async ({ fooEvents }) => {
@@ -109,6 +109,6 @@ describe("foo events on Postgres", () => {
 			}),
 		).rejects.toThrow("boom");
 
-		expect(await jobsData("bar.foo-created")).toEqual(before);
+		expect(await jobsData("baz.foo-created")).toEqual(before);
 	});
 });
