@@ -8,7 +8,14 @@
 // left empty, and vendor with every part, which then gets a second Aggregate, vendor-contact, with
 // every part too. Then the second-domain fixture: a customer_id column on invoice lines and the
 // Event handler that clears it when a customer is deleted. HEAD installs this checkout's packages/*.
-import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	mkdtempDisposableSync,
+	readFileSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
 	type AggregatePart,
@@ -174,13 +181,17 @@ const main = async () => {
 	// app-create makes no bounded context, so a Project's first commit is this tree.
 	console.log("HEAD with no bounded context: check, test and build");
 	for (const script of ["check", "test", "build"]) pnpmRun(directory, [script]);
-	// The render writes the SDK as pnpm sdk-generate does for a Project with no bounded context.
+	// A fresh render writes the SDK as pnpm sdk-generate does for a Project with no bounded context.
+	// template-upgrade keeps a Project's own generated SDK files, so compare a render of this checkout
+	// with what the generator writes here; a Project runs it after an upgrade, as this one does now.
 	const sdkFiles = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
-	const sdkRead = () =>
-		sdkFiles.map((path) => readFileSync(join(directory, path), "utf8"));
-	const sdkRendered = sdkRead();
+	const sdkRead = (root: string) =>
+		sdkFiles.map((path) => readFileSync(join(root, path), "utf8"));
+	using fresh = mkdtempDisposableSync(join(tmpdir(), "render-fresh-"));
+	await appRender({ directory: fresh.path, files, answers });
+	const sdkRendered = sdkRead(fresh.path);
 	pnpmRun(directory, ["sdk-generate"]);
-	const sdkChanged = sdkRead().flatMap((text, k) =>
+	const sdkChanged = sdkRead(directory).flatMap((text, k) =>
 		text === sdkRendered[k] ? [] : [sdkFiles[k]],
 	);
 	if (sdkChanged.length > 0) {
