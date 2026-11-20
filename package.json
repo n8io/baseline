@@ -18,12 +18,12 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
-		"@biomejs/biome": "^2.6.5",
+		"@biomejs/biome": "^2.6.7",
 		"@changesets/cli": "^3.0.3",
 		"@types/node": "^26.6.6",
 		"publint": "^0.3.25",
-		"tsdown": "0.23.5",
-		"turbo": "^2.11.10",
+		"tsdown": "0.23.7",
+		"turbo": "^2.11.11",
 		"typescript": "^7.0.2",
 		"vitest": "^5.1.0"
 	}
