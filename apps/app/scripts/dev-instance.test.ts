@@ -21,20 +21,20 @@ import { hostPortsCreate } from "./template-render.ts";
 const git = (directory: string, ...args: string[]) =>
 	execFileSync("git", args, { cwd: directory, stdio: "ignore" });
 
-// A Project's main checkout with one commit, and a linked worktree of it.
+// A Project's original checkout with one commit, and a linked worktree of it.
 const checkoutsCreate = (root: string) => {
-	const main = join(root, "invoicing");
+	const original = join(root, "invoicing");
 	const linked = join(root, "Fix_Login.Bug");
-	mkdirSync(main);
-	writeFileSync(join(main, "package.json"), '{"name":"invoicing"}\n');
+	mkdirSync(original);
+	writeFileSync(join(original, "package.json"), '{"name":"invoicing"}\n');
 	writeFileSync(
-		join(main, ".env.schema"),
+		join(original, ".env.schema"),
 		"PORT=3000\nHEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nCOMPOSE_PROJECT_NAME=invoicing\n",
 	);
-	git(main, "init", "-q");
-	git(main, "add", ".");
+	git(original, "init", "-q");
+	git(original, "add", ".");
 	git(
-		main,
+		original,
 		"-c",
 		"user.name=t",
 		"-c",
@@ -43,8 +43,8 @@ const checkoutsCreate = (root: string) => {
 		"-qm",
 		"one",
 	);
-	git(main, "worktree", "add", "-q", linked);
-	return { linked, main };
+	git(original, "worktree", "add", "-q", linked);
+	return { linked, original };
 };
 
 describe("devInstanceNameCreate", () => {
@@ -59,22 +59,22 @@ describe("devInstanceNameCreate", () => {
 });
 
 describe("devInstanceLinkedIs", () => {
-	it("tells a linked worktree from the main checkout", () => {
+	it("tells a linked worktree from the original checkout", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
-		const { linked, main } = checkoutsCreate(root.path);
+		const { linked, original } = checkoutsCreate(root.path);
 
-		expect(devInstanceLinkedIs(main)).toBe(false);
+		expect(devInstanceLinkedIs(original)).toBe(false);
 		expect(devInstanceLinkedIs(linked)).toBe(true);
 	});
 });
 
 describe("devInstanceWrite", () => {
-	it("writes nothing in the main checkout", () => {
+	it("writes nothing in the original checkout", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
-		const { main } = checkoutsCreate(root.path);
+		const { original } = checkoutsCreate(root.path);
 
-		expect(devInstanceWrite(main)).toBeUndefined();
-		expect(existsSync(join(main, devInstanceFile))).toBe(false);
+		expect(devInstanceWrite(original)).toBeUndefined();
+		expect(existsSync(join(original, devInstanceFile))).toBe(false);
 	});
 
 	it("writes a linked worktree's compose project and the ports its schema declares", () => {

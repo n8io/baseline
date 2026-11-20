@@ -74,7 +74,7 @@ const lines: Line[] = [
 	},
 	{
 		className: "ok",
-		text: "➜  Local:   http://localhost:5173/",
+		text: "➜  Open:    http://acme.localhost:23574/",
 		typedFrom: 7.6,
 		typedUntil: 7.8,
 	},

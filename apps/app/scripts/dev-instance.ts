@@ -6,7 +6,7 @@ import { hostPortsCreate } from "./template-render.ts";
 
 // A linked git worktree is its own dev instance, so several worktrees of one Project run `pnpm dev`
 // at once with their own containers, volumes, ports and cookies. `pnpm dev` and `pnpm dev:reset`
-// run this first. The main checkout is the Project's own instance: its name and committed ports.
+// run this first. The original checkout is the Project's own instance: its name and committed ports.
 // In a linked worktree it adds the instance's compose project and ports to this file, once, and
 // never changes a line there: change a port in it on a clash.
 export const devInstanceFile = ".env.development.local";
@@ -23,7 +23,7 @@ export const devInstanceNameCreate = (project: string, folder: string) =>
 		.replaceAll(/[^a-z0-9]+/g, "-")
 		.replaceAll(/^-|-$/g, "");
 
-// A linked worktree's git dir is its own; the main checkout's is the common one.
+// A linked worktree's git dir is its own; the original checkout's is the common one.
 export const devInstanceLinkedIs = (directory: string): boolean => {
 	const [gitDir, commonDir] = git(
 		directory,
@@ -36,7 +36,7 @@ export const devInstanceLinkedIs = (directory: string): boolean => {
 };
 
 // The instance's compose project name, writing its lines first when the file has none; undefined
-// in the main checkout.
+// in the original checkout.
 export const devInstanceWrite = (directory: string): string | undefined => {
 	if (!devInstanceLinkedIs(directory)) return undefined;
 	const path = join(directory, devInstanceFile);
