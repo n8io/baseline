@@ -10,15 +10,15 @@ pnpm add @n8io/baseline-sdk
 
 ## Guarantees
 
-| You get                             | How                                                                                                                                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **No call that hangs**              | Each attempt has `timeout` (10 s) until its response arrives, and the whole call, retries, waits and body included, has `totalTimeout` (30 s). Either rejects with a `DOMException` named `TimeoutError`. |
-| **Retries only where they're safe** | GET, HEAD and DELETE are sent again, `retry` times (2), after a network failure, a timed-out attempt, or a 408, 429, 500, 502, 503 or 504. POST and PATCH are sent once: a retry could apply them twice.  |
-| **The API's pace**                  | A `Retry-After` (seconds or a date) sets the wait; otherwise it backs off from 0.3 s, doubling. A `Retry-After` past `totalTimeout` resolves that response at once instead of waiting.                    |
-| **No throw on a status**            | Every response, the last one after retries, resolves `{ status, data, headers }`: `data` is the parsed JSON, the text, or `undefined` for no body. A call rejects only when no response came.             |
-| **One instance per SDK**            | `sdkFetchCreate` holds no module state, so two SDKs in one app keep their own base URL, token and timeouts.                                                                                               |
-| **Traced with no code**             | With `@n8io/baseline-telemetry` started, a call made inside a span carries `traceparent`; the SDK adds no header of its own (`src/sdk-traceparent.test.ts`).                                              |
-| **Node and browsers**               | No `node:` import and no Node global in what ships (`src/sdk-isomorphic.test.ts`).                                                                                                                        |
+| You get                             | How                                                                                                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No call that hangs**              | Each attempt has `timeout` (10 s) until its response arrives, and the whole call, retries, waits and body included, has `totalTimeout` (30 s). Either rejects with a `DOMException` named `TimeoutError`.                                      |
+| **Retries only where they're safe** | GET, HEAD and DELETE are sent again, `retry` times (2), after a network failure, a timed-out attempt, or a 408, 429, 500, 502, 503 or 504. POST and PATCH are sent once: a retry could apply them twice.                                       |
+| **The API's pace**                  | A `Retry-After` (seconds or a date), or a rate-limit reset header, sets the wait; otherwise it backs off from 0.3 s, doubling. When the wait would run past `totalTimeout`, that response resolves at once instead.                            |
+| **No throw on a status**            | Every response, the last one after retries, resolves `{ status, data, headers }`: `data` is the parsed JSON when the content type names json, the text otherwise, or `undefined` for no body. A call rejects only when no whole response came. |
+| **One instance per SDK**            | `sdkFetchCreate` holds no module state, so two SDKs in one app keep their own base URL, token and timeouts.                                                                                                                                    |
+| **Traced with no code**             | With `@n8io/baseline-telemetry` started, a call made inside a span carries `traceparent`; the SDK adds no header of its own (`src/sdk-traceparent.test.ts`).                                                                                   |
+| **Node and browsers**               | No `node:` import and no Node global in what ships (`src/sdk-isomorphic.test.ts`).                                                                                                                                                             |
 
 ## Example
 
@@ -68,7 +68,8 @@ A caller's own `signal` still cancels the call; it rejects with that signal's re
 <details><summary><b>What rejects</b></summary>
 
 - A timeout, of an attempt after the last retry or of the whole call: a `DOMException` named `TimeoutError`, as `AbortSignal.timeout` gives.
-- A network failure after the last retry: the error `fetch` gave (a `TypeError`).
+- A network failure after the last retry: the error `fetch` gave (a `TypeError`). A connection that drops while the body is read rejects at once, without a retry.
+- A JSON content type with a body that is not JSON: the `SyntaxError` from parsing it.
 - No `baseUrl`: an `Error` that names `sdkConfigure`.
 
 </details>

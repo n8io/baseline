@@ -18,7 +18,14 @@ it("ships source with no node: import and no Node global, so it runs in a browse
 	expect(sourcesShipped).toContain("sdk-fetch-create.ts");
 	for (const path of sourcesShipped) {
 		const source = readFileSync(`${sourceDirectory}${path}`, "utf8");
-		expect(source, path).not.toMatch(/["']node:/);
-		expect(source, path).not.toMatch(/\b(process|Buffer|__dirname|require)\b/);
+		const imported = [
+			...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g),
+		]
+			.map((match) => match[1] ?? "")
+			.filter((specifier) => specifier !== "ky" && !specifier.startsWith("."));
+		expect(imported, path).toEqual([]);
+		expect(source, path).not.toMatch(
+			/\b(process|Buffer|global|__dirname|__filename|require|setImmediate)\b/,
+		);
 	}
 });

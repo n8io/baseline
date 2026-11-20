@@ -27,13 +27,31 @@ export type SdkFetch = {
 const methodsRetried = ["get", "head", "delete"];
 const statusesRetried = [408, 429, 500, 502, 503, 504];
 
-// Retry-After in milliseconds: seconds, or an HTTP date.
-const retryAfterMillis = (value: string | null): number | undefined => {
-	if (value === null) return undefined;
-	const millis = /^\d+$/.test(value)
-		? Number(value) * 1000
-		: Date.parse(value) - Date.now();
-	return Number.isNaN(millis) ? undefined : Math.max(0, millis);
+// ky's backoff, set here so the wait below matches it: 0.3 s, then doubling.
+const backoffMillis = (retryCount: number): number =>
+	300 * 2 ** (retryCount - 1);
+
+// The headers ky waits by, in its order: seconds, a Unix time (the reset ones), or an HTTP date.
+const timingHeaders = [
+	"retry-after",
+	"ratelimit-reset",
+	"x-ratelimit-retry-after",
+	"x-ratelimit-reset",
+	"x-rate-limit-reset",
+];
+
+// How long ky will wait before sending again after this response.
+const waitMillis = (headers: Headers, retryCount: number): number => {
+	const value = timingHeaders
+		.map((name) => headers.get(name))
+		.find((found) => found !== null);
+	if (value == null) return backoffMillis(retryCount);
+	if (/^\d+$/.test(value)) {
+		const seconds = Number(value);
+		return seconds >= 1e9 ? seconds * 1000 - Date.now() : seconds * 1000;
+	}
+	const date = Date.parse(value);
+	return Number.isNaN(date) ? backoffMillis(retryCount) : date - Date.now();
 };
 
 const dataRead = (text: string, headers: Headers): unknown => {
@@ -66,6 +84,7 @@ export const sdkFetchCreate = (defaults?: SdkOptions | null): SdkFetch => {
 		}
 		const headers = new Headers(init.headers);
 		if (token !== undefined) headers.set("authorization", `Bearer ${token}`);
+		const method = (init.method ?? "GET").toLowerCase();
 		// Bounds the body read too, which ky's own totalTimeout does not cover once it returns.
 		const deadline = Date.now() + totalTimeout;
 		const totalSignal = AbortSignal.timeout(totalTimeout);
@@ -76,18 +95,21 @@ export const sdkFetchCreate = (defaults?: SdkOptions | null): SdkFetch => {
 		try {
 			const response = await ky(`${baseUrl.replace(/\/+$/, "")}${url}`, {
 				...init,
-				headers,
+				// A plain object: ky reads the value "undefined" in a Headers as a deletion.
+				headers: Object.fromEntries(headers),
+				// The raw text, so dataRead parses every status the same way.
+				parseJson: (text) => text,
 				retry: {
 					afterStatusCodes: statusesRetried,
-					limit: retry,
+					delay: backoffMillis,
+					// 0 for POST and PATCH, so ky does not copy a body it will never send again.
+					limit: methodsRetried.includes(method) ? retry : 0,
 					methods: methodsRetried,
 					retryOnTimeout: true,
-					// A Retry-After past the deadline returns this response now instead of waiting.
-					shouldRetry: ({ error }) =>
+					// A response whose wait runs past the deadline resolves now instead of timing out.
+					shouldRetry: ({ error, retryCount }) =>
 						isHTTPError(error) &&
-						Date.now() +
-							(retryAfterMillis(error.response.headers.get("retry-after")) ??
-								0) >=
+						Date.now() + waitMillis(error.response.headers, retryCount) >=
 							deadline
 							? false
 							: undefined,
@@ -108,12 +130,17 @@ export const sdkFetchCreate = (defaults?: SdkOptions | null): SdkFetch => {
 		} catch (error) {
 			if (isHTTPError(error)) {
 				return {
-					data: error.data,
+					data: dataRead(
+						typeof error.data === "string" ? error.data : "",
+						error.response.headers,
+					),
 					headers: error.response.headers,
 					status: error.response.status,
 				} as T;
 			}
-			if (isTimeoutError(error)) throw timeoutError();
+			if (isTimeoutError(error) || error === totalSignal.reason) {
+				throw timeoutError();
+			}
 			if (isNetworkError(error)) throw error.cause;
 			throw error;
 		}

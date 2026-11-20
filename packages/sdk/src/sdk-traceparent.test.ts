@@ -15,6 +15,10 @@ it("sends traceparent when telemetry is started and a span is active", async () 
 		response.writeHead(204).end();
 	});
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	await using _closed = {
+		[Symbol.asyncDispose]: () =>
+			new Promise<void>((resolve) => server.close(() => resolve())),
+	};
 	const { port } = server.address() as AddressInfo;
 
 	const code = await new Promise<number | null>((resolve) => {
@@ -40,7 +44,6 @@ it("sends traceparent when telemetry is started and a span is active", async () 
 		);
 		child.on("close", resolve);
 	});
-	server.close();
 
 	expect(code).toBe(0);
 	expect(headers).toHaveLength(1);
