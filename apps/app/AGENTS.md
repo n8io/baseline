@@ -1,6 +1,6 @@
 # App
 
-Glossaries: [CONTEXT.md](CONTEXT.md), shared (the next line loads it; keep it alone), and each context's own, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md):
+Glossaries: [CONTEXT.md](CONTEXT.md), shared, and each context's own, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md). The next line loads the first; keep it alone:
 
 @CONTEXT.md
 
@@ -70,12 +70,12 @@ One context per business area, holding its Aggregates (context-create.md).
   - Every exported function in a Package starts with its Package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
   - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`. A method or option callback keeps the `isAlive()` form.
-  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`. An outbound adapter is `<port>.<adapter>.ts` (`invoice-repository.postgres.ts`; A19 needs it), its shared cases `<port>.contract.ts`.
+  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`. A port's adapters are `<port>.memory.ts` and `<port>.postgres.ts` (A19 needs the suffix), their shared cases `<port>.contract.ts`.
   - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
     - `ok` and `err` (result Package) are unscoped: every Use case and adapter returns them.
-    - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`, `Actor`), a Domain event's camelCase (`invoiceCreated`).
+    - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
 - Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures (check by hand); a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.

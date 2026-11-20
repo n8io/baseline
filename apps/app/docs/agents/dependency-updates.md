@@ -29,4 +29,4 @@ Each Template release moves the `app-ci.yml@v<major>` tag. Re-running failed job
 
 ## Semgrep rules
 
-`ci / sast` scans with a pinned snapshot of Semgrep's packs that only a baseline maintainer moves, so a new upstream rule never fails a pull request on its own and Dependabot does not move it; a Project gets a new snapshot, with any fixes it needs, in an `app-ci.yml` release.
+`ci / sast` scans with a pinned snapshot of Semgrep's packs, fetched from github.com at scan time (never semgrep.dev), that only a baseline maintainer moves, so a new upstream rule never fails a pull request on its own and Dependabot does not move it; a Project gets a new snapshot, with any fixes it needs, in an `app-ci.yml` release.

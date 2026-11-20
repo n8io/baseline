@@ -28,7 +28,7 @@ A rename or a removal is two releases. First add the new shape beside the old on
 | 422    | Unprocessable Entity |
 | 429    | Too Many Requests    |
 
-A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in the context's `<context>-error-status.ts` table (at the context's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
+A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in its Aggregate's `<aggregate>-error-status.ts` table (at the context's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
 
 Type that table `as const satisfies Record<InvoiceError["type"], number>`, not with `HttpErrorStatus` from `@n8io/baseline-http`: a context's root imports no HTTP package (the architecture test refuses it), and `adapters/inbound/` files import the table from `../index.ts`.
 

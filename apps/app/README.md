@@ -19,7 +19,7 @@ pnpm dev
 
 ## What runs
 
-| Part     | What it does                                                                                                                               | Runs on            |
+| Service  | What it does                                                                                                                               | Runs on            |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
 | Server   | The API under `/api/v1`, its OpenAPI document (`/api/v1/openapi.json`) and reference page (`/api/v1/docs`), the UI pages, and live updates | Hono, React Router |
 | Worker   | Event handlers, which get each Domain event once it commits, in order per Event key, and Schedules                                         | pg-boss            |

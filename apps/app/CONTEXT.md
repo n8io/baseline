@@ -5,7 +5,7 @@
 The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`:
 
 **Bounded context**:
-The scope of one model and its language, holding one or more Aggregates grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward.
+The scope of one language, holding one or more Aggregates grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward.
 _Avoid_: Domain, feature
 
 **Subdomain**:
@@ -37,8 +37,8 @@ A condition an Aggregate always holds. Its Transitions keep it.
 _Avoid_: Rule
 
 **Transition**:
-A pure function in an Aggregate's `domain/` file that makes the Aggregate or changes it, keeping its invariants, and returns `Result` (`invoiceNew(input)`, `invoiceLineAdd(invoice, input)`). A Use case changes an Aggregate only through one: architecture rule A29 refuses a Use case that builds or copies one itself.
-_Avoid_: mutator, setter
+A pure function in an Aggregate's `domain/` file that makes the Aggregate or changes it, keeping its invariants: `invoiceNew(input)` returns the Aggregate, or a `Result` when something can refuse it; a change (`invoiceLineAdd(invoice, input)`) returns `Result`. A Use case changes an Aggregate only through one: architecture rule A29 refuses a Use case that builds or copies one itself.
+_Avoid_: setter
 
 **Specification**:
 A reusable predicate over an Aggregate, in its `domain/` file, named ending in `Is`, `Has` or `Can` (`invoicePaidIs`).
@@ -49,7 +49,7 @@ Logic over several Aggregates that belongs to none of them, as a pure function i
 
 **Use case**:
 One operation a bounded context performs, in `application/`, such as creating an invoice (`invoiceCreate`). It loads an Aggregate through its ports, calls a Transition, saves the result and publishes. Each gets its ports from a factory: `invoiceCreate(ports)` returns the function.
-_Avoid_: service, interactor
+_Avoid_: application service, service class, interactor
 
 **Module**:
 Anything with an interface and an implementation, at any scale: a function, a file, a Package or a bounded context. A bounded context is one deep module: a lot of behaviour behind a small interface.
@@ -158,7 +158,7 @@ _Avoid_: web process, API process
 
 **Seed**:
 An inbound adapter that creates example data for local development by calling its bounded context's own Use cases.
-_Avoid_: fixture, sample data
+_Avoid_: seed fixture, sample data
 
 **Environment**:
 A named place a Project's API runs, such as development or production, with one API URL, listed in `clients/environments.json`. A caller of the SDK or the CLI picks one by name instead of passing a URL.
@@ -166,7 +166,7 @@ _Avoid_: stage, deploy target
 
 ## Baseline
 
-The words for where a Project comes from. They name baseline's parts, not business terms.
+The words for where a Project comes from. They name what baseline is made of, not business terms.
 
 **Project**:
 An app made from the Template with `pnpm app-create`, in its own repository. It starts with no bounded context and takes newer Template releases by Template upgrade.
@@ -179,11 +179,11 @@ The starter app in baseline's `apps/app`, released as `app@<version>`. A Project
 One of baseline's `@n8io/baseline-*` npm libraries (queue, authn, cache and the rest), which a Project depends on like any library. A change to one ships as a new version, not through a Template upgrade.
 
 **Template upgrade**:
-Moving a Project to a newer Template release with `pnpm template-upgrade` ([docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)): it applies what changed in the Template's files since the Project's release, and leaves the Project's own code alone.
+Moving a Project to a newer Template release with `pnpm template-upgrade` ([docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)): a 3-way merge of what changed in the Template since the Project's release into the Project, with each conflict resolved by hand.
 _Avoid_: rebase on the template, template sync
 
 **Piece**:
-An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project keeps ([docs/agents/pieces.md](docs/agents/pieces.md)).
+An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project will never remove (`piece-check` skips them) ([docs/agents/pieces.md](docs/agents/pieces.md)).
 _Avoid_: add-on, optional module
 
 **Part**:
