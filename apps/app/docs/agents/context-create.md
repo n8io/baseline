@@ -58,7 +58,14 @@ Read when adding a bounded context or an Aggregate to one. Two commands copy the
 
 `--plural <plural>` names the plural when it is not `<name>s`. A part flag needs `--bare`, and a part whose piece the Project removed (`--pages` without the UI, `--schedule` without the queue) is refused. `--reads` refuses a context that does not exist or that already reads the new one; `aggregate-create` refuses a context that does not exist.
 
-A seed that stores another context's ids must tolerate a row it seeded earlier still holding an id that no longer exists: there are no foreign keys between contexts, and a row deleted and seeded again comes back with a new id. Replace or skip the stale id rather than letting a Use case error stop `pnpm seed`.
+## Seeds
+
+A Seed (`--seed`) is development data, never a script: `pnpm seed` runs `src/seed.ts`, which runs every context's `seeds` in the order `contextsCreate` returns the contexts, so an upstream's seeds run first.
+
+- An `<aggregate>Seed` ensures each development row by its natural key (create, and when the Use case answers that the key is taken, read the row that holds it) and returns every row it ensured, so it converges from an empty, half-seeded or seeded database. The context's `index.ts` lists it in `seeds`.
+- Seeds that need each other's rows go in one entry that awaits them in order: `async (actor) => { const lines = await invoiceLineSeed(useCases, actor); await invoiceSeed(useCases, actor, { lines }); }`.
+- A seed that needs another context's rows (an invoice's customers) gets the upstream from `index.ts`, where `upstream` is in scope: `(actor: Actor) => invoiceSeed({ upstream, useCases }, actor)`. It types it with the upstream's `<Upstream>Context` from that context's `index.ts` (A6 allows the type import for a context it has an ACL for, [acl.md](acl.md)) and lists the rows through the upstream's `*List` Use case.
+- A seed that stores another context's ids must tolerate a row it seeded earlier still holding an id that no longer exists: there are no foreign keys between contexts, and a row deleted and seeded again comes back with a new id. Replace or skip the stale id rather than letting a Use case error stop `pnpm seed`.
 
 ## Several Aggregates in one context
 

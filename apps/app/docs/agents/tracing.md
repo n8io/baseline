@@ -4,7 +4,7 @@ Read when adding a log line, a span, a span attribute or a metric.
 
 ## Tracing
 
-One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every script runs `node --import ./src/preload.ts`, the image sets it in `NODE_OPTIONS`) does all of it:
+One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every entry that runs app code, the Server, the Worker, migrate, seed and scripts that call the app, starts with `--import ./src/preload.ts`, and the image sets it in `NODE_OPTIONS`) does all of it:
 
 - **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
 - **Into the worker.** An Event carries the publishing request's trace on its pg-boss job row. The Event handler runs in that trace, retries included.
@@ -12,6 +12,8 @@ One client request is one trace, with no app code. The telemetry preload (`src/p
 - **Logs.** Every `logger` line inside a request, job or Event handler has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
 - **Error reports.** Every `logger.error` or `logger.fatal` with an `err` is also an Error report in Sentry when the Project has `SENTRY_DSN`, tagged with the same `trace_id`. So log only the unexpected there: an err a Use case returns is expected and is not logged at error.
+
+Log through `logger` from `@n8io/baseline-logger` (`console` is only for a command's own output to the person running it): `logger.info({ invoiceId }, "Invoice archived")`, fields first, then a fixed message with no values in it. A line carries only what [AGENTS.md](../../AGENTS.md)'s Privacy rules allow: ids, error codes, class names, counts and timings.
 
 Never add a request id, correlation id or trace header by hand, and never pass a trace id through a Port or Event payload: the context already travels.
 
@@ -38,7 +40,7 @@ Name a child span `<useCase> <step>`. A name never holds an id or input: those g
 Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<scope>` the context the Use case is in, or one of its Aggregates, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
 
 - `baseline.<scope>.id`, its own id.
-- `baseline.<scope>.<thing>_id`, another context's id or any other id (`baseline.trade.team_id`, `baseline.trade.proposer_team_id`).
+- `baseline.<scope>.<thing>_id`, another context's id or any other id (`baseline.invoice.customer_id`, `baseline.invoice.order_id`).
 - `baseline.<scope>.<thing>_count`, a count (`baseline.invoice.row_count`).
 
 Names, emails and other personal data never go on a span.

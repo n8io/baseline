@@ -1,6 +1,6 @@
 # App
 
-Glossaries: [CONTEXT.md](CONTEXT.md), shared, and each context's own, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md). The next line loads the first; keep it alone:
+Glossaries: [CONTEXT.md](CONTEXT.md), shared (the next line loads it; keep it alone), and each context's own, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md):
 
 @CONTEXT.md
 
@@ -8,7 +8,7 @@ Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
 
 ## Verify
 
-On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/agent-setup.md](docs/agents/agent-setup.md)).
+On a fresh cloud machine run `bash scripts/agent-setup.sh` first (agent-setup.md).
 
 - setup: `pnpm install`
 - format: `pnpm format`
@@ -36,11 +36,10 @@ CI fails a command at its budget. Make the code faster or set a new budget delib
 - A unit test sits beside the file it covers in `src/` or `scripts/`, as `<name>.test.ts` or `<name>-<aspect>.test.ts` (`src/env-memory.test.ts`).
 - A test that needs Postgres or Redis names it before `.test` (`invoice-repository.postgres.test.ts`) and runs with `pnpm test:integration`.
 - A test that boots a process or spans many modules goes in `test/integration/`, with its setup and fixtures.
-- A check of the whole app sits at the app root: `architecture.test.ts`, `structure.test.ts` and the like.
+- A whole-app check sits at the app root (`architecture.test.ts`).
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
 - A Package's test helpers come from `@n8io/baseline-<package>/testing`, imported only by `*.test.ts(x)` and `test/` files (A24). Use them and its memory adapter; never copy its internals.
-- `structure.test.ts` fails on a test anywhere else (no `test/unit/`) or one reading undeclared app files.
-- Test a context through its interface on memory connections; past it, only a seam with two adapters, a race or an invariant no read shows.
+- Test a context through its interface on memory connections (tests.md).
 - Biome reads a helper named `use<Name>` as a React hook and `before` or `after` as a test hook: name helpers otherwise.
 
 ## Where new work goes
@@ -60,30 +59,31 @@ One context per business area, holding its Aggregates (context-create.md).
 | A helper two Use cases share                      | `application/<aggregate>-<thing>.ts` |
 | Routes, streams, Event handlers, Schedules, Seeds | `adapters/inbound/`                  |
 | Port implementations, tables, contract tests      | `adapters/outbound/`                 |
+| Each error's HTTP status, for routes and pages    | `<aggregate>-error-status.ts`        |
 | A test through the context's interface            | `<file>.test.ts`                     |
 
 - Outside code imports only `index.ts`, the context's one interface (A5).
 - `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
 - Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
-- Name things generic to specific: scope, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). Architecture rule A23 checks every part of this:
+- Name things generic to specific: scope, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). A23 checks it:
   - An exported name never starts with a verb.
-  - Every exported function in a package starts with its package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
+  - Every exported function in a Package starts with its Package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
-  - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`.
-  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`.
+  - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`. A method or option callback keeps the `isAlive()` form.
+  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`. An outbound adapter is `<port>.<adapter>.ts` (`invoice-repository.postgres.ts`; A19 needs it), its shared cases `<port>.contract.ts`.
   - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
-    - `ok` and `err` in the result package are unscoped, because every Use case and adapter returns them.
-    - Types and glossary-term schemas (`Actor`, `Inbox`) are not functions.
-    - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`, `handleError`) and names a library spells are framework names.
-- Up to two inputs (the second strongly coupled, maybe optional) may stay positional. Three or more take one typed input object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures: check those by hand; a callback whose shape a library fixes takes a `biome-ignore` that names the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+    - `ok` and `err` (result Package) are unscoped: every Use case and adapter returns them.
+    - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`, `Actor`), a Domain event's camelCase (`invoiceCreated`).
+    - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
+- Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures (check by hand); a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
 - UI pages live in `src/ui/`. They import contexts only through `index.ts`.
-- `domain/` imports only itself, Zod, `src/id-schema.ts`, the result package and the authn and id types (A2).
+- `domain/` imports only itself, Zod, `src/id-schema.ts`, the result Package and the authn and id types (A2).
 - A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
-- Use cases return `err()`; they and `domain/` never throw or catch (A27).
-- A table column built with another context's id prefix (`postgresIdColumnCreate("team")`) needs that context's `deleted` Event handler (A14). `adapters/inbound/` never calls `.openapi(` on an imported model; build its own schema (A25).
+- Use cases return `err()`; they and `domain/` never throw or catch (A27), but for a bug under `// unreachable:` (data.md).
+- A table column built with another context's id prefix (`postgresIdColumnCreate("order")`) needs that context's `deleted` Event handler (A14). `adapters/inbound/` never calls `.openapi(` on a schema it imports; build its own (A25).
 
 ### Stop and ask
 
@@ -103,14 +103,14 @@ Stop and ask the user when:
 - an OpenTelemetry instrumentation would be added;
 - a secret cannot come from `.env.schema` and Infisical.
 
-For several contexts at once, one approved plan answers the questions it covers: [docs/agents/planning.md](docs/agents/planning.md).
+For several contexts at once, one approved plan answers the questions it covers (planning.md).
 
-Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/contexts/**`; every test asserts with `expect()`; Vitest is the only runner.
+Other hard rules: no `any`; every Biome suppression states a reason, and so does every Semgrep one (`// nosemgrep: <rule-id> -- <reason>`; `.semgrepignore` holds generated paths only); no `@ts-expect-error` or `@ts-ignore` in `src/contexts/**`; every test asserts with `expect()`; no `vi.mock`, `vi.fn`, `vi.spyOn` or fake timers; Vitest is the only runner.
 
 ## Glossary rules
 
 - Names in code, tests, UI copy, tickets, PRs and commits come from the glossaries. No `_Avoid_` alias, nor an upstream context's term outside adapters.
-- Never edit `CONTEXT.md`; propose changes to baseline.
+- Never edit the shared `CONTEXT.md`; propose changes to baseline.
 - Ask before adding or changing a term or a context, giving the term, its definition and `_Avoid_` list. Never add one the user did not answer.
 - The entry lands in the same PR, listed in its "Glossary" section.
 - A context's `CONTEXT-MAP.md` row comes before `pnpm context-create` and goes with the context.
@@ -146,23 +146,23 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 Read the one that matches before you start.
 
 - A role, a scope, a dev user or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
-- Adding a context or an Aggregate, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
+- Adding a context, an Aggregate or a Seed, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
 - An Event handler, a Domain event or a repository: [docs/agents/events.md](docs/agents/events.md)
 - A context reading another (an ACL), or a saga across contexts: [docs/agents/acl.md](docs/agents/acl.md)
-- A table, a migration or SQL: [docs/agents/data.md](docs/agents/data.md)
+- A table, a migration, SQL or a cached read: [docs/agents/data.md](docs/agents/data.md)
 - Adding, testing or removing a Schedule: [docs/agents/schedules.md](docs/agents/schedules.md)
 - Adding, changing, testing or removing a page: [docs/agents/ui.md](docs/agents/ui.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
 - Deploying a Project or changing how it runs: [docs/agents/deploy.md](docs/agents/deploy.md)
 - Running on Kubernetes or several instances (probes, PgBouncer, rollouts): [docs/agents/deploy-kubernetes.md](docs/agents/deploy-kubernetes.md)
 - Running a Template upgrade or walking someone through one: [docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)
-- A route, a field, a query parameter or an error under `/api/v1` (oasdiff, statuses): [docs/agents/api.md](docs/agents/api.md)
+- A route, a field, a query parameter or an error under `/api/v1`: [docs/agents/api.md](docs/agents/api.md)
 - A dependency, a Dependabot PR or an update walkthrough: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Closing what a test, script or helper opens (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - A context's tests: [docs/agents/tests.md](docs/agents/tests.md)
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
-- Removing, restoring or keeping (`piecesKept`) a piece (UI, cache, queue and the rest): [docs/agents/pieces.md](docs/agents/pieces.md)
-- Publishing the SDK and CLI to GitHub Packages, installing them: [docs/agents/clients.md](docs/agents/clients.md)
-- Planning a build of several contexts (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
+- Removing, restoring or keeping (`piecesKept`) a piece: [docs/agents/pieces.md](docs/agents/pieces.md)
+- Publishing or installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md)
+- Planning a build of several contexts: [docs/agents/planning.md](docs/agents/planning.md)
 - A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)
