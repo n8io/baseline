@@ -88,6 +88,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | hear about unexpected errors, linked to their trace                        | [`error-tracking`](packages/error-tracking) | Sentry             |
 | track what an Actor did, sent without blocking                             | [`analytics`](packages/analytics)           | Mixpanel           |
 | answer `/livez` and `/readyz`                                              | [`health`](packages/health)                 |                    |
+| call the API from the generated SDK, with timeouts and safe retries        | [`sdk`](packages/sdk)                       | ky                 |
 | give API clients a command line, from the OpenAPI document                 | [`cli`](packages/cli)                       | commander          |
 | shut down gracefully, in order                                             | [`shutdown`](packages/shutdown)             |                    |
 

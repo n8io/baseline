@@ -22,6 +22,7 @@
 	"drizzle-orm": "SQL queries and table schemas on Postgres (postgres)",
 	"hono": "the HTTP framework (http, authn)",
 	"jose": "verifies JWTs (authn)",
+	"ky": "fetch with timeouts and retries, in Node and browsers (sdk)",
 	"openid-client": "the OpenID Connect sign-in flow (authn)",
 	"pg": "the Postgres driver (postgres)",
 	"pg-boss": "queue on Postgres (queue)",
