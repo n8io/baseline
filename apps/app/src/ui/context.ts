@@ -1,7 +1,7 @@
 // Hands each context's Use cases to loaders and actions. Type-only imports from contexts.
 import {
 	actorContext,
-	authnExpiryContext,
+	authnExpiresAtContext,
 } from "@n8io/baseline-authn/react-router";
 import type { Context } from "hono";
 import {
@@ -29,7 +29,7 @@ export const uiLoadContextCreate = (
 	new RouterContextProvider(
 		new Map<RouterContext<unknown>, unknown>([
 			[actorContext, c.var.actor],
-			[authnExpiryContext, c.var.authnExpiresAt],
+			[authnExpiresAtContext, c.var.authnExpiresAt],
 			[cspNonceContext, c.var.secureHeadersNonce],
 			[fooUseCasesContext, contexts.fooContext.useCases],
 			// wiring: context

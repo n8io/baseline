@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import {
 	actorContext,
-	authnExpiryContext,
+	authnExpiresAtContext,
 } from "@n8io/baseline-authn/react-router";
 import { type RouterContext, RouterContextProvider } from "react-router";
 
@@ -12,7 +12,7 @@ export const routerContextCreate = (
 	new RouterContextProvider(
 		new Map<RouterContext<unknown>, unknown>([
 			[actorContext, actor],
-			[authnExpiryContext, undefined],
+			[authnExpiresAtContext, undefined],
 			...entries,
 		]),
 	);

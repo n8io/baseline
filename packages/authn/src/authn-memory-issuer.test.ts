@@ -4,23 +4,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnCookieKey, authnCookieOpen } from "./authn-cookie.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
-	appOrigin,
-	authnSetCookieLine,
 	authnTestCookieJarCreate,
+	authnTestMemoryOptions,
+	authnTestOrigin,
 	authnTestPageBodyRead,
-	memoryOptions,
-	secret,
+	authnTestSecret,
+	authnTestSetCookieLine,
 } from "./authn-test-helpers.ts";
 import {
 	type Actor,
 	type AuthnMemoryUser,
 	authnActorRequire,
 	authnCreate,
-	authnMemoryTokenCreate,
 	authnMemoryTokenFetch,
 	authnMiddlewareCreate,
 } from "./index.ts";
-import { authnTestBearerCreate, authnTestSignIn } from "./testing.ts";
+import {
+	authnTestBearerCreate,
+	authnTestSignIn,
+	authnTestTokenCreate,
+} from "./testing.ts";
 
 const admin: Actor = {
 	id: "dev-admin",
@@ -31,13 +34,13 @@ const admin: Actor = {
 type App = Awaited<ReturnType<typeof authnTestAppCreate>>["app"];
 
 const tokenRequest = (app: App, form: Record<string, string>) =>
-	app.request(`${appOrigin}/auth/token`, {
+	app.request(`${authnTestOrigin}/auth/token`, {
 		body: new URLSearchParams(form),
 		method: "POST",
 	});
 
 const whoami = async (app: App, token: string) => {
-	const res = await app.request(`${appOrigin}/api/v1/whoami`, {
+	const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 		headers: { Authorization: `Bearer ${token}` },
 	});
 	return { body: (await res.json()) as { actor: Actor | null }, res };
@@ -52,7 +55,7 @@ describe("the memory issuer's key", () => {
 	it("is the same at every Server with the same secret, so each verifies the other's tokens", async () => {
 		const first = await authnTestAppCreate();
 		const second = await authnTestAppCreate();
-		const token = await authnMemoryTokenCreate({
+		const token = await authnTestTokenCreate({
 			actor: admin,
 			authn: first.authn,
 		});
@@ -68,19 +71,19 @@ describe("the memory issuer's key", () => {
 			(await authnTestAppCreate()).app.request(new Request(input, init)),
 		);
 		const { cookie } = await authnTestSignIn({
-			secret,
-			url: appOrigin,
+			secret: authnTestSecret,
+			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
 		const { app } = await authnTestAppCreate();
 		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
 
-		const res = await app.request(`${appOrigin}/auth/refresh`, {
+		const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
 			headers: { Cookie: cookie },
 		});
 
 		expect(res.status).toBe(200);
-		expect(authnSetCookieLine(res, "__Host-authn")).toBeDefined();
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeDefined();
 	});
 
 	it("refreshes with the user's current scopes, and not at all once the user is gone", async () => {
@@ -88,22 +91,22 @@ describe("the memory issuer's key", () => {
 			(await authnTestAppCreate()).app.request(new Request(input, init)),
 		);
 		const { cookie } = await authnTestSignIn({
-			secret,
-			url: appOrigin,
+			secret: authnTestSecret,
+			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
 		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
 		const refreshAt = async (memoryUsers: AuthnMemoryUser[]) => {
 			const jar = authnTestCookieJarCreate();
 			const { app } = await authnTestAppCreate({
-				...memoryOptions,
+				...authnTestMemoryOptions,
 				memoryUsers,
 			});
-			const res = await app.request(`${appOrigin}/auth/refresh`, {
+			const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
 				headers: { Cookie: cookie },
 			});
 			jar.store(res);
-			const page = await app.request(`${appOrigin}/foos`, {
+			const page = await app.request(`${authnTestOrigin}/foos`, {
 				headers: { Cookie: jar.header() },
 			});
 			return { page: await authnTestPageBodyRead(page), res };
@@ -125,8 +128,8 @@ describe("the memory issuer's key", () => {
 			(await authnTestAppCreate()).app.request(new Request(input, init)),
 		);
 		const { cookie } = await authnTestSignIn({
-			secret,
-			url: appOrigin,
+			secret: authnTestSecret,
+			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
 		const sealed = cookie
@@ -134,12 +137,12 @@ describe("the memory issuer's key", () => {
 			.find((pair) => pair.startsWith("__Secure-authn-refresh="))
 			?.split("=")[1];
 		const refreshToken = await authnCookieOpen({
-			key: authnCookieKey(secret),
+			key: authnCookieKey(authnTestSecret),
 			name: "refresh",
 			sealed: sealed ?? "",
 		});
 		const { app } = await authnTestAppCreate({
-			...memoryOptions,
+			...authnTestMemoryOptions,
 			audienceClaim: "client_id",
 		});
 
@@ -163,7 +166,7 @@ describe("the memory issuer's key", () => {
 	it("refuses an id listed twice", async () => {
 		await expect(
 			authnCreate({
-				...memoryOptions,
+				...authnTestMemoryOptions,
 				memoryUsers: [
 					{ id: "dev-user", name: "One", scopes: [] },
 					{ id: "dev-user", name: "Two", scopes: [] },
@@ -176,13 +179,15 @@ describe("the memory issuer's key", () => {
 describe("memory users", () => {
 	it("lists each user with its scopes on the sign-in page, escaped", async () => {
 		const { app } = await authnTestAppCreate({
-			...memoryOptions,
+			...authnTestMemoryOptions,
 			memoryUsers: [
 				{ id: "commish", name: "Commissioner <3", scopes: ["league:manage"] },
 				{ id: "player", name: "Player", scopes: [] },
 			],
 		});
-		const html = await (await app.request(`${appOrigin}/auth/sign-in`)).text();
+		const html = await (
+			await app.request(`${authnTestOrigin}/auth/sign-in`)
+		).text();
 
 		expect(html).toContain('name="who" value="commish"');
 		expect(html).toContain("Commissioner &lt;3");
@@ -192,9 +197,11 @@ describe("memory users", () => {
 	});
 
 	it("offers one Dev user without scopes when memoryUsers is not set", async () => {
-		const { memoryUsers, ...options } = memoryOptions;
+		const { memoryUsers, ...options } = authnTestMemoryOptions;
 		const { app } = await authnTestAppCreate(options);
-		const html = await (await app.request(`${appOrigin}/auth/sign-in`)).text();
+		const html = await (
+			await app.request(`${authnTestOrigin}/auth/sign-in`)
+		).text();
 
 		expect(html.match(/name="who"/g)).toHaveLength(1);
 		expect(html).toContain('value="dev-user"');
@@ -291,14 +298,12 @@ describe("authnMemoryTokenFetch", () => {
 		const fetched = await authnMemoryTokenFetch({
 			clientId: "feed",
 			scopes: ["foo:read"],
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
-		expect(requests[0]?.headers.get("origin")).toBe(appOrigin);
+		expect(requests[0]?.headers.get("origin")).toBe(authnTestOrigin);
 		expect(fetched.authorization).toBe(`Bearer ${fetched.token}`);
-		expect(fetched.expiresAt.getTime()).toBeGreaterThan(
-			Date.now() + 14 * 60_000,
-		);
+		expect(fetched.expiresAt).toBeGreaterThan(Date.now() + 14 * 60_000);
 		expect((await whoami(app, fetched.token)).body.actor).toStrictEqual({
 			id: "feed",
 			kind: "client",
@@ -306,11 +311,23 @@ describe("authnMemoryTokenFetch", () => {
 		});
 	});
 
+	it("takes the origin of a baseUrl with a trailing slash", async () => {
+		const { requests } = await appServe();
+
+		await authnMemoryTokenFetch({
+			baseUrl: `${authnTestOrigin}/`,
+			clientId: "feed",
+		});
+
+		expect(requests[0]?.url).toBe(`${authnTestOrigin}/auth/token`);
+		expect(requests[0]?.headers.get("origin")).toBe(authnTestOrigin);
+	});
+
 	it("names the issuer when the app is not on memory://", async () => {
 		vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
 
 		await expect(
-			authnMemoryTokenFetch({ clientId: "feed", url: appOrigin }),
+			authnMemoryTokenFetch({ clientId: "feed", baseUrl: authnTestOrigin }),
 		).rejects.toThrow("the app's authn issuerUrl is not memory://");
 	});
 
@@ -318,7 +335,7 @@ describe("authnMemoryTokenFetch", () => {
 		await appServe();
 
 		await expect(
-			authnMemoryTokenFetch({ clientId: "nobody", url: appOrigin }),
+			authnMemoryTokenFetch({ clientId: "nobody", baseUrl: authnTestOrigin }),
 		).rejects.toThrow('answered 401 {"error":"invalid_client"}');
 	});
 });
@@ -326,7 +343,7 @@ describe("authnMemoryTokenFetch", () => {
 describe("authnTestBearerCreate", () => {
 	it("gives a route test an Authn and a bearer token for any Actor", async () => {
 		const { authn, tokenFor } = await authnTestBearerCreate({
-			actorFromClaims: memoryOptions.actorFromClaims,
+			actorFromClaims: authnTestMemoryOptions.actorFromClaims,
 		});
 		const app = new Hono()
 			.use("/api/*", authnMiddlewareCreate(authn, { source: "bearer" }))
@@ -340,7 +357,7 @@ describe("authnTestBearerCreate", () => {
 
 	it("makes its own secret, so its tokens fit no other Authn", async () => {
 		const { tokenFor } = await authnTestBearerCreate({
-			actorFromClaims: memoryOptions.actorFromClaims,
+			actorFromClaims: authnTestMemoryOptions.actorFromClaims,
 		});
 		const { app } = await authnTestAppCreate();
 

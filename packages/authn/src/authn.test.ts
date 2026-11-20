@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authnState } from "./authn.ts";
-import { memoryOptions } from "./authn-test-helpers.ts";
+import { authnTestMemoryOptions } from "./authn-test-helpers.ts";
 import {
 	type Actor,
 	type Authn,
@@ -9,10 +9,12 @@ import {
 } from "./index.ts";
 
 const verify = async (
-	options: Partial<typeof memoryOptions>,
+	options: Partial<typeof authnTestMemoryOptions>,
 	actor: Actor = { id: "dev-user", kind: "user", scopes: [] },
 ) => {
-	const authn = authnState(await authnCreate({ ...memoryOptions, ...options }));
+	const authn = authnState(
+		await authnCreate({ ...authnTestMemoryOptions, ...options }),
+	);
 	if (authn.issuer.kind !== "memory") throw new Error("memory issuer expected");
 	const { accessToken } = await authn.issuer.tokensCreate(actor);
 	return authn.verify(accessToken);
@@ -28,7 +30,7 @@ describe("authnCreate", () => {
 	it("refuses a secret that decodes to fewer than 32 bytes", async () => {
 		await expect(
 			authnCreate({
-				...memoryOptions,
+				...authnTestMemoryOptions,
 				secret: Buffer.alloc(31).toString("base64url"),
 			}),
 		).rejects.toThrow(/at least 32 bytes/);
@@ -36,18 +38,21 @@ describe("authnCreate", () => {
 
 	it("refuses a secret that is not base64url", async () => {
 		await expect(
-			authnCreate({ ...memoryOptions, secret: `${"a".repeat(60)}+/=` }),
+			authnCreate({
+				...authnTestMemoryOptions,
+				secret: `${"a".repeat(60)}+/=`,
+			}),
 		).rejects.toThrow(/base64url/);
 	});
 
 	it("accepts a 32-byte base64url secret", async () => {
-		const authn = authnState(await authnCreate(memoryOptions));
+		const authn = authnState(await authnCreate(authnTestMemoryOptions));
 
 		expect(authn.issuer.kind).toBe("memory");
 	});
 
 	it("refuses memory:// without memoryIssuerAllowed", async () => {
-		const { memoryIssuerAllowed, ...options } = memoryOptions;
+		const { memoryIssuerAllowed, ...options } = authnTestMemoryOptions;
 
 		await expect(authnCreate(options)).rejects.toThrow(
 			"pass memoryIssuerAllowed: true",
@@ -56,7 +61,7 @@ describe("authnCreate", () => {
 
 	it("refuses memory:// when memoryIssuerAllowed is false", async () => {
 		await expect(
-			authnCreate({ ...memoryOptions, memoryIssuerAllowed: false }),
+			authnCreate({ ...authnTestMemoryOptions, memoryIssuerAllowed: false }),
 		).rejects.toThrow("pass memoryIssuerAllowed: true");
 	});
 
@@ -64,7 +69,7 @@ describe("authnCreate", () => {
 		"refuses the issuer URL %s, naming the valid schemes",
 		async (issuerUrl) => {
 			await expect(
-				authnCreate({ ...memoryOptions, issuerUrl }),
+				authnCreate({ ...authnTestMemoryOptions, issuerUrl }),
 			).rejects.toThrow("issuerUrl must start with https:// or be memory://");
 		},
 	);
@@ -81,9 +86,9 @@ describe("the verifier", () => {
 	});
 
 	it("checks the audience", async () => {
-		const authn = authnState(await authnCreate(memoryOptions));
+		const authn = authnState(await authnCreate(authnTestMemoryOptions));
 		const other = authnState(
-			await authnCreate({ ...memoryOptions, audience: "other" }),
+			await authnCreate({ ...authnTestMemoryOptions, audience: "other" }),
 		);
 		if (other.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
@@ -130,7 +135,7 @@ describe("the verifier", () => {
 	});
 
 	it("never accepts a memory refresh token as an access token", async () => {
-		const authn = authnState(await authnCreate(memoryOptions));
+		const authn = authnState(await authnCreate(authnTestMemoryOptions));
 		if (authn.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
 		const { refreshToken } = await authn.issuer.tokensCreate({

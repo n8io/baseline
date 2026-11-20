@@ -1,9 +1,11 @@
 import type { Actor, AuthnClaims, AuthnOptions } from "./index.ts";
 
-export const appOrigin: string = "https://app.test";
-export const secret: string = Buffer.alloc(32, 7).toString("base64url");
+export const authnTestOrigin: string = "https://app.test";
+export const authnTestSecret: string = Buffer.alloc(32, 7).toString(
+	"base64url",
+);
 
-// The template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
+// The Template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
 export const authnTestActorFromClaims = (claims: AuthnClaims): Actor => ({
 	id: String(claims.sub),
 	kind: claims.gty === "client-credentials" ? "client" : "user",
@@ -13,7 +15,7 @@ export const authnTestActorFromClaims = (claims: AuthnClaims): Actor => ({
 			: [],
 });
 
-export const memoryOptions: AuthnOptions = {
+export const authnTestMemoryOptions: AuthnOptions = {
 	actorFromClaims: authnTestActorFromClaims,
 	audience: "dev",
 	clientId: "dev",
@@ -29,17 +31,17 @@ export const memoryOptions: AuthnOptions = {
 		},
 	],
 	memoryIssuerAllowed: true,
-	secret,
+	secret: authnTestSecret,
 };
 
 /** A cookie jar for `app.request`: keeps what Set-Cookie sends, by name. */
-export type CookieJar = {
+export type AuthnTestCookieJar = {
 	get: (name: string) => string | undefined;
 	header: () => string;
 	store: (res: Response) => void;
 };
 
-export const authnTestCookieJarCreate = (): CookieJar => {
+export const authnTestCookieJarCreate = (): AuthnTestCookieJar => {
 	const cookies = new Map<string, string>();
 	return {
 		get: (name: string): string | undefined => cookies.get(name),
@@ -59,14 +61,18 @@ export const authnTestCookieJarCreate = (): CookieJar => {
 };
 
 /** The Set-Cookie line for `name`, or undefined. */
-export const authnSetCookieLine = (
+export const authnTestSetCookieLine = (
 	res: Response,
 	name: string,
 ): string | undefined =>
 	res.headers.getSetCookie().find((line) => line.startsWith(`${name}=`));
 
-export type PageBody = { actor: Actor | null; expiresAt: number | null };
+export type AuthnTestPageBody = {
+	actor: Actor | null;
+	expiresAt: number | null;
+};
 
 /** The test page route's JSON: what `authnMiddlewareCreate` set. */
-export const authnTestPageBodyRead = async (res: Response): Promise<PageBody> =>
-	(await res.json()) as PageBody;
+export const authnTestPageBodyRead = async (
+	res: Response,
+): Promise<AuthnTestPageBody> => (await res.json()) as AuthnTestPageBody;

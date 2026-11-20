@@ -21,7 +21,7 @@ beforeAll(async () => {
 	server = await productionServerStart({ databaseUrl: "memory://" });
 	const { authorization } = await authnMemoryTokenFetch({
 		clientId: "dev-client",
-		url: server.url,
+		baseUrl: server.url,
 	});
 	token = authorization.replace(/^Bearer /, "");
 	// The random port's URL is the override environments leave for tests.

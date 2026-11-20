@@ -1,7 +1,7 @@
 import { httpErrorHandle } from "@n8io/baseline-http";
 import { type Context, Hono } from "hono";
 import { except } from "hono/combine";
-import { memoryOptions } from "./authn-test-helpers.ts";
+import { authnTestMemoryOptions } from "./authn-test-helpers.ts";
 import {
 	type Authn,
 	type AuthnOptions,
@@ -13,7 +13,7 @@ import {
 
 /** Wires authn the way `src/server.ts` does, with one API route and one page route. */
 export const authnTestAppCreate = async (
-	options: AuthnOptions = memoryOptions,
+	options: AuthnOptions = authnTestMemoryOptions,
 ): Promise<{ app: Hono; authn: Authn }> => {
 	const authn = await authnCreate(options);
 	const app = new Hono();

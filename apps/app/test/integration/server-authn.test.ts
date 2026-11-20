@@ -23,7 +23,7 @@ describe("the memory issuer in the production build", {
 
 		const { authorization } = await authnMemoryTokenFetch({
 			clientId: "dev-client",
-			url: server.url,
+			baseUrl: server.url,
 		});
 		const authorized = await fetch(`${server.url}/api/v1/unknown`, {
 			headers: { authorization },

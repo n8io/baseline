@@ -86,8 +86,8 @@ const main = async (): Promise<number> => {
 
 	const document = await documentWait(url, Date.now() + waitSeconds * 1000);
 	const { authorization } = await authnMemoryTokenFetch({
+		baseUrl: url,
 		clientId: "dev-client",
-		url,
 	});
 	// The document's paths start at /api/v1.
 	const calls = ["/api/v1/openapi.json", ...apiSmokeRoutesFind(document)];

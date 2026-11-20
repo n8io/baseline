@@ -3,18 +3,18 @@ import type { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
-	appOrigin,
-	authnSetCookieLine,
+	type AuthnTestCookieJar,
 	authnTestActorFromClaims,
 	authnTestCookieJarCreate,
+	authnTestOrigin,
 	authnTestPageBodyRead,
-	type CookieJar,
-	secret,
+	authnTestSecret,
+	authnTestSetCookieLine,
 } from "./authn-test-helpers.ts";
 import {
+	type AuthnTestOidcProvider,
+	authnTestIdpOrigin,
 	authnTestOidcProviderCreate,
-	type FakeProvider,
-	idpOrigin,
 } from "./authn-test-oidc-provider.ts";
 
 const oidcOptions = {
@@ -22,11 +22,11 @@ const oidcOptions = {
 	audience: "api",
 	clientId: "app-client",
 	clientSecret: "app-secret",
-	issuerUrl: idpOrigin,
-	secret,
+	issuerUrl: authnTestIdpOrigin,
+	secret: authnTestSecret,
 };
 
-let provider: FakeProvider;
+let provider: AuthnTestOidcProvider;
 
 beforeEach(async () => {
 	provider = await authnTestOidcProviderCreate(oidcOptions.clientId);
@@ -35,7 +35,8 @@ beforeEach(async () => {
 		"fetch",
 		(input: string | URL | Request, init?: RequestInit) => {
 			const request = new Request(input, init);
-			if (!request.url.startsWith(idpOrigin)) return realFetch(request);
+			if (!request.url.startsWith(authnTestIdpOrigin))
+				return realFetch(request);
 			if (provider.options.down)
 				return Promise.reject(new TypeError("fetch failed"));
 			return Promise.resolve(provider.app.fetch(request));
@@ -52,7 +53,7 @@ afterEach(() => {
 const signInStart = async (app: Hono, returnTo = "/foos") => {
 	const jar = authnTestCookieJarCreate();
 	const res = await app.request(
-		`${appOrigin}/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
+		`${authnTestOrigin}/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
 	);
 	jar.store(res);
 	return { authorizeUrl: res.headers.get("Location") ?? "", jar, res };
@@ -63,7 +64,7 @@ const signIn = async (app: Hono) => {
 	const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
 	const code = provider.authorize(authorizeUrl);
 	const res = await app.request(
-		`${appOrigin}/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(idpOrigin)}`,
+		`${authnTestOrigin}/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(authnTestIdpOrigin)}`,
 		{ headers: { Cookie: jar.header() } },
 	);
 	jar.store(res);
@@ -73,7 +74,7 @@ const signIn = async (app: Hono) => {
 describe("OIDC sign-in", () => {
 	it("has no client-credentials endpoint: the provider issues machine tokens", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
-		const res = await app.request(`${appOrigin}/auth/token`, {
+		const res = await app.request(`${authnTestOrigin}/auth/token`, {
 			body: new URLSearchParams({
 				client_id: "feed",
 				grant_type: "client_credentials",
@@ -90,7 +91,9 @@ describe("OIDC sign-in", () => {
 		const params = new URL(authorizeUrl).searchParams;
 
 		expect(res.status).toBe(302);
-		expect(authorizeUrl.startsWith(`${idpOrigin}/authorize?`)).toBe(true);
+		expect(authorizeUrl.startsWith(`${authnTestIdpOrigin}/authorize?`)).toBe(
+			true,
+		);
 		expect(params.get("client_id")).toBe("app-client");
 		expect(params.get("response_type")).toBe("code");
 		expect(params.get("code_challenge_method")).toBe("S256");
@@ -98,13 +101,13 @@ describe("OIDC sign-in", () => {
 		expect(params.get("state")).toBeTruthy();
 		expect(params.get("nonce")).toBeTruthy();
 		expect(params.get("scope")).toBe("openid offline_access");
-		expect(params.get("redirect_uri")).toBe(`${appOrigin}/auth/callback`);
+		expect(params.get("redirect_uri")).toBe(`${authnTestOrigin}/auth/callback`);
 	});
 
 	it("scopes the flow cookie to /auth/callback for 10 minutes", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { res } = await signInStart(app);
-		const line = authnSetCookieLine(res, "__Secure-authn-flow");
+		const line = authnTestSetCookieLine(res, "__Secure-authn-flow");
 
 		expect(line).toContain("Max-Age=600");
 		expect(line).toContain("Path=/auth/callback");
@@ -113,7 +116,7 @@ describe("OIDC sign-in", () => {
 		expect(line).toContain("SameSite=Lax");
 	});
 
-	it("passes authorizeParams, such as Auth0's audience", async () => {
+	it("passes authorizeParams, such as an audience", async () => {
 		const { app } = await authnTestAppCreate({
 			...oidcOptions,
 			authorizeParams: { audience: "https://api.example" },
@@ -135,7 +138,7 @@ describe("OIDC sign-in", () => {
 			new URL(res.headers.get("Location") ?? "").searchParams.get(
 				"redirect_uri",
 			),
-		).toBe(`${appOrigin}/auth/callback`);
+		).toBe(`${authnTestOrigin}/auth/callback`);
 	});
 
 	it("exchanges the code, sets both cookies, clears the flow cookie and returns", async () => {
@@ -144,8 +147,10 @@ describe("OIDC sign-in", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
-		expect(authnSetCookieLine(res, "__Secure-authn-flow")).toMatch(/Max-Age=0/);
-		const page = await app.request(`${appOrigin}/foos`, {
+		expect(authnTestSetCookieLine(res, "__Secure-authn-flow")).toMatch(
+			/Max-Age=0/,
+		);
+		const page = await app.request(`${authnTestOrigin}/foos`, {
 			headers: { Cookie: jar.header() },
 		});
 		expect((await authnTestPageBodyRead(page)).actor).toStrictEqual({
@@ -161,7 +166,7 @@ describe("OIDC sign-in", () => {
 		const code = provider.authorize(authorizeUrl);
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const res = await app.request(
-			`${appOrigin}/auth/callback?code=${code}&state=wrong`,
+			`${authnTestOrigin}/auth/callback?code=${code}&state=wrong`,
 			{
 				headers: { Cookie: jar.header() },
 			},
@@ -169,7 +174,7 @@ describe("OIDC sign-in", () => {
 
 		expect(res.status).toBe(400);
 		expect(await res.text()).toContain("Sign-in failed");
-		expect(authnSetCookieLine(res, "__Host-authn")).toBeUndefined();
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeUndefined();
 	});
 
 	it("shows the failure page when the provider refuses", async () => {
@@ -178,7 +183,7 @@ describe("OIDC sign-in", () => {
 		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const res = await app.request(
-			`${appOrigin}/auth/callback?error=access_denied&state=${state}`,
+			`${authnTestOrigin}/auth/callback?error=access_denied&state=${state}`,
 			{ headers: { Cookie: jar.header() } },
 		);
 
@@ -188,7 +193,9 @@ describe("OIDC sign-in", () => {
 
 	it("shows the failure page without the flow cookie", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
-		const res = await app.request(`${appOrigin}/auth/callback?code=x&state=y`);
+		const res = await app.request(
+			`${authnTestOrigin}/auth/callback?code=x&state=y`,
+		);
 
 		expect(res.status).toBe(400);
 	});
@@ -199,7 +206,7 @@ describe("OIDC sign-in", () => {
 		const { res } = await signIn(app);
 
 		expect(res.status).toBe(400);
-		expect(authnSetCookieLine(res, "__Host-authn")).toBeUndefined();
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeUndefined();
 	});
 
 	it("clears an earlier user's refresh cookie when the new sign-in gets none", async () => {
@@ -210,12 +217,12 @@ describe("OIDC sign-in", () => {
 		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
 		const code = provider.authorize(authorizeUrl, "user-2");
 		const res = await app.request(
-			`${appOrigin}/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(idpOrigin)}`,
+			`${authnTestOrigin}/auth/callback?code=${code}&state=${state}&iss=${encodeURIComponent(authnTestIdpOrigin)}`,
 			{ headers: { Cookie: `${jar.header()}; ${secondJar.header()}` } },
 		);
 
 		expect(res.status).toBe(302);
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=0/,
 		);
 	});
@@ -224,7 +231,7 @@ describe("OIDC sign-in", () => {
 describe("OIDC bearer tokens", () => {
 	it("verifies a provider token through the remote JWKS", async () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
-		const res = await app.request(`${appOrigin}/api/v1/me`, {
+		const res = await app.request(`${authnTestOrigin}/api/v1/me`, {
 			headers: { Authorization: `Bearer ${await provider.accessToken()}` },
 		});
 
@@ -257,7 +264,7 @@ describe("OIDC bearer tokens", () => {
 			const logError = vi
 				.spyOn(logger, "error")
 				.mockImplementation(() => undefined);
-			const res = await app.request(`${appOrigin}/api/v1/whoami`, {
+			const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 
@@ -279,10 +286,10 @@ const refreshGet = ({
 	query = "",
 }: {
 	app: Hono;
-	jar: CookieJar;
+	jar: AuthnTestCookieJar;
 	query?: string;
 }) =>
-	app.request(`${appOrigin}/auth/refresh${query}`, {
+	app.request(`${authnTestOrigin}/auth/refresh${query}`, {
 		headers: { Cookie: jar.header() },
 	});
 
@@ -326,7 +333,9 @@ describe("OIDC refresh", () => {
 		const second = await refreshGet({ app, jar });
 
 		expect(first.status).toBe(200);
-		expect(authnSetCookieLine(first, "__Secure-authn-refresh")).toBeDefined();
+		expect(
+			authnTestSetCookieLine(first, "__Secure-authn-refresh"),
+		).toBeDefined();
 		expect(second.status).toBe(200);
 	});
 
@@ -352,7 +361,7 @@ describe("OIDC refresh", () => {
 
 		expect(res.status).toBe(500);
 		expect(provider.refreshTokens.size).toBe(1);
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=2592000/,
 		);
 	});
@@ -384,7 +393,9 @@ describe("OIDC refresh", () => {
 			const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 			expect(res.status).toBe(500);
-			expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeUndefined();
+			expect(
+				authnTestSetCookieLine(res, "__Secure-authn-refresh"),
+			).toBeUndefined();
 			expect(logError).toHaveBeenCalledOnce();
 		},
 	);
@@ -395,23 +406,23 @@ describe("OIDC sign-out", () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const refreshToken = [...provider.refreshTokens][0];
-		const res = await app.request(`${appOrigin}/auth/sign-out`, {
+		const res = await app.request(`${authnTestOrigin}/auth/sign-out`, {
 			headers: { Cookie: jar.header() },
 			method: "POST",
 		});
 		const location = new URL(res.headers.get("Location") ?? "");
 
 		expect(provider.revoked).toStrictEqual([refreshToken]);
-		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=0/,
 		);
 		expect(`${location.origin}${location.pathname}`).toBe(
-			`${idpOrigin}/logout`,
+			`${authnTestIdpOrigin}/logout`,
 		);
 		expect(location.searchParams.get("client_id")).toBe("app-client");
 		expect(location.searchParams.get("post_logout_redirect_uri")).toBe(
-			`${appOrigin}/`,
+			`${authnTestOrigin}/`,
 		);
 	});
 
@@ -420,13 +431,13 @@ describe("OIDC sign-out", () => {
 		const { jar } = await signIn(app);
 		provider.options.revokeFails = true;
 		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
-		const res = await app.request(`${appOrigin}/auth/sign-out`, {
+		const res = await app.request(`${authnTestOrigin}/auth/sign-out`, {
 			headers: { Cookie: jar.header() },
 			method: "POST",
 		});
 
 		expect(res.status).toBe(302);
-		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
 	});
 });
 
@@ -437,12 +448,12 @@ describe("authnCreate with a provider", () => {
 		await expect(authnTestAppCreate(oidcOptions)).rejects.toThrow();
 	});
 
-	it("refuses authnMemoryTokenCreate", async () => {
-		const { authnMemoryTokenCreate } = await import("./index.ts");
+	it("refuses authnTestTokenCreate", async () => {
+		const { authnTestTokenCreate } = await import("./testing.ts");
 		const { authn } = await authnTestAppCreate(oidcOptions);
 
 		await expect(
-			authnMemoryTokenCreate({
+			authnTestTokenCreate({
 				actor: { id: "x", kind: "user", scopes: [] },
 				authn,
 			}),
