@@ -9,13 +9,14 @@ Never pick a version by hand, and a Project has no changesets.
 - Both packages publish at one version, the SDK first. The published command line tool depends on exactly that SDK version, and the SDK on `@n8io/baseline-sdk` from public npm.
 - The major is the API's: `info.version` in `clients/sdk/openapi.json` (`/api/v1` is 1.x). oasdiff already blocks a breaking change inside a major ([api.md](api.md)).
 - The script compares the files with the newest version published in that major. A change to what the SDK can call (`openapi.json`, `sdk.ts`, `clients/environments.json`) publishes the next minor. Any other change (`sdk-fetch.ts`, `index.ts`, `cli.ts`, a dependency) publishes the next patch. No change publishes nothing, and with nothing published yet the version is `<major>.0.0`.
+- A Project that published to public npm before starts again at `<major>.0.0` on GitHub Packages, a separate registry.
 - An Environment's new URL is a new release: a caller gets it by upgrading the SDK, or passes `baseUrl` (`--url`) until then.
 - The registry gets JavaScript built into `dist/` with type declarations, `environments.json`, the TypeScript sources beside them, and the repository named, which links the package to it.
 - To see what would publish without publishing: `CLIENTS_NPM_SCOPE=<scope> node scripts/clients-release.ts --dry-run`.
 
 ## Turning it on
 
-Set the repository variable `CLIENTS_NPM_SCOPE` to the repository's owner, the only scope GitHub Packages takes for it (Settings, Secrets and variables, Actions, Variables). The workflow publishes with its own `GITHUB_TOKEN` (`packages: write`), so there is no token to store, no first publish by hand and no trusted publisher. Run the workflow by hand from the Actions tab to check it. A package published from a private repository is private, readable by whoever can read the repository.
+Set the repository variable `CLIENTS_NPM_SCOPE` to the repository's owner in lowercase, the only scope GitHub Packages takes for it (Settings, Secrets and variables, Actions, Variables). The workflow publishes with its own `GITHUB_TOKEN` (`packages: write`), so there is no token to store, no first publish by hand and no trusted publisher. Run the workflow by hand from the Actions tab to check it. A package published from a private repository is private, readable by whoever can read the repository.
 
 ## Installing them
 

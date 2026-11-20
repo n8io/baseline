@@ -34,7 +34,7 @@ type Manifest = {
 
 // The order they publish in: the CLI depends on the SDK.
 const clients = ["sdk", "cli"] as const;
-const generated = new Set([
+const callable = new Set([
 	"sdk/environments.json",
 	"sdk/openapi.json",
 	"sdk/sdk.ts",
@@ -94,7 +94,7 @@ export const clientsVersionNext = ({
 	const changed = [...paths].filter((p) => current[p] !== published.files[p]);
 	if (changed.length === 0) return undefined;
 	const [, minor = 0, patch = 0] = published.version.split(".").map(Number);
-	return changed.some((path) => generated.has(path))
+	return changed.some((path) => callable.has(path))
 		? `${major}.${minor + 1}.0`
 		: `${major}.${minor}.${patch + 1}`;
 };
@@ -180,7 +180,7 @@ const recordMap = <T>(
 		Object.entries(record).map(([key, value]) => [key, map(value, key)]),
 	);
 
-// The manifest npm gets: scoped, versioned and public, pointing at the built JavaScript, with the
+// The manifest npm gets: scoped and versioned, pointing at the built JavaScript, with the
 // SDK dependency as an npm alias of the SDK published beside it.
 export const clientsManifestPublish = ({
 	client,

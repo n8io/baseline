@@ -74,14 +74,16 @@ describe("the SDK on the production build", { timeout: 30_000 }, () => {
 		expect(missing.status).toBe(404);
 	});
 
-	it("sends a call to the environment it names, with its own retry and timeout", async () => {
+	it("sends a call to the Environment it names", async () => {
 		// development is http://localhost:3000 (clients/environments.json); nothing listens there here.
-		await expect(
-			fooList(undefined, {
-				environment: "development",
-				retry: 0,
-				timeout: 2000,
-			}),
-		).rejects.toMatchObject({ cause: { code: "ECONNREFUSED", port: 3000 } });
+		const error = await fooList(undefined, {
+			environment: "development",
+			retry: 0,
+		}).catch((rejection: unknown) => rejection);
+		// Where localhost is both ::1 and 127.0.0.1, Node gives one error per address.
+		const cause = (error as { cause: { errors?: unknown[] } }).cause;
+		expect(cause.errors ?? [cause]).toContainEqual(
+			expect.objectContaining({ code: "ECONNREFUSED", port: 3000 }),
+		);
 	});
 });
