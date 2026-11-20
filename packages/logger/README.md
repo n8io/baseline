@@ -6,13 +6,11 @@
 pnpm add @n8io/baseline-logger
 ```
 
-<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/error-tracking-report.svg" width="880" alt="One logger.error call with a DatabaseError whose message holds an email address. The log line carries its class as msg, its code, constraint, stack frames and trace id; loggerErrorListen hands the same error to an Error report. The message is struck out of both."></p>
-
 ## Guarantees
 
 | You get                             | How                                                                                                                                                               |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One logger everywhere**           | Every app and Package imports the same `logger`, typed as this Package's own `Logger`, so the library behind it can change without touching a caller.             |
+| **One logger everywhere**           | Every Project and Package imports the same `logger`, typed as this Package's own `Logger`, so the library behind it can change without touching a caller.         |
 | **Credentials never logged**        | Fields named like credentials (`authorization`, `cookie`, `password`, `token` and others) log as `[Redacted]`, also one level down and in headers.                |
 | **No message text**                 | An error leaves only as its class name, `code`, `constraint` and stack frames, down the `cause` chain. With no message given, `msg` is the class name.            |
 | **Errors reach error tracking**     | `loggerErrorListen` hears each error logged at error or fatal, inside the log call, so it sees the caller's trace.                                                |
@@ -30,7 +28,7 @@ logger.error({ err: error }, "Postgres idle client error");
 logger.error({ err: error });
 ```
 
-Tests read what was logged with `vi.spyOn(logger, "warn")`; nothing to configure.
+Nothing to configure in tests. Assert on what the code returns, not on log lines; a test that must read a line replaces `process.stdout.write` for its run and restores it in `onTestFinished`, as the Template's `src/error-tracking-open.test.ts` does.
 
 ## Reference
 

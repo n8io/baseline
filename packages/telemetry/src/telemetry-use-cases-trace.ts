@@ -1,12 +1,6 @@
-import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
 import type { Result } from "@n8io/baseline-result";
-import {
-	type Attributes,
-	metrics,
-	SpanKind,
-	SpanStatusCode,
-	trace,
-} from "@opentelemetry/api";
+import { type Attributes, metrics, SpanKind, trace } from "@opentelemetry/api";
+import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 type UseCase = (...args: never[]) => Promise<Result<unknown, { type: string }>>;
 
@@ -17,10 +11,12 @@ const durationBuckets = [
 	0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
 ];
 
-// Wraps each use case in one INTERNAL span named after it and records
-// baseline.use_case.duration. An err result is an expected outcome: status
-// stays Unset and error.type holds its type. A throw sets status Error with the
-// class name, and is rethrown for whoever catches it to log once.
+/**
+ * Wraps each Use case in one INTERNAL span named after it and records `baseline.use_case.duration`
+ * (seconds). An err result is an expected outcome: status stays Unset and `error.type` holds its
+ * type. A throw sets status Error with the class name, and is rethrown for whoever catches it to
+ * log once.
+ */
 export const telemetryUseCasesTrace = <U extends Record<string, UseCase>>(
 	useCases: U,
 ): U => {
@@ -51,10 +47,7 @@ export const telemetryUseCasesTrace = <U extends Record<string, UseCase>>(
 						}
 						return result;
 					} catch (error) {
-						const type = loggerErrSerialize(error).type;
-						attributes["error.type"] = type;
-						span.setAttribute("error.type", type);
-						span.setStatus({ code: SpanStatusCode.ERROR, message: type });
+						attributes["error.type"] = telemetrySpanErrorSet(span, error);
 						throw error;
 					} finally {
 						duration.record((performance.now() - started) / 1000, attributes);

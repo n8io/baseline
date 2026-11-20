@@ -76,7 +76,40 @@ describe("analyticsMixpanelCreate", () => {
 	])("refuses vendor.host %j, which is not a bare host name", (host) => {
 		expect(() =>
 			analyticsMixpanelCreate({ token: "token", vendor: { host } }),
-		).toThrow(/vendor\.host must be a bare host name/);
+		).toThrow(
+			/^analyticsMixpanelCreate: vendor\.host must be a bare host name/,
+		);
+	});
+
+	it("takes a null vendor or vendor.host as left out", () => {
+		const requests = requestsCatch();
+
+		analyticsMixpanelCreate({ token: "token", vendor: null }).track({
+			actorId: "user-1",
+			name: "foo.created",
+		});
+		analyticsMixpanelCreate({ token: "token", vendor: { host: null } }).track({
+			actorId: "user-1",
+			name: "foo.created",
+		});
+
+		expect(requests.map((r) => r.url)).toEqual([
+			"https://api.mixpanel.com/track?ip=0&strict=1",
+			"https://api.mixpanel.com/track?ip=0&strict=1",
+		]);
+	});
+
+	it("refuses a vendor key other than host, since it would do nothing", () => {
+		const create = () =>
+			analyticsMixpanelCreate({
+				token: "token",
+				vendor: { geolocate: true } as never,
+			});
+
+		expect(create).toThrow(TypeError);
+		expect(create).toThrow(
+			"analyticsMixpanelCreate: vendor.geolocate is not allowed: only host reaches Mixpanel",
+		);
 	});
 
 	it("returns before the send ends, and close waits for it", async () => {

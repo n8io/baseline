@@ -26,18 +26,21 @@ pnpm add @n8io/baseline-error-tracking
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
 import { loggerErrorListen } from "@n8io/baseline-logger";
 
-const errorTracking = errorTrackingSentryCreate({
-	dsn: ENV.SENTRY_DSN,
-	environment: ENV.APP_ENV,
-});
-const stop = loggerErrorListen((error) => errorTracking.report(error));
+// SENTRY_DSN is optional: without it, nothing is reported and errors are only logged.
+if (ENV.SENTRY_DSN) {
+	const errorTracking = errorTrackingSentryCreate({
+		dsn: ENV.SENTRY_DSN,
+		environment: ENV.APP_ENV,
+	});
+	const stop = loggerErrorListen((error) => errorTracking.report(error));
 
-// At shutdown:
-stop();
-await errorTracking.close();
+	// At shutdown:
+	stop();
+	await errorTracking.close();
+}
 ```
 
-Tests stub `fetch` and read the envelopes it was handed; no account or network needed.
+There is no stand-in: with no DSN, the Project skips the connection. Code that reports takes an `ErrorTracking`, so its tests pass one (`report`, `close` and `Symbol.asyncDispose`) that records what it was handed. A test of the wiring points `dsn` at a local HTTP server, as the Template's `src/error-tracking-open.test.ts` does; no account or network needed.
 
 ## Reference
 

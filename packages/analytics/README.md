@@ -8,16 +8,16 @@ pnpm add @n8io/baseline-analytics
 
 ## Guarantees
 
-| You get                         | How                                                                                                                                               |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fire and forget**             | `track` returns at once and never throws: a failed send is logged at warn and dropped.                                                            |
-| **Bounded shutdown**            | Each send times out after 5 s, so `close()`, which waits for the sends in flight, is bounded too. `await using` calls it.                         |
-| **Ids and counts only**         | The contract for `properties`: ids and counts, never an Aggregate, an input or personal data.                                                     |
-| **No location guessed**         | Geolocation is off: the server's IP is not the Actor's.                                                                                           |
-| **Malformed events are loud**   | Ingestion runs in strict mode, so a malformed event is refused and logged instead of dropped silently.                                            |
-| **Data residency**              | `vendor.host` picks the ingestion host; anything but a bare host name throws, so the token cannot go to a URL with a path or scheme of its own.   |
-| **Works with no account**       | `analyticsLoggerCreate()` logs each event at debug instead, for development and tests.                                                            |
-| **Swap the vendor in one line** | `Analytics` and `AnalyticsEvent` name no vendor: a new `analytics<Vendor>Create` adapter here and one line in the Project; callers do not change. |
+| You get                         | How                                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fire and forget**             | `track` returns at once and never throws: a failed send is logged at warn and dropped.                                                                                             |
+| **Bounded shutdown**            | Each send times out after 5 s, so `close()`, which waits for the sends in flight, is bounded too. `await using` calls it.                                                          |
+| **Ids and counts only**         | The contract for `properties`: ids and counts, never an Aggregate, an input or personal data.                                                                                      |
+| **No location guessed**         | Geolocation is off: the server's IP is not the Actor's.                                                                                                                            |
+| **Malformed events are loud**   | Ingestion runs in strict mode, so a malformed event is refused and logged instead of dropped silently.                                                                             |
+| **Data residency**              | `vendor.host` picks the ingestion host; anything but a bare host name throws, so the token cannot go to a URL with a path or scheme of its own. Any other `vendor` key throws too. |
+| **Works with no account**       | `analyticsLoggerCreate()` logs each event at debug instead, for development and tests.                                                                                             |
+| **Swap the vendor in one line** | `Analytics` and `AnalyticsEvent` name no vendor: a new `analytics<Vendor>Create` adapter here and one line in the Project; callers do not change.                                  |
 
 ## Example
 
@@ -40,19 +40,19 @@ analytics.track({
 
 Call `track` after the change commits, and `await analytics.close()` at shutdown.
 
-Tests pass `analyticsLoggerCreate()`, or an `Analytics` (`track`, `close` and `Symbol.asyncDispose`) that records what it was handed.
+Tests pass `analyticsLoggerCreate()`, the Package's stand-in with no account (a logger fallback, not a memory adapter), or an `Analytics` (`track`, `close` and `Symbol.asyncDispose`) that records what it was handed.
 
 ## Reference
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                        | Does                                                                                                                                                                                                                                                                          |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Analytics`                                   | `track({ name, actorId, properties })` and `close()`. `track` never throws: a failed send is logged at warn and dropped. `await using` calls `close()` when its block ends.                                                                                                   |
-| `AnalyticsEvent`                              | `name` (`foo.created`), `actorId` and `properties` (`boolean`, `number` or `string` values), which carry ids and counts only, never an Aggregate, an input or personal data.                                                                                                  |
-| `analyticsMixpanelCreate({ token, vendor? })` | Posts each event to Mixpanel's ingestion API (`/track`) with `fetch`, with geolocation off and a 5 s timeout per send, so `close()` is bounded too. It does not use the `mixpanel` Node SDK: 0.24 throws on `init` whenever `HTTPS_PROXY` is set and sets no request timeout. |
-| `AnalyticsMixpanelVendorOptions`              | `vendor.host` picks Mixpanel's ingestion host for data residency (`api-eu.mixpanel.com`, `api-in.mixpanel.com`); it is named as the SDK's init config names it, and is outside the contract.                                                                                  |
-| `analyticsLoggerCreate()`                     | Logs each event at debug instead, for development and tests.                                                                                                                                                                                                                  |
+| Export                                                                    | Does                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Analytics`                                                               | `track({ name, actorId, properties })` and `close()`. `track` never throws: a failed send is logged at warn and dropped. `await using` calls `close()` when its block ends.                                                                                                   |
+| `AnalyticsEvent`                                                          | `name` (`foo.created`), `actorId` and `properties` (`boolean`, `number` or `string` values), which carry ids and counts only, never an Aggregate, an input or personal data.                                                                                                  |
+| `analyticsMixpanelCreate({ token, vendor? })`, `AnalyticsMixpanelOptions` | Posts each event to Mixpanel's ingestion API (`/track`) with `fetch`, with geolocation off and a 5 s timeout per send, so `close()` is bounded too. It does not use the `mixpanel` Node SDK: 0.24 throws on `init` whenever `HTTPS_PROXY` is set and sets no request timeout. |
+| `AnalyticsMixpanelVendorOptions`                                          | `vendor.host` picks Mixpanel's ingestion host for data residency (`api-eu.mixpanel.com`, `api-in.mixpanel.com`); it is named as the SDK's init config names it, and is outside the contract. Any other key throws a `TypeError`: it would do nothing.                         |
+| `analyticsLoggerCreate()`                                                 | Logs each event at debug instead, for development and tests.                                                                                                                                                                                                                  |
 </details>
 
 <details><summary><b>In the Template</b></summary>

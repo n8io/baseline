@@ -25,13 +25,13 @@ pnpm add @n8io/baseline-shutdown
 ```ts
 // httpServerClose: @n8io/baseline-http; telemetryShutdown: @n8io/baseline-telemetry
 const shutdown = shutdownHandleCreate({
-	drainDelayMs: envLocal ? 0 : 5_000,
+	drainDelayMs: ENV.SHUTDOWN_DRAIN_DELAY_MS ?? 5_000,
 	intakes: [
 		{ close: () => httpServerClose(server), name: "http" },
 		{ close: () => liveHub.close(), name: "live" },
 	],
 	resources: [
-		{ close: () => queue.stop(), name: "queue" },
+		{ close: () => queue.close(), name: "queue" },
 		{ close: () => pgPool.end(), name: "database" },
 		{ close: () => health.close(), name: "health" },
 		{ close: () => telemetryShutdown(), name: "telemetry" },
@@ -39,24 +39,25 @@ const shutdown = shutdownHandleCreate({
 });
 ```
 
-Test it with fake timers: spy on `process.on` to catch its listeners and on `process.exit` to read the code, then emit `SIGTERM` and run the timers. Test each step's `close` on its own.
+A Project does not test the handle itself: it owns process signals and exits the process. Test each step's `close` on its own.
 
 ## Reference
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                                     | Does                                                                                                                                                                                       |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })` | Owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash. A second signal is ignored. |
-| `ShutdownHandle`                                                           | `isShuttingDown()`, for `/readyz`.                                                                                                                                                         |
-| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Event handlers) or resource (queue, pools, clients, health, telemetry).                                                          |
+| Export                                                                     | Does                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })` | Owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash. A second signal is ignored. A `deadlineMs` under 5000 or a `drainDelayMs` that is not a whole number throws a `TypeError`. |
+| `ShutdownOptions`                                                          | The options object above. `null` means the default, as leaving it out does.                                                                                                                                                                                                               |
+| `ShutdownHandle`                                                           | `isShuttingDown()`, for `/readyz`.                                                                                                                                                                                                                                                        |
+| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Event handlers) or resource (queue, pools, clients, health, telemetry).                                                                                                                                                         |
 
 The steps, counted from the signal:
 
-1. Waits `drainDelayMs` (default 5 s; pass 0 outside production) while readiness answers 503.
+1. Waits `drainDelayMs` (default 5 s; the Template sets 0 in development) while readiness answers 503.
 2. Closes every intake (HTTP server, live streams, Event handlers) at once. One still open at the cutoff (`deadlineMs` minus 5 s) is logged at warn, and shutdown moves on.
 3. Closes each resource (queue, pools, clients, health, telemetry last) in order. One still open at the deadline is logged at error, with every resource after it.
 4. Gives up at `deadlineMs` (default 25 s), keeping the last 5 s for the resources, and logs `Shutdown finished` with the exit code.
 </details>
 
-**Needs** nothing beyond `@n8io/baseline-logger`, which it logs each failed step through. No env.
+**Needs** `@n8io/baseline-logger`, which it logs each failed step through, and `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).
