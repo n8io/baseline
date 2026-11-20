@@ -56,7 +56,9 @@ A route then calls `authnActorRequire(c)` for the signed-in Actor (else 401), an
 Test a route with no provider and no server: `authnTestBearerCreate` gives you an `Authn` and bearer tokens.
 
 ```ts
+import { authnActorRequire, authnMiddlewareCreate } from "@n8io/baseline-authn";
 import { authnTestBearerCreate } from "@n8io/baseline-authn/testing";
+import { Hono } from "hono";
 
 const { authn, tokenFor } = await authnTestBearerCreate({ actorFromClaims });
 const app = new Hono()
@@ -93,12 +95,12 @@ const res = await app.request("/api/me", {
 | `Authn`                                                                                              | The opaque handle `authnCreate` returns; every other function takes it.                                                                                                                                                                             |
 | `@n8io/baseline-authn/react-router`: `actorContext`, `authnExpiresAtContext`                         | The React Router contexts your load context fills (`[actorContext, c.var.actor]`, `[authnExpiresAtContext, c.var.authnExpiresAt]`; without them `authnPageActorRequire` always redirects).                                                          |
 | `@n8io/baseline-authn/react-router`: `authnPageActorRequire(args)`                                   | The signed-in Actor of a loader or action, else a document redirect to `/auth/sign-in?returnTo=<this page>`.                                                                                                                                        |
-| `@n8io/baseline-authn/client`: `authnRefreshClientMiddleware`                                        | The root route's `clientMiddleware`. Before a navigation or form submission with under a minute left on the token, it refreshes with `fetch`; the root loader returns `authnExpiresAt` for it to read. A failed refresh is left to the server.      |
+| `@n8io/baseline-authn/client`: `authnRefreshClientMiddleware`                                        | The root route's `clientMiddleware`. Before a navigation or form submission with under a minute left on the token, it refreshes with `fetch`; the root loader returns `authnExpiresAt` for it to read. A failed refresh is left to the Server.      |
 | `@n8io/baseline-authn/testing`: `authnTestBearerCreate(options)`, `AuthnTestBearer`                  | An `Authn` on the memory issuer and a `tokenFor(actor)` for bearer tokens, for a route test that builds its own app.                                                                                                                                |
 | `@n8io/baseline-authn/testing`: `authnTestSignIn(options)`, `AuthnTestSignedIn`                      | Signs in at a served Project's memory issuer and returns its `authorization` and `cookie`.                                                                                                                                                          |
 | `@n8io/baseline-authn/testing`: `authnTestTokenCreate({ authn, actor })`                             | A memory issuer bearer token, for a test that holds the `Authn`.                                                                                                                                                                                    |
 
-Pages import two subpaths and tests a third (from test files only), so an API or Worker installs neither React nor React Router. See Testing.
+Pages import `/react-router` and `/client`; only test files import `/testing`. An API-only Project installs neither React nor React Router. See Testing.
 </details>
 
 <details><summary><b>Options</b></summary>
@@ -254,7 +256,7 @@ await fetch(`${baseUrl}/invoices`, {
 - It returns `authorization` (the `Authorization` header value), `cookie` (the `Cookie` header value), `token` (the access token) and `accessCookie` (the access cookie's sealed value).
 </details>
 
-<details><summary><b>Env</b></summary>
+<details><summary><b>Environment</b></summary>
 
 By the Template's convention: `AUTHN_ISSUER_URL` (`https://` or `memory://`), `AUTHN_CLIENT_ID`, `AUTHN_CLIENT_SECRET`, `AUTHN_AUDIENCE`, and `AUTHN_SECRET` (base64url, at least 32 bytes; it encrypts the cookies and keys the memory issuer). Make one with `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='`.
 </details>

@@ -1,6 +1,6 @@
 # @n8io/baseline-live
 
-**Every open page reruns its loaders when something it shows changes.** The Server sends a Live update over Server-Sent Events, it fans out to every instance through pub/sub, and a lost one never fails the change that caused it.
+**Every open page reruns its loaders when something it shows changes.** The server sends a Live update over Server-Sent Events, it fans out to every instance through pub/sub, and a lost one never fails the change that caused it.
 
 ```sh
 pnpm add @n8io/baseline-live
@@ -131,7 +131,7 @@ await liveHub.close();
 ```
 
 - `until(text)` resolves with everything read once it holds `text`, and throws when the stream ends first.
-- `end()` resolves with everything read once the Server ends the stream.
+- `end()` resolves with everything read once the server ends the stream.
 - `cancel()` goes away like a page that closes.
 
 `response` is any SSE `Response`: the one `liveStreamCreate` returns, your Project's `app.request(...)`, or a `fetch` of a running server.

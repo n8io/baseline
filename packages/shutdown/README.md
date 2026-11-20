@@ -61,4 +61,4 @@ The steps, counted from the signal:
 4. Gives up at `deadlineMs` (default 25 s), keeping the last 5 s for the resources, and logs `Shutdown finished` with the exit code.
 </details>
 
-**Needs** no peers; `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).
+**Needs** no peers (it logs through `@n8io/baseline-logger`, a dependency); `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).

@@ -24,12 +24,12 @@ export type Schedule = {
 export type QueueScheduleOptions = {
 	/** UTC, minute precision. */
 	cron: string;
-	/** `<context>.<Use case words, kebab>` (foo.stale-archive). */
+	/** `<context>.<use-case-words>` (foo.stale-archive). */
 	name: string;
 	run: () => Promise<Result<unknown, { type: string }>>;
 };
 
-/** A Schedule. name is `<context>.<Use case words, kebab>`; cron is UTC, minute precision. */
+/** A Schedule. name is `<context>.<use-case-words>`; cron is UTC, minute precision. */
 export const queueScheduleCreate = ({
 	cron,
 	name,

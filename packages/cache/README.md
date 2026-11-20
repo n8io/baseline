@@ -103,7 +103,7 @@ The cache does not see writes to the source of truth: you `delete` (or `set`) af
 
 </details>
 
-<details><summary><b>Env</b></summary>
+<details><summary><b>Environment</b></summary>
 
 By the Template's convention: `CACHE_URL` (`redis://` or `rediss://`, or `memory://` for the memory store). You bring the schema library (the Template uses Zod), and the Redis store takes the client you pass it, so the Package needs neither `zod` nor `redis`.
 
