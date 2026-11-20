@@ -74,7 +74,7 @@ One context per business area, holding its Aggregates (context-create.md).
   - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
-    - `ok` and `err` (result Package) are unscoped: every Use case and adapter returns them.
+    - `ok` and `err` (result Package) take no prefix: every Use case and adapter returns them.
     - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
 - Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures; a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
