@@ -73,7 +73,7 @@ describe("queueMigrate", () => {
 		);
 	});
 
-	it("deletes the queues of removed consumers, with their dead letters and subscriptions", async () => {
+	it("deletes the queues of removed Consumers, with their dead letters and subscriptions", async () => {
 		await queueMigrate({ databaseUrl });
 		const queue = await start();
 		await queueEventsCreate(queue).consumersSubscribe([

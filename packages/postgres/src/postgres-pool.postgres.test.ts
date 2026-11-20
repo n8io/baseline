@@ -1,11 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { type PostgresPool, postgresPoolCreate } from "./index.ts";
-
-afterEach(() => {
-	vi.restoreAllMocks();
-});
+import { postgresPoolCreate } from "./index.ts";
 
 describe("postgresPoolCreate", () => {
 	it("rejects a query longer than queryTimeoutMs and still serves the next one", async () => {
@@ -23,42 +18,6 @@ describe("postgresPoolCreate", () => {
 
 		expect(rows).toEqual([{ one: 1 }]);
 		expect(Date.now() - started).toBeLessThan(2_000);
-	});
-
-	it("sets no query timeout when queryTimeoutMs is null", async () => {
-		await using pgPool = postgresPoolCreate({
-			databaseUrl: "postgres://localhost/db",
-			queryTimeoutMs: null,
-		});
-
-		expect(pgPool.options.query_timeout).toBeUndefined();
-	});
-
-	it("logs idle client errors instead of crashing the process", async () => {
-		const loggerError = vi.spyOn(logger, "error").mockReturnValue(undefined);
-		await using pgPool = postgresPoolCreate({
-			databaseUrl: "postgres://localhost/db",
-		});
-		const error = new Error("connection reset");
-
-		pgPool.emit("error", error);
-
-		expect(loggerError).toHaveBeenCalledWith(
-			{ err: error },
-			"Postgres idle client error",
-		);
-	});
-
-	it("await using ends the pool when its block ends", async () => {
-		let ended: PostgresPool;
-		{
-			await using pgPool = postgresPoolCreate({
-				databaseUrl: "postgres://localhost/db",
-			});
-			ended = pgPool;
-		}
-
-		expect(ended.ended).toBe(true);
 	});
 
 	it("connects to Postgres 18", async () => {

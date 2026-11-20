@@ -9,15 +9,19 @@ import type { QueueSql } from "./queue-sql.ts";
 
 /** What a Use case publishes Events through inside its transaction. One per transaction. */
 export type EventsPublisher<M> = {
-	// `key` is the Event key: the id of the entity the Event is about. Events with the same key reach each Consumer
-	// one at a time, in the order their transactions committed; other keys run beside them.
+	/**
+	 * `key` is the Event key: the id of the entity the Event is about. Events with the same key reach each Consumer
+	 * one at a time, in the order their transactions committed; other keys run beside them.
+	 */
 	publish<K extends keyof M & string>(event: {
 		name: K;
 		data: M[K];
 		key: string;
 	}): Promise<void>;
-	// Call it once the transaction has committed; on a rollback, drop the publisher instead. A
-	// transport that cannot write in the transaction sends what publish buffered here.
+	/**
+	 * Call it once the transaction has committed; on a rollback, drop the publisher instead. A
+	 * transport that cannot write in the transaction sends what publish buffered here.
+	 */
 	committed(): Promise<void>;
 };
 
@@ -26,15 +30,19 @@ export type EventsPublisher<M> = {
  * else names the transport.
  */
 export type Events = {
-	// false only when this process's own receiving loop is stuck, which a restart fixes; report it
-	// on /livez. An outage of the transport itself never makes it false.
+	/**
+	 * false only when this process's own receiving loop is stuck, which a restart fixes; report it
+	 * on /livez. An outage of the transport itself never makes it false.
+	 */
 	isAlive(): boolean;
-	// Every instance that may publish calls this at boot, so no Event is sent before its Consumers
-	// are known. Safe to repeat on any number of instances.
+	/**
+	 * Every instance that may publish calls this at boot, so no Event is sent before its Consumers
+	 * are known. Safe to repeat on any number of instances.
+	 */
 	consumersSubscribe(consumers: Consumer[]): Promise<void>;
-	// Subscribes, then starts running the Consumers (worker process only).
+	/** Subscribes, then starts running the Consumers (worker process only). */
 	consumersStart(consumers: Consumer[]): Promise<void>;
-	// `transaction` is the open transaction's client.
+	/** `transaction` is the open transaction's client. */
 	publisherCreate<M extends Record<string, unknown>>(
 		transaction: QueueSql,
 	): EventsPublisher<M>;

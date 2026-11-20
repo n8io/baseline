@@ -21,6 +21,18 @@ const postgresUrlSslParams = [
 	"sslrootcert",
 ];
 
+// Node's own error would carry the whole URL, password included.
+const postgresUrlParamsRead = (
+	databaseUrl: string,
+	caller: string,
+): URLSearchParams => {
+	try {
+		return new URL(databaseUrl).searchParams;
+	} catch {
+		throw new TypeError(`${caller}: databaseUrl is not a valid URL`);
+	}
+};
+
 /**
  * Throws on a vendor setting that a named option or the URL already decides. `caller` is the
  * public function that was handed `vendor`, which the message starts with.
@@ -46,7 +58,7 @@ export const postgresVendorAssert = ({
 			);
 		}
 	}
-	const urlParams = new URL(databaseUrl).searchParams;
+	const urlParams = postgresUrlParamsRead(databaseUrl, caller);
 	const sslParam = postgresUrlSslParams.find((name) => urlParams.has(name));
 	if ("ssl" in vendor && sslParam !== undefined) {
 		throw new TypeError(

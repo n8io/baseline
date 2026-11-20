@@ -49,6 +49,7 @@ const queueOrderedBlockedKeysRead = async (
 	}));
 };
 
+/** The keys held back by an Event that failed for good, as `Queue.blockedKeys()` returns them. */
 export const queueOrderedBlockedKeysList = async (
 	boss: PgBoss,
 ): Promise<{ consumer: string; deleteAt: Date; key: string; since: Date }[]> =>

@@ -24,7 +24,7 @@ export type Schedule = {
 export type QueueScheduleOptions = {
 	/** UTC, minute precision. */
 	cron: string;
-	/** `<context>.<use case words, kebab>` (invoice.stale-archive). */
+	/** `<context>.<use case words, kebab>` (foo.stale-archive). */
 	name: string;
 	run: () => Promise<Result<unknown, { type: string }>>;
 };
@@ -36,7 +36,7 @@ export const queueScheduleCreate = ({
 	run,
 }: QueueScheduleOptions): Schedule => ({ cron, name, run });
 
-/** invoice.stale-archive → SCHEDULE_INVOICE_STALE_ARCHIVE. Not exported from the Package. */
+/** foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE. Not exported from the Package. */
 export const queueScheduleEnvName = (name: string): string =>
 	`SCHEDULE_${name.toUpperCase().replaceAll(/[.-]/g, "_")}`;
 
@@ -95,10 +95,10 @@ export const queueSchedulesSync = async (
 			} catch (error) {
 				const source =
 					override === undefined
-						? `schedule ${name}`
-						: queueScheduleEnvName(name);
+						? `schedules: invalid cron for ${name}`
+						: `env.${queueScheduleEnvName(name)}: invalid cron`;
 				throw new TypeError(
-					`Invalid cron for ${source}: use a cron string or off`,
+					`queueSchedulesSync: ${source}; use a cron string or off`,
 					{ cause: error },
 				);
 			}

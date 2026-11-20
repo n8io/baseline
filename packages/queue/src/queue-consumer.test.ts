@@ -94,3 +94,26 @@ describe("queueConsumerCreate", () => {
 		);
 	});
 });
+
+describe("queueConsumerCreate", () => {
+	it("parses the event and passes the inbox through", async () => {
+		const fooCreated = z.object({ fooId: z.string() });
+		const run = vi.fn(async () => ok("done"));
+		const consumer = queueConsumerCreate({
+			queueName: "billing.foo-created",
+			eventName: "foo.created",
+			schema: fooCreated,
+			run,
+		});
+		const inbox = { consumer: "billing.foo-created", eventId: "job-1" };
+
+		expect(await consumer.run({ extra: 1, fooId: "foo_1" }, inbox)).toEqual(
+			ok("done"),
+		);
+		expect(run).toHaveBeenCalledWith({ fooId: "foo_1" }, inbox);
+		expect(consumer).toMatchObject({
+			eventName: "foo.created",
+			queueName: "billing.foo-created",
+		});
+	});
+});

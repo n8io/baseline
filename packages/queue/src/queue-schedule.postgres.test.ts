@@ -161,7 +161,7 @@ describe("queueSchedulesSync", () => {
 				schedules: [schedule("foo.report-send"), schedule("foo.stale-archive")],
 			}),
 		).rejects.toThrow(
-			"Invalid cron for SCHEDULE_FOO_STALE_ARCHIVE: use a cron string or off",
+			"queueSchedulesSync: env.SCHEDULE_FOO_STALE_ARCHIVE: invalid cron; use a cron string or off",
 		);
 		expect(await held()).toEqual({});
 	});
@@ -173,7 +173,9 @@ describe("queueSchedulesSync", () => {
 				env: {},
 				schedules: [schedule("foo.stale-archive", "61 * * * *")],
 			}),
-		).rejects.toThrow("Invalid cron for schedule foo.stale-archive");
+		).rejects.toThrow(
+			"queueSchedulesSync: schedules: invalid cron for foo.stale-archive; use a cron string or off",
+		);
 	});
 });
 

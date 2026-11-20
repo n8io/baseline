@@ -52,7 +52,7 @@ const integerKindAssert = (sortColumn: AnyColumn): void => {
 	const type = sortColumn.getSQLType();
 	if (integerRanges[type] !== int4Range) {
 		throw new TypeError(
-			`An integer keyset needs an integer or serial column, got ${type}`,
+			`postgresKeysetCreate: sortColumn: an integer keyset needs an integer or serial column, got ${type}`,
 		);
 	}
 };
@@ -76,7 +76,7 @@ const afterValueAssert = ({
 		: typeof value === "string" && (kind === "text" || isoInstantIs(value));
 	if (!valid) {
 		throw new TypeError(
-			`${kind === "integer" ? "An" : "A"} ${kind} keyset needs ${range ? `an integer from ${range[0]} to ${range[1]}` : kind === "number" ? "a finite number" : kind === "date" ? "an ISO instant such as 2026-01-01T00:00:00.000Z" : "a string"}, got ${JSON.stringify(value)}`,
+			`postgresKeysetCreate: after.value: ${kind === "integer" ? "an" : "a"} ${kind} keyset needs ${range ? `an integer from ${range[0]} to ${range[1]}` : kind === "number" ? "a finite number" : kind === "date" ? "an ISO instant such as 2026-01-01T00:00:00.000Z" : "a string"}, got ${JSON.stringify(value)}`,
 		);
 	}
 };

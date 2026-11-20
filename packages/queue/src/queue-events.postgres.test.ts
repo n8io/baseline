@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
+	type EventsPublisher,
 	type Queue,
 	queueConsumerCreate,
 	queueCreate,
@@ -39,7 +40,7 @@ beforeAll(async () => {
 	pgPool = postgresPoolCreate({ databaseUrl });
 	await pgPool.query("CREATE TABLE foo (id text NOT NULL)");
 	queue = await queueCreate({ pgPool, role: "publisher" });
-	// Three consumers of one event: pg-boss sends to every queue at once on the one client, and pg
+	// Three Consumers of one Event: pg-boss sends to every queue at once on the one client, and pg
 	// warns from the third query queued on a busy client.
 	const consumer = (name: string) =>
 		queueConsumerCreate({
@@ -167,16 +168,20 @@ describe("queueEventsCreate", () => {
 describe("queueEventsCreate publisher", () => {
 	queueEventsPublisherContract(async (work) => {
 		const events = queueEventsCreate(queue);
-		const publisher = await postgresTransactionRun({
+		let publisher: EventsPublisher<FooEvents> | undefined;
+		await postgresTransactionRun({
 			pgPool,
 			work: async (pgClient) => {
-				const inTransaction = events.publisherCreate<FooEvents>(pgClient);
-				await work(inTransaction);
-				return ok(inTransaction);
+				publisher = events.publisherCreate<FooEvents>(pgClient);
+				await work(publisher);
+				return ok(undefined);
 			},
 		});
-		if (publisher.ok) {
-			await publisher.value.committed();
-		}
+		await publisher?.committed();
+		// One subscribed queue stands for all three: each gets the same jobs.
+		const { rows } = await pgPool.query<{ data: unknown; key: string }>(
+			"SELECT data, singleton_key AS key FROM queue.job WHERE name = 'bar.foo-created.ordered' ORDER BY created_on",
+		);
+		return rows.map(({ data, key }) => ({ data, key, name: "foo.created" }));
 	});
 });

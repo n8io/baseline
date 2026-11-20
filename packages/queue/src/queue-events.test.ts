@@ -7,9 +7,17 @@ import {
 
 describe("queueEventsPublisherMemoryCreate", () => {
 	queueEventsPublisherContract(async (work) => {
-		const publisher = queueEventsPublisherMemoryCreate<QueueTestEvents>();
+		const published: {
+			name: keyof QueueTestEvents;
+			data: unknown;
+			key: string;
+		}[] = [];
+		const publisher = queueEventsPublisherMemoryCreate<QueueTestEvents>({
+			published,
+		});
 		await work(publisher);
 		await publisher.committed();
+		return published;
 	});
 
 	it("records publishes in `published` and delivers nothing", async () => {

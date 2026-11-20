@@ -6,9 +6,11 @@ import { type Queue, queueConcurrencyGet } from "./queue.ts";
  * jobs together never hold more pool connections than `concurrency` allows.
  */
 export type QueueSlots = {
-	// Runs `work` once a slot is free and resolves true. Resolves false without running it when
-	// `signal` aborts first (pg-boss has given the job up). A job whose signal aborts while it
-	// runs gives its slot back at once, so a job that hangs cannot hold a slot for good.
+	/**
+	 * Runs `work` once a slot is free and resolves true. Resolves false without running it when
+	 * `signal` aborts first (pg-boss has given the job up). A job whose signal aborts while it
+	 * runs gives its slot back at once, so a job that hangs cannot hold a slot for good.
+	 */
 	run(signal: AbortSignal, work: () => Promise<void>): Promise<boolean>;
 };
 

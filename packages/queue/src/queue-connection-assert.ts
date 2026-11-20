@@ -38,12 +38,25 @@ export const queueConnectionAssert = ({
 			);
 		}
 	}
-	const urlParams = new URL(databaseUrl).searchParams;
+	const urlParams = queueUrlParamsRead(databaseUrl, caller);
 	const sslParam = queueUrlSslParams.find((name) => urlParams.has(name));
 	if ("ssl" in vendor && sslParam !== undefined) {
 		throw new TypeError(
 			`${caller}: vendor.ssl is not allowed with ${sslParam} in databaseUrl: pg lets the URL win; set TLS in one place`,
 		);
+	}
+};
+
+// Copied from packages/postgres/src/postgres-vendor-assert.ts; keep the two in step. Node's own
+// error would carry the whole URL, password included.
+const queueUrlParamsRead = (
+	databaseUrl: string,
+	caller: string,
+): URLSearchParams => {
+	try {
+		return new URL(databaseUrl).searchParams;
+	} catch {
+		throw new TypeError(`${caller}: databaseUrl is not a valid URL`);
 	}
 };
 

@@ -340,7 +340,7 @@ describe("queueCreate", () => {
 		await expect(pgPool.query("SELECT 1")).resolves.toBeDefined();
 	});
 
-	it("await using stops the queue when its block ends", async () => {
+	it("await using closes the queue when its block ends", async () => {
 		const pgPool = poolCreate();
 		let stop: MockInstance;
 		{

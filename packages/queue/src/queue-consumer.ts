@@ -19,7 +19,7 @@ import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 export type Consumer = {
 	readonly queueName: string;
 	readonly eventName: string;
-	// Parses and runs one job's data; a parse failure throws, which fails the job.
+	/** Parses and runs one job's data; a parse failure throws, which fails the job. */
 	readonly run: (
 		data: unknown,
 		inbox: Inbox,

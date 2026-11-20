@@ -12,22 +12,30 @@ import type { QueueSql } from "./queue-sql.ts";
 
 /** The queue a composition root opens with `queueCreate`; close it with `close()`. */
 export type Queue = {
-	// false only when this process's own poll loops are stuck, which a restart fixes. A poll that
-	// fails (Postgres is down or failing over) still counts as proof the loop runs, so an outage
-	// never reports a worker dead. A poll must fail and not hang for that: give `pgPool` a query
-	// timeout well under a minute.
+	/**
+	 * false only when this process's own poll loops are stuck, which a restart fixes. A poll that
+	 * fails (Postgres is down or failing over) still counts as proof the loop runs, so an outage
+	 * never reports a worker dead. A poll must fail and not hang for that: give `pgPool` a query
+	 * timeout well under a minute.
+	 */
 	isAlive(): boolean;
-	// The keys held back by an Event that failed for good, per Consumer (its queueName), since when,
-	// and from when (deleteAt) the queue's next sweep deletes that Event unless it is released first,
-	// so the key moves on without it. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
+	/**
+	 * The keys held back by an Event that failed for good, per Consumer (its queueName), since when,
+	 * and from when (deleteAt) the queue's next sweep deletes that Event unless it is released first,
+	 * so the key moves on without it. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
+	 */
 	blockedKeys(): Promise<
 		{ consumer: string; deleteAt: Date; key: string; since: Date }[]
 	>;
-	// Releases a blocked key by running its failed Event again, before the Events waiting behind
-	// it. true when it released the key; false when that Consumer has no blocked Event for the key.
+	/**
+	 * Releases a blocked key by running its failed Event again, before the Events waiting behind
+	 * it. true when it released the key; false when that Consumer has no blocked Event for the key.
+	 */
 	blockedKeyRetry(blocked: { consumer: string; key: string }): Promise<boolean>;
-	// Releases a blocked key by deleting its failed Event, so the key moves on without it; the copy
-	// in `<queueName>.dead` stays. true when it released the key; false as for blockedKeyRetry.
+	/**
+	 * Releases a blocked key by deleting its failed Event, so the key moves on without it; the copy
+	 * in `<queueName>.dead` stays. true when it released the key; false as for blockedKeyRetry.
+	 */
 	blockedKeyGiveUp(blocked: {
 		consumer: string;
 		key: string;
