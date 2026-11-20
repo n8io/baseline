@@ -109,7 +109,7 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 	});
 
 	// Counts every failure and warns once per 30 s, so an outage is not one line per send.
-	// The same throttle as `storeFailed` in packages/cache/src/cache.ts; keep the two in step.
+	// Copied from packages/cache/src/cache.ts (`storeFailed`); keep the two in step.
 	const sendFailed = (channel: string, err: unknown): void => {
 		liveSendsFailedCounter().add(1, { "baseline.live.channel": channel });
 		if (Date.now() - warnedAt < liveWarnIntervalMs) {

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { LiveHub } from "./index.ts";
 import { liveStreamCreate } from "./index.ts";
 
-// An app serving GET /live/:channel/:id like a Project's live routes.
+/** An app serving GET /live/:channel/:id like a Project's live routes. */
 export const liveTestAppCreate = (
 	liveHub: LiveHub,
 	expiresAt: () => number = () => Date.now() + 15 * 60_000,

@@ -117,7 +117,7 @@ const cacheByIdCreate = <T>(
 	let unlogged = 0;
 
 	// Counts every failure and warns once per 30 s, so an outage is not one line per call.
-	// The same throttle as `sendFailed` in packages/live/src/live-hub.ts; keep the two in step.
+	// Copied from packages/live/src/live-hub.ts (`sendFailed`); keep the two in step.
 	const storeFailed = (operation: string, err: unknown): void => {
 		if (onStoreError === "throw") throw err;
 		cacheStoreErrorsCounter().add(1, {

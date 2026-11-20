@@ -31,6 +31,19 @@ describe("liveUpdatesOpen", () => {
 		expect(source.url).toBe("/live/foo/foo_1%2Fx");
 	});
 
+	it("opens under /live for a null pathPrefix", () => {
+		const { create, source } = eventSourceFake();
+		liveUpdatesOpen({
+			channel: "foo",
+			eventSourceCreate: create,
+			id: "foo_1",
+			onChange: () => {},
+			pathPrefix: null,
+		});
+
+		expect(source.url).toBe("/live/foo/foo_1");
+	});
+
 	it("opens no stream for a null id, and its close does nothing", () => {
 		const create = vi.fn();
 		const close = liveUpdatesOpen({

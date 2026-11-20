@@ -18,8 +18,10 @@ const nameSchema: StandardSchemaV1<unknown, string> = {
 	},
 };
 
-// The behaviour a Cache must have on every store. `wait` moves time forward:
-// fake timers for memory, a real sleep for Redis.
+/**
+ * The behaviour a Cache must have on every store. `wait` moves time forward:
+ * fake timers for memory, a real sleep for Redis.
+ */
 export const cacheStoreContract = (
 	store: () => CacheStore,
 	wait: (ms: number) => Promise<void>,

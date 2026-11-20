@@ -3,7 +3,7 @@ import type { LiveHub } from "./index.ts";
 import { liveTestAppCreate } from "./live-test-app.ts";
 import { liveTestSseRead } from "./live-test-sse.ts";
 
-// The behaviour a LiveHub must have on every transport, seen through its streams.
+/** The behaviour a LiveHub must have on every transport, seen through its streams. */
 export const liveHubContract = (
 	liveHubCreate: () => Promise<LiveHub>,
 ): void => {
