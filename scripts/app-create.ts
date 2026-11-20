@@ -91,7 +91,9 @@ export const answersWrite = ({
 	);
 };
 
-export const pnpmRun = (directory: string, args: string[]): void => {
+// Runs pnpm with its output shown and throws when it fails (apps/app/scripts/pieces.ts has a
+// pnpmRun that returns the result instead).
+export const pnpmInheritRun = (directory: string, args: string[]): void => {
 	processRun({
 		command: "pnpm",
 		args,
@@ -549,9 +551,13 @@ const projectRender = async (answers: TemplateAnswers): Promise<string> => {
 		});
 		// The template's lockfile drops our own packages, so this install adds them, resolved first
 		// so their tarballs can be awaited.
-		pnpmRun(directory, ["install", "--lockfile-only", "--no-frozen-lockfile"]);
+		pnpmInheritRun(directory, [
+			"install",
+			"--lockfile-only",
+			"--no-frozen-lockfile",
+		]);
 		await npmTarballsWait({ directory });
-		pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+		pnpmInheritRun(directory, ["install", "--no-frozen-lockfile"]);
 		gitCommitAll(directory, `🎉 Create ${answers.name} from app@${release}`);
 	} catch (error) {
 		console.error(

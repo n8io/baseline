@@ -11,7 +11,7 @@
 // in code or quoted in text, are skipped. A glossary term on the line is blanked first, so "Event
 // key" is no hit for an alias "Event"; an alias written capitalized ("DTO") matches only that case,
 // so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. Warnings
-// only: the agent judges each hit, so it always exits 0.
+// only: the agent judges each hit, so a hit never fails it; it exits 1 only on wrong arguments.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { argsParse, argsUsageFail } from "./args.ts";

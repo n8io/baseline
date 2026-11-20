@@ -29,7 +29,7 @@ import {
 	appRender,
 	gitCommitAll,
 	glossaryTerm,
-	pnpmRun,
+	pnpmInheritRun,
 } from "../../scripts/app-create.ts";
 import {
 	checkoutExport,
@@ -106,7 +106,7 @@ const contextAdd = ({
 	);
 	const paths = created.map((f) => f.path);
 	const unusedImports = "--only=correctness/noUnusedImports";
-	pnpmRun(directory, [
+	pnpmInheritRun(directory, [
 		"exec",
 		"biome",
 		"lint",
@@ -120,7 +120,7 @@ const contextAdd = ({
 		"CONTEXT-MAP.md",
 		`src/contexts/${names.kebab}/CONTEXT.md`,
 	];
-	pnpmRun(directory, [
+	pnpmInheritRun(directory, [
 		"exec",
 		"biome",
 		"check",
@@ -283,8 +283,8 @@ const pieceRemove = ({
 	scripts: string[];
 }) => {
 	console.log(`pnpm piece-remove ${piece}`);
-	pnpmRun(directory, ["piece-remove", piece]);
-	for (const script of scripts) pnpmRun(directory, [script]);
+	pnpmInheritRun(directory, ["piece-remove", piece]);
+	for (const script of scripts) pnpmInheritRun(directory, [script]);
 	gitCommitAll(directory, `Remove ${piece}`);
 };
 
@@ -298,7 +298,7 @@ const revertTo = (directory: string, before: string) => {
 	git(directory, ["revert", "--no-edit", `${before}..HEAD`]);
 	const diff = git(directory, ["diff", "--stat", before, "HEAD"]);
 	if (diff !== "") throw new Error(`git revert left a diff:\n${diff}`);
-	pnpmRun(directory, ["install"]);
+	pnpmInheritRun(directory, ["install"]);
 	treeCleanRequire(directory, "pnpm install after the revert");
 };
 
@@ -318,10 +318,10 @@ const main = async () => {
 		options: { cwd: directory },
 	});
 	checkoutPackagesUse(directory);
-	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	pnpmInheritRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
 	contextAdd({ directory, files, names: customer });
-	pnpmRun(directory, ["check"]);
+	pnpmInheritRun(directory, ["check"]);
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
@@ -389,16 +389,16 @@ const main = async () => {
 		pieceRemove({ directory, piece, scripts: ["check"] });
 	const removed = head();
 	revertTo(directory, before);
-	pnpmRun(directory, ["check"]);
+	pnpmInheritRun(directory, ["check"]);
 	treeCleanRequire(directory, "check after the revert");
 	console.log("api-only: every piece removed, then reverted, passes check");
 
 	git(directory, ["reset", "--hard", "--quiet", removed]);
 	// git ignores the types check generated after the revert; piece-remove ui deletes them.
 	rmSync(join(directory, ".react-router"), { force: true, recursive: true });
-	pnpmRun(directory, ["install"]);
+	pnpmInheritRun(directory, ["install"]);
 	contextAdd({ directory, files, names: invoiceLine });
-	for (const script of checkTestBuild) pnpmRun(directory, [script]);
+	for (const script of checkTestBuild) pnpmInheritRun(directory, [script]);
 	await apiServe(directory);
 	gitCommitAll(directory, "Add invoice-line");
 	console.log("api-only: check, test, build and the served API pass");

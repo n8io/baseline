@@ -689,3 +689,29 @@ describe("templateFinish", () => {
 		);
 	});
 });
+
+// template-upgrade writes a release's template-render.ts alone into a folder and imports it
+// (releaseRender), so the file imports nothing local, and its copy of processRun stays the same.
+describe("template-render.ts on its own", () => {
+	const read = (name: string) =>
+		readFileSync(new URL(name, import.meta.url), "utf8");
+
+	it("imports only node: builtins", () => {
+		const specifiers = [
+			...read("./template-render.ts").matchAll(
+				/^(?:import|export)\b[^;]*?from "([^"]+)";/gms,
+			),
+		].map((m) => m[1]);
+		expect(specifiers.length).toBeGreaterThan(0);
+		expect(specifiers.filter((s) => !s?.startsWith("node:"))).toEqual([]);
+	});
+
+	it("keeps its processRun the same as process-run.ts's", () => {
+		const body = (text: string) =>
+			/const processRun = (\(\{[\s\S]*?\?\? "";)/.exec(text)?.[1];
+		expect(body(read("./template-render.ts"))).toBeDefined();
+		expect(body(read("./template-render.ts"))).toBe(
+			body(read("./process-run.ts")),
+		);
+	});
+});
