@@ -1,25 +1,25 @@
 {
 	"name": "@n8io/baseline-queue",
 	"version": "8.2.0",
-	"description": "pg-boss events, consumers and schedules on the app's Postgres, with an inbox for duplicates.",
-	"type": "module",
+	"description": "Events, Event handlers and Schedules in the Project's own Postgres: Events commit with the rows that caused them and reach each Event handler in order per Event key.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/queue"
 	},
-	"engines": {
-		"node": ">=26"
+	"exports": {
+		".": "./src/index.ts",
+		"./testing": "./src/testing.ts"
 	},
 	"files": [
 		"dist",
 		"README.md"
 	],
-	"exports": {
-		".": "./src/index.ts",
-		"./testing": "./src/testing.ts"
-	},
 	"publishConfig": {
 		"access": "public",
 		"exports": {
@@ -48,9 +48,6 @@
 		"@standard-schema/spec": "^1.1.0",
 		"pg-boss": "^12.38.2"
 	},
-	"peerDependencies": {
-		"@opentelemetry/api": "^1.10.0"
-	},
 	"devDependencies": {
 		"@n8io/baseline-postgres": "workspace:^",
 		"@opentelemetry/api": "^1.10.0",
@@ -59,5 +56,8 @@
 		"@types/pg": "^8.23.1",
 		"pg": "^8.23.1",
 		"zod": "^4.6.7"
+	},
+	"peerDependencies": {
+		"@opentelemetry/api": "^1.10.0"
 	}
 }

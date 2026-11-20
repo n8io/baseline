@@ -1,7 +1,7 @@
 {
 	"name": "@n8io/baseline-shutdown",
 	"version": "3.0.2",
-	"description": "Graceful shutdown: drain, close intakes together, then resources in order.",
+	"description": "Graceful shutdown on SIGTERM: stop taking work, let running work finish, then close resources in order inside a deadline.",
 	"license": "MIT",
 	"type": "module",
 	"engines": {

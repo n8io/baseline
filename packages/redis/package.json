@@ -1,24 +1,24 @@
 {
 	"name": "@n8io/baseline-redis",
 	"version": "1.0.1",
-	"description": "The one Redis connection a baseline app shares: it fails fast at startup and reconnects for good after.",
-	"type": "module",
+	"description": "The one Redis connection a process shares: it fails startup when unreachable, reconnects for good after, and an error never exits the process.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/redis"
 	},
-	"engines": {
-		"node": ">=26"
+	"exports": {
+		".": "./src/index.ts"
 	},
 	"files": [
 		"dist",
 		"README.md"
 	],
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"publishConfig": {
 		"access": "public",
 		"exports": {
