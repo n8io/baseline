@@ -35,7 +35,7 @@ export type AuthnOptions = {
 	secret: string;
 	/** Extra authorization request params, such as `{ audience }` for a provider that asks for one. */
 	authorizeParams?: Record<string, string> | null;
-	/** `"client_id"` for a provider that names the client in `client_id` instead of `aud`: that claim must then equal `audience`. Default `"aud"`. */
+	/** `"client_id"` for a provider that names the client in `client_id` instead of `aud`: that claim must then equal `audience`. Default `"aud"`; any other value throws a `TypeError`. */
 	audienceClaim?: "aud" | "client_id" | null;
 	/** Maps the verified access token's claims to the Actor; a throw means "not an Actor". */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
@@ -111,6 +111,14 @@ const memoryAccessTtlSeconds = 15 * 60;
 const memoryAlgorithm = "HS256";
 const memoryRefreshTtl = "30d";
 const memoryRefreshAudience = "baseline-authn-memory-refresh";
+
+const authnAudienceClaimCheck = (options: AuthnOptions): void => {
+	const claim = options.audienceClaim;
+	if (claim == null || claim === "aud" || claim === "client_id") return;
+	throw new TypeError(
+		`authnCreate: audienceClaim must be "aud" or "client_id", found "${claim}"`,
+	);
+};
 
 const authnIssuerUrlCheck = (options: AuthnOptions): void => {
 	if (options.issuerUrl === memoryIssuerUrl) {
@@ -350,6 +358,7 @@ const authnOidcIssuerCreate = async (
  */
 export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 	authnIssuerUrlCheck(options);
+	authnAudienceClaimCheck(options);
 	const cookieKey = authnCookieKey(options.secret);
 	if (options.issuerUrl === memoryIssuerUrl) {
 		const { issuer, key } = authnMemoryIssuerCreate(options);

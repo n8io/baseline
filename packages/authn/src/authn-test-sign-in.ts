@@ -48,7 +48,10 @@ export const authnTestSignIn = async ({
 	const pairs = res.headers.getSetCookie().map((line) => line.split(";")[0]);
 	const prefix = `${authnCookieNames.access}=`;
 	const access = pairs.find((pair) => pair?.startsWith(prefix));
-	if (access === undefined) throw new Error(`sign-in failed: ${res.status}`);
+	if (access === undefined)
+		throw new Error(
+			`authnTestSignIn: POST ${origin}/auth/sign-in answered ${res.status}`,
+		);
 	const accessCookie = access.slice(prefix.length);
 	const token = await authnCookieOpen({
 		key: authnCookieKey(secret),
@@ -56,7 +59,9 @@ export const authnTestSignIn = async ({
 		sealed: accessCookie,
 	});
 	if (token === "invalid") {
-		throw new Error("the access cookie did not open with this secret");
+		throw new Error(
+			"authnTestSignIn: the access cookie did not open with secret",
+		);
 	}
 	return {
 		accessCookie,

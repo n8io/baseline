@@ -15,7 +15,7 @@ describe("redisClientCreate", () => {
 			redisClientCreate({ url: "http://user:secret@127.0.0.1:1" }),
 		).rejects.toThrow(
 			new TypeError(
-				'redisClientCreate: url must start with redis:// or rediss://, found "http"',
+				'redisClientCreate: url must start with redis:// or rediss://, found "http://"',
 			),
 		);
 	});

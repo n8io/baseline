@@ -5,7 +5,7 @@
 //   give-up <consumer> <key>   deletes the failed Event, so the key moves on (its dead-letter copy stays)
 // <consumer> is the Event handler's queueName. It exits 1 when it released nothing.
 // `pnpm piece-remove queue` deletes this file.
-import type { Queue } from "@n8io/baseline-queue";
+import type { Queue, QueueBlockedKey } from "@n8io/baseline-queue";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { ENV } from "#env";
@@ -13,9 +13,9 @@ import { connectionsClose, databaseOpen } from "./connections.ts";
 import { queueOpen } from "./queue-open.ts";
 
 const blockedKeyReleases = {
-	"give-up": (queue: Queue, blocked: { consumer: string; key: string }) =>
+	"give-up": (queue: Queue, blocked: QueueBlockedKey) =>
 		queue.blockedKeyGiveUp(blocked),
-	retry: (queue: Queue, blocked: { consumer: string; key: string }) =>
+	retry: (queue: Queue, blocked: QueueBlockedKey) =>
 		queue.blockedKeyRetry(blocked),
 };
 

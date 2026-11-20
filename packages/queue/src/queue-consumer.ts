@@ -43,6 +43,7 @@ export type QueueConsumerOptions<S extends StandardSchemaV1> = {
 	 * `consumer` key.
 	 */
 	queueName: string;
+	/** Runs one validated Event; an err Result fails the job and holds its key back. */
 	run: (
 		event: StandardSchemaV1.InferOutput<S>,
 		inbox: Inbox,
@@ -91,7 +92,7 @@ export const queueConsumersSubscribe = async (
 	queue: Queue,
 	consumers: Consumer[],
 ): Promise<void> => {
-	const boss = queueBossGet(queue, "queueConsumersSubscribe");
+	const boss = queueBossGet(queue, "queueEventsCreate");
 	for (const consumer of consumers) {
 		const name = queueOrderedName(consumer.queueName);
 		await queueWithDeadLetterCreate({
@@ -219,7 +220,7 @@ export const queueConsumersStart = async (
 	consumers: Consumer[],
 ): Promise<void> => {
 	await queueConsumersSubscribe(queue, consumers);
-	const boss = queueBossGet(queue, "queueConsumersStart");
+	const boss = queueBossGet(queue, "queueEventsCreate");
 	const lanes = queueConcurrencyGet(queue);
 	const slots = queueSlotsGet(queue);
 	for (const consumer of consumers) {

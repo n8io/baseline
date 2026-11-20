@@ -1,4 +1,4 @@
-// Started by sdk-traceparent.test.ts with `--import @n8io/baseline-telemetry/register`, as a
+// Started by sdk-fetch-traceparent.test.ts with `--import @n8io/baseline-telemetry/register`, as a
 // Project's preload starts telemetry: calls the API whose URL is its argument inside a span,
 // then flushes telemetry and exits.
 import { telemetryShutdown } from "@n8io/baseline-telemetry";

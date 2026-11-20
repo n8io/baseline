@@ -7,7 +7,10 @@ type PostgresIdColumnBuilder<P extends string> = PgCustomColumnBuilder<{
 	driverParam: string;
 }>;
 
-/** A `uuid` column in the database that reads and writes prefixed ids (`foo_…`) in code. */
+/**
+ * A `uuid` column in the database that reads and writes prefixed ids (`foo_…`) in code. Writing
+ * an id of another prefix throws a TypeError.
+ */
 export const postgresIdColumnCreate = <P extends string>(
 	prefix: P,
 ): ((name?: string) => PostgresIdColumnBuilder<P>) => {
@@ -17,7 +20,9 @@ export const postgresIdColumnCreate = <P extends string>(
 		toDriver: (value) => {
 			// Types already stop a `bar` id here; this catches one cast past them.
 			if (!value.startsWith(`${prefix}_`)) {
-				throw new TypeError(`Expected a ${prefix} id`);
+				throw new TypeError(
+					`postgresIdColumnCreate: value must be a ${prefix} id`,
+				);
 			}
 			return idToUuid(value);
 		},

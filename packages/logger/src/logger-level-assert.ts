@@ -15,7 +15,7 @@ const loggerLevels = [
 export const loggerLevelAssert = (level: string): string => {
 	if (!loggerLevels.includes(level)) {
 		throw new TypeError(
-			`LOG_LEVEL must be one of ${loggerLevels.join(", ")}, not "${level}"`,
+			`LOG_LEVEL must be one of ${loggerLevels.join(", ")}, found "${level}"`,
 		);
 	}
 	return level;

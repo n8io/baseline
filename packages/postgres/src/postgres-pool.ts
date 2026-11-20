@@ -27,6 +27,7 @@ export type PostgresPoolVendorOptions = Omit<
 
 /** What `postgresPoolCreate` takes. */
 export type PostgresPoolOptions = {
+	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/** How long a connect may take. Default 3 s. */
 	connectTimeoutMs?: number | null;
@@ -42,12 +43,27 @@ export type PostgresPoolOptions = {
 	vendor?: PostgresPoolVendorOptions | null;
 };
 
+// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days); Postgres refuses a longer one too.
+const postgresDurationMax = 2_147_483_647;
+
+/**
+ * Whether a duration in milliseconds is a positive integer a timer or a Postgres setting can hold.
+ * For the other modules of this Package only.
+ */
+export const postgresDurationIs = (value: number): boolean =>
+	Number.isSafeInteger(value) && value > 0 && value <= postgresDurationMax;
+
+/** The limit `postgresDurationIs` applies, for the messages that name it. */
+export const postgresDurationMessage: string = `a positive integer, ${postgresDurationMax} at most`;
+
 const postgresPositiveIntegerIs = (value: number): boolean =>
 	Number.isSafeInteger(value) && value > 0;
 
 /**
  * The process's one Postgres pool. pg 8.23 ignores `?connect_timeout=` in the URL, so the
- * settings live here.
+ * settings live here. Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL,
+ * a `vendor` key the named options or the URL already set, a `connectTimeoutMs`, `max` or
+ * `queryTimeoutMs` that is not a positive integer, or a duration over 2147483647.
  */
 export const postgresPoolCreate = (
 	options: PostgresPoolOptions,
@@ -63,17 +79,19 @@ export const postgresPoolCreate = (
 		owned: { max: "max", query_timeout: "queryTimeoutMs" },
 		vendor,
 	});
-	if (!postgresPositiveIntegerIs(connectTimeoutMs)) {
+	if (!postgresDurationIs(connectTimeoutMs)) {
 		throw new TypeError(
-			"postgresPoolCreate: connectTimeoutMs must be a positive integer",
+			`postgresPoolCreate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
 		);
 	}
 	if (!postgresPositiveIntegerIs(max)) {
-		throw new TypeError("postgresPoolCreate: max must be a positive integer");
-	}
-	if (queryTimeoutMs !== null && !postgresPositiveIntegerIs(queryTimeoutMs)) {
 		throw new TypeError(
-			"postgresPoolCreate: queryTimeoutMs must be a positive integer or null",
+			`postgresPoolCreate: max must be a positive integer, found ${max}`,
+		);
+	}
+	if (queryTimeoutMs !== null && !postgresDurationIs(queryTimeoutMs)) {
+		throw new TypeError(
+			`postgresPoolCreate: queryTimeoutMs must be ${postgresDurationMessage} or null, found ${queryTimeoutMs}`,
 		);
 	}
 	const pgPool = new pg.Pool({

@@ -22,6 +22,9 @@ import {
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 
+// The tests are the caller here.
+const bossGet = (queue: Queue) => queueBossGet(queue, "test");
+
 let databaseUrl: string;
 const pools: pg.Pool[] = [];
 const queues: Queue[] = [];
@@ -82,7 +85,7 @@ describe("queueCreate", () => {
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "publisher");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const query = vi.spyOn(pgPool, "query");
 
 		await setTimeout(3_000);
@@ -104,7 +107,7 @@ describe("queueCreate", () => {
 
 	it("a worker starts the cron pass and the inbox prune schedule", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 
 		const names = boss
 			.getWipData({ includeInternal: true })
@@ -119,7 +122,7 @@ describe("queueCreate", () => {
 
 	it("every poll stamps the heartbeat, including empty ones", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const stamp = (): number =>
 			Math.max(...boss.getWipData().map((wip) => wip.lastFetchedOn ?? 0));
 
@@ -138,7 +141,7 @@ describe("queueCreate", () => {
 	it("a poll that fails still stamps the heartbeat: an outage is not a stuck loop", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "worker");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const stamp = (key: "lastErrorOn" | "lastFetchedOn"): number =>
 			Math.max(...boss.getWipData().map((wip) => wip[key] ?? 0));
 		vi.spyOn(logger, "error").mockReturnValue(undefined);
@@ -178,7 +181,7 @@ describe("queueCreate", () => {
 					hung.push(reject);
 				}),
 		);
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const stamp = (): number =>
 			Math.max(
 				...boss
@@ -204,7 +207,7 @@ describe("queueCreate", () => {
 
 	it("logs a failure pg-boss reports as a plain object as an Error, with the object as its cause", async () => {
 		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
-		const boss = queueBossGet(await start(poolCreate(), "worker"));
+		const boss = bossGet(await start(poolCreate(), "worker"));
 		const reported = {
 			code: "ECONNREFUSED",
 			message: "connect ECONNREFUSED (Queue: foo.stale-archive, Worker: 1)",
@@ -236,7 +239,7 @@ describe("queueCreate", () => {
 
 	it("logs one queue's failures once per 30 s, as an outage fails every poll", async () => {
 		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
-		const boss = queueBossGet(await start(poolCreate(), "worker"));
+		const boss = bossGet(await start(poolCreate(), "worker"));
 		const failed = (queue: string): Error =>
 			Object.assign(new Error("connect ECONNREFUSED"), { queue });
 		const now = Date.now();
@@ -266,7 +269,7 @@ describe("queueCreate", () => {
 			vendor: { queueCacheIntervalSeconds: 1 },
 		});
 		queues.push(queue);
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		await boss.createQueue("search.foo-created");
 		await boss.work(
 			"search.foo-created",
@@ -278,7 +281,7 @@ describe("queueCreate", () => {
 
 		// What queueMigrate does to a drained queue of an earlier release, from another process.
 		const other = await start(poolCreate(), "publisher");
-		await queueBossGet(other).deleteQueue("search.foo-created");
+		await bossGet(other).deleteQueue("search.foo-created");
 
 		await vi.waitFor(
 			() => expect(working()).not.toContain("search.foo-created"),
@@ -302,10 +305,10 @@ describe("queueCreate", () => {
 		expect(queue.isAlive()).toBe(true);
 	});
 
-	it("stop waits for a running job, then stops the workers and the cron pass", async () => {
+	it("close waits for a running job, then stops the workers and the cron pass", async () => {
 		const pgPool = poolCreate();
 		const queue = await start(pgPool, "worker");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const finished: string[] = [];
 		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate({
@@ -345,7 +348,7 @@ describe("queueCreate", () => {
 		let stop: MockInstance;
 		{
 			await using queue = await queueCreate({ pgPool, role: "worker" });
-			stop = vi.spyOn(queueBossGet(queue), "stop");
+			stop = vi.spyOn(bossGet(queue), "stop");
 		}
 
 		expect(stop).toHaveBeenCalledExactlyOnceWith({
@@ -356,7 +359,7 @@ describe("queueCreate", () => {
 
 	it("a job still running at the timeout is failed, to be retried", async () => {
 		const queue = await start(poolCreate(), "worker");
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate({
 				queueName: "baz.foo-deleted",

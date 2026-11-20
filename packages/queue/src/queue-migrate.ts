@@ -43,6 +43,7 @@ export type QueueMigrateVendorOptions = Pick<
 
 /** What `queueMigrate` takes. */
 export type QueueMigrateOptions = {
+	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/** The `queueName` of each Consumer an earlier release removed: its queues are deleted. */
 	queuesRemoved?: string[] | null;
@@ -54,7 +55,9 @@ export type QueueMigrateOptions = {
  * Installs or upgrades pg-boss in schema `queue`, waits for its background index builds, deletes
  * the queues of Consumers removed in an earlier release, and creates queue.inbox. Runs from the
  * migrate entry, before any Server or Worker starts with `migrate: false`; queueSchedulesSync
- * runs after it.
+ * runs after it. Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL, or
+ * on a `vendor` key other than `ssl`, `application_name` and `options`, or `vendor.ssl` together
+ * with TLS in the URL.
  */
 export const queueMigrate = async (
 	options: QueueMigrateOptions,

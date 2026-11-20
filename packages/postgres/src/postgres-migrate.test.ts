@@ -15,17 +15,39 @@ describe("postgresMigrate", () => {
 		);
 	});
 
-	it.each([0, -1, 1.5])("refuses lockWaitMs %s", async (lockWaitMs) => {
-		await expect(
-			postgresMigrate({
-				databaseUrl: "postgres://localhost/db",
-				lockWaitMs,
-				migrationsFolder,
-			}),
-		).rejects.toThrow(
-			new TypeError("postgresMigrate: lockWaitMs must be a positive integer"),
-		);
-	});
+	it.each([0, -1, 1.5, 2_147_483_648])(
+		"refuses lockWaitMs %s",
+		async (lockWaitMs) => {
+			await expect(
+				postgresMigrate({
+					databaseUrl: "postgres://localhost/db",
+					lockWaitMs,
+					migrationsFolder,
+				}),
+			).rejects.toThrow(
+				new TypeError(
+					`postgresMigrate: lockWaitMs must be a positive integer, 2147483647 at most, found ${lockWaitMs}`,
+				),
+			);
+		},
+	);
+
+	it.each([0, -1, 1.5, 2_147_483_648])(
+		"refuses connectTimeoutMs %s",
+		async (connectTimeoutMs) => {
+			await expect(
+				postgresMigrate({
+					connectTimeoutMs,
+					databaseUrl: "postgres://localhost/db",
+					migrationsFolder,
+				}),
+			).rejects.toThrow(
+				new TypeError(
+					`postgresMigrate: connectTimeoutMs must be a positive integer, 2147483647 at most, found ${connectTimeoutMs}`,
+				),
+			);
+		},
+	);
 
 	it("refuses vendor.ssl when the URL sets TLS, since pg lets the URL win", async () => {
 		await expect(

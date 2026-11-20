@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const srcDir = new URL("./", import.meta.url);
+// Copied from packages/live/src/index.test.ts; keep the two in step.
 // `from "x"`, a bare `import "x"` and a dynamic `import("x")`.
 const importPattern = /(?:\bfrom|\bimport)\s*\(?\s*"([^"]+)"/g;
 

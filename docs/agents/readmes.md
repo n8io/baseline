@@ -6,12 +6,12 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
 
 - **Root** (`README.md`): an animated hero (the terminal types `pnpm app-create`, then `pnpm dev`), a nine-cell grid of benefit-first headlines, the pieces animation, and the Packages as an "I need to…" table. It sells the Template.
 - **Package** (`packages/<name>/README.md`), in this order _(test)_:
-  1. `# @n8io/baseline-<name>`, then one sentence that opens with a **bold promise**.
+  1. `# @n8io/baseline-<name>`, then a short paragraph that opens with a **bold promise**.
   2. The `pnpm add @n8io/baseline-<name>` line.
   3. An animated diagram, only where it explains a mechanism.
   4. `## Guarantees`: a `| You get | How |` table.
   5. `## Example`: a short example, then a testing note.
-  6. `## Reference`: everything else, each part folded under `<details><summary>`. The first fold is **Exports**: a `| Export | Does |` table, one row per export, never a bullet list.
+  6. `## Reference`: everything else, each part folded under `<details><summary>`. The first fold is **Exports**: a `| Export | Does |` table, one row per export, never a bullet list. A factory's row may also carry the options type it takes and the type it returns, comma separated after the call (`` `queueCreate({ … })`, `QueueOptions`, `Queue` ``); those then have no row of their own. A subpath export starts with its entry (`` `@n8io/baseline-queue/testing`: `queueTestConsumerRun(…)` ``), and an optional key ends in `?`. Each fold closes with a blank line before `</details>` _(test)_.
   7. A last line that starts `**Needs**`: peers, env vars, the vendor it runs on.
 
   Inside Reference, a folded part's old headings become `###` or a `<summary>`: the test reads every `##` outside code as a section.

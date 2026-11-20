@@ -42,7 +42,7 @@ describe("logger", () => {
 		await expect(import("./logger.ts")).rejects.toThrow(TypeError);
 		vi.resetModules();
 		await expect(import("./logger.ts")).rejects.toThrow(
-			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, not "verbose"',
+			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
 		);
 	});
 

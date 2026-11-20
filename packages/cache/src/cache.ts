@@ -86,6 +86,12 @@ export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheKeyedOptions<T>,
 ): CacheKeyed<T>;
+/**
+ * A cache for one kind of value on any store, whose `set` takes an id and a value: key
+ * `<prefix>:<id>`, JSON, validated by the schema on read. An entry that fails it counts as a miss.
+ * So does a store that fails, unless `onStoreError` is "throw". Throws `TypeError` on a `ttlMs` that
+ * is not a positive integer, an empty `prefix` or an unknown `onStoreError`.
+ */
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T>,

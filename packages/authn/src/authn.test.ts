@@ -69,6 +69,26 @@ describe("authnCreate", () => {
 		).rejects.toThrow("pass memoryIssuerAllowed: true");
 	});
 
+	it("refuses an audienceClaim that is neither aud nor client_id", async () => {
+		await expect(
+			authnCreate({
+				...authnTestMemoryOptions,
+				audienceClaim: "clientId" as "aud",
+			}),
+		).rejects.toThrow(
+			'authnCreate: audienceClaim must be "aud" or "client_id", found "clientId"',
+		);
+	});
+
+	it.each([null, "aud", "client_id"] as const)(
+		"accepts audienceClaim %s",
+		async (audienceClaim) => {
+			await expect(
+				authnCreate({ ...authnTestMemoryOptions, audienceClaim }),
+			).resolves.toBeDefined();
+		},
+	);
+
 	it.each(["http://idp.test", "postgres://idp.test", "idp.test"])(
 		"refuses the issuer URL %s, naming the valid schemes",
 		async (issuerUrl) => {

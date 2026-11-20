@@ -3,7 +3,9 @@ import type { Consumer } from "./queue-consumer.ts";
 
 /** What `queueTestConsumerRun` takes. */
 export type QueueTestConsumerRunOptions = {
+	/** The Consumer to run. */
 	consumer: Consumer;
+	/** The Event's data, as it would be published. */
 	data: unknown;
 	/** The Event's id in the Inbox. Default a new one. */
 	eventId?: string | null;

@@ -21,10 +21,10 @@ export type LiveHub = {
 };
 
 /** Called with each Live update for one (channel, id). */
-export type LiveListener = (update: LiveUpdate) => void;
+type LiveListener = (update: LiveUpdate) => void;
 
 /** What `liveStreamCreate` needs from a hub beyond its public send and close. */
-export type LiveHubStreams = {
+type LiveHubStreams = {
 	isClosed(): boolean;
 	// Resolves once updates for (channel, id) reach `listener`; returns the unlisten. From
 	// then until the unlisten, `resync` runs each time updates may have been lost.
@@ -132,7 +132,7 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 		(message: string): void => {
 			const update = liveUpdateParse(message);
 			if (update === undefined) {
-				logger.warn({ channel }, "Dropped a malformed live update");
+				logger.warn({ channel }, "Dropped a malformed Live update");
 				return;
 			}
 			for (const listener of listeners.get(key(channel, update.id)) ?? []) {

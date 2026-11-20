@@ -30,7 +30,7 @@ export type SdkFetch<E extends string = string> = {
 };
 
 /** What `sdkFetchCreate` takes: the environments and the options every call starts from. */
-export type SdkFetchOptions<E extends string> = {
+export type SdkFetchOptions<E extends string = string> = {
 	defaults?: SdkOptions<NoInfer<E>> | null;
 	/** Each environment's name and its API origin, such as { production: "https://api.example.com" }. */
 	environments?: Readonly<Record<E, string>> | null;

@@ -26,6 +26,7 @@ export type QueueScheduleOptions = {
 	cron: string;
 	/** `<context>.<use-case-words>` (foo.stale-archive). */
 	name: string;
+	/** What one tick runs; an err Result fails the job. */
 	run: () => Promise<Result<unknown, { type: string }>>;
 };
 
@@ -52,9 +53,11 @@ export type QueueSchedulesSyncVendorOptions = QueueMigrateVendorOptions;
 
 /** What `queueSchedulesSync` takes. */
 export type QueueSchedulesSyncOptions = {
+	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/** The composition root's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`. */
 	env: object;
+	/** The Schedules in code: each one's name and cron. */
 	schedules: Pick<Schedule, "cron" | "name">[];
 	/** Settings only pg-boss's own connection has, such as `ssl`: the same ones queueMigrate takes. */
 	vendor?: QueueSchedulesSyncVendorOptions | null;
@@ -64,7 +67,10 @@ export type QueueSchedulesSyncOptions = {
  * Makes the Schedules the database holds match the ones in code: adds each, updates its cron, and
  * removes any that is no longer listed or is turned `off`. Every cron is validated before anything
  * changes. Runs from the migrate entry, after queueMigrate, so once per rollout and with the newest
- * code: a Worker of the previous version that boots mid-rollout changes nothing.
+ * code: a Worker of the previous version that boots mid-rollout changes nothing. Throws a
+ * TypeError at the call on a `databaseUrl` that is not a Postgres URL, a `vendor` key other than
+ * `ssl`, `application_name` and `options`, or a cron (in `schedules` or an `env` override) that is
+ * not valid.
  */
 export const queueSchedulesSync = async (
 	options: QueueSchedulesSyncOptions,
@@ -128,7 +134,9 @@ export const queueSchedulesSync = async (
 export type QueueSchedulesStartOptions = {
 	/** The composition root's ENV, for the `off` overrides. */
 	env: object;
+	/** The Worker's queue, from `queueCreate`. */
 	queue: Queue;
+	/** The Schedules to run. */
 	schedules: Schedule[];
 };
 
