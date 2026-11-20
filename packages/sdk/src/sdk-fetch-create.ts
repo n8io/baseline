@@ -2,12 +2,14 @@
 // whole call; a GET, HEAD or DELETE that fails in a way worth retrying is sent again. A call
 // resolves `{ status, data, headers }` for every status and never throws on one; it rejects only
 // when no response came: a timeout (a DOMException named TimeoutError), a network failure (the
-// error fetch gave), or a missing base URL.
+// error fetch gave), or no environment to send it to.
 import ky, { isHTTPError, isNetworkError, isTimeoutError } from "ky";
 
-export type SdkOptions = {
-	/** The API's origin, such as https://api.example.com; operation paths start with /api/v1. */
+export type SdkOptions<E extends string = string> = {
+	/** An API origin that overrides the environment, for tests, worktrees and one-off servers. */
 	baseUrl?: string;
+	/** Which of the instance's environments to call, such as "production". */
+	environment?: E;
 	/** How many times a failed GET, HEAD or DELETE is sent again; 0 turns retries off. Default 2. */
 	retry?: number;
 	/** Milliseconds each attempt may take until its response headers arrive. Default 10000. */
@@ -17,10 +19,16 @@ export type SdkOptions = {
 	totalTimeout?: number;
 };
 
-export type SdkFetch = {
+export type SdkFetch<E extends string = string> = {
 	/** Sets options every later call uses unless the call passes its own. */
-	sdkConfigure(options: SdkOptions): void;
-	sdkFetch<T>(url: string, options: RequestInit & SdkOptions): Promise<T>;
+	sdkConfigure(options: SdkOptions<E>): void;
+	sdkFetch<T>(url: string, options: RequestInit & SdkOptions<E>): Promise<T>;
+};
+
+export type SdkFetchCreateInput<E extends string> = {
+	defaults?: SdkOptions<NoInfer<E>> | null;
+	/** Each environment's name and its API origin, such as { production: "https://api.example.com" }. */
+	environments?: Readonly<Record<E, string>> | null;
 };
 
 // POST and PATCH are never retried: without an Idempotency-Key a retry could apply them twice.
@@ -64,24 +72,56 @@ const dataRead = (text: string, headers: Headers): unknown => {
 const timeoutError = (): DOMException =>
 	new DOMException("The SDK call timed out", "TimeoutError");
 
-export const sdkFetchCreate = (defaults?: SdkOptions | null): SdkFetch => {
-	let configured: SdkOptions = { ...defaults };
+// With no environments, only baseUrl sends a call, as the CLI's own login does.
+export const sdkFetchCreate = <E extends string = never>(
+	input?: SdkFetchCreateInput<E> | null,
+): SdkFetch<E> => {
+	let configured: SdkOptions<E> = { ...input?.defaults };
+	const environments: Partial<Record<string, string>> = {
+		...input?.environments,
+	};
+	const names = Object.keys(environments).join(", ");
+
+	// The call's baseUrl, else its environment, else the configured baseUrl, else the configured one.
+	const baseUrlResolve = (options: SdkOptions<E>): string => {
+		const environment = options.environment ?? configured.environment;
+		const url =
+			options.baseUrl ??
+			(options.environment === undefined ? configured.baseUrl : undefined);
+		if (url !== undefined) return url;
+		if (names === "") {
+			throw new Error("No API URL: call sdkConfigure({ baseUrl }) first");
+		}
+		if (environment === undefined) {
+			throw new Error(
+				`No environment: call sdkConfigure({ environment }) with one of ${names}`,
+			);
+		}
+		const found = Object.hasOwn(environments, environment)
+			? environments[environment]
+			: undefined;
+		if (found === undefined) {
+			throw new Error(
+				`Unknown environment "${environment}": use one of ${names}`,
+			);
+		}
+		return found;
+	};
 
 	const sdkFetch = async <T>(
 		url: string,
-		options: RequestInit & SdkOptions,
+		options: RequestInit & SdkOptions<E>,
 	): Promise<T> => {
+		const baseUrl = baseUrlResolve(options);
 		const {
-			baseUrl = configured.baseUrl,
+			baseUrl: _baseUrl,
+			environment: _environment,
 			retry = configured.retry ?? 2,
 			timeout = configured.timeout ?? 10_000,
 			token = configured.token,
 			totalTimeout = configured.totalTimeout ?? 30_000,
 			...init
 		} = options;
-		if (baseUrl === undefined) {
-			throw new Error("No API URL: call sdkConfigure({ baseUrl }) first");
-		}
 		const headers = new Headers(init.headers);
 		if (token !== undefined) headers.set("authorization", `Bearer ${token}`);
 		const method = (init.method ?? "GET").toLowerCase();

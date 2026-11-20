@@ -5,7 +5,7 @@ import {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import { sdkFetchCreate } from "./sdk-fetch-create.ts";
+import { type SdkOptions, sdkFetchCreate } from "./sdk-fetch-create.ts";
 
 type Answer = (request: IncomingMessage, response: ServerResponse) => void;
 
@@ -59,6 +59,10 @@ const dropped: Answer = (request) => {
 // Never answers, so the attempt times out.
 const silent: Answer = () => undefined;
 
+// An instance with no environments, sent to a test server through the baseUrl override.
+const overrideCreate = (defaults: SdkOptions<never> = {}) =>
+	sdkFetchCreate({ defaults });
+
 const fastRetry = { retry: 2, timeout: 1000, totalTimeout: 5000 };
 
 describe("sdkFetchCreate", () => {
@@ -71,7 +75,7 @@ describe("sdkFetchCreate", () => {
 			empty(204),
 			json(404, { code: "FooNotFound", title: "Not found" }),
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: `${api.baseUrl}/` });
+		const { sdkFetch } = overrideCreate({ baseUrl: `${api.baseUrl}/` });
 
 		const ok = await sdkFetch<Answered>("/api/v1/foos/1", { method: "GET" });
 		const text = await sdkFetch<Answered>("/api/v1/foos", { method: "POST" });
@@ -96,7 +100,7 @@ describe("sdkFetchCreate", () => {
 
 	it("sends the token as a bearer and keeps the caller's headers", async () => {
 		await using api = await apiStart(empty(204));
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, token: "t1" });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, token: "t1" });
 
 		await sdkFetch("/api/v1/foos", {
 			headers: { "x-extra": "yes" },
@@ -107,20 +111,12 @@ describe("sdkFetchCreate", () => {
 		expect(api.requests[0]?.headers["x-extra"]).toBe("yes");
 	});
 
-	it("rejects with no base URL", async () => {
-		const { sdkFetch } = sdkFetchCreate();
-
-		await expect(sdkFetch("/api/v1/foos", { method: "GET" })).rejects.toThrow(
-			"No API URL",
-		);
-	});
-
 	it("retries a GET on a 503, waiting as its Retry-After says", async () => {
 		await using api = await apiStart(
 			empty(503, { "retry-after": "1" }),
 			json(200, { id: "1" }),
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 		const started = performance.now();
 
 		const response = await sdkFetch<Answered>("/api/v1/foos/1", {
@@ -138,7 +134,7 @@ describe("sdkFetchCreate", () => {
 			await using api = await apiStart(
 				json(status, { code: "Busy", title: "Busy" }, { "retry-after": "0" }),
 			);
-			const { sdkFetch } = sdkFetchCreate({
+			const { sdkFetch } = overrideCreate({
 				baseUrl: api.baseUrl,
 				...fastRetry,
 			});
@@ -157,7 +153,7 @@ describe("sdkFetchCreate", () => {
 
 	it("does not retry a GET on a status that will not change, such as 404", async () => {
 		await using api = await apiStart(json(404, { code: "FooNotFound" }));
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos/1", {
 			method: "GET",
@@ -171,7 +167,7 @@ describe("sdkFetchCreate", () => {
 		await using api = await apiStart(
 			json(503, { code: "Busy" }, { "retry-after": "0" }),
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos", {
 			body: JSON.stringify({ name: "x" }),
@@ -184,7 +180,7 @@ describe("sdkFetchCreate", () => {
 
 	it("sends once with retry: 0", async () => {
 		await using api = await apiStart(empty(503, { "retry-after": "0" }));
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, retry: 0 });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, retry: 0 });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos", {
 			method: "GET",
@@ -196,7 +192,7 @@ describe("sdkFetchCreate", () => {
 
 	it("rejects with a TimeoutError DOMException when every attempt times out, after retrying", async () => {
 		await using api = await apiStart(silent);
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 1,
 			timeout: 100,
@@ -213,7 +209,7 @@ describe("sdkFetchCreate", () => {
 
 	it("stops retrying at totalTimeout", async () => {
 		await using api = await apiStart(silent);
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 10,
 			timeout: 200,
@@ -236,7 +232,7 @@ describe("sdkFetchCreate", () => {
 			response.writeHead(200, { "content-type": "application/json" });
 			response.write('{"id":');
 		});
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			totalTimeout: 300,
 		});
@@ -251,7 +247,7 @@ describe("sdkFetchCreate", () => {
 
 	it("resolves a 503 at once when its Retry-After is past totalTimeout", async () => {
 		await using api = await apiStart(empty(503, { "retry-after": "60" }));
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			totalTimeout: 2000,
 		});
@@ -268,7 +264,7 @@ describe("sdkFetchCreate", () => {
 
 	it("rejects with the error fetch gave when the API cannot be reached", async () => {
 		// Nothing listens on port 1.
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: "http://127.0.0.1:1",
 			retry: 0,
 		});
@@ -283,7 +279,7 @@ describe("sdkFetchCreate", () => {
 
 	it("retries a GET after a network failure", async () => {
 		await using api = await apiStart(dropped, json(200, { id: "1" }));
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos/1", {
 			method: "GET",
@@ -298,7 +294,7 @@ describe("sdkFetchCreate", () => {
 			empty(503, { "retry-after": "0" }),
 			empty(200),
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos/1", {
 			method: "HEAD",
@@ -310,7 +306,7 @@ describe("sdkFetchCreate", () => {
 
 	it("never retries a POST after a network failure or a timeout", async () => {
 		await using api = await apiStart(dropped, silent);
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 2,
 			timeout: 200,
@@ -334,7 +330,7 @@ describe("sdkFetchCreate", () => {
 			empty(503, { "retry-after": at.toUTCString() }),
 			empty(204),
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, ...fastRetry });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, ...fastRetry });
 
 		const response = await sdkFetch<Answered>("/api/v1/foos", {
 			method: "GET",
@@ -350,7 +346,7 @@ describe("sdkFetchCreate", () => {
 		["a backoff past totalTimeout", {}, 200],
 	])("resolves a 429 at once when %s", async (_case, headers, totalTimeout) => {
 		await using api = await apiStart(empty(429, headers));
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			totalTimeout,
 		});
@@ -379,7 +375,7 @@ describe("sdkFetchCreate", () => {
 					.end("{");
 			},
 		);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl, retry: 0 });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl, retry: 0 });
 
 		const jsonl = await sdkFetch<Answered>("/a", { method: "GET" });
 		const text = await sdkFetch<Answered>("/b", { method: "GET" });
@@ -392,7 +388,7 @@ describe("sdkFetchCreate", () => {
 
 	it("rejects with the caller's own signal's reason", async () => {
 		await using api = await apiStart(silent);
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl });
 		const controller = new AbortController();
 		const reason = new Error("stopped");
 		setTimeout(() => controller.abort(reason), 50);
@@ -407,7 +403,7 @@ describe("sdkFetchCreate", () => {
 
 	it('sends the header value "undefined" as it is', async () => {
 		await using api = await apiStart(empty(204));
-		const { sdkFetch } = sdkFetchCreate({ baseUrl: api.baseUrl });
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl });
 
 		await sdkFetch("/api/v1/foos", {
 			headers: { "x-a": "undefined" },
@@ -417,9 +413,17 @@ describe("sdkFetchCreate", () => {
 		expect(api.requests[0]?.headers["x-a"]).toBe("undefined");
 	});
 
+	it("rejects with no base URL when it lists no environments", async () => {
+		const { sdkFetch } = sdkFetchCreate();
+
+		await expect(sdkFetch("/api/v1/foos", { method: "GET" })).rejects.toThrow(
+			"No API URL",
+		);
+	});
+
 	it("lets one call override what sdkConfigure set", async () => {
 		await using api = await apiStart(empty(503, { "retry-after": "0" }));
-		const { sdkConfigure, sdkFetch } = sdkFetchCreate();
+		const { sdkConfigure, sdkFetch } = overrideCreate();
 		sdkConfigure({ baseUrl: "http://127.0.0.1:1", token: "configured" });
 		sdkConfigure({ retry: 2 });
 
@@ -436,7 +440,7 @@ describe("sdkFetchCreate", () => {
 
 	it("lets one call override the timeouts", async () => {
 		await using api = await apiStart(silent);
-		const { sdkFetch } = sdkFetchCreate({
+		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 0,
 			timeout: 5000,
@@ -461,8 +465,8 @@ describe("sdkFetchCreate", () => {
 	it("keeps each instance's base URL and token its own", async () => {
 		await using first = await apiStart(empty(204));
 		await using second = await apiStart(empty(204));
-		const one = sdkFetchCreate({ baseUrl: first.baseUrl, token: "one" });
-		const two = sdkFetchCreate();
+		const one = overrideCreate({ baseUrl: first.baseUrl, token: "one" });
+		const two = overrideCreate();
 		two.sdkConfigure({ baseUrl: second.baseUrl, token: "two" });
 
 		await one.sdkFetch("/api/v1/foos", { method: "GET" });
@@ -470,5 +474,111 @@ describe("sdkFetchCreate", () => {
 
 		expect(first.requests[0]?.headers.authorization).toBe("Bearer one");
 		expect(second.requests[0]?.headers.authorization).toBe("Bearer two");
+	});
+});
+
+describe("sdkFetchCreate environments", () => {
+	it("sends a call to the configured environment's URL", async () => {
+		await using api = await apiStart(empty(204));
+		const { sdkFetch } = sdkFetchCreate({
+			defaults: { environment: "development" },
+			environments: { development: `${api.baseUrl}/`, production: "x" },
+		});
+
+		await sdkFetch("/api/v1/foos", { method: "GET" });
+
+		expect(api.requests[0]?.url).toBe("/api/v1/foos");
+	});
+
+	it("resolves the call's baseUrl, then its environment, then the configured baseUrl, then the configured environment", async () => {
+		await using callUrl = await apiStart(empty(204));
+		await using callEnvironment = await apiStart(empty(204));
+		await using configuredUrl = await apiStart(empty(204));
+		await using configuredEnvironment = await apiStart(empty(204));
+		const environments = {
+			production: callEnvironment.baseUrl,
+			staging: configuredEnvironment.baseUrl,
+		};
+		const { sdkFetch } = sdkFetchCreate({
+			defaults: { baseUrl: configuredUrl.baseUrl, environment: "staging" },
+			environments,
+		});
+		const environmentOnly = sdkFetchCreate({
+			defaults: { environment: "staging" },
+			environments,
+		});
+
+		await sdkFetch("/1", {
+			baseUrl: callUrl.baseUrl,
+			environment: "production",
+			method: "GET",
+		});
+		await sdkFetch("/2", { environment: "production", method: "GET" });
+		await sdkFetch("/3", { method: "GET" });
+		await environmentOnly.sdkFetch("/4", { method: "GET" });
+
+		expect(callUrl.requests.map((request) => request.url)).toEqual(["/1"]);
+		expect(callEnvironment.requests.map((request) => request.url)).toEqual([
+			"/2",
+		]);
+		expect(configuredUrl.requests.map((request) => request.url)).toEqual([
+			"/3",
+		]);
+		expect(
+			configuredEnvironment.requests.map((request) => request.url),
+		).toEqual(["/4"]);
+	});
+
+	it("rejects with no environment and no baseUrl, naming the environments", async () => {
+		const { sdkFetch } = sdkFetchCreate({
+			environments: { development: "http://127.0.0.1:1", production: "x" },
+		});
+
+		await expect(sdkFetch("/api/v1/foos", { method: "GET" })).rejects.toThrow(
+			"No environment: call sdkConfigure({ environment }) with one of development, production",
+		);
+	});
+
+	it("rejects an unknown environment, naming the known ones", async () => {
+		const { sdkFetch } = sdkFetchCreate({
+			environments: { development: "http://127.0.0.1:1" },
+		});
+		// A plain JavaScript caller, whom the types do not stop.
+		const options = { environment: "prodution" as never, method: "GET" };
+
+		await expect(sdkFetch("/api/v1/foos", options)).rejects.toThrow(
+			'Unknown environment "prodution": use one of development',
+		);
+	});
+
+	it("does not compile a misspelt environment", () => {
+		const environments = { production: "https://api.example.com" };
+		const { sdkConfigure } = sdkFetchCreate({ environments });
+
+		const misspelt = { environment: "prodution" } as const;
+
+		// @ts-expect-error: "prodution" is not one of the instance's environments.
+		expect(() => sdkConfigure(misspelt)).not.toThrow();
+		// @ts-expect-error: nor of the defaults.
+		expect(sdkFetchCreate({ defaults: misspelt, environments })).toBeDefined();
+	});
+
+	it("keeps each instance's environments its own", async () => {
+		await using first = await apiStart(empty(204));
+		await using second = await apiStart(empty(204));
+		const one = sdkFetchCreate({
+			defaults: { environment: "production" },
+			environments: { production: first.baseUrl },
+		});
+		const two = sdkFetchCreate({
+			defaults: { environment: "production" },
+			environments: { production: second.baseUrl },
+		});
+
+		await one.sdkFetch("/one", { method: "GET" });
+		await two.sdkFetch("/two", { method: "GET" });
+
+		expect(first.requests.map((request) => request.url)).toEqual(["/one"]);
+		expect(second.requests.map((request) => request.url)).toEqual(["/two"]);
 	});
 });
