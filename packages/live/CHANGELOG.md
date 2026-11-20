@@ -1,5 +1,21 @@
 # @n8io/baseline-live
 
+## 7.3.0
+
+### Minor Changes
+
+- e7bc75a: Export `LiveTestSseReadOptions` from `/testing`. `liveStreamCreate` throws `TypeError("liveStreamCreate: expiresAt must be a number of epoch ms, …")` for a NaN or non-number `expiresAt` (it closed the stream at once before), and its wrong-hub and `liveTestSseRead` errors start with the function name.
+- 3af66e4: Follow the shared Package rules: `LiveUpdate`, `LiveHubRedisOptions` and `LiveStreamOptions` are exported, `liveStreamCreate`'s `signal` and `useLiveUpdates`' `pathPrefix` also take `null` (the default, as leaving them out does), and every export carries a JSDoc comment that ships in the types. The README's Exports fold is now a table, with a "Picking the hub in one place" part.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 7.2.1
 
 ### Patch Changes

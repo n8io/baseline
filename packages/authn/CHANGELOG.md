@@ -1,5 +1,32 @@
 # @n8io/baseline-authn
 
+## 7.0.0
+
+### Major Changes
+
+- 774b1b8: authn follows the shared Package rules. Breaking:
+  - `authnMemoryTokenCreate` leaves the main entry: import `authnTestTokenCreate` from `@n8io/baseline-authn/testing` instead (same `{ actor, authn }`), from test files only.
+  - `authnMemoryTokenFetch`, `authnMemoryAuthorizationCreate` and `authnTestSignIn` take the app's origin as `baseUrl` instead of `url` (a path or trailing slash on it is ignored).
+  - `authnMemoryAuthorizationCreate` takes `renewMs` (milliseconds, default 60,000) instead of `renewSeconds`, and throws a `TypeError` instead of a `RangeError` for a bad value.
+  - `AuthnMemoryToken.expiresAt` is epoch ms (a number) like every other `expiresAt`, not a `Date`.
+  - `authnExpiryContext` from `@n8io/baseline-authn/react-router` is now `authnExpiresAtContext`.
+
+  Not breaking: `AuthnInvalidError` is exported; `authorizeParams`, `audienceClaim` and `memoryIssuerAllowed` accept `null` as unset; every public export has a doc comment, the README and `authnRoutesCreate` say the routes must be mounted at `/auth`, and the two provider warnings carry a message.
+
+### Minor Changes
+
+- e7bc75a: Export the options types `AuthnMemoryAuthorizationOptions`, `AuthnMemoryTokenFetchOptions`, `AuthnMiddlewareOptions`, and from `/testing` `AuthnTestBearerOptions`, `AuthnTestSignInOptions`, `AuthnTestTokenOptions`. A handle that did not come from `authnCreate` now throws `<function>: authn must come from authnCreate`. Adds the `test:unit` script.
+
+### Patch Changes
+
+- 59c2be8: Internal: the sign-in pages live in `authn-sign-in-page.ts` (`authnSignInPageMemoryForm`, `authnSignInPageFailed`). No export changes.
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 6.1.1
 
 ### Patch Changes

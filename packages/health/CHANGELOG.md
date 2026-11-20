@@ -1,5 +1,17 @@
 # @n8io/baseline-health
 
+## 2.1.0
+
+### Minor Changes
+
+- d580a34: Export `HealthServerOptions`, the options type `healthServerCreate` takes. The code moves from `src/index.ts` to `src/health-server.ts`, every export has a JSDoc, and the README example shows its imports.
+- e7bc75a: `healthServerCreate` throws `TypeError("healthServerCreate: port must be an integer from 0 to 65535")` for a bad `port`. Adds the `test:unit` script.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+
 ## 2.0.2
 
 ### Patch Changes

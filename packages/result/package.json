@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-result",
-	"version": "1.1.3",
+	"version": "1.1.4",
 	"description": "Result, ok and err: expected failures as values, so the type tells every caller what can go wrong.",
 	"license": "MIT",
 	"type": "module",

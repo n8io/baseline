@@ -1,5 +1,108 @@
 # app
 
+## 14.0.0
+
+### Major Changes
+
+- 774b1b8: The Template moves to the new `@n8io/baseline-authn` major: `src/ui/context.ts`, `src/ui/root.tsx` and `src/ui/routes/router-test-context.ts` use `authnExpiresAtContext`, and every `authnMemoryTokenFetch` and `authnTestSignIn` call passes `baseUrl` (`scripts/api-smoke.ts`, `test/integration/*`). `docs/agents/authn.md` opens the app at the URL `pnpm dev` prints instead of `localhost:3000`.
+
+  To upgrade a Project: run `pnpm template-upgrade`. Then, in your own code, rename `authnExpiryContext` to `authnExpiresAtContext`; pass `baseUrl` instead of `url` to `authnMemoryTokenFetch`, `authnMemoryAuthorizationCreate` and `authnTestSignIn`; pass `renewMs` (milliseconds) instead of `renewSeconds`; read `AuthnMemoryToken.expiresAt` as epoch ms; and import `authnTestTokenCreate` from `@n8io/baseline-authn/testing` where a test called `authnMemoryTokenCreate`.
+- 59c2be8: Architecture rule A23 now checks file names: a file is named after its primary export without `Create` (`invoice-routes.ts` exports `invoiceRoutesCreate`), or after the subject its exports share (`cursor.ts` exports `cursorEncode`). An outbound adapter's dot is a word break (`invoice-repository.postgres.ts` exports `invoiceRepositoryPostgresCreate`), React Router's `.server`/`.client` suffix is left out, and a test helper file `<area>-test-<thing>.ts` is named after its area. Tests, `index.ts`, `scripts/`, the composition roots, `<aggregate>-table.ts`, the generated SDK and files exporting only types, classes, components, hooks and React Router's own names (`loader`, `action`, `meta`, `headers`, `links`, `handle`, `shouldRevalidate` and the rest) are not checked.
+
+  To upgrade a Project: run `pnpm check`; for each file it names, rename the file after its primary export, or rename its exports to start with the file's name.
+
+  `pnpm api-smoke` now defaults `--url` to `http://localhost:$PORT`, the port this worktree's `pnpm dev` serves on, instead of port 3000.
+- 1270d49: The Template closes the queue with `queue.close()` and records Events in its memory transaction with `queueEventsPublisherMemoryCreate`, the names `@n8io/baseline-queue` 9 uses. After the upgrade, rename both in each context's own code: `queue.stop()` becomes `queue.close()` in its repository and Use case Postgres tests, and `queueEventsMemoryCreate` becomes `queueEventsPublisherMemoryCreate` in `adapters/outbound/<aggregate>-transaction.memory.ts` (see the Template's `foo-transaction.memory.ts`).
+- f216435: The SDK piece runs on `@n8io/baseline-sdk` 2: a caller that sets the SDK's timeouts passes `timeoutMs` and `totalTimeoutMs`, not `timeout` and `totalTimeout`, for one call or in `sdkConfigure`. `docs/agents/clients.md` opens with when to read it.
+- 5d5a546: The Template's code follows its own naming and testing rules more closely.
+  - `src/use-cases.ts` is now `src/contexts.ts`, named after `contextsCreate`. `pnpm template-upgrade` moves it; then change each import of `use-cases.ts` in your own contexts' tests to `contexts.ts`.
+  - `structure.test.ts` now fails a test that uses `vi` (mocks, spies, fake timers, stubbed globals; `vi.waitFor` and `vi.waitUntil` stay allowed). The check ran only in the baseline repository before, so a Project now runs it too: replace any `vi.*` in your tests with a memory adapter or a hand-written double on a connection.
+  - `structure.test.ts` also fails a `package.json` script that starts with `node` without `--import ./scripts/node-version-require.ts`. `dev`, `dev:prune`, `dev:reset`, `migrate`, `seed`, `blocked-keys` and `test:integration` now preload it, so an older Node stops with "This script needs Node 26" instead of a syntax error. Add it to any `node` script of your own.
+  - Test helpers carry their file's prefix: `routerTestContextCreate` and `routerTestArgsCreate` (`src/ui/routes/router-test-context.ts`), `otlpReceiver*` (`test/integration/otlp-receiver.ts`), `productionServer*` (`test/integration/production-server.ts`) and `cspNonce`. Rename them in your own page and integration tests.
+  - `analyticsOpen` takes `token?: string | null` and `errorTrackingOpen` takes `dsn?: string | null`.
+  - `connectionsClose(connections)` in `src/connections.ts` closes intakes, then resources; the seed, `blocked-keys` and the dev server's re-run use it.
+  - `fooCacheCreate(store)` in `foo-cached.ts` holds the cache's key, prefix and schema once, for the real and memory ports.
+  - The memory Bar repository breaks `createdAt` ties by id as Postgres orders the uuid, and the contract test holds both to it.
+  - The foo list page answers a taken name with `fooErrorStatus.FooNameTaken`, not a literal 409. The bar list operation's summary is "List one foo's bars, oldest first" (it never paged).
+  - `lucide-react` is no longer a dependency: no Template component used it. A Project whose components import it keeps its `package.json` and `dependencies-allowed.json` lines when `pnpm template-upgrade` conflicts on them; one that adds an icon later adds both back (`pnpm exec shadcn add` installs it, and `dependencies-allowed.test.ts` asks for the reason).
+  - `pnpm api-check` drops two shims for bases older than app@8.1.0 (`problemCodesOpen`, `securityBearerDeclare`); the boolean one names app@13.0.0 as its end.
+  - A22 no longer lists `src/authn.ts` among the files that may read `#env` (it never did).
+  - Words: scripts and comments say context, not domain, and Event handler, not consumer.
+
+### Minor Changes
+
+- f9fa362: The Template's scripts share one shape. Every command that takes arguments reads them through `scripts/args.ts`: `--help` and `-h` print its usage, an unknown option or a wrong number of arguments prints the usage and exits 1 (`glossary-check`, `piece-check`, `template-upgrade` and `clients-release` used to misread or ignore them). Commands set `process.exitCode` instead of calling `process.exit`. The Pieces live once in `scripts/pieces.ts` (each Piece's name, packages and removal steps), which `aggregate-create`, `context-create`, `piece-check`, `template-upgrade` and the now small `scripts/piece-remove.ts` command read; a new Piece fails type-checking until each says what it does. Shell commands run through `processRun` and `gitRun` in `scripts/process-run.ts`.
+
+  To upgrade a Project: a script of your own that imported a Template script's helper imports it from its new home: `run` (template-render.ts) is `processRun` and `git` (dev-instance.ts) is `gitRun`, both in `scripts/process-run.ts`; `piecesRemovedFind`, `pieceBlocksRemove` and the rest of piece-remove.ts's helpers are in `scripts/pieces.ts` (`piecesGoneFind` is `piecesRemovedFind`, `toolRun` is `pnpmRun`). If you listed a Project's own files in `scripts/piece-remove.ts`, move them to `pieceFiles` in `.template.json` (docs/agents/pieces.md).
+- 4d33f36: A Project now checks the names of its `scripts/`, `test/`, `clients/` and top-level files with A23 too (`structure.test.ts`), not only `src/`. To upgrade a Project: run `pnpm test`; for each name it lists, rename as the message says.
+
+  `pnpm context-create` and `pnpm aggregate-create` refuse only names with the word foo (the Template's example name, which the render renames), so `food` or `football` work. The routes answer a Use case's error through one helper beside them (`fooHttpErrorAnswer` in `adapters/inbound/foo-http.ts`), and the live route file is `foo-live-routes.ts`. Rule messages for A7 and A8 point at the right files (`<aggregate>-routes.ts`, the context's `index.ts`), and the composition roots are one list in the rules, as CONTEXT.md names them.
+
+### Patch Changes
+
+- 09b2747: Docs follow-ups: the SDK and CLI usage moved from `docs/agents/pieces.md` to `docs/agents/clients.md` ("Using them"), `lucide-react` is pre-approved in `dependency-updates.md`, the Read-when triggers in `AGENTS.md` now reach transitions, Use cases, repositories and lists, the glossary gains **Scope**, and the Baseline terms ban the same aliases as baseline's root glossary.
+- d4bf428: Make the Template's docs and glossary match the code. The glossary gains Transition, Server, Piece, Part, "Short form: Event" and a Baseline section (Project, Template, Package, Template upgrade), and its `_Avoid_` lists name only the phrase that is the mistake. AGENTS.md states the outbound adapter file suffix, schema casing, the `// unreachable:` escape and the no-mocks rule, and gives each Aggregate's error statuses a row. The README lists the SDK and CLI pieces and the `sdk-generate` and `api-smoke` commands. Seed rules live in one section of context-create.md, locking rules only in data.md, and cached-read rules in data.md; scripts.md shows the real package.json line with the Node guard; vendor-settings.md lists what `queueMigrate` and `queueSchedulesSync` take.
+- Updated dependencies [bfb7735]
+- Updated dependencies [59c2be8]
+- Updated dependencies [774b1b8]
+- Updated dependencies [3af66e4]
+- Updated dependencies [bfb7735]
+- Updated dependencies [d580a34]
+- Updated dependencies [d580a34]
+- Updated dependencies [d580a34]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [84c85e1]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [3af66e4]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+- Updated dependencies [1270d49]
+- Updated dependencies [1270d49]
+- Updated dependencies [3af66e4]
+- Updated dependencies [d580a34]
+- Updated dependencies [bfb7735]
+- Updated dependencies [59c2be8]
+- Updated dependencies [bfb7735]
+  - @n8io/baseline-analytics@2.1.0
+  - @n8io/baseline-authn@7.0.0
+  - @n8io/baseline-cache@6.3.0
+  - @n8io/baseline-error-tracking@1.1.0
+  - @n8io/baseline-health@2.1.0
+  - @n8io/baseline-http@3.0.2
+  - @n8io/baseline-id@3.0.2
+  - @n8io/baseline-live@7.3.0
+  - @n8io/baseline-postgres@5.4.0
+  - @n8io/baseline-queue@9.0.0
+  - @n8io/baseline-redis@1.1.0
+  - @n8io/baseline-shutdown@3.1.0
+  - @n8io/baseline-telemetry@2.0.2
+  - @n8io/baseline-logger@3.1.2
+  - @n8io/baseline-result@1.1.4
+
 ## 13.0.0
 
 ### Major Changes

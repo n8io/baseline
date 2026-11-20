@@ -1,5 +1,21 @@
 # @n8io/baseline-analytics
 
+## 2.1.0
+
+### Minor Changes
+
+- bfb7735: analytics follows the shared Package rules. `AnalyticsMixpanelOptions` is exported, and `vendor` and `vendor.host` take `null`, which means the default. `analyticsMixpanelCreate` now throws a `TypeError` on a `vendor` key other than `host`, which did nothing before (the type already refused it), and its messages start with `analyticsMixpanelCreate:`. Every export has a doc comment, and the README names `analyticsLoggerCreate` as the Package's stand-in.
+- e7bc75a: `AnalyticsEvent.properties` takes `null` (same as leaving it out). `analyticsMixpanelCreate` throws `TypeError("analyticsMixpanelCreate: token must not be empty")`. Adds the `test:unit` script.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 2.0.1
 
 ### Patch Changes

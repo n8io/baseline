@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-id",
-	"version": "3.0.1",
+	"version": "3.0.2",
 	"description": "Prefixed ids that sort by time and carry their type: TypeIDs backed by UUIDv7 and stored as a plain Postgres uuid.",
 	"license": "MIT",
 	"type": "module",

@@ -1,5 +1,17 @@
 # @n8io/baseline-sdk
 
+## 2.0.0
+
+### Major Changes
+
+- f216435: Options follow the shared Package rules. `timeout` and `totalTimeout` are now `timeoutMs` and `totalTimeoutMs` (still milliseconds), and the type `sdkFetchCreate` takes is `SdkFetchOptions`, not `SdkFetchCreateInput`; there are no aliases, so rename them where you pass or import them. Every `SdkOptions` field takes `null`, which means the same as leaving it out. A bad `retry` (not a whole number of 0 or more) or a `timeoutMs` or `totalTimeoutMs` that is not a positive integer of at most 2147483647 now throws a `TypeError` that starts with the function and the option, such as `sdkConfigure: timeoutMs`, instead of reaching the network. The README's `clients/sdk/sdk-fetch.ts` example is now the Template's file, which orval can read.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: Internal names and tests tidied; adds the `test:unit` script so root `pnpm test:unit` runs this Package's tests.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+
 ## 1.0.0
 
 ### Major Changes

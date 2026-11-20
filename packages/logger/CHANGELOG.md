@@ -1,5 +1,13 @@
 # @n8io/baseline-logger
 
+## 3.1.2
+
+### Patch Changes
+
+- e7bc75a: An invalid `LOG_LEVEL` throws `TypeError` naming the variable and the allowed levels, instead of pino's own message. Adds the `test:unit` script.
+- bfb7735: logger follows the shared Package rules: every export has a doc comment, the body lives in `logger.ts`, and the README drops error-tracking's diagram and tells a Project how to test code that logs, with no spies.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+
 ## 3.1.1
 
 ### Patch Changes

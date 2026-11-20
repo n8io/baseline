@@ -1,5 +1,18 @@
 # @n8io/baseline-http
 
+## 3.0.2
+
+### Patch Changes
+
+- d580a34: `httpErrorHandle` logs its 500 with a message ("Request failed; answered 500 InternalError"). Doc comments say "bounded context" and "business error" instead of "domain", every export has a JSDoc, internal helpers take the `http` prefix, the keep-alive values name their copy in health, and the README examples show their imports.
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: Internal names and tests tidied; adds the `test:unit` script so root `pnpm test:unit` runs this Package's tests.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 3.0.1
 
 ### Patch Changes
