@@ -57,7 +57,7 @@ Prefixes are snake_case. A bad prefix, id or UUID throws a `TypeError`.
 
 <details><summary><b>An id schema with Zod</b></summary>
 
-The package imports no schema library, so build the schema in yours from the pattern. With Zod, as the Template's `src/id-schema.ts` does:
+The Package imports no schema library, so build the schema in yours from the pattern. With Zod, as the Template's `src/id-schema.ts` does:
 
 ```ts
 import { type Id, idPatternCreate } from "@n8io/baseline-id";

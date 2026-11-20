@@ -7,7 +7,7 @@ const authnHtmlEscape = (text: string): string =>
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;");
 
-// No inline styles: the app's CSP blocks them.
+// No inline styles: the Project's CSP blocks them.
 const page = (title: string, body: string): string =>
 	`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title></head><body>${body}</body></html>`;
 

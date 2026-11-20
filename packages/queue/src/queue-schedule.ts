@@ -24,12 +24,12 @@ export type Schedule = {
 export type QueueScheduleOptions = {
 	/** UTC, minute precision. */
 	cron: string;
-	/** `<context>.<use case words, kebab>` (foo.stale-archive). */
+	/** `<context>.<Use case words, kebab>` (foo.stale-archive). */
 	name: string;
 	run: () => Promise<Result<unknown, { type: string }>>;
 };
 
-/** A Schedule. name is `<context>.<use case words, kebab>`; cron is UTC, minute precision. */
+/** A Schedule. name is `<context>.<Use case words, kebab>`; cron is UTC, minute precision. */
 export const queueScheduleCreate = ({
 	cron,
 	name,
@@ -64,7 +64,7 @@ export type QueueSchedulesSyncOptions = {
  * Makes the Schedules the database holds match the ones in code: adds each, updates its cron, and
  * removes any that is no longer listed or is turned `off`. Every cron is validated before anything
  * changes. Runs from the migrate entry, after queueMigrate, so once per rollout and with the newest
- * code: a worker of the previous version that boots mid-rollout changes nothing.
+ * code: a Worker of the previous version that boots mid-rollout changes nothing.
  */
 export const queueSchedulesSync = async (
 	options: QueueSchedulesSyncOptions,
@@ -114,7 +114,7 @@ export const queueSchedulesSync = async (
 		}
 		const names = new Set(active.map(({ name }) => name));
 		for (const held of await boss.getSchedules()) {
-			// The `queue.` namespace is the package's own (inbox pruning).
+			// The `queue.` namespace is the Package's own (inbox pruning).
 			if (!names.has(held.name) && !held.name.startsWith("queue.")) {
 				await boss.unschedule(held.name, held.key);
 			}
@@ -133,7 +133,7 @@ export type QueueSchedulesStartOptions = {
 };
 
 /**
- * Starts running each Schedule (worker process only). It changes nothing in the database: a
+ * Starts running each Schedule (Worker process only). It changes nothing in the database: a
  * Schedule that queueSchedulesSync has not added there is not started, with a warning, since it
  * would never fire. One turned `off` is skipped silently. The cron overrides are not read here:
  * they act where queueSchedulesSync runs.

@@ -57,7 +57,7 @@ export const analyticsMixpanelCreate = ({
 			`analyticsMixpanelCreate: vendor.host must be a bare host name such as api-eu.mixpanel.com, not ${JSON.stringify(host)}`,
 		);
 	}
-	// ip=0: the server's IP is not the Actor's, so Mixpanel must not geolocate it. strict=1: a
+	// ip=0: the Server's IP is not the Actor's, so Mixpanel must not geolocate it. strict=1: a
 	// malformed event answers 400 instead of being dropped silently.
 	const trackUrl = `https://${host}/track?ip=0&strict=1`;
 	const sending = new Set<Promise<void>>();

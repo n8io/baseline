@@ -23,7 +23,8 @@ pnpm add @n8io/baseline-shutdown
 ## Example
 
 ```ts
-// httpServerClose: @n8io/baseline-http; telemetryShutdown: @n8io/baseline-telemetry
+import { shutdownHandleCreate } from "@n8io/baseline-shutdown";
+
 const shutdown = shutdownHandleCreate({
 	drainDelayMs: ENV.SHUTDOWN_DRAIN_DELAY_MS ?? 5_000,
 	intakes: [
@@ -39,7 +40,7 @@ const shutdown = shutdownHandleCreate({
 });
 ```
 
-A Project does not test the handle itself: it owns process signals and exits the process. Test each step's `close` on its own.
+`httpServerClose` is from `@n8io/baseline-http` and `telemetryShutdown` from `@n8io/baseline-telemetry`. A Project does not test the handle itself: it owns process signals and exits the process. Test each step's `close` on its own.
 
 ## Reference
 
@@ -60,4 +61,4 @@ The steps, counted from the signal:
 4. Gives up at `deadlineMs` (default 25 s), keeping the last 5 s for the resources, and logs `Shutdown finished` with the exit code.
 </details>
 
-**Needs** `@n8io/baseline-logger`, which it logs each failed step through, and `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).
+**Needs** no peers; `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).

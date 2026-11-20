@@ -40,7 +40,7 @@ export type Events = {
 	 * are known. Safe to repeat on any number of instances.
 	 */
 	consumersSubscribe(consumers: Consumer[]): Promise<void>;
-	/** Subscribes, then starts running the Consumers (worker process only). */
+	/** Subscribes, then starts running the Consumers (Worker process only). */
 	consumersStart(consumers: Consumer[]): Promise<void>;
 	/** `transaction` is the open transaction's client. */
 	publisherCreate<M extends Record<string, unknown>>(

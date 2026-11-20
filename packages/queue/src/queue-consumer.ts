@@ -99,7 +99,7 @@ export const queueConsumersSubscribe = async (
 			deadLetter: `${consumer.queueName}.dead`,
 			expireInSeconds: queueConsumerExpireSeconds,
 			name,
-			// One key's jobs strictly one after another, on every worker together; a failed job holds its
+			// One key's jobs strictly one after another, on every Worker together; a failed job holds its
 			// key back while it waits for a retry, and for good once it has none left.
 			policy: "key_strict_fifo",
 		});
@@ -213,7 +213,7 @@ const consumerWork = async ({
 	);
 };
 
-/** Subscribes, then starts a worker per consumer (worker process only). */
+/** Subscribes, then starts a worker per consumer (Worker process only). */
 export const queueConsumersStart = async (
 	queue: Queue,
 	consumers: Consumer[],

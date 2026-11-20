@@ -61,7 +61,7 @@ export const healthServerCreate = (
 			.end(healthy ? "ok" : "unavailable");
 	});
 
-	// Longer than the 60 s a load balancer keeps an idle probe connection, like the app's server.
+	// Longer than the 60 s a load balancer keeps an idle probe connection, like the Project's Server.
 	// Copied from packages/http/src/http-server-keep-alive.ts; keep the two in step.
 	server.keepAliveTimeout = 65_000;
 	server.headersTimeout = 66_000;

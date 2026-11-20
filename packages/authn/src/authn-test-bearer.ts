@@ -13,13 +13,13 @@ export type AuthnTestBearer = {
 
 /** What `authnTestBearerCreate` takes. */
 export type AuthnTestBearerOptions = {
-	/** The app's own mapping from claims to an Actor. */
+	/** The Project's own mapping from claims to an Actor. */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
 };
 
 /**
  * A memory issuer `Authn` with its own random secret, and bearer tokens for any Actor, for route
- * tests that build their own app. `actorFromClaims` is the app's own mapping.
+ * tests that build their own app. `actorFromClaims` is the Project's own mapping.
  */
 export const authnTestBearerCreate = async ({
 	actorFromClaims,

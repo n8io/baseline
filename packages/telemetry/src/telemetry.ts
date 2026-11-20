@@ -245,7 +245,7 @@ export const telemetryStart = (): void => {
 			}),
 			new UndiciInstrumentation(),
 			// requireParentSpan: a query or command outside a trace (a queue poll, boot, a
-			// reconnect) makes no span; one inside a request, a job or a use case still does.
+			// reconnect) makes no span; one inside a request, a job or a Use case still does.
 			new PgInstrumentation({
 				enhancedDatabaseReporting: false,
 				requireParentSpan: true,

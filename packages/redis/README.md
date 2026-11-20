@@ -29,6 +29,7 @@ import { cacheStoreRedisCreate } from "@n8io/baseline-cache";
 import { liveHubRedisCreate } from "@n8io/baseline-live";
 import { redisClientCreate } from "@n8io/baseline-redis";
 
+// redis:// or rediss://; the Template opens no client for memory://
 const redisClient = await redisClientCreate({ url: ENV.CACHE_URL });
 const cacheStore = cacheStoreRedisCreate({ redisClient });
 const liveHub = liveHubRedisCreate({ redisClient });
@@ -38,7 +39,7 @@ await liveHub.close();
 await redisClient.close();
 ```
 
-Unit tests need no Redis: build them on `cacheStoreMemoryCreate()` and `liveHubMemoryCreate()` instead. The Package's own `pnpm test` runs every test; the `*.redis.test.ts` files start a Redis container, so they need Docker.
+Unit tests need no Redis: build them on `cacheStoreMemoryCreate()` and `liveHubMemoryCreate()` instead. The Package's own `pnpm test` runs every test; the `*.redis.test.ts` files start a Redis container, so they need Docker; `pnpm test:unit` runs the tests that need no Redis.
 
 ## Reference
 

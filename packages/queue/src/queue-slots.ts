@@ -1,7 +1,7 @@
 import { type Queue, queueConcurrencyGet } from "./queue.ts";
 
 /**
- * Lets a fixed number of jobs run at once in one worker process and makes the rest wait their
+ * Lets a fixed number of jobs run at once in one Worker process and makes the rest wait their
  * turn, first come first served. Every Consumer and Schedule of the process shares it, so their
  * jobs together never hold more pool connections than `concurrency` allows.
  */

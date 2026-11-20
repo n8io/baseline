@@ -10,9 +10,9 @@ export type AuthnMemoryToken = {
 
 /** What `authnMemoryTokenFetch` takes. */
 export type AuthnMemoryTokenFetchOptions = {
-	/** The served app's origin. */
+	/** The served Project's origin. */
 	baseUrl: string;
-	/** One of the app's `memoryClients`. */
+	/** One of the Project's `memoryClients`. */
 	clientId: string;
 	/** The scopes to ask for. `null` means all of the client's. */
 	scopes?: string[] | null;
@@ -31,9 +31,9 @@ const tokenResponseRead = (
 };
 
 /**
- * Fetches a machine client's access token from a served app's memory issuer (`POST /auth/token`,
- * client credentials), for scripts and dev tools. `baseUrl` is the app's origin. `clientId` is one of the app's `memoryClients`;
- * `scopes` defaults to all of that client's. Rejects when the app's issuer is not `memory://`.
+ * Fetches a machine client's access token from a served Project's memory issuer (`POST /auth/token`,
+ * client credentials), for scripts and dev tools. `baseUrl` is the Project's origin. `clientId` is one of the Project's `memoryClients`;
+ * `scopes` defaults to all of that client's. Rejects when the Project's issuer is not `memory://`.
  */
 export const authnMemoryTokenFetch = async ({
 	baseUrl,
@@ -47,7 +47,7 @@ export const authnMemoryTokenFetch = async ({
 			grant_type: "client_credentials",
 			...(scopes == null ? {} : { scope: scopes.join(" ") }),
 		}),
-		// The app's CSRF check refuses a form post without its Origin.
+		// The Project's CSRF check refuses a form post without its Origin.
 		headers: { origin },
 		method: "POST",
 	});

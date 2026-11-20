@@ -16,7 +16,7 @@ import {
 
 declare module "hono" {
 	interface ContextVariableMap {
-		/** The signed-in actor, or `undefined`; set only by `authnMiddlewareCreate`. */
+		/** The signed-in Actor, or `undefined`; set only by `authnMiddlewareCreate`. */
 		actor: Actor | undefined;
 		/** When the access token expires, in epoch ms. */
 		authnExpiresAt: number | undefined;

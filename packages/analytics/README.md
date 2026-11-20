@@ -13,7 +13,7 @@ pnpm add @n8io/baseline-analytics
 | **Fire and forget**             | `track` returns at once and never throws: a failed send is logged at warn and dropped.                                                                                             |
 | **Bounded shutdown**            | Each send times out after 5 s, so `close()`, which waits for the sends in flight, is bounded too. `await using` calls it.                                                          |
 | **Ids and counts only**         | The contract for `properties`: ids and counts, never an Aggregate, an input or personal data.                                                                                      |
-| **No location guessed**         | Geolocation is off: the server's IP is not the Actor's.                                                                                                                            |
+| **No location guessed**         | Geolocation is off: the Server's IP is not the Actor's.                                                                                                                            |
 | **Malformed events are loud**   | Ingestion runs in strict mode, so a malformed event is refused and logged instead of dropped silently.                                                                             |
 | **Data residency**              | `vendor.host` picks the ingestion host; anything but a bare host name throws, so the token cannot go to a URL with a path or scheme of its own. Any other `vendor` key throws too. |
 | **Works with no account**       | `analyticsLoggerCreate()` logs each event at debug instead, for development and tests.                                                                                             |

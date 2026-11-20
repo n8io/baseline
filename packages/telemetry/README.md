@@ -1,6 +1,6 @@
 # @n8io/baseline-telemetry
 
-**One trace from the request to the Event handler, with one preload and one wrapper**: the preload starts traces, metrics and logs before the app loads, and every Use case gets its own span and duration metric. `@n8io/baseline-queue` carries the trace across each Event.
+**One trace from the request to the Event handler, with one preload and one wrapper**: the preload starts traces, metrics and logs before the Project loads, and every Use case gets its own span and duration metric. `@n8io/baseline-queue` carries the trace across each Event.
 
 ```sh
 pnpm add @n8io/baseline-telemetry import-in-the-middle
@@ -12,7 +12,7 @@ pnpm add @n8io/baseline-telemetry import-in-the-middle
 
 | You get                              | How                                                                                                                                                                                      |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Traces, metrics and logs at boot** | One preload instruments HTTP, undici, pg, Redis, pino and the Node runtime before the app's first import.                                                                                |
+| **Traces, metrics and logs at boot** | One preload instruments HTTP, undici, pg, Redis, pino and the Node runtime before the Project's first import.                                                                            |
 | **A span per Use case**              | `telemetryUseCasesTrace` names each span after its Use case and records `baseline.use_case.duration`.                                                                                    |
 | **Expected failures stay calm**      | An `err` result sets `error.type` and leaves the status unset; only a throw sets status Error.                                                                                           |
 | **No noise**                         | `/livez` and `/readyz` are never traced, and a pg or Redis call outside a trace (a queue poll, boot) makes no span.                                                                      |

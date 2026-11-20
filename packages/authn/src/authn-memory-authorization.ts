@@ -5,9 +5,9 @@ import {
 
 /** What `authnMemoryAuthorizationCreate` takes. */
 export type AuthnMemoryAuthorizationOptions = {
-	/** The served app's origin. */
+	/** The served Project's origin. */
 	baseUrl: string;
-	/** One of the app's `memoryClients`. */
+	/** One of the Project's `memoryClients`. */
 	clientId: string;
 	/** How long before expiry a new token is fetched, in ms; at most half the token's lifetime. `null` means 60,000. */
 	renewMs?: number | null;
@@ -21,7 +21,7 @@ export type AuthnMemoryAuthorization = (options?: {
 }) => Promise<string>;
 
 /**
- * Keeps a machine client's token from a served app's memory issuer fresh, for a script that runs
+ * Keeps a machine client's token from a served Project's memory issuer fresh, for a script that runs
  * longer than a token lives. Each call returns the held `Authorization` value and fetches a new
  * token when the held one expires within `renewMs` (default 60,000, at most half its lifetime);
  * callers that ask while a fetch runs share it. When that early fetch fails, callers keep the

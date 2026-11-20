@@ -7,7 +7,7 @@ import { httpProblemCreate, httpProblemHeaders } from "./http-problem.ts";
 
 type HttpStatusError = { httpStatus: ContentfulStatusCode; type: string };
 
-// Only shared packages throw errors that carry an `httpStatus` (authn's 401s).
+// Only shared Packages throw errors that carry an `httpStatus` (authn's 401s).
 const httpStatusErrorIs = (error: unknown): error is HttpStatusError => {
 	if (typeof error !== "object" || error === null) return false;
 	const { httpStatus, type } = error as {
@@ -40,7 +40,7 @@ const httpExceptionCode = (status: number): string =>
 				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 				.join("");
 
-/** `app.onError`: answers a thrown 4xx package error or Hono HTTPException with its status, anything else with a logged 500. */
+/** `app.onError`: answers a thrown 4xx Package error or Hono HTTPException with its status, anything else with a logged 500. */
 export const httpErrorHandle: ErrorHandler = (error, c) => {
 	if (httpStatusErrorIs(error)) {
 		return c.json(

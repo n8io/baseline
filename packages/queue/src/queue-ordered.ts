@@ -173,9 +173,9 @@ const queueOrderedInstrumentsGet = (): QueueOrderedInstruments => {
 const dayMs = 86_400_000;
 
 /**
- * Looks for blocked keys once a minute in a worker: an Event the queue fails by itself (a dead
- * worker or a fetch out of time, five times over) blocks its key with no log line of its own.
- * Every worker that sees a blocked key logs it at error level with an err, so it reaches error
+ * Looks for blocked keys once a minute in a Worker: an Event the queue fails by itself (a dead
+ * Worker or a fetch out of time, five times over) blocks its key with no log line of its own.
+ * Every Worker that sees a blocked key logs it at error level with an err, so it reaches error
  * tracking, and again each day it stays blocked. From a day before its deleteAt it also warns, and
  * once the queue has deleted its failed Event, it logs at error and counts it. A key released by
  * retry logs nothing more, and by give-up nothing either when before deleteAt; a give-up after it
