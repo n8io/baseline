@@ -35,7 +35,7 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
 
 ## Diagrams
 
-Each diagram is one file at the top of `scripts/readme-svg/`, `<name>.ts`, that default-exports its SVG string from `svgDocument` in [kit.ts](../../scripts/readme-svg/kit.ts). Name it after the README it serves (`root-hero.ts`, `queue-order.ts`); `kit-sample.ts` is the one exception. `pnpm readme-svg` writes it to `docs/readme/<name>.svg`; commit both _(test: equal, and no file without a generator)_. Copy `kit-sample.ts` to start. A helper two diagrams share goes in a subfolder (`scripts/readme-svg/queue/`), which the writer skips.
+Each diagram is one file at the top of `scripts/readme-svg/`, `<name>.ts`, that default-exports its SVG string from `svgDocument` in [kit.ts](../../scripts/readme-svg/kit.ts). Name it after the README it serves (`root-hero.ts`, `queue-order.ts`); `kit-sample.ts` is the one exception. `pnpm readme-svg` writes it to `docs/readme/<name>.svg`; commit both _(test: equal, and no file without a generator)_. Copy `kit-sample.ts` to start. A helper two diagrams share goes in a subfolder (for example `scripts/readme-svg/queue/`), which the writer skips.
 
 - **Themes**: `readmeSvgThemes.marquee` for the root, `readmeSvgThemes.blueprint` (with `svgGrid`) for Packages and the Template.
 - **Text** goes through `svgText`, `svgBox` or `svgTypedText`, which escape it; raw markup uses `svgEscape` _(test: no bare `&` or `<`)_.

@@ -7,7 +7,7 @@ Use `using` for a resource that lives for one block (a test, a script step, a sh
 Every Baseline handle that must be closed has `[Symbol.asyncDispose]`, which calls its named close: `LiveHub`, `Queue`, `HealthServer`, `Analytics`, `ErrorTracking`, `PostgresPool` and `RedisClient` (from `redisClientCreate`; a `duplicate()` of it has none). Declare it with `await using` and it closes however the block ends, even when an `expect` throws first:
 
 ```ts
-test("sends the update", async () => {
+it("sends the update", async () => {
 	await using liveHub = liveHubMemoryCreate();
 	// ...
 });

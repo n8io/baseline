@@ -27,9 +27,9 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first (agent-setup.md
 
 There is no coverage tooling.
 
-Dev, tests, the worker, migrate and seed run TypeScript directly with erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
+Dev, tests, the Worker, migrate and seed run TypeScript directly, erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
 
-CI fails a command at its budget. Make the code faster or set a new budget deliberately; never raise it quietly.
+CI fails a command at its budget. Make the code faster or set a new budget on purpose, never quietly.
 
 ## Tests
 
@@ -65,7 +65,7 @@ One context per business area, holding its Aggregates (context-create.md).
 - Outside code imports only `index.ts`, the context's one interface (A5).
 - `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
 - Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
-- Name things generic to specific: scope, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). A23 checks it:
+- Name things generic to specific: prefix, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). A23 checks it:
   - An exported name never starts with a verb.
   - Every exported function in a Package starts with its Package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
@@ -77,7 +77,7 @@ One context per business area, holding its Aggregates (context-create.md).
     - `ok` and `err` (result Package) are unscoped: every Use case and adapter returns them.
     - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
-- Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures (check by hand); a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures; a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
 - UI pages live in `src/ui/`. They import contexts only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result Package and the authn and id types (A2).
@@ -146,10 +146,10 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 Read the one that matches before you start.
 
 - A role, a scope, a dev user or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
-- Adding a context, an Aggregate or a Seed, one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
-- An Event handler, a Domain event or a repository: [docs/agents/events.md](docs/agents/events.md)
+- A new context, Aggregate, Seed, transition or Use case; one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
+- An Event handler or a Domain event: [docs/agents/events.md](docs/agents/events.md)
 - A context reading another (an ACL), or a saga across contexts: [docs/agents/acl.md](docs/agents/acl.md)
-- A table, a migration, SQL or a cached read: [docs/agents/data.md](docs/agents/data.md)
+- A table, a repository, a list, a migration, SQL or a cached read: [docs/agents/data.md](docs/agents/data.md)
 - Adding, testing or removing a Schedule: [docs/agents/schedules.md](docs/agents/schedules.md)
 - Adding, changing, testing or removing a page: [docs/agents/ui.md](docs/agents/ui.md)
 - Adding a log line, a span, a span attribute or a metric: [docs/agents/tracing.md](docs/agents/tracing.md)
@@ -163,6 +163,6 @@ Read the one that matches before you start.
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Removing, restoring or keeping (`piecesKept`) a piece: [docs/agents/pieces.md](docs/agents/pieces.md)
-- Publishing or installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md)
+- Using, publishing or installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md)
 - Planning a build of several contexts: [docs/agents/planning.md](docs/agents/planning.md)
 - A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

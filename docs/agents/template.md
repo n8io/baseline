@@ -34,6 +34,33 @@ Each one is a test; raise a limit only on purpose, in the same pull request, and
 3. Make the change, then `pnpm exec biome check --write .` and `pnpm exec varlock codegen`.
 4. Copy new untracked `src` files to `files/`, and save `git diff` as `wiring.patch`. A route change also needs the `sdk-generate` script.
 
+## Adding a piece, a part or an architecture rule
+
+Here, unlike in a Project, you edit the shared `apps/app/CONTEXT.md` and the Template's own scripts, still after asking. A change to foo reaches a Project's existing contexts only by hand, so its changeset says what a Project applies to each one.
+
+A new piece (each Package wired into the Template comes as one) is named by hand in:
+
+- `apps/app/scripts/piece-remove.ts` (`pieceRemovals`: its files, lines and packages) and its test, and `piece-check.test.ts`;
+- `apps/app/scripts/aggregate-create.ts` (`pieces`) and its test;
+- `test/render/api-only.ts`;
+- the **Piece** entry in `apps/app/CONTEXT.md`, the pieces sentence in `apps/app/README.md`, the root README's pieces table and `scripts/readme-svg/root-pieces.ts`;
+- its own section in `apps/app/docs/agents/pieces.md`, and a `(<piece>)` reason in `apps/app/dependencies-allowed.json` for each runtime dependency only it uses.
+
+Its code sits in whole files named for it, or in `piece-start:` blocks within the budget above.
+
+A new part (an `aggregate-create` flag):
+
+- `aggregateParts` in `apps/app/scripts/aggregate-create.ts`, and its lines in foo inside `aggregate-create-start:` blocks (a piece's own blocks when the part is a piece);
+- the parts list in `apps/app/docs/agents/context-create.md` and the **Part** entry in `apps/app/CONTEXT.md`;
+- a `[part, context name]` pair in `test/render/render-and-test.ts`, which makes one `--bare` context per part.
+
+A new or changed architecture rule:
+
+- its function in `apps/app/architecture-test-rules.ts`, under the next free `A<NN>`;
+- a failing sample in `apps/app/architecture-test-samples/a<NN>-<what>.txt` (format at the top of `architecture.test.ts`);
+- the rule stated, with its number, in `apps/app/AGENTS.md` or the docs page it belongs to;
+- a major `app` changeset, since it can fail a Project that passed before.
+
 ## Changesets
 
 A Template change that should ship needs an `app` changeset, beside one for each Package it touches. It is major when a Project must adapt to it: a renamed or moved file a Project edits, a new architecture rule or check that can fail a Project that passed before, or an added, renamed or removed `app-ci.yml` job. The [release walkthrough](release.md) has the rest.

@@ -31,7 +31,7 @@ A memory token lives 15 minutes. A script that can run longer (a feed, an import
 
 ## Rules
 
-- A script is not an import target: the part worth testing is a pure function it exports (`apiSmokeRoutesFind`), tested in `scripts/<name>.test.ts`, and the file runs `main` only under `if (import.meta.main)`.
+- A script runs `main` only under `if (import.meta.main)`, so importing it runs nothing. The part worth testing is a pure function it exports (`apiSmokeRoutesFind`), tested in `scripts/<name>.test.ts`. Another script may import such a function, but a helper several scripts share goes in a module of its own that is not a command, so using it does not load a whole command.
 - A script that needs a served app is tested in `test/integration/`, which boots the production build on memory adapters (`productionServerStart`) and runs the script as a child process. Set the three `OTEL_*_EXPORTER` variables to `none` for the child: with an OTLP endpoint and no collector, the last export holds the exit for seconds.
 - Exports follow the naming rules like everything else: entity first, `apiSmokeRoutesFind`, not `findRoutes`.
 - Seed data is not a script: `pnpm seed` runs `src/seed.ts`, and each context lists its own `<aggregate>Seed` ([context-create.md](context-create.md#seeds)).

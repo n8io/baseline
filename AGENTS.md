@@ -35,7 +35,7 @@ As in [apps/app/AGENTS.md](apps/app/AGENTS.md): at most two positional inputs, t
 
 - A test for one source file sits beside it as `<name>.test.ts`.
 - A test that needs a real service names it before `.test` (`.postgres.test.ts`, `.redis.test.ts`).
-- Root `test/` tests the Template, its render and the repo's docs, and holds service setup shared across Packages (`test/postgres/`, `test/redis/`). A Package has no `test/` folder.
+- Root `test/` checks the Template, its render, the repo's docs and the Packages' metadata and names (`naming`, `package-metadata`, `package-testing`, `dependencies-allowed`), and holds service setup shared across Packages (`test/postgres/`, `test/redis/`). A Package has no `test/` folder.
 
 Tests assert with `expect()` only: `expect.requireAssertions` does not count chai `assert` calls, so Biome bans importing `assert` from `vitest` and `chai`.
 
@@ -43,10 +43,10 @@ Tests assert with `expect()` only: `expect.requireAssertions` does not count cha
 
 These docs load only when the task needs them. Read the one that matches before you start.
 
-- Working in `packages/` (a factory, an option, a schema, a dependency, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
+- Working in `packages/` (a new Package, a factory, an option, a schema, a dependency, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
 - Writing a README or a README diagram: [docs/agents/readmes.md](docs/agents/readmes.md)
 - Changing anything under `apps/app` in baseline: [docs/agents/template.md](docs/agents/template.md)
-- Proposing a new library, pattern or name: read the decisions in [docs/adr/](docs/adr/) first
+- Proposing a new library, pattern or name, or recording a decision: read [docs/adr/](docs/adr/README.md) first
 
 ## Walkthroughs
 
