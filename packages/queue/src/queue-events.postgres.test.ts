@@ -8,13 +8,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
+	type EventsPublisher,
 	type Queue,
 	queueConsumerCreate,
 	queueCreate,
 	queueEventsCreate,
-	queueEventsMemoryCreate,
 	queueMigrate,
 } from "./index.ts";
+import { queueEventsPublisherContract } from "./queue-events-publisher.contract.ts";
 
 type FooEvents = { "foo.created": { fooId: string } };
 
@@ -39,7 +40,7 @@ beforeAll(async () => {
 	pgPool = postgresPoolCreate({ databaseUrl });
 	await pgPool.query("CREATE TABLE foo (id text NOT NULL)");
 	queue = await queueCreate({ pgPool, role: "publisher" });
-	// Three consumers of one event: pg-boss sends to every queue at once on the one client, and pg
+	// Three Consumers of one Event: pg-boss sends to every queue at once on the one client, and pg
 	// warns from the third query queued on a busy client.
 	const consumer = (name: string) =>
 		queueConsumerCreate({
@@ -64,7 +65,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	process.off("warning", onWarning);
-	await queue.stop();
+	await queue.close();
 	await pgPool.end();
 });
 
@@ -164,43 +165,23 @@ describe("queueEventsCreate", () => {
 	});
 });
 
-describe("queueEventsMemoryCreate", () => {
-	it("records publishes and delivers nothing", async () => {
-		const published: {
-			name: keyof FooEvents;
-			data: unknown;
-			key: string;
-		}[] = [];
-		const events = queueEventsMemoryCreate<FooEvents>({ published });
-
-		await events.publish({
-			data: { fooId: "foo_1" },
-			key: "foo_1",
-			name: "foo.created",
+describe("queueEventsCreate publisher", () => {
+	queueEventsPublisherContract(async (work) => {
+		const events = queueEventsCreate(queue);
+		let publisher: EventsPublisher<FooEvents> | undefined;
+		await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				publisher = events.publisherCreate<FooEvents>(pgClient);
+				await work(publisher);
+				return ok(undefined);
+			},
 		});
-
-		expect(published).toEqual([
-			{ data: { fooId: "foo_1" }, key: "foo_1", name: "foo.created" },
-		]);
-	});
-
-	it("works without options", async () => {
-		await expect(
-			queueEventsMemoryCreate<FooEvents>().publish({
-				data: { fooId: "foo_1" },
-				key: "foo_1",
-				name: "foo.created",
-			}),
-		).resolves.toBeUndefined();
-	});
-
-	it("refuses an empty key, as the queue does", async () => {
-		await expect(
-			queueEventsMemoryCreate<FooEvents>().publish({
-				data: { fooId: "foo_1" },
-				key: "",
-				name: "foo.created",
-			}),
-		).rejects.toThrow("Event foo.created needs a key");
+		await publisher?.committed();
+		// One subscribed queue stands for all three: each gets the same jobs.
+		const { rows } = await pgPool.query<{ data: unknown; key: string }>(
+			"SELECT data, singleton_key AS key FROM queue.job WHERE name = 'bar.foo-created.ordered' ORDER BY created_on",
+		);
+		return rows.map(({ data, key }) => ({ data, key, name: "foo.created" }));
 	});
 });

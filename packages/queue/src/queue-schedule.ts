@@ -7,32 +7,36 @@ import {
 	queueErrorWrap,
 	queueSchema,
 } from "./queue.ts";
+import { queueConnectionAssert } from "./queue-connection-assert.ts";
 import { queueJobRun } from "./queue-job-run.ts";
-import {
-	type QueueMigrateVendorOptions,
-	queueUrlAssert,
-} from "./queue-migrate.ts";
-import { queueWithDeadLetterCreate } from "./queue-retry.ts";
+import type { QueueMigrateVendorOptions } from "./queue-migrate.ts";
 import { queueSlotsGet } from "./queue-slots.ts";
+import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 
+/** A UTC cron Schedule, made by `queueScheduleCreate`. */
 export type Schedule = {
 	readonly name: string;
 	readonly cron: string;
 	readonly run: () => Promise<Result<unknown, { type: string }>>;
 };
 
-// name is `<domain>.<use case words, kebab>` (foo.stale-archive); cron is UTC, minute precision.
+/** What `queueScheduleCreate` takes: the Schedule's own fields. */
+export type QueueScheduleOptions = {
+	/** UTC, minute precision. */
+	cron: string;
+	/** `<context>.<use case words, kebab>` (foo.stale-archive). */
+	name: string;
+	run: () => Promise<Result<unknown, { type: string }>>;
+};
+
+/** A Schedule. name is `<context>.<use case words, kebab>`; cron is UTC, minute precision. */
 export const queueScheduleCreate = ({
 	cron,
 	name,
 	run,
-}: {
-	cron: string;
-	name: string;
-	run: () => Promise<Result<unknown, { type: string }>>;
-}): Schedule => ({ cron, name, run });
+}: QueueScheduleOptions): Schedule => ({ cron, name, run });
 
-// foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE
+/** foo.stale-archive → SCHEDULE_FOO_STALE_ARCHIVE. Not exported from the Package. */
 export const queueScheduleEnvName = (name: string): string =>
 	`SCHEDULE_${name.toUpperCase().replaceAll(/[.-]/g, "_")}`;
 
@@ -43,26 +47,28 @@ const scheduleOverride = (env: object, name: string): string | undefined => {
 	return typeof value === "string" ? value : undefined;
 };
 
+/** What `queueSchedulesSync` takes. */
+export type QueueSchedulesSyncOptions = {
+	databaseUrl: string;
+	/** The composition root's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`. */
+	env: object;
+	schedules: Pick<Schedule, "cron" | "name">[];
+	/** Settings only pg-boss's own connection has, such as `ssl`: the same ones queueMigrate takes. */
+	vendor?: QueueMigrateVendorOptions | null;
+};
+
 /**
  * Makes the Schedules the database holds match the ones in code: adds each, updates its cron, and
  * removes any that is no longer listed or is turned `off`. Every cron is validated before anything
  * changes. Runs from the migrate entry, after queueMigrate, so once per rollout and with the newest
  * code: a worker of the previous version that boots mid-rollout changes nothing.
  */
-export const queueSchedulesSync = async ({
-	databaseUrl,
-	env,
-	schedules,
-	vendor,
-}: {
-	databaseUrl: string;
-	// The composition root's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`.
-	env: object;
-	schedules: Pick<Schedule, "cron" | "name">[];
-	/** Settings only pg-boss's own connection has, such as `ssl`. */
-	vendor?: QueueMigrateVendorOptions;
-}): Promise<void> => {
-	queueUrlAssert(databaseUrl);
+export const queueSchedulesSync = async (
+	options: QueueSchedulesSyncOptions,
+): Promise<void> => {
+	const { databaseUrl, env, schedules } = options;
+	const vendor = options.vendor ?? {};
+	queueConnectionAssert({ caller: "queueSchedulesSync", databaseUrl, vendor });
 	const boss = new PgBoss({
 		...vendor,
 		connectionString: databaseUrl,
@@ -89,10 +95,10 @@ export const queueSchedulesSync = async ({
 			} catch (error) {
 				const source =
 					override === undefined
-						? `schedule ${name}`
-						: queueScheduleEnvName(name);
+						? `schedules: invalid cron for ${name}`
+						: `env.${queueScheduleEnvName(name)}: invalid cron`;
 				throw new TypeError(
-					`Invalid cron for ${source}: use a cron string or off`,
+					`queueSchedulesSync: ${source}; use a cron string or off`,
 					{ cause: error },
 				);
 			}
@@ -115,20 +121,25 @@ export const queueSchedulesSync = async ({
 	}
 };
 
-// Starts running each Schedule (worker process only). It changes nothing in the database: a
-// Schedule that queueSchedulesSync has not added there is not started, with a warning, since it
-// would never fire. One turned `off` is skipped silently. The cron overrides are not read here:
-// they act where queueSchedulesSync runs.
+/** What `queueSchedulesStart` takes. */
+export type QueueSchedulesStartOptions = {
+	/** The composition root's ENV, for the `off` overrides. */
+	env: object;
+	queue: Queue;
+	schedules: Schedule[];
+};
+
+/**
+ * Starts running each Schedule (worker process only). It changes nothing in the database: a
+ * Schedule that queueSchedulesSync has not added there is not started, with a warning, since it
+ * would never fire. One turned `off` is skipped silently. The cron overrides are not read here:
+ * they act where queueSchedulesSync runs.
+ */
 export const queueSchedulesStart = async ({
 	env,
 	queue,
 	schedules,
-}: {
-	// The composition root's ENV, for the `off` overrides.
-	env: object;
-	queue: Queue;
-	schedules: Schedule[];
-}): Promise<void> => {
+}: QueueSchedulesStartOptions): Promise<void> => {
 	const boss = queueBossGet(queue);
 	const slots = queueSlotsGet(queue);
 	for (const schedule of schedules) {

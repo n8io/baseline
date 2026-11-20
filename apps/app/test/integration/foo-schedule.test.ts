@@ -81,7 +81,7 @@ describe("schedules", { timeout: 60_000 }, () => {
 		).rejects.toMatchObject({
 			code: 1,
 			stderr: expect.stringContaining(
-				"Invalid cron for SCHEDULE_FOO_STALE_ARCHIVE",
+				"queueSchedulesSync: env.SCHEDULE_FOO_STALE_ARCHIVE: invalid cron",
 			),
 		});
 		expect(await scheduled(database.databaseUrl)).toEqual([

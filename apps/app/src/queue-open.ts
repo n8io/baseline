@@ -5,7 +5,7 @@ import { type Events, type Queue, queueCreate } from "@n8io/baseline-queue";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { eventsOpen } from "./events-open.ts";
 
-// The queue stops at shutdown before what is already in its steps: the Worker's intakes, since it
+// The queue closes at shutdown before what is already in its steps: the Worker's intakes, since it
 // brings work in there, else the resources.
 export const queueOpen = async ({
 	database,
@@ -27,7 +27,7 @@ export const queueOpen = async ({
 		role,
 	});
 	(role === "worker" ? intakes : resources).unshift({
-		close: () => queue.stop(),
+		close: () => queue.close(),
 		name: "queue",
 	});
 	return { events: eventsOpen(queue), queue };
