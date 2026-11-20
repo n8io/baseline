@@ -745,9 +745,12 @@ describe("docker compose commands", () => {
 		expect(bad).toEqual([]);
 	});
 
-	it("keep the dev script parts piece-remove edits", () => {
-		expect(manifest.scripts.dev).toContain(pieceDevUi);
-		expect(manifest.scripts.dev).toMatch(pieceDevWorker);
+	it("keep the dev script parts piece-remove edits while their pieces are here", () => {
+		const here = (path: string) => existsSync(new URL(path, appRoot));
+		expect(manifest.scripts.dev?.includes(pieceDevUi)).toBe(here("src/ui"));
+		expect(pieceDevWorker.test(manifest.scripts.dev ?? "")).toBe(
+			here("src/worker.ts"),
+		);
 	});
 
 	it("name the same project in compose.yaml and .env.schema", () => {
