@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type LiveHub, liveHubMemoryCreate } from "./index.ts";
 import { liveHubStreams } from "./live-hub.ts";
 import {
@@ -7,11 +7,11 @@ import {
 	liveStreamCreate,
 	liveStreamMaxMs,
 } from "./live-stream.ts";
-import { liveAppCreate } from "./live-test-app.ts";
+import { liveTestAppCreate } from "./live-test-app.ts";
 import { liveTestSseRead } from "./live-test-sse.ts";
 
 const open = async (
-	app: ReturnType<typeof liveAppCreate>,
+	app: ReturnType<typeof liveTestAppCreate>,
 	path = "/live/foo/foo_1",
 ) => {
 	const response = await app.request(path);
@@ -26,33 +26,33 @@ afterEach(() => {
 });
 
 describe("liveStreamCreate", () => {
-	test("answers an SSE response that sends ready once subscribed", async () => {
+	it("answers an SSE response that sends ready once subscribed", async () => {
 		await using liveHub = liveHubMemoryCreate();
-		const { response, sse } = await open(liveAppCreate(liveHub));
+		const { response, sse } = await open(liveTestAppCreate(liveHub));
 
 		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
 		expect(response.headers.get("Cache-Control")).toBe("no-cache");
 		expect(await sse.until("\n\n")).toBe("event: ready\ndata: \n\n");
 	});
 
-	test("answered through a Hono context, it keeps the headers middleware set", async () => {
+	it("answered through a Hono context, it keeps the headers middleware set", async () => {
 		await using liveHub = liveHubMemoryCreate();
 		const app = new Hono()
 			.use(async (c, next) => {
 				c.header("X-Request-Id", "req_1");
 				await next();
 			})
-			.route("/", liveAppCreate(liveHub));
+			.route("/", liveTestAppCreate(liveHub));
 		const { response } = await open(app);
 
 		expect(response.headers.get("X-Request-Id")).toBe("req_1");
 		expect(response.headers.get("Content-Type")).toBe("text/event-stream");
 	});
 
-	test("sends a comment every 20 s", async () => {
+	it("sends a comment every 20 s", async () => {
 		vi.useFakeTimers({ toFake: ["setTimeout", "setInterval", "Date"] });
 		await using liveHub = liveHubMemoryCreate();
-		const { sse } = await open(liveAppCreate(liveHub));
+		const { sse } = await open(liveTestAppCreate(liveHub));
 
 		await vi.advanceTimersByTimeAsync(liveHeartbeatMs - 1);
 		await vi.advanceTimersByTimeAsync(1);
@@ -62,7 +62,7 @@ describe("liveStreamCreate", () => {
 		);
 	});
 
-	test.each([
+	it.each([
 		{
 			closesAtMs: liveStreamMaxMs,
 			expiresInMs: 60 * 60_000,
@@ -80,7 +80,7 @@ describe("liveStreamCreate", () => {
 			vi.spyOn(Math, "random").mockReturnValue(0.999_999);
 			await using liveHub = liveHubMemoryCreate();
 			const startedAt = Date.now();
-			const app = liveAppCreate(liveHub, () => startedAt + expiresInMs);
+			const app = liveTestAppCreate(liveHub, () => startedAt + expiresInMs);
 			const { sse } = await open(app);
 			let ended = false;
 			const end = sse.end().then((text) => {
@@ -96,9 +96,9 @@ describe("liveStreamCreate", () => {
 		},
 	);
 
-	test("picks the retry between 1000 and 5000 ms", async () => {
+	it("picks the retry between 1000 and 5000 ms", async () => {
 		await using liveHub = liveHubMemoryCreate();
-		const app = liveAppCreate(liveHub, () => Date.now() - 1);
+		const app = liveTestAppCreate(liveHub, () => Date.now() - 1);
 		const retries = [];
 		for (const random of [0, 0.5, 0.999_999]) {
 			vi.spyOn(Math, "random").mockReturnValue(random);
@@ -114,21 +114,21 @@ describe("liveStreamCreate", () => {
 		expect(retries).toEqual(["1000", "3000", "5000"]);
 	});
 
-	test("await using closes the hub when its block ends", async () => {
+	it("await using closes the hub when its block ends", async () => {
 		let closed: LiveHub;
 		{
 			await using liveHub = liveHubMemoryCreate();
 			closed = liveHub;
 		}
 
-		const response = await liveAppCreate(closed).request("/live/foo/foo_1");
+		const response = await liveTestAppCreate(closed).request("/live/foo/foo_1");
 
 		expect(await liveTestSseRead({ response }).end()).toMatch(
 			/^retry: \d+\n\n$/,
 		);
 	});
 
-	test("a client that goes away stops listening and no longer holds close()", async () => {
+	it("a client that goes away stops listening and no longer holds close()", async () => {
 		const liveHub = liveHubMemoryCreate();
 		const streams = liveHubStreams(liveHub);
 		const listen = streams.listen;
@@ -140,7 +140,7 @@ describe("liveStreamCreate", () => {
 				unlisten();
 			};
 		});
-		const { sse } = await open(liveAppCreate(liveHub));
+		const { sse } = await open(liveTestAppCreate(liveHub));
 
 		await sse.cancel();
 
@@ -150,7 +150,7 @@ describe("liveStreamCreate", () => {
 		await expect(liveHub.close()).resolves.toBeUndefined();
 	});
 
-	test("an aborted request ends the stream and no longer holds close()", async () => {
+	it("an aborted request ends the stream and no longer holds close()", async () => {
 		const liveHub = liveHubMemoryCreate();
 		const request = new AbortController();
 		const sse = liveTestSseRead({
@@ -170,7 +170,7 @@ describe("liveStreamCreate", () => {
 		await expect(liveHub.close()).resolves.toBeUndefined();
 	});
 
-	test("a request aborted before the stream starts never subscribes", async () => {
+	it("a request aborted before the stream starts never subscribes", async () => {
 		await using liveHub = liveHubMemoryCreate();
 		const listen = vi.spyOn(liveHubStreams(liveHub), "listen");
 		const sse = liveTestSseRead({
@@ -187,7 +187,7 @@ describe("liveStreamCreate", () => {
 		expect(listen).not.toHaveBeenCalled();
 	});
 
-	test("drops a page that stops reading once 64 KiB wait for it", async () => {
+	it("drops a page that stops reading once 64 KiB wait for it", async () => {
 		await using liveHub = liveHubMemoryCreate();
 		const sse = liveTestSseRead({
 			response: liveStreamCreate({
@@ -206,7 +206,7 @@ describe("liveStreamCreate", () => {
 		expect(await sse.end()).toMatch(/retry: \d+\n\n$/);
 	});
 
-	test("close() does not wait on a subscribe that never finishes", async () => {
+	it("close() does not wait on a subscribe that never finishes", async () => {
 		const liveHub = liveHubMemoryCreate();
 		const late = vi.fn();
 		const listening = Promise.withResolvers<() => void>();
@@ -214,7 +214,7 @@ describe("liveStreamCreate", () => {
 			listening.promise,
 		);
 		const sse = liveTestSseRead({
-			response: await liveAppCreate(liveHub).request("/live/foo/foo_1"),
+			response: await liveTestAppCreate(liveHub).request("/live/foo/foo_1"),
 		});
 
 		await liveHub.close();
@@ -226,7 +226,7 @@ describe("liveStreamCreate", () => {
 		});
 	});
 
-	test("refuses a hub it did not make", () => {
+	it("refuses a hub it did not make", () => {
 		expect(() =>
 			liveHubStreams({
 				close: async () => {},

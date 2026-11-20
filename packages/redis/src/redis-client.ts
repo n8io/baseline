@@ -65,7 +65,7 @@ const redisVendorAssert = ({
 	const { password, username } = new URL(url);
 	if ("credentialsProvider" in vendor && (password || username)) {
 		throw new TypeError(
-			"vendor.credentialsProvider is not allowed with a user or password in url: node-redis lets the URL win; set credentials in one place",
+			"redisClientCreate: vendor.credentialsProvider is not allowed with a user or password in url: node-redis lets the URL win; set credentials in one place",
 		);
 	}
 	const owned: [object, string, Record<string, string>][] = [
@@ -76,7 +76,7 @@ const redisVendorAssert = ({
 		for (const [key, owner] of Object.entries(keys)) {
 			if (key in settings) {
 				throw new TypeError(
-					`${path}.${key} is not allowed: it is set by ${owner}`,
+					`redisClientCreate: ${path}.${key} is not allowed: it is set by ${owner}`,
 				);
 			}
 		}
@@ -115,7 +115,8 @@ export const redisClientCreate = async ({
 		logger.error({ err }, "Redis client error");
 	});
 	// connectTimeout bounds only the TCP connect; this also bounds a server that accepts and never
-	// answers the handshake.
+	// answers the handshake. The same race as `cacheTimeLimit` in packages/cache/src/cache-store-redis.ts
+	// and `liveTimeLimit` in packages/live/src/live-hub-redis.ts, inline; keep the three in step.
 	let timer: NodeJS.Timeout | undefined;
 	try {
 		await Promise.race([

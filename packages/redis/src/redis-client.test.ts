@@ -5,26 +5,41 @@ import { redisClientCreate } from "./index.ts";
 
 describe("redisClientCreate", () => {
 	it.each([
-		[{ url: "redis://other" }, "vendor.url is not allowed: it is set by url"],
+		[
+			{ url: "redis://other" },
+			"redisClientCreate: vendor.url is not allowed: it is set by url",
+		],
 		[
 			{ password: "secret" },
-			"vendor.password is not allowed: it is set by url",
+			"redisClientCreate: vendor.password is not allowed: it is set by url",
 		],
-		[{ username: "app" }, "vendor.username is not allowed: it is set by url"],
-		[{ database: 2 }, "vendor.database is not allowed: it is set by url"],
-		[{ socket: { host: "other" } }, "vendor.socket.host is not allowed"],
-		[{ socket: { tls: true } }, "vendor.socket.tls is not allowed"],
+		[
+			{ username: "app" },
+			"redisClientCreate: vendor.username is not allowed: it is set by url",
+		],
+		[
+			{ database: 2 },
+			"redisClientCreate: vendor.database is not allowed: it is set by url",
+		],
+		[
+			{ socket: { host: "other" } },
+			"redisClientCreate: vendor.socket.host is not allowed",
+		],
+		[
+			{ socket: { tls: true } },
+			"redisClientCreate: vendor.socket.tls is not allowed",
+		],
 		[
 			{ commandOptions: { timeout: 5_000 } },
-			"vendor.commandOptions is not allowed",
+			"redisClientCreate: vendor.commandOptions is not allowed",
 		],
 		[
 			{ socket: { connectTimeout: 10_000 } },
-			"vendor.socket.connectTimeout is not allowed",
+			"redisClientCreate: vendor.socket.connectTimeout is not allowed",
 		],
 		[
 			{ socket: { reconnectStrategy: false as const } },
-			"vendor.socket.reconnectStrategy is not allowed",
+			"redisClientCreate: vendor.socket.reconnectStrategy is not allowed",
 		],
 	])(
 		"refuses a vendor setting it decides itself: %o",
@@ -50,7 +65,9 @@ describe("redisClientCreate", () => {
 					},
 				},
 			}),
-		).rejects.toThrow("vendor.credentialsProvider is not allowed");
+		).rejects.toThrow(
+			"redisClientCreate: vendor.credentialsProvider is not allowed",
+		);
 	});
 
 	it("rejects within 3 s when the server accepts and never answers", async () => {

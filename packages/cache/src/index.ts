@@ -7,4 +7,7 @@ export {
 	cacheCreate,
 } from "./cache.ts";
 export { cacheStoreMemoryCreate } from "./cache-store-memory.ts";
-export { cacheStoreRedisCreate } from "./cache-store-redis.ts";
+export {
+	type CacheStoreRedisOptions,
+	cacheStoreRedisCreate,
+} from "./cache-store-redis.ts";
