@@ -1,11 +1,10 @@
 import {
 	cpSync,
 	existsSync,
-	mkdtempSync,
+	mkdtempDisposableSync,
 	readdirSync,
 	readFileSync,
 	renameSync,
-	rmSync,
 	symlinkSync,
 	writeFileSync,
 } from "node:fs";
@@ -26,7 +25,8 @@ export const rolloutBuildCreate = (): Disposable & { directory: string } => {
 	if (!existsSync("build/client/assets")) {
 		throw new Error("build/client/assets is missing: run pnpm build first");
 	}
-	const directory = mkdtempSync(join(tmpdir(), "rollout-build-"));
+	const folder = mkdtempDisposableSync(join(tmpdir(), "rollout-build-"));
+	const directory = folder.path;
 	cpSync("build", join(directory, "build"), { recursive: true });
 	// What the server reads from its working directory: its libraries and the env files.
 	const linked = readdirSync(".").filter((name) => name.startsWith(".env"));
@@ -55,6 +55,6 @@ export const rolloutBuildCreate = (): Disposable & { directory: string } => {
 	}
 	return {
 		directory,
-		[Symbol.dispose]: () => rmSync(directory, { force: true, recursive: true }),
+		[Symbol.dispose]: () => folder.remove(),
 	};
 };

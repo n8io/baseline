@@ -3,7 +3,7 @@
 // git and pnpm.
 // Why a JS/TS-aware scanner renames foo instead of wiring markers alone: foo also appears in
 // regex literals, JSX text and prose, where a plain replace or a marker would rename the wrong text
-// or miss it. render-and-test renders and tests a project on every PR, so it covers the scanner.
+// or miss it. render-and-test renders and tests a Project on every PR, so it covers the scanner.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -20,9 +20,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 export type TemplateAnswers = {
-	// The project's package name, e.g. "invoicing".
+	// The Project's package name, e.g. "invoicing".
 	name: string;
-	// The one-line project description: the first line of CONTEXT.md.
+	// The one-line Project description: the first line of CONTEXT.md.
 	description: string;
 };
 
@@ -455,7 +455,7 @@ const templateFooPaths = [
 	/^migrations\/[^/]*foo[^/]*\//,
 ];
 
-// Never rendered: the scripts and their tests name foo on purpose, and the changelog is the template's own.
+// Never rendered: the scripts and their tests name foo on purpose, and the changelog is the Template's own.
 // The lockfile names no foo, but an integrity hash can hold "Foo", and dropping that line breaks it.
 const templateUntouchedPaths = [/^scripts\//, /^pnpm-lock\.yaml$/];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
@@ -542,8 +542,8 @@ export const readmeRender = ({
 // worktree's dev instance gets its own from its instance name (scripts/dev-instance.ts). The
 // Template keeps 5432, 6379, 3000, 9000 and 9001. Two names can land on the same block (one in a
 // thousand): change the four *_HOST_PORT values in .env.schema and PORT and HEALTH_PORT in
-// .env.development then (in .env.development.local for a worktree). WORKER_HEALTH_PORT names the
-// block's seventh port, HEALTH_PORT + 1; nothing writes it.
+// .env.development then (in .env.development.local for a worktree). The block's seventh port,
+// HEALTH_PORT + 1, is the Worker's.
 export const hostPortsCreate = (name: string): Record<string, number> => {
 	const block =
 		createHash("sha256").update(name).digest().readUInt32BE(0) % 1000;
@@ -555,7 +555,6 @@ export const hostPortsCreate = (name: string): Record<string, number> => {
 		HEALTH_HOST_PORT: first + 3,
 		PORT: first + 4,
 		HEALTH_PORT: first + 5,
-		WORKER_HEALTH_PORT: first + 6,
 	};
 };
 
@@ -597,7 +596,7 @@ const developmentUrlRender = (text: string, name: string): string =>
 		`http://localhost:${hostPortsCreate(name).PORT}`,
 	);
 
-// The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
+// The SDK's files (the sdk Piece). Its generated files are rendered as pnpm sdk-generate writes
 // them for a Project with no bounded context: the document without foo's operations and schemas,
 // and an sdk.ts that is only its header comment.
 const sdkFileRender = (
@@ -642,7 +641,7 @@ const sdkFileRender = (
 	};
 };
 
-// The CLI's files (the cli piece): its package, its command and the SDK it runs on take the
+// The CLI's files (the cli Piece): its package, its command and the SDK it runs on take the
 // Project's name.
 const cliFileRender = (
 	file: TemplateFile,
@@ -680,7 +679,7 @@ export const templateFileRender = (
 	if (path === "package.json") {
 		const manifest = JSON.parse(text) as Record<string, unknown>;
 		manifest.name = answers.name;
-		// The version is the project's own, never the template's.
+		// The version is the Project's own, never the Template's.
 		delete manifest.version;
 		return {
 			path,
@@ -765,7 +764,7 @@ export const templateFilesRender = (
 };
 
 // Line removal leaves formatting and unused imports for Biome, and src/env.d.ts for varlock.
-// Runs both with the tools of `toolsDirectory` (a project or apps/app with node_modules).
+// Runs both with the tools of `toolsDirectory` (a Project or apps/app with node_modules).
 export const templateFinish = (
 	directory: string,
 	toolsDirectory: string,
@@ -839,7 +838,7 @@ export const releaseLatest = (): string => {
 	return latest.join(".");
 };
 
-// The template's own workspace settings, which the monorepo root holds for apps/app. A Project's
+// The Template's own workspace settings, which the monorepo root holds for apps/app. A Project's
 // root is the app, and clients/ holds the packages made from its API.
 export const workspaceRender = (rootWorkspace: string): string =>
 	rootWorkspace.replace(
@@ -857,7 +856,7 @@ export const workspaceRender = (rootWorkspace: string): string =>
 		].join("\n"),
 	);
 
-// The template's own lockfile: the root lockfile with apps/app as the only importer, so a project
+// The Template's own lockfile: the root lockfile with apps/app as the only importer, so a Project
 // installs the versions the release was tested with instead of resolving its ranges fresh, which
 // minimumReleaseAge can refuse on the day a dependency ships. The workspace links are dropped and
 // resolve from npm, exempt from the age check; the first install prunes what apps/app never used.

@@ -442,7 +442,7 @@ describe("architecture", () => {
 				'it("x", () => { throw new Error("x"); });\n',
 			),
 			architectureFileCreate(
-				"src/contexts/bar/adapters/outbound/bar-repository-postgres.ts",
+				"src/contexts/bar/adapters/outbound/bar-repository.postgres.ts",
 				"export const x = () => { try { return 1; } catch { throw new Error(); } };\n",
 			),
 		]);

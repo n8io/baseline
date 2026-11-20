@@ -117,7 +117,7 @@ describe("nameRefusal and aggregateRefusal", () => {
 	it.each([
 		[{ kebab: "InvoiceLine", plural: "invoice-lines" }, "not kebab-case"],
 		[{ kebab: "invoice-line", plural: "invoice_lines" }, "not kebab-case"],
-		[{ kebab: "foo-thing", plural: "foo-things" }, "contains foo"],
+		[{ kebab: "foo-thing", plural: "foo-things" }, "example name"],
 		[{ kebab: "sheep", plural: "sheep" }, "must differ"],
 		[{ kebab: "doc", plural: "docs" }, "API reference"],
 		[{ kebab: "customer", plural: "customers" }, "no **Customer**: entry"],
@@ -444,7 +444,8 @@ describe("readsRefusal and contextReadsFind", () => {
 		expect(refusal(["customer"])).toBeUndefined();
 		expect(refusal(["vendor"])).toContain("no src/contexts/vendor/");
 		expect(refusal(["billing"])).toContain("cannot read itself");
-		expect(refusal(["foo"])).toContain("contains foo");
+		expect(refusal(["foo"])).toContain("example name");
+		expect(refusal(["food"])).toContain("no src/contexts/food/");
 		expect(refusal(["../customer"])).toContain("is not kebab-case");
 		expect(refusal(["customer", "customer"])).toContain("twice");
 		writeFileSync(

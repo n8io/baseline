@@ -349,8 +349,8 @@ export const productionServerSpawn = (
 };
 
 /**
- * Boots the production build (`pnpm build` output) the way the image runs it: the three
- * preload flags, NODE_ENV=production, APP_ENV=test, real Postgres and Redis, the memory issuer.
+ * Boots the production build (`pnpm build` output) the way the image runs it: the preload
+ * flag, NODE_ENV=production, APP_ENV=test, real Postgres and Redis, the memory issuer.
  * Resolves once /readyz answers 200 and the server answers on PORT.
  */
 export const productionServerStart = async (

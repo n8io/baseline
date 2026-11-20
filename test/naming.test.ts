@@ -7,29 +7,13 @@ import {
 	architectureRules,
 } from "../apps/app/architecture-test-rules.ts";
 
-// The app's architecture test runs A23 over src/; this runs it over everything else: the other
-// folders, and the files at apps/app's top level.
+// The Template runs A23 over all of apps/app (architecture.test.ts and structure.test.ts, so a
+// Project runs it too); this runs it over the rest of the repository.
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
-const roots = [
-	"apps/app/clients",
-	"apps/app/scripts",
-	"apps/app/test",
-	"packages",
-	"scripts",
-	"test",
-];
+const roots = ["packages", "scripts", "test"];
 
-const appTopLevel = readdirSync(path.join(repoRoot, "apps/app"))
-	.filter((name) => /\.tsx?$/.test(name))
-	.map((name) => `apps/app/${name}`);
-
-const sourcesRead = (): ArchitectureFile[] => [
-	...appTopLevel.map((name) => ({
-		imports: [],
-		path: name,
-		source: readFileSync(path.join(repoRoot, name), "utf8"),
-	})),
-	...roots.flatMap((root) =>
+const sourcesRead = (): ArchitectureFile[] =>
+	roots.flatMap((root) =>
 		readdirSync(path.join(repoRoot, root), { recursive: true })
 			.map((name) => `${root}/${String(name).split(path.sep).join("/")}`)
 			.filter(
@@ -43,11 +27,10 @@ const sourcesRead = (): ArchitectureFile[] => [
 				path: name,
 				source: readFileSync(path.join(repoRoot, name), "utf8"),
 			})),
-	),
-];
+	);
 
 describe("naming", () => {
-	it("names every export outside apps/app/src generic to specific (A23)", () => {
+	it("names every export outside apps/app generic to specific (A23)", () => {
 		const files = sourcesRead();
 		expect(files.length).toBeGreaterThan(100);
 		expect(architectureRules.A23?.(files)).toEqual([]);

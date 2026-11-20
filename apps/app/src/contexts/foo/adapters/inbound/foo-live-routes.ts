@@ -1,13 +1,9 @@
 import { authnActorRequire } from "@n8io/baseline-authn";
-import {
-	httpErrorBodyCreate,
-	httpProblemHeaders,
-	httpRouterCreate,
-} from "@n8io/baseline-http";
+import { httpRouterCreate } from "@n8io/baseline-http";
 import { type LiveHub, liveStreamCreate } from "@n8io/baseline-live";
 import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import { FooGetInput } from "../../domain/foo.ts";
-import { fooErrorStatus } from "../../foo-error-status.ts";
+import { fooHttpErrorAnswer } from "./foo-http.ts";
 
 // Live updates for one foo: the stream opens only if fooGet succeeds for the actor (cookie auth).
 export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
@@ -16,15 +12,10 @@ export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
 		const input = FooGetInput.safeParse(c.req.param());
 		// A malformed id names no foo, so it answers like a missing one.
 		const result = input.success ? await u.fooGet(actor, input.data) : null;
-		if (!result?.ok) {
-			const type = result?.error.type ?? "FooNotFound";
-			const status = fooErrorStatus[type];
-			return c.json(
-				httpErrorBodyCreate({ type }, status),
-				status,
-				httpProblemHeaders,
-			);
-		}
+		if (!result?.ok)
+			return fooHttpErrorAnswer(c, {
+				type: result?.error.type ?? "FooNotFound",
+			});
 		const live = liveStreamCreate({
 			channel: "foo",
 			// No known expiry: the stream's own 5-minute limit applies.

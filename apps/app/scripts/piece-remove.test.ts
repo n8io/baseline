@@ -231,7 +231,8 @@ describe("pieceRemoveRefusal", () => {
 		using withTest = projectCreate(consumerTest);
 		expect(pieceRemoveRefusal(withTest.path, "queue")).toBeUndefined();
 		const consumer = {
-			"src/consumers/invoice-archive.ts": "queueConsumerCreate({})\n",
+			"src/contexts/invoice/adapters/inbound/invoice-archive-handler.ts":
+				"queueConsumerCreate({})\n",
 		};
 		using withConsumer = projectCreate(consumer);
 		expect(pieceRemoveRefusal(withConsumer.path, "queue")).toBe(

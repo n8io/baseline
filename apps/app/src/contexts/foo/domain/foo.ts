@@ -52,7 +52,7 @@ export type FooList = {
 };
 
 // Foo guards its invariants here: a Use case builds or changes a Foo only through these, so it
-// cannot save one that breaks a rule. Each is pure; the Use case passes in the id and the time.
+// cannot save one that breaks an Invariant. Each is pure; the Use case passes in the id and the time.
 
 // A new Foo, owned by the Actor creating it.
 export const fooNew = ({

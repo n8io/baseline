@@ -2,7 +2,7 @@
 // OpenAPI document of origin/main and of the working tree, the way CI's `check` job does, and runs
 // `oasdiff breaking --fail-on ERR` on the pair, with a removed operationId or tag raised to an error. docs/agents/api.md says what oasdiff allows.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -113,11 +113,11 @@ const main = async () => {
 		console.error(installLine);
 		process.exit(1);
 	}
-	const scratch = mkdtempSync(join(tmpdir(), "api-check-"));
-	const base = join(scratch, "main");
-	const baseFile = join(scratch, "base.json");
-	const revisionFile = join(scratch, "revision.json");
-	const levelsFile = join(scratch, "levels.txt");
+	using scratch = mkdtempDisposableSync(join(tmpdir(), "api-check-"));
+	const base = join(scratch.path, "main");
+	const baseFile = join(scratch.path, "base.json");
+	const revisionFile = join(scratch.path, "revision.json");
+	const levelsFile = join(scratch.path, "levels.txt");
 	try {
 		writeFileSync(levelsFile, severityLevels);
 		await documentSave({ directory: ".", file: revisionFile, port: 3100 });
@@ -156,7 +156,6 @@ const main = async () => {
 		});
 	} finally {
 		spawnSync("git", ["worktree", "remove", "--force", base]);
-		rmSync(scratch, { force: true, recursive: true });
 	}
 };
 

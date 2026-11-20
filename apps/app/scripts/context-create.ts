@@ -60,7 +60,8 @@ export const contextRefusal = ({
 	context: string;
 }): string | undefined => {
 	if (!kebabPattern.test(context)) return `"${context}" is not kebab-case`;
-	if (context.includes("foo")) return `"${context}" contains foo`;
+	if (fooLineIs(context))
+		return `"${context}" names foo, the Template's example name, which the render renames`;
 	if (existsSync(join(appDirectory, "src/contexts", context))) {
 		return `src/contexts/${context}/ already exists`;
 	}

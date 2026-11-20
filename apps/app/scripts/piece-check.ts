@@ -28,7 +28,7 @@ export type PieceCheckPlan = {
 };
 
 // Which pieces to check: those installed, not kept, and not blocked by an Event handler.
-export const pieceCheckPlan = ({
+export const pieceCheckPlanCreate = ({
 	installed,
 	kept,
 	refusal,
@@ -346,7 +346,7 @@ const main = async () => {
 		process.exitCode = 1;
 		return;
 	}
-	const plan = pieceCheckPlan({
+	const plan = pieceCheckPlanCreate({
 		installed: pieceSignsFind(directory),
 		kept,
 		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
@@ -360,12 +360,7 @@ const main = async () => {
 	const tree = await jobSpawn(directory, { tree: true }).catch(
 		(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
 	);
-	if (tree.outcome === "failed") {
-		console.error(tree.output);
-		process.exitCode = 1;
-		return;
-	}
-	if (tree.outcome === "unchecked") {
+	if (tree.outcome === "failed" || tree.outcome === "unchecked") {
 		console.error(tree.output);
 		process.exitCode = 1;
 		return;
