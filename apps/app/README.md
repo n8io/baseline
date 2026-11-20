@@ -44,6 +44,7 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Aggrega
 | --------------------------------------------- | ------------------------------------------------------------------------------ |
 | run the app, the Worker and their services    | `pnpm dev`                                                                     |
 | wipe the local database and cache data        | `pnpm dev:reset`                                                               |
+| remove the dev instances of removed worktrees | `pnpm dev:prune` (`--dry-run` lists them)                                      |
 | lint, check formatting and typecheck          | `pnpm check`                                                                   |
 | format                                        | `pnpm format`                                                                  |
 | run the unit tests, on memory adapters        | `pnpm test`                                                                    |

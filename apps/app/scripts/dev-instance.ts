@@ -11,7 +11,7 @@ import { hostPortsCreate } from "./template-render.ts";
 // once, and never changes a line there: change a port in it on a clash.
 export const devInstanceFile = ".env.development.local";
 
-const git = (directory: string, ...args: string[]): string[] =>
+export const git = (directory: string, ...args: string[]): string[] =>
 	execFileSync("git", args, {
 		cwd: directory,
 		encoding: "utf8",
