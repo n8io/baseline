@@ -1,9 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { LiveHub } from "./index.ts";
-import { liveAppCreate } from "./live-test-app.ts";
+import { liveTestAppCreate } from "./live-test-app.ts";
 import { liveTestSseRead } from "./live-test-sse.ts";
 
-// The behaviour a LiveHub must have on every transport, seen through its streams.
+/** The behaviour a LiveHub must have on every transport, seen through its streams. */
 export const liveHubContract = (
 	liveHubCreate: () => Promise<LiveHub>,
 ): void => {
@@ -12,13 +12,13 @@ export const liveHubContract = (
 		const channel = `foo-${crypto.randomUUID()}`;
 		const open = async (liveHub: LiveHub, path: string) => {
 			const sse = liveTestSseRead({
-				response: await liveAppCreate(liveHub).request(path),
+				response: await liveTestAppCreate(liveHub).request(path),
 			});
 			await sse.until("event: ready");
 			return sse;
 		};
 
-		test("sends { type, id } for its own (channel, id) only", async () => {
+		it("sends { type, id } for its own (channel, id) only", async () => {
 			await using liveHub = await liveHubCreate();
 			const sse = await open(liveHub, `/live/${channel}/foo_1`);
 
@@ -31,7 +31,7 @@ export const liveHubContract = (
 			);
 		});
 
-		test("sends only type and id, whatever else the sender passes", async () => {
+		it("sends only type and id, whatever else the sender passes", async () => {
 			await using liveHub = await liveHubCreate();
 			const sse = await open(liveHub, `/live/${channel}/foo_1`);
 
@@ -41,7 +41,7 @@ export const liveHubContract = (
 			expect(await sse.until("foo.updated")).not.toContain("secret");
 		});
 
-		test("close() sends every stream a retry, closes it, then resolves", async () => {
+		it("close() sends every stream a retry, closes it, then resolves", async () => {
 			const liveHub = await liveHubCreate();
 			const first = await open(liveHub, `/live/${channel}/foo_1`);
 			const second = await open(liveHub, `/live/${channel}/foo_2`);
@@ -52,11 +52,11 @@ export const liveHubContract = (
 			expect(await second.end()).toMatch(/retry: \d+\n\n$/);
 		});
 
-		test("a stream opened after close ends at once with a retry", async () => {
+		it("a stream opened after close ends at once with a retry", async () => {
 			const liveHub = await liveHubCreate();
 			await liveHub.close();
 
-			const response = await liveAppCreate(liveHub).request(
+			const response = await liveTestAppCreate(liveHub).request(
 				`/live/${channel}/foo_1`,
 			);
 

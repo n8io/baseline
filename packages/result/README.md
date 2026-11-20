@@ -40,9 +40,11 @@ A test reads a Result as a value: `expect(await fooGet(missingId)).toMatchObject
 
 <details><summary><b>Exports</b></summary>
 
-- `Result<T, E>`: `{ ok: true, value: T }` or `{ ok: false, error: E }`.
-- `ok(value)`: the success case.
-- `err(error)`: the failure case. By convention `error` is an `Error` subclass with a literal `type` field, such as `FooNotFoundError` below, so callers switch on `type` and logs keep a stack.
+| Export         | Does                                                                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Result<T, E>` | `{ ok: true, value: T }` or `{ ok: false, error: E }`.                                                                                                                           |
+| `ok(value)`    | The success case.                                                                                                                                                                |
+| `err(error)`   | The failure case. By convention `error` is an `Error` subclass with a literal `type` field, such as `FooNotFoundError` below, so callers switch on `type` and logs keep a stack. |
 
 </details>
 

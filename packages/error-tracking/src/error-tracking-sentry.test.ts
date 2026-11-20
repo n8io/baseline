@@ -237,7 +237,7 @@ describe("errorTrackingSentryCreate", () => {
 		(bad) => {
 			expect(() =>
 				errorTrackingSentryCreate({ dsn: bad, environment: "test" }),
-			).toThrow(/dsn is not a Sentry DSN/);
+			).toThrow(/^errorTrackingSentryCreate: dsn is not a Sentry DSN$/);
 		},
 	);
 
@@ -250,7 +250,25 @@ describe("errorTrackingSentryCreate", () => {
 					environment: "test",
 					vendor: { [key]: true } as never,
 				}),
-			).toThrow(new RegExp(`vendor\\.${key} is not allowed`));
+			).toThrow(
+				new RegExp(
+					`^errorTrackingSentryCreate: vendor\\.${key} is not allowed`,
+				),
+			);
 		},
 	);
+
+	it("takes a null vendor as left out", async () => {
+		const requests = requestsCatch();
+		const errorTracking = errorTrackingSentryCreate({
+			dsn,
+			environment: "test",
+			vendor: null,
+		});
+
+		errorTracking.report(new Error("boom"));
+		await errorTracking.close();
+
+		expect(requests).toHaveLength(1);
+	});
 });

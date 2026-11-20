@@ -53,11 +53,10 @@ describe("httpErrorHandle", () => {
 			title: "Internal Server Error",
 		});
 		expect(text).not.toContain(canary);
-		expect(logError).toHaveBeenCalledExactlyOnceWith({
-			err: error,
-			route: "/foos/:fooId",
-			status: 500,
-		});
+		expect(logError).toHaveBeenCalledExactlyOnceWith(
+			{ err: error, route: "/foos/:fooId", status: 500 },
+			"Request failed; answered 500 InternalError",
+		);
 	});
 
 	it("answers a thrown package error with its 4xx httpStatus and type, unlogged", async () => {

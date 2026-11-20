@@ -13,7 +13,7 @@ export type HttpErrorResponses<S extends ContentfulStatusCode> = {
 };
 
 /**
- * Builds a route's OpenAPI error responses from its domain's status table: one entry per status,
+ * Builds a route's OpenAPI error responses from its bounded context's status table: one entry per status,
  * listing the error types that answer with it.
  */
 export const httpErrorResponsesCreate = <

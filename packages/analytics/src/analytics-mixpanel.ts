@@ -7,32 +7,51 @@ const sendTimeoutMs = 5000;
 
 /**
  * Mixpanel's own settings, named as the `mixpanel` SDK's init config names them. Outside this
- * Package's contract: moving off Mixpanel deletes it.
+ * Package's contract: moving off Mixpanel deletes it. Any other key throws.
  */
 export type AnalyticsMixpanelVendorOptions = {
 	/** The ingestion host, for data residency: `api-eu.mixpanel.com` or `api-in.mixpanel.com`. */
-	host?: string;
+	host?: string | null;
 };
 
-// Sends each event to Mixpanel's /track, one request per event. Plain fetch, not the `mixpanel`
-// SDK: 0.19.1 to 0.24.0 throw on init when HTTPS_PROXY is set
+const vendorKeys = new Set(["host"]);
+
+/** What `analyticsMixpanelCreate` takes. */
+export type AnalyticsMixpanelOptions = {
+	/** The Mixpanel project token. */
+	token: string;
+	/** Settings only Mixpanel has: `host`. Any other key throws, since it would do nothing. */
+	vendor?: AnalyticsMixpanelVendorOptions | null;
+};
+
+// Plain fetch, not the `mixpanel` SDK: 0.19.1 to 0.24.0 throw on init when HTTPS_PROXY is set
 // (https://github.com/mixpanel/mixpanel-node/issues/252). This file is the only one that knows
 // how events reach Mixpanel; README.md "Moving to the mixpanel SDK" says how to swap it.
+
+/**
+ * Sends each event to Mixpanel's /track, one request per event, with geolocation off and a 5 s
+ * timeout per send. Throws a `TypeError` on a `vendor` key other than `host`, or a `vendor.host`
+ * that is not a bare host name.
+ */
 export const analyticsMixpanelCreate = ({
 	token,
-	vendor = {},
-}: {
-	token: string;
-	vendor?: AnalyticsMixpanelVendorOptions;
-}): Analytics => {
-	const host = vendor.host ?? trackHost;
+	vendor,
+}: AnalyticsMixpanelOptions): Analytics => {
+	for (const key of Object.keys(vendor ?? {})) {
+		if (!vendorKeys.has(key)) {
+			throw new TypeError(
+				`analyticsMixpanelCreate: vendor.${key} is not allowed: only ${[...vendorKeys].join(", ")} reaches Mixpanel`,
+			);
+		}
+	}
+	const host = vendor?.host ?? trackHost;
 	// A host with a scheme, a path or nothing in it would send the token somewhere else.
 	if (
 		!URL.canParse(`https://${host}`) ||
 		new URL(`https://${host}`).host !== host
 	) {
 		throw new TypeError(
-			`vendor.host must be a bare host name such as api-eu.mixpanel.com, not ${JSON.stringify(host)}`,
+			`analyticsMixpanelCreate: vendor.host must be a bare host name such as api-eu.mixpanel.com, not ${JSON.stringify(host)}`,
 		);
 	}
 	// ip=0: the server's IP is not the Actor's, so Mixpanel must not geolocate it. strict=1: a

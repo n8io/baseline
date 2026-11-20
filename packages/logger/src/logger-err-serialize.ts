@@ -1,6 +1,7 @@
-// The only error shape that leaves the process: class name, code,
-// constraint and stack frames, down the cause chain. Never message or detail,
-// because both can hold input text.
+/**
+ * The only error shape that leaves the process: class name, code, constraint and stack frames,
+ * down the cause chain. Never message or detail, because both can hold input text.
+ */
 export type LoggerErr = {
 	cause?: LoggerErr;
 	code?: number | string;
@@ -61,5 +62,9 @@ const errSerialize = (value: unknown, depth: number): LoggerErr => {
 	return shape;
 };
 
+/**
+ * Turns any caught value into the safe shape: an Error's class name, `code`, `constraint` and
+ * stack frames, down the `cause` chain (10 deep at most); anything else as its type.
+ */
 export const loggerErrSerialize = (value: unknown): LoggerErr =>
 	errSerialize(value, 0);

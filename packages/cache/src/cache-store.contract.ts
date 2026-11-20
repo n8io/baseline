@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { describe, expect, test } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { type CacheStore, cacheCreate } from "./index.ts";
 
@@ -18,42 +18,44 @@ const nameSchema: StandardSchemaV1<unknown, string> = {
 	},
 };
 
-// The behaviour a Cache must have on every store. `wait` moves time forward:
-// fake timers for memory, a real sleep for Redis.
-export const cacheContract = (
+/**
+ * The behaviour a Cache must have on every store. `wait` moves time forward:
+ * fake timers for memory, a real sleep for Redis.
+ */
+export const cacheStoreContract = (
 	store: () => CacheStore,
 	wait: (ms: number) => Promise<void>,
 ): void => {
-	describe("cache contract", () => {
+	describe("cache store contract", () => {
 		const prefix = `test-${crypto.randomUUID()}`;
 		const foo: Foo = { id: "foo_1", name: "First" };
 
-		test("a missing id is a miss", async () => {
+		it("a missing id is a miss", async () => {
 			const cache = cacheCreate(store(), { prefix, schema: Foo });
 			expect(await cache.get("foo_missing")).toBeUndefined();
 		});
 
-		test("set then get returns the parsed value", async () => {
+		it("set then get returns the parsed value", async () => {
 			const cache = cacheCreate(store(), { prefix, schema: Foo });
 			await cache.set(foo.id, foo);
 			expect(await cache.get(foo.id)).toEqual(foo);
 		});
 
-		test("set replaces an existing value", async () => {
+		it("set replaces an existing value", async () => {
 			const cache = cacheCreate(store(), { prefix, schema: Foo });
 			await cache.set(foo.id, foo);
 			await cache.set(foo.id, { ...foo, name: "Second" });
 			expect(await cache.get(foo.id)).toEqual({ ...foo, name: "Second" });
 		});
 
-		test("delete removes the value", async () => {
+		it("delete removes the value", async () => {
 			const cache = cacheCreate(store(), { prefix, schema: Foo });
 			await cache.set(foo.id, foo);
 			await cache.delete(foo.id);
 			expect(await cache.get(foo.id)).toBeUndefined();
 		});
 
-		test("with keyOf, set takes the value alone and get and delete take the id", async () => {
+		it("with keyOf, set takes the value alone and get and delete take the id", async () => {
 			const cache = cacheCreate(store(), {
 				keyOf: (value: Foo) => value.id,
 				prefix: `${prefix}-keyed`,
@@ -65,7 +67,7 @@ export const cacheContract = (
 			expect(await cache.get(foo.id)).toBeUndefined();
 		});
 
-		test("prefixes keep caches apart", async () => {
+		it("prefixes keep caches apart", async () => {
 			const fooCache = cacheCreate(store(), {
 				prefix: `${prefix}-a`,
 				schema: Foo,
@@ -78,7 +80,7 @@ export const cacheContract = (
 			expect(await barCache.get(foo.id)).toBeUndefined();
 		});
 
-		test("an entry that fails the schema is a miss", async () => {
+		it("an entry that fails the schema is a miss", async () => {
 			const oldCache = cacheCreate(store(), {
 				prefix: `${prefix}-old`,
 				schema: z.object({ id: z.string() }),
@@ -91,7 +93,7 @@ export const cacheContract = (
 			expect(await newCache.get(foo.id)).toBeUndefined();
 		});
 
-		test("takes any Standard Schema, also one that validates async", async () => {
+		it("takes any Standard Schema, also one that validates async", async () => {
 			const cache = cacheCreate(store(), {
 				prefix: `${prefix}-name`,
 				schema: nameSchema,
@@ -107,7 +109,7 @@ export const cacheContract = (
 			expect(await cache.get("second")).toBeUndefined();
 		});
 
-		test("values round-trip through JSON, so a Date comes back a string", async () => {
+		it("values round-trip through JSON, so a Date comes back a string", async () => {
 			const cache = cacheCreate(store(), {
 				prefix: `${prefix}-date`,
 				schema: z.object({ at: z.date() }),
@@ -116,7 +118,7 @@ export const cacheContract = (
 			expect(await cache.get("at")).toBeUndefined();
 		});
 
-		test("an entry expires after its TTL", async () => {
+		it("an entry expires after its TTL", async () => {
 			// A TTL of a whole second, so a slow runner cannot expire the entry between the set and the first get.
 			const cache = cacheCreate(store(), { prefix, schema: Foo, ttlMs: 1_000 });
 			await cache.set(foo.id, foo);

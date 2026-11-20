@@ -22,15 +22,17 @@ pnpm add @n8io/baseline-health
 ## Example
 
 ```ts
-let shutdown: ShutdownHandle | undefined; // from @n8io/baseline-shutdown
+import { healthServerCreate } from "@n8io/baseline-health";
+import { shutdownHandleCreate } from "@n8io/baseline-shutdown";
+
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive(),
-	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
+	isShuttingDown: () => shutdown.isShuttingDown(), // /readyz asks only after ready()
 	port: ENV.HEALTH_PORT,
 });
 
 // Once every intake listens:
-shutdown = shutdownHandleCreate({
+const shutdown = shutdownHandleCreate({
 	intakes,
 	resources: [...resources, { close: () => health.close(), name: "health" }],
 });
@@ -46,6 +48,7 @@ Test it the way a probe sees it: pick a free port, pass it, and `fetch` `/livez`
 | Export                                                  | Does                                                                                                                                                                                   |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `healthServerCreate({ port, isAlive, isShuttingDown })` | Serves `/livez` and `/readyz` on plain `node:http` and starts listening. Bodies are `ok` (200) or `unavailable` (503), `text/plain`; any other path is 404. A query string is ignored. |
+| `HealthServerOptions`                                   | What `healthServerCreate` takes: `port`, `isAlive()`, `isShuttingDown()`.                                                                                                              |
 | `HealthServer`                                          | `ready()` marks the process ready. `close()` stops listening and drops every open connection; `await using` calls it when its block ends.                                              |
 
 - `/livez` is 200 while `isAlive()` is true.

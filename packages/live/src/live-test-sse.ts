@@ -1,3 +1,4 @@
+/** What `liveTestSseRead` returns: reads a live stream's text in a test. */
 export type LiveTestSseReader = {
 	/** Resolves with everything read so far once it contains `text`; throws when the stream ends first. */
 	until(text: string): Promise<string>;

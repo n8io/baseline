@@ -1,6 +1,6 @@
 import type { Server } from "node:http";
 
-const idleCloseIntervalMs = 100;
+const httpIdleCloseIntervalMs = 100;
 
 /**
  * Stops accepting connections and resolves once every open request has finished. Idle keep-alive
@@ -10,7 +10,7 @@ export const httpServerClose = (server: Server): Promise<void> =>
 	new Promise((resolve, reject) => {
 		const interval = setInterval(
 			() => server.closeIdleConnections(),
-			idleCloseIntervalMs,
+			httpIdleCloseIntervalMs,
 		);
 		server.close((error) => {
 			clearInterval(interval);

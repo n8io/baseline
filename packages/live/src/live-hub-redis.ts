@@ -22,6 +22,8 @@ type LiveRedisClient = {
 const liveConnectTimeoutMs = 3000;
 const liveCommandTimeoutMs = 1000;
 
+// Copied from packages/cache/src/cache-store-redis.ts (`cacheTimeLimit`); keep the two in step, and the
+// inline race in packages/redis/src/redis-client.ts.
 // Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
 const liveTimeLimit = async <T>({
 	message,
@@ -45,16 +47,22 @@ const liveTimeLimit = async <T>({
 	}
 };
 
-// Publishes to Redis channel `live:<channel>`, so every instance's streams get
-// the update. The subscriber connection, a duplicate of `redisClient`, opens
-// with the first stream; a worker that only sends never opens it. Redis pub/sub
-// does not replay, so each time that connection comes back every open stream
-// is told to resync. Any connected node-redis client works.
+/** What `liveHubRedisCreate` takes. */
+export type LiveHubRedisOptions = {
+	/** A connected node-redis client, such as one from `redisClientCreate` in `@n8io/baseline-redis`. */
+	redisClient: LiveRedisClient;
+};
+
+/**
+ * Publishes to Redis channel `live:<channel>`, so every instance's streams get
+ * the update. The subscriber connection, a duplicate of `redisClient`, opens
+ * with the first stream; a worker that only sends never opens it. Redis pub/sub
+ * does not replay, so each time that connection comes back every open stream
+ * is told to resync. Any connected node-redis client works.
+ */
 export const liveHubRedisCreate = ({
 	redisClient,
-}: {
-	redisClient: LiveRedisClient;
-}): LiveHub => {
+}: LiveHubRedisOptions): LiveHub => {
 	let subscriber: Promise<LiveRedisClient> | undefined;
 	let resync = (): void => {};
 

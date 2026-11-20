@@ -36,35 +36,41 @@ pnpm add @n8io/baseline-http
 Wire the app once:
 
 ```ts
+import {
+	httpCsrf,
+	httpErrorHandle,
+	httpNotFoundHandle,
+	httpRouterCreate,
+	httpSecureHeaders,
+} from "@n8io/baseline-http";
+import { except } from "hono/combine";
+
 export const app = httpRouterCreate();
-app.use(httpRouteName);
 app.onError(httpErrorHandle);
 app.use(httpSecureHeaders);
 app.use("*", except(["/api/*"], httpCsrf));
 app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));
 app.all("/api/*", httpNotFoundHandle);
-
-httpServerKeepAlive(server);
-// On shutdown: await httpServerClose(server);
 ```
+
+Add `app.use(httpRouteName)` to name spans after routes. On the `node:http` server, call `httpServerKeepAlive(server)` once, and `await httpServerClose(server)` on shutdown.
 
 Then a route maps each business error to a status once, and its docs and answers both read that map:
 
 ```ts
-const fooErrorStatus = {
-	FooNotFound: 404,
-} as const satisfies HttpErrorStatus<FooError>;
+import {
+	type HttpErrorStatus,
+	httpErrorBodyCreate,
+	httpErrorResponsesCreate,
+	httpProblemHeaders,
+} from "@n8io/baseline-http";
 
-// The route's OpenAPI responses declare what the map holds:
-const responses = {
-	200: fooOk,
-	...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
-};
+const fooErrorStatus = { FooNotFound: 404 } as const satisfies HttpErrorStatus<FooError>;
 
-// Its handler answers a failed Result from the same map:
+// The route's OpenAPI responses declare what the map holds, and its handler answers from it:
+const responses = { 200: fooOk, ...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]) };
 const status = fooErrorStatus[result.error.type];
-const body = httpErrorBodyCreate(result.error, status);
-return c.json(body, status, httpProblemHeaders);
+return c.json(httpErrorBodyCreate(result.error, status), status, httpProblemHeaders);
 ```
 
 Test a route with Hono's `app.request()`: the problem body comes back as JSON, with no server and no mocks.

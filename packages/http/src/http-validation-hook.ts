@@ -10,7 +10,7 @@ import {
 type HttpProblemError = NonNullable<HttpProblem["errors"]>[number];
 
 // RFC 6901: "~" becomes "~0" and "/" becomes "~1" inside a segment.
-const pointerCreate = (path: readonly PropertyKey[]): string =>
+const httpPointerCreate = (path: readonly PropertyKey[]): string =>
 	path
 		.map(
 			(segment) =>
@@ -18,8 +18,8 @@ const pointerCreate = (path: readonly PropertyKey[]): string =>
 		)
 		.join("");
 
-const problemErrorCreate = (issue: z.core.$ZodIssue): HttpProblemError => ({
-	pointer: pointerCreate(issue.path),
+const httpProblemErrorCreate = (issue: z.core.$ZodIssue): HttpProblemError => ({
+	pointer: httpPointerCreate(issue.path),
 	// Zod's "Unrecognized keys" message repeats the caller's key names; every other default message
 	// names only the schema's expectations.
 	detail:
@@ -36,7 +36,7 @@ export const httpValidationHook: Hook<
 	if (result.success) return undefined;
 	const body: HttpProblem = {
 		...httpProblemCreate(400, "ValidationFailed"),
-		errors: result.error.issues.map(problemErrorCreate),
+		errors: result.error.issues.map(httpProblemErrorCreate),
 	};
 	return c.json(body, 400, httpProblemHeaders);
 };
