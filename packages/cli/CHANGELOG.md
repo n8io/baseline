@@ -1,5 +1,22 @@
 # @n8io/baseline-cli
 
+## 1.2.0
+
+### Minor Changes
+
+- f216435: `CliOptions`, the type `cliCreate` takes, is exported. A document or `operations` that `cliCreate` cannot turn into commands now throws a `TypeError` (still an `Error`) whose message starts with `cliCreate: document` or `cliCreate: operations`.
+
+### Patch Changes
+
+- e7bc75a: Internal names and tests tidied; adds the `test:unit` script so root `pnpm test:unit` runs this Package's tests.
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [84c85e1]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [9a5b1a1]
+- Updated dependencies [f216435]
+  - @n8io/baseline-sdk@2.0.0
+
 ## 1.1.0
 
 ### Minor Changes

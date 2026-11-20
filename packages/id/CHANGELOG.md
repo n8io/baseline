@@ -1,5 +1,14 @@
 # @n8io/baseline-id
 
+## 3.0.2
+
+### Patch Changes
+
+- d580a34: The code moves from `src/index.ts` to `src/id.ts`, every export has a JSDoc instead of a `//` comment (so editors show it), and the README lists its exports in a table.
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: Error messages start with the function and the input: `idCreate: prefix "…" must be snake_case …`, `idToUuid: id is not a valid id`, `idFromUuid: uuid is not a UUID`. Adds the `test:unit` script.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+
 ## 3.0.1
 
 ### Patch Changes

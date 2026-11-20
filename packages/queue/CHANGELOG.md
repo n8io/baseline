@@ -1,5 +1,27 @@
 # @n8io/baseline-queue
 
+## 9.0.0
+
+### Major Changes
+
+- 1270d49: The queue follows the shared Package rules. Breaking: `Queue.stop()` is `close()`, the name every Package's own handle closes with; `queueEventsMemoryCreate` is `queueEventsPublisherMemoryCreate`, named for the port it fills, and a contract test in this repository now runs the same cases against it and the queue's own publisher; `queueMigrate` and `queueSchedulesSync` throw on a `vendor` key other than `ssl`, `application_name` and `options`, and on `vendor.ssl` beside an `ssl…` parameter in `databaseUrl`, as `postgresMigrate` does (typed code that set TLS in both places now throws); and the path for releases before 8 is gone (a worker no longer drains an unordered `<queueName>` queue and `queueMigrate` no longer deletes one), so a Project on 7 or earlier upgrades to 8 first and lets its migrate remove the old queues (README "Upgrading to 9" says how to check). A bad option's `TypeError` message starts with the function's name, `queueSchedulesSync`'s bad cron included (`queueSchedulesSync: schedules: invalid cron for …`). Each options object has an exported type (`QueueOptions`, `QueueMigrateOptions`, `QueueSchedulesSyncOptions`, `QueueSchedulesStartOptions`, `QueueScheduleOptions`, `QueueConsumerOptions`, `QueueEventsPublisherMemoryOptions`), and an optional field also takes `null` for its default. README "Upgrading to 9" lists each step.
+
+### Minor Changes
+
+- e7bc75a: Export `QueueSchedulesSyncVendorOptions` (the keys `queueMigrate` takes). A Queue from elsewhere now throws `<function>: queue must come from queueCreate`, and an Event published without a key `publish: key must not be empty (Event <name>)`.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+- Updated dependencies [d580a34]
+  - @n8io/baseline-logger@3.1.2
+  - @n8io/baseline-result@1.1.4
+
 ## 8.2.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-cache",
-	"version": "6.2.1",
+	"version": "6.3.0",
 	"description": "A typed cache that, by default, never takes the Project down: an entry in an older shape or a failing store reads as a miss. Runs on Redis or in memory.",
 	"license": "MIT",
 	"type": "module",

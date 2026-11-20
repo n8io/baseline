@@ -1,5 +1,13 @@
 # @n8io/baseline-result
 
+## 1.1.4
+
+### Patch Changes
+
+- e7bc75a: Internal names and tests tidied; adds the `test:unit` script so root `pnpm test:unit` runs this Package's tests.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- d580a34: The code moves from `src/index.ts` to `src/result.ts`, every export has a JSDoc, and the README lists its exports in a table.
+
 ## 1.1.3
 
 ### Patch Changes

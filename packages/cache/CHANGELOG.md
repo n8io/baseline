@@ -1,5 +1,21 @@
 # @n8io/baseline-cache
 
+## 6.3.0
+
+### Minor Changes
+
+- 3af66e4: Follow the shared Package rules: `CacheOptions.ttlMs` and `onStoreError` also take `null` (the default, as leaving them out does), the new `CacheStoreRedisOptions` names what `cacheStoreRedisCreate` takes, and every export carries a JSDoc comment that ships in the types. The README's Exports fold is now a table.
+- e7bc75a: `cacheCreate` checks its options when called: `cacheCreate: ttlMs must be a positive integer`, `cacheCreate: prefix must not be empty`, `cacheCreate: onStoreError must be "miss" or "throw"` (a bad `ttlMs` used to fail every Redis write and show as a store outage). The memory store's doc no longer suggests fake timers.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 6.2.1
 
 ### Patch Changes

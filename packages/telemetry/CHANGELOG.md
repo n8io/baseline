@@ -1,5 +1,22 @@
 # @n8io/baseline-telemetry
 
+## 2.0.2
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: The Use case duration metric's description reads "Duration of Use case calls". Internal names tidied. Adds the `test:unit` script.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- 59c2be8: Internal files follow the file-name rule: `telemetry-sdk.ts` is `telemetry.ts`, and the cleanup processors and test providers start with their file's name. No export changes.
+- bfb7735: telemetry follows the shared Package rules: every export has a doc comment, one private helper marks a span failed for `telemetrySpanRun`, `telemetryUseCasesTrace` and the router instrumentation, and the README says `/span` is for a Project's Use cases (Packages use `@opentelemetry/api`).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+- Updated dependencies [d580a34]
+  - @n8io/baseline-logger@3.1.2
+  - @n8io/baseline-result@1.1.4
+
 ## 2.0.1
 
 ### Patch Changes

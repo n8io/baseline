@@ -1,5 +1,28 @@
 # @n8io/baseline-postgres
 
+## 5.4.0
+
+### Minor Changes
+
+- 1270d49: Postgres follows the shared Package rules: `PostgresMigrateOptions` and `PostgresTransactionRunOptions` are exported; `postgresPoolCreate`'s `connectTimeoutMs`, `max` and `vendor` and `postgresMigrate`'s `vendor` also take `null` for their default (`queryTimeoutMs: null` still turns the limit off, as its doc says); `postgresPoolCreate` refuses a `max` or `connectTimeoutMs` that is not a positive integer (`connectTimeoutMs: 0`, which pg read as no limit, now throws); and each bad-option `TypeError` message starts with the function's name (`postgresPoolCreate: max must be a positive integer`, `postgresKeysetCreate: after.value: …`), and a `databaseUrl` that does not parse throws `<function>: databaseUrl is not a valid URL` without echoing it. The option checks moved to tests that run without Docker (`pnpm test:unit`).
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: Comments above the URL checks name their copy in the queue Package.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [d580a34]
+- Updated dependencies [84c85e1]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+- Updated dependencies [d580a34]
+  - @n8io/baseline-id@3.0.2
+  - @n8io/baseline-logger@3.1.2
+  - @n8io/baseline-result@1.1.4
+
 ## 5.3.1
 
 ### Patch Changes

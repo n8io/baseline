@@ -1,5 +1,21 @@
 # @n8io/baseline-redis
 
+## 1.1.0
+
+### Minor Changes
+
+- e7bc75a: `redisClientCreate` refuses a bad `url` when called: `redisClientCreate: url is not a valid URL`, or `redisClientCreate: url must start with redis:// or rediss://, found "<scheme>"`.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- 3af66e4: A refused `vendor` key's `TypeError` message now starts with `redisClientCreate:`, and the README lists `url` among the refused keys in an Exports table.
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 1.0.1
 
 ### Patch Changes

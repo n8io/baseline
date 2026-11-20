@@ -1,5 +1,21 @@
 # @n8io/baseline-shutdown
 
+## 3.1.0
+
+### Minor Changes
+
+- bfb7735: shutdown follows the shared Package rules. `ShutdownOptions` is exported. `deadlineMs` and `drainDelayMs` take `null`, which means the default as leaving them out does. `shutdownHandleCreate` throws a `TypeError` starting `shutdownHandleCreate:` on a `deadlineMs` that is not an integer over 5000, or a `drainDelayMs` that is not a whole number under `deadlineMs` minus 5000: with those, the intake cutoff came at once and every intake was cut. Every export has a doc comment, the body lives in `shutdown-handle.ts`, and the README example reads the Template's `SHUTDOWN_DRAIN_DELAY_MS` and tells a Project how to test around the handle.
+
+### Patch Changes
+
+- 84c85e1: README and doc comment wording: examples show their imports, Exports rows name each export, and glossary words read as the glossary writes them.
+- e7bc75a: Internal names and tests tidied; adds the `test:unit` script so root `pnpm test:unit` runs this Package's tests.
+- 9a5b1a1: Package metadata in one voice: every Package commits its own copy of the MIT `LICENSE` (the tarball already carried the root one), and its npm description is rewritten from its README in the glossary's words. `@n8io/baseline-live` drops its unused optional `redis` peer and `@n8io/baseline-authn` its unused optional `react` peer; neither imports them. The `client` entries of authn and live build with `platform: "neutral"`, as they run in browsers (the output is unchanged).
+- Updated dependencies [e7bc75a]
+- Updated dependencies [bfb7735]
+- Updated dependencies [9a5b1a1]
+  - @n8io/baseline-logger@3.1.2
+
 ## 3.0.2
 
 ### Patch Changes
