@@ -3,5 +3,5 @@
 // @file src/contexts/bar/adapters/inbound/bar-seed.ts
 import { authnTestSignIn } from "@n8io/baseline-authn/testing";
 
-export const barSeed = (url: string, secret: string) =>
-	authnTestSignIn({ secret, url, who: "dev-user" });
+export const barSeed = (baseUrl: string, secret: string) =>
+	authnTestSignIn({ baseUrl, secret, who: "dev-user" });

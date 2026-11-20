@@ -1,5 +1,5 @@
 import { authnRefreshClientMiddleware } from "@n8io/baseline-authn/client";
-import { authnExpiryContext } from "@n8io/baseline-authn/react-router";
+import { authnExpiresAtContext } from "@n8io/baseline-authn/react-router";
 import { type ReactNode, use } from "react";
 import {
 	isRouteErrorResponse,
@@ -20,7 +20,7 @@ export const links: Route.LinksFunction = () => [
 
 // authnRefreshClientMiddleware reads `authnExpiresAt` from this loader's data.
 export const loader = ({ context }: Route.LoaderArgs) => ({
-	authnExpiresAt: context.get(authnExpiryContext),
+	authnExpiresAt: context.get(authnExpiresAtContext),
 });
 
 export const clientMiddleware: Route.ClientMiddlewareFunction[] = [

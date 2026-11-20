@@ -6,10 +6,9 @@ export {
 	type AuthnMemoryUser,
 	type AuthnOptions,
 	authnCreate,
-	authnMemoryTokenCreate,
 } from "./authn.ts";
 export { authnActorRequire } from "./authn-actor-require.ts";
-export { AuthnRequiredError } from "./authn-errors.ts";
+export { AuthnInvalidError, AuthnRequiredError } from "./authn-errors.ts";
 export {
 	type AuthnMemoryAuthorization,
 	authnMemoryAuthorizationCreate,

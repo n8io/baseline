@@ -24,6 +24,7 @@ export type CliRequest = { baseUrl: string; token?: string };
  */
 export type CliOperation = (...args: never[]) => unknown;
 
+/** The command line tool `cliCreate` returns. */
 export type Cli = {
 	/** Runs one command from its arguments (`process.argv.slice(2)`), and sets `process.exitCode`. */
 	run: (argv: readonly string[]) => Promise<void>;
@@ -345,6 +346,16 @@ const programCreate = ({
 	return program;
 };
 
+/** What `cliCreate` takes. */
+export type CliOptions = {
+	/** The OpenAPI document, the SDK's copy of it. */
+	document: CliDocument;
+	/** The command's name; upper snake cased, it prefixes the env vars (`acme-app` reads `ACME_APP_URL`). */
+	name: string;
+	/** Each operationId's SDK function. */
+	operations: Readonly<Record<string, CliOperation>>;
+};
+
 /**
  * A command line client for an API: one command per operation in `document`, grouped by tag
  * (`fooCreate` under the tag `foo` is `<name> foo create`), each calling the SDK function in
@@ -353,22 +364,16 @@ const programCreate = ({
  * from the document's `servers` (by `description`); `--url` or `<NAME>_URL` overrides it. The
  * token is `--token`, else `<NAME>_TOKEN`, else the one `<name> login` stored. A response
  * prints its JSON to stdout; a Problem prints its title and code to stderr and exits 1.
+ * Throws a `TypeError` starting `cliCreate: document` or `cliCreate: operations` on an input it
+ * cannot turn into commands, before any command runs.
  */
-export const cliCreate = ({
-	document,
-	name,
-	operations,
-}: {
-	document: CliDocument;
-	name: string;
-	operations: Readonly<Record<string, CliOperation>>;
-}): Cli => {
+export const cliCreate = ({ document, name, operations }: CliOptions): Cli => {
 	const commands = cliCommandsRead(document);
 	const missing = commands.find(
 		({ operationId }) => typeof operations[operationId] !== "function",
 	);
 	if (missing !== undefined) {
-		throw new Error(
+		throw new TypeError(
 			`cliCreate: operations has no ${missing.operationId}; regenerate the SDK from this document`,
 		);
 	}

@@ -3,7 +3,7 @@
 // then flushes telemetry and exits.
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { telemetrySpanRun } from "@n8io/baseline-telemetry/span";
-import { sdkFetchCreate } from "../sdk-fetch-create.ts";
+import { sdkFetchCreate } from "../sdk-fetch.ts";
 
 const { sdkFetch } = sdkFetchCreate({
 	defaults: { environment: "test" },

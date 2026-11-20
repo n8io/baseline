@@ -62,27 +62,26 @@ const res = await app.request("/api/me", {
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                                                                | Does                                                                                                                                                                                              |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `authnCreate(options)`                                                                                | Discovers the OIDC provider, or starts the memory issuer when `issuerUrl` is `memory://`. Returns the `Authn` the other functions take; it is opaque, with no fields to read.                     |
-| `authnMiddlewareCreate(authn, { source })`                                                            | Sets `c.var.actor` and `c.var.authnExpiresAt` from a `"bearer"` token (API) or the `"cookie"` sign-in (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in. |
-| `authnRoutesCreate(authn)`                                                                            | `/sign-in`, `/refresh` and `/sign-out`, mounted at `/auth`, plus `/callback` with an OIDC provider or `POST /token` with the memory issuer. See Routes and cookies.                               |
-| `authnActorRequire(c)`                                                                                | The signed-in Actor of an API request, else it throws `AuthnRequiredError`.                                                                                                                       |
-| `Actor`                                                                                               | The type `{ id, kind: "user" \| "client", scopes }`.                                                                                                                                              |
-| `AuthnClaims`                                                                                         | The verified token's claims, a plain `Record<string, unknown>`, as `actorFromClaims` gets them.                                                                                                   |
-| `AuthnOptions`                                                                                        | What `authnCreate` takes. See Options.                                                                                                                                                            |
-| `AuthnRequiredError`                                                                                  | The 401 `AuthnRequired` that `authnActorRequire` throws. An invalid bearer token answers 401 `AuthnInvalid`; `httpErrorHandle` from `@n8io/baseline-http` turns both into problem bodies.         |
-| `authnMemoryTokenCreate({ authn, actor })`                                                            | A bearer token from the memory issuer, for tests that hold the `Authn`.                                                                                                                           |
-| `authnMemoryTokenFetch({ url, clientId, scopes })`, `AuthnMemoryToken`                                | A machine client's bearer token from a served app's memory issuer, for scripts and dev tools: `{ authorization, expiresAt, token }`. See Machine clients.                                         |
-| `authnMemoryAuthorizationCreate({ url, clientId, scopes, renewSeconds })`, `AuthnMemoryAuthorization` | A function that returns the current `Authorization` value and fetches a new token before the held one expires. See Machine clients.                                                               |
-| `AuthnMemoryUser`, `AuthnMemoryClient`                                                                | The entries of `memoryUsers` and `memoryClients`.                                                                                                                                                 |
+| Export                                                                                               | Does                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `authnCreate(options)`                                                                               | Discovers the OIDC provider, or starts the memory issuer when `issuerUrl` is `memory://`. Returns the `Authn` the other functions take; it is opaque, with no fields to read.                                                                       |
+| `authnMiddlewareCreate(authn, { source })`                                                           | Sets `c.var.actor` and `c.var.authnExpiresAt` from a `"bearer"` token (API) or the `"cookie"` sign-in (pages). A missing token stays anonymous; an invalid one is a 401 or a redirect to sign-in.                                                   |
+| `authnRoutesCreate(authn)`                                                                           | `/sign-in`, `/refresh` and `/sign-out`, plus `/callback` with an OIDC provider or `POST /token` with the memory issuer. Mount them at `/auth` and nowhere else: the middleware, cookie paths and page helpers name `/auth`. See Routes and cookies. |
+| `authnActorRequire(c)`                                                                               | The signed-in Actor of an API request, else it throws `AuthnRequiredError`.                                                                                                                                                                         |
+| `Actor`                                                                                              | The type `{ id, kind: "user" \| "client", scopes }`.                                                                                                                                                                                                |
+| `AuthnClaims`                                                                                        | The verified token's claims, a plain `Record<string, unknown>`, as `actorFromClaims` gets them.                                                                                                                                                     |
+| `AuthnOptions`                                                                                       | What `authnCreate` takes. See Options.                                                                                                                                                                                                              |
+| `AuthnRequiredError`, `AuthnInvalidError`                                                            | The 401 `AuthnRequired` that `authnActorRequire` throws, and the 401 `AuthnInvalid` the bearer middleware throws for an invalid token. `httpErrorHandle` from `@n8io/baseline-http` turns both into problem bodies.                                 |
+| `authnMemoryTokenFetch({ baseUrl, clientId, scopes })`, `AuthnMemoryToken`                           | A machine client's bearer token from a served app's memory issuer, for scripts and dev tools: `{ authorization, expiresAt, token }`, `expiresAt` in epoch ms. `baseUrl` is the app's origin. See Machine clients.                                   |
+| `authnMemoryAuthorizationCreate({ baseUrl, clientId, scopes, renewMs })`, `AuthnMemoryAuthorization` | A function that returns the current `Authorization` value and fetches a new token before the held one expires. See Machine clients.                                                                                                                 |
+| `AuthnMemoryUser`, `AuthnMemoryClient`                                                               | The entries of `memoryUsers` and `memoryClients`.                                                                                                                                                                                                   |
 
 Pages import two subpaths, so an API or Worker installs neither React nor React Router:
 
-- `@n8io/baseline-authn/react-router`: `actorContext` and `authnExpiryContext`, the React Router contexts your load context fills (`[actorContext, c.var.actor]`, `[authnExpiryContext, c.var.authnExpiresAt]`; without them `authnPageActorRequire` always redirects), and `authnPageActorRequire(args)`, the signed-in Actor of a loader or action (else a document redirect to `/auth/sign-in?returnTo=<this page>`).
+- `@n8io/baseline-authn/react-router`: `actorContext` and `authnExpiresAtContext`, the React Router contexts your load context fills (`[actorContext, c.var.actor]`, `[authnExpiresAtContext, c.var.authnExpiresAt]`; without them `authnPageActorRequire` always redirects), and `authnPageActorRequire(args)`, the signed-in Actor of a loader or action (else a document redirect to `/auth/sign-in?returnTo=<this page>`).
 - `@n8io/baseline-authn/client`: `authnRefreshClientMiddleware`, the root route's `clientMiddleware`. Before a navigation or form submission with under a minute left on the token, it refreshes with `fetch`; the root loader returns `authnExpiresAt` for it to read. A failed refresh is left to the server.
 
-Tests import a third, from test files only: `@n8io/baseline-authn/testing`, with `authnTestBearerCreate` (returns `AuthnTestBearer`) and `authnTestSignIn` (returns `AuthnTestSignedIn`). See Testing.
+Tests import a third, from test files only: `@n8io/baseline-authn/testing`, with `authnTestBearerCreate` (returns `AuthnTestBearer`), `authnTestSignIn` (returns `AuthnTestSignedIn`) and `authnTestTokenCreate({ authn, actor })`, a memory issuer bearer token for a test that holds the `Authn`. See Testing.
 </details>
 
 <details><summary><b>Options</b></summary>
@@ -100,7 +99,7 @@ Tests import a third, from test files only: `@n8io/baseline-authn/testing`, with
 | `memoryUsers`              | The people the memory issuer's sign-in page offers. Default one `dev-user` without scopes.                                                                                                            |
 | `memoryClients`            | The machine clients the memory issuer's `POST /auth/token` serves. Default none.                                                                                                                      |
 
-`authnCreate` throws on a secret under 32 bytes, a scheme other than `https://` or `memory://`, `memory://` without `memoryIssuerAllowed`, an id listed twice in `memoryUsers` or `memoryClients`, a provider it cannot reach, or one that advertises no `jwks_uri`. `authnMemoryAuthorizationCreate` throws a `RangeError` on a negative or non-finite `renewSeconds`.
+`authnCreate` throws on a secret under 32 bytes, a scheme other than `https://` or `memory://`, `memory://` without `memoryIssuerAllowed`, an id listed twice in `memoryUsers` or `memoryClients`, a provider it cannot reach, or one that advertises no `jwks_uri`. `authnMemoryAuthorizationCreate` throws a `TypeError` on a negative or non-finite `renewMs`.
 </details>
 
 <details><summary><b>Routes and cookies</b></summary>
@@ -169,11 +168,13 @@ A script fetches a token with `authnMemoryTokenFetch` and calls the API with it:
 ```ts
 import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
 
+const baseUrl = "http://localhost:3000"; // the app's origin
+
 const { authorization } = await authnMemoryTokenFetch({
+	baseUrl,
 	clientId: "score-feed",
-	url: "http://localhost:3000",
 });
-await fetch("http://localhost:3000/api/v1/scores", {
+await fetch(`${baseUrl}/api/v1/scores`, {
 	body: JSON.stringify(score),
 	headers: { authorization, "content-type": "application/json" },
 	method: "POST",
@@ -190,11 +191,11 @@ A memory token lives 15 minutes, and nothing renews it. A script that runs longe
 import { authnMemoryAuthorizationCreate } from "@n8io/baseline-authn";
 
 const authorization = authnMemoryAuthorizationCreate({
+	baseUrl,
 	clientId: "score-feed",
-	url: "http://localhost:3000",
 });
 const scorePost = async (score: Score) =>
-	fetch("http://localhost:3000/api/v1/scores", {
+	fetch(`${baseUrl}/api/v1/scores`, {
 		body: JSON.stringify(score),
 		headers: {
 			authorization: await authorization(),
@@ -204,27 +205,29 @@ const scorePost = async (score: Score) =>
 	});
 ```
 
-- It holds one token and fetches a new one when the held one expires within `renewSeconds` (default 60, at most half the token's lifetime). Callers that ask while a fetch runs share it, and a failed fetch rejects them all and is tried again on the next call. A failed early fetch (inside the margin) answers with the held token while it still lives.
+- It holds one token and fetches a new one when the held one expires within `renewMs` (default 60,000, at most half the token's lifetime). Callers that ask while a fetch runs share it, and a failed fetch rejects them all and is tried again on the next call. A failed early fetch (inside the margin) answers with the held token while it still lives.
 - `authorization({ renew: true })` fetches a new token first: call it once after a 401, then give up if the retry is refused too.
 </details>
 
 <details><summary><b>Testing</b></summary>
 
-A route test that builds its own app uses `authnTestBearerCreate` (see the Example), which makes its own secret. A test that already holds the server's `Authn` uses `authnMemoryTokenCreate`. A test that only has a served app's URL signs in with `authnTestSignIn`. All of them need the memory issuer (`issuerUrl` `memory://`). Import `/testing` from test files only.
+A route test that builds its own app uses `authnTestBearerCreate` (see the Example), which makes its own secret. A test that already holds the server's `Authn` uses `authnTestTokenCreate`. A test that only has a served app's URL signs in with `authnTestSignIn`. All of them need the memory issuer (`issuerUrl` `memory://`). Import `/testing` from test files only.
 
 ```ts
 import { authnTestSignIn } from "@n8io/baseline-authn/testing";
 
+const baseUrl = "http://localhost:3000"; // the served app's origin
+
 const signedIn = await authnTestSignIn({
+	baseUrl,
 	secret: ENV.AUTHN_SECRET,
-	url: "http://localhost:3000",
 	who: "dev-admin",
 });
 
-await fetch("http://localhost:3000/api/v1/invoices", {
+await fetch(`${baseUrl}/api/v1/invoices`, {
 	headers: { authorization: signedIn.authorization },
 });
-await fetch("http://localhost:3000/invoices", {
+await fetch(`${baseUrl}/invoices`, {
 	headers: { cookie: signedIn.cookie },
 });
 ```

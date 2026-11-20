@@ -2,11 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 
-export const idpOrigin = "https://idp.test";
+export const authnTestIdpOrigin = "https://idp.test";
 
 type Grant = { challenge: string; nonce: string; sub: string; scope: string };
 
-export type FakeProvider = {
+export type AuthnTestOidcProvider = {
 	/** An access token as the provider would issue it, for bearer calls. */
 	accessToken: (sub?: string) => Promise<string>;
 	app: Hono;
@@ -24,12 +24,10 @@ export type FakeProvider = {
 	refreshTokens: Set<string>;
 };
 
-/** `fetch` for the stub: rejects like a network failure while `down`. */
-
 /** A minimal OIDC provider: discovery, JWKS, authorization code with PKCE, refresh, revocation, end session. */
 export const authnTestOidcProviderCreate = async (
 	clientId: string,
-): Promise<FakeProvider> => {
+): Promise<AuthnTestOidcProvider> => {
 	const { privateKey, publicKey } = await generateKeyPair("RS256");
 	const jwk = { ...(await exportJWK(publicKey)), alg: "RS256", kid: "k1" };
 	const grants = new Map<string, Grant>();
@@ -54,7 +52,7 @@ export const authnTestOidcProviderCreate = async (
 	}) =>
 		new SignJWT(claims)
 			.setProtectedHeader({ alg: "RS256", kid: "k1" })
-			.setIssuer(idpOrigin)
+			.setIssuer(authnTestIdpOrigin)
 			.setSubject(sub)
 			.setAudience(audience)
 			.setIssuedAt()
@@ -90,12 +88,12 @@ export const authnTestOidcProviderCreate = async (
 	const app = new Hono();
 	app.get("/.well-known/openid-configuration", (c) =>
 		c.json({
-			authorization_endpoint: `${idpOrigin}/authorize`,
-			end_session_endpoint: `${idpOrigin}/logout`,
-			issuer: idpOrigin,
-			jwks_uri: `${idpOrigin}/jwks`,
-			revocation_endpoint: `${idpOrigin}/revoke`,
-			token_endpoint: `${idpOrigin}/token`,
+			authorization_endpoint: `${authnTestIdpOrigin}/authorize`,
+			end_session_endpoint: `${authnTestIdpOrigin}/logout`,
+			issuer: authnTestIdpOrigin,
+			jwks_uri: `${authnTestIdpOrigin}/jwks`,
+			revocation_endpoint: `${authnTestIdpOrigin}/revoke`,
+			token_endpoint: `${authnTestIdpOrigin}/token`,
 		}),
 	);
 	app.get("/jwks", (c) =>

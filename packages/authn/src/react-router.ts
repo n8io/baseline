@@ -13,7 +13,7 @@ export const actorContext: RouterContext<Actor | undefined> = createContext<
 >(undefined);
 
 /** When the page request's access token expires, in epoch ms. The root loader returns it as `authnExpiresAt`. */
-export const authnExpiryContext: RouterContext<number | undefined> =
+export const authnExpiresAtContext: RouterContext<number | undefined> =
 	createContext<number | undefined>(undefined);
 
 /**

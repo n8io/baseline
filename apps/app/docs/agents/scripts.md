@@ -10,12 +10,12 @@ Read when a task adds a script to `scripts/` that talks to a running app: a smok
 
 ```ts
 const { authorization } = await authnMemoryTokenFetch({
+	baseUrl: url,
 	clientId: "dev-client",
-	url,
 });
 ```
 
-A memory token lives 15 minutes. A script that can run longer (a feed, an import, a load run) creates `const authorization = authnMemoryAuthorizationCreate({ clientId: "dev-client", url })` instead and sends `await authorization()` with every call: it fetches a new token before the held one expires. After a 401, retry once with `await authorization({ renew: true })`. The client and its scopes are in `src/authn.ts` ([authn.md](authn.md)). Against a real provider there is no such route: pass a token in through a variable instead, never as a flag, which shell history keeps.
+A memory token lives 15 minutes. A script that can run longer (a feed, an import, a load run) creates `const authorization = authnMemoryAuthorizationCreate({ baseUrl: url, clientId: "dev-client" })` instead and sends `await authorization()` with every call: it fetches a new token before the held one expires. After a 401, retry once with `await authorization({ renew: true })`. The client and its scopes are in `src/authn.ts` ([authn.md](authn.md)). Against a real provider there is no such route: pass a token in through a variable instead, never as a flag, which shell history keeps.
 4. Does its work and prints one line per call with its outcome, then a summary line with the counts.
 5. Sets `process.exitCode` (0 when every call succeeded, 1 when any failed) and returns. It never calls `process.exit`, because that skips the next step.
 6. Flushes telemetry last, in a `finally`, with `await telemetryShutdown()`. The script runs through `src/preload.ts` like every entry, so its calls are spans in the same trace as the Server's; unflushed spans are lost when the process ends.

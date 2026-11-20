@@ -45,7 +45,7 @@ const callbackPath = "/auth/callback";
 
 // What the provider can refuse: an error in the callback or token response, or a check
 // (state, nonce, PKCE, id token) that fails. Network failures are not in this list; they throw.
-const isProviderRefusal = (error: unknown): boolean =>
+const authnProviderRefusalIs = (error: unknown): boolean =>
 	error instanceof AuthorizationResponseError ||
 	error instanceof ResponseBodyError ||
 	error instanceof WWWAuthenticateChallengeError ||
@@ -196,8 +196,11 @@ const callback = async ({
 		}
 		return c.redirect(flow.returnTo, 302);
 	} catch (error) {
-		if (!isProviderRefusal(error)) throw error;
-		logger.warn({ err: error, route: callbackPath });
+		if (!authnProviderRefusalIs(error)) throw error;
+		logger.warn(
+			{ err: error, route: callbackPath },
+			"Sign-in refused by the provider",
+		);
 		return c.html(authnSignInFailedPage(flow.returnTo), 400);
 	}
 };
@@ -277,7 +280,10 @@ const refreshTokenRevoke = async (
 			token_type_hint: "refresh_token",
 		});
 	} catch (error) {
-		logger.warn({ err: error, route: "/auth/sign-out" });
+		logger.warn(
+			{ err: error, route: "/auth/sign-out" },
+			"Refresh token not revoked; signed out locally",
+		);
 	}
 };
 
@@ -391,8 +397,10 @@ const memoryToken = async ({
 };
 
 /**
- * `/sign-in`, `/callback`, `/refresh` and `/sign-out`, plus `POST /token` on the memory issuer;
- * mount with `app.route("/auth", authnRoutesCreate(authn))`.
+ * `/sign-in`, `/refresh` and `/sign-out`, plus `/callback` with an OIDC provider or `POST /token`
+ * with the memory issuer.
+ * Mount them at `/auth`, and nowhere else: `app.route("/auth", authnRoutesCreate(authn))`. The
+ * middleware, cookie paths and page helpers all name `/auth`.
  */
 export const authnRoutesCreate = (authn: Authn): Hono => {
 	const routes = new Hono();

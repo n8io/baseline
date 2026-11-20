@@ -56,6 +56,7 @@ describe("the testing entry", () => {
 			"./authn-cookie.ts",
 			"./authn-test-bearer.ts",
 			"./authn-test-sign-in.ts",
+			"./authn-test-token.ts",
 			"./authn.ts",
 			"./testing.ts",
 		]);

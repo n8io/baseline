@@ -11,19 +11,20 @@ Read before writing or changing a README (root, a Package, the Template) or a RE
   3. An animated diagram, only where it explains a mechanism.
   4. `## Guarantees`: a `| You get | How |` table.
   5. `## Example`: a short example, then a testing note.
-  6. `## Reference`: everything else, each part folded under `<details><summary>`.
+  6. `## Reference`: everything else, each part folded under `<details><summary>`. The first fold is **Exports**: a `| Export | Does |` table, one row per export, never a bullet list.
   7. A last line that starts `**Needs**`: peers, env vars, the vendor it runs on.
 
   Inside Reference, a folded part's old headings become `###` or a `<summary>`: the test reads every `##` outside code as a section.
-- **Template** (`apps/app/README.md`): its shape is set by its own ticket (#433); the Content, Images and Diagrams rules apply.
+- **Template** (`apps/app/README.md`): it becomes each Project's README. It keeps a `# app` title, one bold description line and a `<sub>` line about the Template, which the render turns into the Project's name, description and release link ([template.md](template.md)); it then says what runs, the commands and the pieces. The Content, Images and Diagrams rules apply.
 
 ## Content
 
-- **Nothing is lost.** Every feature, export, env var, runbook and upgrade note in the old README stays, folded into `<details>` if it is reference. Shorter at the top, never thinner overall.
-- **Examples** are 3 to 15 lines _(test: 15, in a Package README above Reference)_ of real calls that compile against the current exports. Show Zod where a caller passes a schema ([packages.md](packages.md#schemas)).
+- **Nothing is lost.** A rewrite never drops a documented feature, export, env var, runbook or upgrade note: reference goes into a `<details>` fold. Shorter at the top, never thinner overall.
+- **Examples** are 3 to 15 lines _(test: 15, in a Package README above Reference)_ of real calls that compile against the current exports, with their imports, and follow the conventions other READMEs state (an `err` holds an `Error` subclass; an env var that may be unset is guarded). Show Zod where a caller passes a schema ([packages.md](packages.md#schemas)).
+- **Testing notes** show the Package's memory stand-in ([packages.md](packages.md#test-exports)) or a hand-written double, never a spy, a stub or fake timers: a Project's tests may not use them.
 - **Accurate.** Check every claim against the code on main. A number appears only where a README or test already measures it.
 - **Glossary terms** from [CONTEXT.md](../../CONTEXT.md) and the glossaries [apps/app/CONTEXT-MAP.md](../../apps/app/CONTEXT-MAP.md) lists, never their `_Avoid_` aliases.
-- **Vendor names** go only in a "Runs on" column or the Needs line, never in an API description.
+- **Vendor names** go only in a "Runs on" column or the Needs line, never in an API description, except where it describes a vendor-named factory or its `vendor` option ([packages.md](packages.md#vendors)).
 - **Changesets.** A Package whose README changes gets a patch changeset, so npmjs shows the new page. The root README and diagrams need none.
 
 ## Images

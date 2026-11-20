@@ -2,7 +2,7 @@
 
 <p align="center"><b><a href="#start">Start</a> · <a href="#whats-inside">What's inside</a> · <a href="#pieces">Pieces</a> · <a href="#packages">Packages</a> · <a href="#in-a-project">In a Project</a> · <a href="#for-ai-agents">For AI agents</a></b></p>
 
-A Template, fifteen Packages and one CI for TypeScript apps. Each Project gets a domain-driven Hono API and React Router pages in one process, a Worker for Events and Schedules, Postgres, Redis, OpenTelemetry and Infisical secrets.
+A Template, the Packages it runs on and one CI for TypeScript apps. Each Project gets a domain-driven Hono API and React Router pages in one process, a Worker for Events and Schedules, Postgres, Redis, OpenTelemetry and Infisical secrets.
 
 ## Start
 
@@ -65,6 +65,8 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `queue`          | Events, Schedules and the Worker process                           | One long-running process; plain Postgres transactions                |
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
 | `error-tracking` | Error reports and `SENTRY_DSN`                                     | Errors still logged                                                  |
+| `cli`            | The Project's command line tool in `clients/cli`                   | The typed SDK for TypeScript callers                                 |
+| `sdk`            | The typed SDK in `clients/sdk` and its publishing (after cli)      | The API and its OpenAPI document                                     |
 
 `pnpm aggregate-create` leaves a removed piece out of every new Aggregate, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
 
@@ -114,25 +116,27 @@ The Project's own [`AGENTS.md`](apps/app/AGENTS.md) holds the rules every task n
 
 Built to be read cold. Start with these files, in this order:
 
-1. [`AGENTS.md`](AGENTS.md): this repo's verify commands and test rules, as a short index.
+1. [`AGENTS.md`](AGENTS.md): this repo's verify commands and test rules, as a short index. The decisions not to reopen are in [`docs/adr/`](docs/adr/).
 2. [`CONTEXT-MAP.md`](CONTEXT-MAP.md): the glossaries. Use their terms in code, tests, PRs and commits.
 3. [`apps/app/AGENTS.md`](apps/app/AGENTS.md) and [`apps/app/CONTEXT-MAP.md`](apps/app/CONTEXT-MAP.md): the rules every Project inherits, and its context map, which links the architecture terms and each context's language.
 
 Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creating a Project with docs/agents/project-create.md."
 
 ```text
-.github/workflows/  ci.yml (this repo), app-ci.yml (called by Projects), release.yml
+.github/workflows/  ci.yml (this repo), app-ci.yml and dependabot-automerge.yml (called by Projects), release.yml
 apps/app/           the Template: src/contexts/foo is the example bounded context
 packages/*          the @n8io/baseline-* Packages
 scripts/            app-create.ts, and readme-svg/ for these diagrams
 test/               app-create tests and the render-and-test check
+docs/               agents/ (rules and walkthroughs), adr/ (decisions), readme/ (these diagrams)
 ```
 
 <details><summary><b>Working on baseline</b></summary>
 
 ```sh
 fnm use && pnpm install
-pnpm turbo run check test build   # the full CI-equivalent
+pnpm exec turbo run check test build   # CI's packages job
+pnpm -C apps/app run ci                # a Template change, after a commit and with pnpm dev running
 ```
 
 Docker must be running: the root tests and the `cache`, `live`, `postgres`, `queue` and `redis` tests start their own containers.
@@ -150,7 +154,7 @@ flowchart LR
   V -->|CI on every PR| Y
 ```
 
-A change that should ship needs a changeset. Run `pnpm changeset` and pick the Packages it touches, plus `app` for Template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the Packages, tags `app@x.y.z`, and moves `v<major>` (the Template's major) to it.
+A change that should ship needs a changeset. Run `pnpm exec changeset` and pick the Packages it touches, plus `app` for Template changes. On merge, a "Version packages" PR opens. Merging that PR publishes the Packages, tags `app@x.y.z`, and moves `v<major>` (the Template's major) to it.
 
 Dependabot opens update PRs weekly, for releases at least 7 days old. Patch and minor updates come grouped in one PR that merges itself once CI passes; each major is its own PR to review and merge by hand. Update PRs carry no changeset, so they never publish. Add one to a major only if it should ship.
 

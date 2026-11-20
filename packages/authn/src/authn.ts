@@ -20,17 +20,22 @@ export type AuthnMemoryUser = { id: string; name: string; scopes: string[] };
 /** A machine client the memory issuer's `POST /auth/token` signs tokens for. */
 export type AuthnMemoryClient = { id: string; scopes: string[] };
 
+/** What `authnCreate` takes. */
 export type AuthnOptions = {
+	/** The provider's issuer, `https://…`, or `memory://` for the memory issuer. */
 	issuerUrl: string;
+	/** The Project's client at the provider. */
 	clientId: string;
+	/** The client's secret at the provider. */
 	clientSecret: string;
+	/** The `aud` every access token must carry. */
 	audience: string;
 	/** Base64url, at least 32 bytes; encrypts every authn cookie and keys the memory issuer. */
 	secret: string;
-	/** Extra authorization request params, such as `{ audience }` for Auth0. */
-	authorizeParams?: Record<string, string>;
-	/** `"client_id"` for Cognito without a resource binding: the token's `client_id` must then equal `audience`. */
-	audienceClaim?: "aud" | "client_id";
+	/** Extra authorization request params, such as `{ audience }` for a provider that asks for one. */
+	authorizeParams?: Record<string, string> | null;
+	/** `"client_id"` for a provider that names the client in `client_id` instead of `aud`: that claim must then equal `audience`. Default `"aud"`. */
+	audienceClaim?: "aud" | "client_id" | null;
 	/** Maps the verified access token's claims to the Actor; a throw means "not an actor". */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
 	/** The people the memory issuer's sign-in page offers; when unset or empty, one `dev-user` without scopes. */
@@ -38,19 +43,22 @@ export type AuthnOptions = {
 	/** The machine clients the memory issuer's `POST /auth/token` serves; default none. */
 	memoryClients?: AuthnMemoryClient[] | null;
 	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
-	memoryIssuerAllowed?: boolean;
+	memoryIssuerAllowed?: boolean | null;
 };
 
+/** What verifying an access token found. */
 export type AuthnVerified =
 	| { status: "valid"; actor: Actor; expiresAt: number }
 	| { status: "expired" }
 	| { status: "invalid" };
 
+/** The tokens a grant or refresh returns. */
 export type AuthnTokens = {
 	accessToken: string;
 	refreshToken: string | undefined;
 };
 
+/** The memory issuer of `issuerUrl` `memory://`. */
 export type AuthnMemoryIssuer = {
 	kind: "memory";
 	accessTtlSeconds: number;
@@ -60,6 +68,7 @@ export type AuthnMemoryIssuer = {
 	tokensRefresh: (refreshToken: string) => Promise<AuthnTokens | undefined>;
 };
 
+/** A discovered OIDC provider. */
 export type AuthnOidcIssuer = {
 	kind: "oidc";
 	authorizeParams: Record<string, string>;
@@ -71,7 +80,7 @@ declare const authnBrand: unique symbol;
 /** What `authnCreate` returns. Pass it to the other authn functions; it has no fields of its own. */
 export type Authn = { readonly [authnBrand]: true };
 
-// What the other modules of this package reach through an Authn.
+/** What the other modules of this package reach through an Authn. */
 export type AuthnState = {
 	readonly clientId: string;
 	readonly cookieKey: Uint8Array;
@@ -81,6 +90,7 @@ export type AuthnState = {
 
 const authnStates = new WeakMap<Authn, AuthnState>();
 
+/** The state behind an `Authn`; throws a `TypeError` for anything `authnCreate` did not return. */
 export const authnState = (authn: Authn): AuthnState => {
 	const state = authnStates.get(authn);
 	if (state === undefined) {
@@ -101,7 +111,7 @@ const memoryAlgorithm = "HS256";
 const memoryRefreshTtl = "30d";
 const memoryRefreshAudience = "baseline-authn-memory-refresh";
 
-const issuerUrlCheck = (options: AuthnOptions): void => {
+const authnIssuerUrlCheck = (options: AuthnOptions): void => {
 	if (options.issuerUrl === memoryIssuerUrl) {
 		if (options.memoryIssuerAllowed === true) return;
 		throw new TypeError(
@@ -128,7 +138,7 @@ const tokenErrors = [
 	errors.JWKSMultipleMatchingKeys,
 ];
 
-const isTokenError = (error: unknown): boolean =>
+const authnTokenErrorIs = (error: unknown): boolean =>
 	tokenErrors.some((tokenError) => error instanceof tokenError);
 
 // `actorFromClaims` is the app's pure mapping; a throw means the claims are not an actor.
@@ -143,7 +153,7 @@ const actorFrom = (
 	}
 };
 
-const verifyCreate =
+const authnVerifyCreate =
 	({
 		algorithms,
 		issuer,
@@ -168,7 +178,7 @@ const verifyCreate =
 			}));
 		} catch (error) {
 			if (error instanceof errors.JWTExpired) return { status: "expired" };
-			if (isTokenError(error)) return { status: "invalid" };
+			if (authnTokenErrorIs(error)) return { status: "invalid" };
 			throw error;
 		}
 		if (
@@ -186,7 +196,7 @@ const verifyCreate =
 		};
 	};
 
-// The claims a provider would issue for this actor, in the shape the template's default
+// The claims a provider would issue for this actor, in the shape the Template's default
 // `actorFromClaims` reads (`sub`, space-separated `scope`, `gty` for machine tokens).
 const memoryClaims = (options: AuthnOptions, actor: Actor): JWTPayload => ({
 	client_id: options.clientId,
@@ -213,7 +223,7 @@ const idsUniqueCheck = (
 
 // HS256 with a key derived from `secret`, so every Server that shares the secret verifies the
 // tokens of every other: a token signed at one pod, or fetched by a script, works at the next.
-const memoryIssuerCreate = (
+const authnMemoryIssuerCreate = (
 	options: AuthnOptions,
 ): { issuer: AuthnMemoryIssuer; key: Uint8Array } => {
 	const users =
@@ -301,7 +311,7 @@ const memoryIssuerCreate = (
 	};
 };
 
-const oidcIssuerCreate = async (
+const authnOidcIssuerCreate = async (
 	options: AuthnOptions,
 ): Promise<{
 	issuer: AuthnOidcIssuer;
@@ -330,20 +340,20 @@ const oidcIssuerCreate = async (
 
 /**
  * Discovers the provider (or starts the memory issuer for `memory://`) and returns what the
- * routes, middleware and `authnMemoryTokenCreate` need. Throws on a secret under 32 bytes, a
+ * routes, middleware and `authnTestTokenCreate` need. Throws on a secret under 32 bytes, a
  * URL scheme other than https:// or memory://, memory:// without `memoryIssuerAllowed`, an id
  * listed twice in `memoryUsers` or `memoryClients`, or an unreachable provider.
  */
 export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
-	issuerUrlCheck(options);
+	authnIssuerUrlCheck(options);
 	const cookieKey = authnCookieKey(options.secret);
 	if (options.issuerUrl === memoryIssuerUrl) {
-		const { issuer, key } = memoryIssuerCreate(options);
+		const { issuer, key } = authnMemoryIssuerCreate(options);
 		return authnFromState({
 			clientId: options.clientId,
 			cookieKey,
 			issuer,
-			verify: verifyCreate({
+			verify: authnVerifyCreate({
 				algorithms: [memoryAlgorithm],
 				issuer: memoryIssuerUrl,
 				jwks: async () => key,
@@ -351,28 +361,11 @@ export const authnCreate = async (options: AuthnOptions): Promise<Authn> => {
 			}),
 		});
 	}
-	const { issuer, issuerId, jwks } = await oidcIssuerCreate(options);
+	const { issuer, issuerId, jwks } = await authnOidcIssuerCreate(options);
 	return authnFromState({
 		clientId: options.clientId,
 		cookieKey,
 		issuer,
-		verify: verifyCreate({ options, jwks, issuer: issuerId }),
+		verify: authnVerifyCreate({ options, jwks, issuer: issuerId }),
 	});
-};
-
-/** Signs an access token for `actor` with the memory issuer, for the bearer calls of tests that hold the `Authn`. */
-export const authnMemoryTokenCreate = async ({
-	actor,
-	authn,
-}: {
-	actor: Actor;
-	authn: Authn;
-}): Promise<string> => {
-	const { issuer } = authnState(authn);
-	if (issuer.kind !== "memory") {
-		throw new TypeError(
-			"authnMemoryTokenCreate works only with issuerUrl memory://",
-		);
-	}
-	return (await issuer.tokensCreate(actor)).accessToken;
 };

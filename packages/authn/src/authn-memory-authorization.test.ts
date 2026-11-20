@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
-import { appOrigin } from "./authn-test-helpers.ts";
+import { authnTestOrigin } from "./authn-test-helpers.ts";
 import { authnMemoryAuthorizationCreate } from "./index.ts";
 
 const appServe = async () => {
@@ -13,7 +13,7 @@ const appServe = async () => {
 	});
 	const whoami = async (authorization: string) =>
 		(
-			await app.request(`${appOrigin}/api/v1/whoami`, {
+			await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 				headers: { authorization },
 			})
 		).json();
@@ -32,7 +32,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		const { requests, whoami } = await appServe();
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "feed",
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
 		const first = await authorization();
@@ -55,7 +55,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		const { requests } = await appServe();
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "feed",
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
 		const values = await Promise.all([
@@ -68,7 +68,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		expect(new Set(values).size).toBe(1);
 	});
 
-	it("renews at half a short token's lifetime when renewSeconds would refetch every call", async () => {
+	it("renews at half a short token's lifetime when renewMs would refetch every call", async () => {
 		const start = Date.now();
 		vi.useFakeTimers({ now: start, toFake: ["Date"] });
 		const calls: number[] = [];
@@ -81,8 +81,8 @@ describe("authnMemoryAuthorizationCreate", () => {
 		});
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "feed",
-			renewSeconds: 60,
-			url: appOrigin,
+			renewMs: 60_000,
+			baseUrl: authnTestOrigin,
 		});
 
 		expect(await authorization()).toBe("Bearer t1");
@@ -96,7 +96,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		const { requests } = await appServe();
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "feed",
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
 		await authorization();
@@ -109,7 +109,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		const { requests } = await appServe();
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "nobody",
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
 		await expect(
@@ -131,7 +131,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 		);
 		const authorization = authnMemoryAuthorizationCreate({
 			clientId: "feed",
-			url: appOrigin,
+			baseUrl: authnTestOrigin,
 		});
 
 		await authorization();
@@ -143,15 +143,19 @@ describe("authnMemoryAuthorizationCreate", () => {
 		await expect(authorization()).rejects.toThrow("503");
 	});
 
-	it("refuses a renewSeconds that is negative or not a number", () => {
-		for (const renewSeconds of [-1, Number.NaN]) {
+	it("refuses a renewMs that is negative or not a number", () => {
+		for (const renewMs of [-1, Number.NaN]) {
 			expect(() =>
 				authnMemoryAuthorizationCreate({
 					clientId: "feed",
-					renewSeconds,
-					url: appOrigin,
+					renewMs,
+					baseUrl: authnTestOrigin,
 				}),
-			).toThrow(RangeError);
+			).toThrow(
+				new TypeError(
+					`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, got ${renewMs}`,
+				),
+			);
 		}
 	});
 });

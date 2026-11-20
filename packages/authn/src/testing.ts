@@ -6,3 +6,4 @@ export {
 	type AuthnTestSignedIn,
 	authnTestSignIn,
 } from "./authn-test-sign-in.ts";
+export { authnTestTokenCreate } from "./authn-test-token.ts";

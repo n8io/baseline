@@ -1,12 +1,9 @@
 import { randomBytes } from "node:crypto";
 import type { Actor } from "./actor.ts";
-import {
-	type Authn,
-	type AuthnClaims,
-	authnCreate,
-	authnMemoryTokenCreate,
-} from "./authn.ts";
+import { type Authn, type AuthnClaims, authnCreate } from "./authn.ts";
+import { authnTestTokenCreate } from "./authn-test-token.ts";
 
+/** What `authnTestBearerCreate` returns. */
 export type AuthnTestBearer = {
 	/** Pass to `authnMiddlewareCreate(authn, { source: "bearer" })` in the app under test. */
 	authn: Authn;
@@ -34,6 +31,6 @@ export const authnTestBearerCreate = async ({
 	});
 	return {
 		authn,
-		tokenFor: (actor) => authnMemoryTokenCreate({ actor, authn }),
+		tokenFor: (actor) => authnTestTokenCreate({ actor, authn }),
 	};
 };

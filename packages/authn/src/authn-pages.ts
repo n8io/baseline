@@ -1,6 +1,6 @@
 import type { AuthnMemoryUser } from "./authn.ts";
 
-const escapeHtml = (text: string): string =>
+const authnHtmlEscape = (text: string): string =>
 	text
 		.replaceAll("&", "&amp;")
 		.replaceAll('"', "&quot;")
@@ -19,7 +19,7 @@ const userButton = ({
 	user: AuthnMemoryUser;
 }): string => {
 	const scopes = user.scopes.length === 0 ? "no scopes" : user.scopes.join(" ");
-	return `<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${escapeHtml(user.id)}"><input type="hidden" name="returnTo" value="${escapeHtml(returnTo)}"><button type="submit">${escapeHtml(user.name)}</button> <small>${escapeHtml(scopes)}</small></form>`;
+	return `<form method="post" action="/auth/sign-in"><input type="hidden" name="who" value="${authnHtmlEscape(user.id)}"><input type="hidden" name="returnTo" value="${authnHtmlEscape(returnTo)}"><button type="submit">${authnHtmlEscape(user.name)}</button> <small>${authnHtmlEscape(scopes)}</small></form>`;
 };
 
 /** The memory issuer's sign-in page: one button per `memoryUsers` entry. */
@@ -39,5 +39,5 @@ export const authnMemorySignInPage = ({
 export const authnSignInFailedPage = (returnTo: string): string =>
 	page(
 		"Sign-in failed",
-		`<h1>Sign-in failed</h1><p><a href="/auth/sign-in?returnTo=${escapeHtml(encodeURIComponent(returnTo))}">Try again</a></p>`,
+		`<h1>Sign-in failed</h1><p><a href="/auth/sign-in?returnTo=${authnHtmlEscape(encodeURIComponent(returnTo))}">Try again</a></p>`,
 	);
