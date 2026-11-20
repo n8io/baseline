@@ -30,10 +30,11 @@ export const authnTestSignIn = async ({
 	secret: string;
 	who: string;
 }): Promise<AuthnTestSignedIn> => {
-	const res = await fetch(`${baseUrl}/auth/sign-in`, {
+	const origin = new URL(baseUrl).origin;
+	const res = await fetch(`${origin}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),
 		// Node's fetch sends no Origin, and a form post without one can answer 403.
-		headers: { origin: baseUrl },
+		headers: { origin },
 		method: "POST",
 		redirect: "manual",
 	});

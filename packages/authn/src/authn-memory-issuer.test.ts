@@ -311,6 +311,18 @@ describe("authnMemoryTokenFetch", () => {
 		});
 	});
 
+	it("takes the origin of a baseUrl with a trailing slash", async () => {
+		const { requests } = await appServe();
+
+		await authnMemoryTokenFetch({
+			baseUrl: `${authnTestOrigin}/`,
+			clientId: "feed",
+		});
+
+		expect(requests[0]?.url).toBe(`${authnTestOrigin}/auth/token`);
+		expect(requests[0]?.headers.get("origin")).toBe(authnTestOrigin);
+	});
+
 	it("names the issuer when the app is not on memory://", async () => {
 		vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
 

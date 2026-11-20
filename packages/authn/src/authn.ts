@@ -46,16 +46,19 @@ export type AuthnOptions = {
 	memoryIssuerAllowed?: boolean | null;
 };
 
+/** What verifying an access token found. */
 export type AuthnVerified =
 	| { status: "valid"; actor: Actor; expiresAt: number }
 	| { status: "expired" }
 	| { status: "invalid" };
 
+/** The tokens a grant or refresh returns. */
 export type AuthnTokens = {
 	accessToken: string;
 	refreshToken: string | undefined;
 };
 
+/** The memory issuer of `issuerUrl` `memory://`. */
 export type AuthnMemoryIssuer = {
 	kind: "memory";
 	accessTtlSeconds: number;
@@ -65,6 +68,7 @@ export type AuthnMemoryIssuer = {
 	tokensRefresh: (refreshToken: string) => Promise<AuthnTokens | undefined>;
 };
 
+/** A discovered OIDC provider. */
 export type AuthnOidcIssuer = {
 	kind: "oidc";
 	authorizeParams: Record<string, string>;
@@ -86,6 +90,7 @@ export type AuthnState = {
 
 const authnStates = new WeakMap<Authn, AuthnState>();
 
+/** The state behind an `Authn`; throws a `TypeError` for anything `authnCreate` did not return. */
 export const authnState = (authn: Authn): AuthnState => {
 	const state = authnStates.get(authn);
 	if (state === undefined) {

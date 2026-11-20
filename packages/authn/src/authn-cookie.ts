@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { EncryptJWT, jwtDecrypt } from "jose";
 
+/** The name of each authn cookie. */
 export const authnCookieNames = {
 	access: "__Host-authn",
 	flow: "__Secure-authn-flow",
@@ -108,6 +109,7 @@ export const authnCookieGet = async ({
 		: authnCookieOpen({ key, name, sealed });
 };
 
+/** Expires the named cookie at its own path. */
 export const authnCookieClear = (c: Context, name: AuthnCookieName): void => {
 	deleteCookie(c, authnCookieNames[name], {
 		...cookieFlags,

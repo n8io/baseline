@@ -397,7 +397,8 @@ const memoryToken = async ({
 };
 
 /**
- * `/sign-in`, `/callback`, `/refresh` and `/sign-out`, plus `POST /token` on the memory issuer.
+ * `/sign-in`, `/refresh` and `/sign-out`, plus `/callback` with an OIDC provider or `POST /token`
+ * with the memory issuer.
  * Mount them at `/auth`, and nowhere else: `app.route("/auth", authnRoutesCreate(authn))`. The
  * middleware, cookie paths and page helpers all name `/auth`.
  */

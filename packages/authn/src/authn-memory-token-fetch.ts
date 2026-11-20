@@ -34,25 +34,26 @@ export const authnMemoryTokenFetch = async ({
 	clientId: string;
 	scopes?: string[] | null;
 }): Promise<AuthnMemoryToken> => {
-	const res = await fetch(`${baseUrl}/auth/token`, {
+	const origin = new URL(baseUrl).origin;
+	const res = await fetch(`${origin}/auth/token`, {
 		body: new URLSearchParams({
 			client_id: clientId,
 			grant_type: "client_credentials",
 			...(scopes == null ? {} : { scope: scopes.join(" ") }),
 		}),
 		// The app's CSRF check refuses a form post without its Origin.
-		headers: { origin: new URL(baseUrl).origin },
+		headers: { origin },
 		method: "POST",
 	});
 	if (res.status === 404) {
 		await res.body?.cancel();
 		throw new Error(
-			`authnMemoryTokenFetch: POST ${baseUrl}/auth/token answered 404: the app's authn issuerUrl is not memory:// (or its auth routes are not at /auth)`,
+			`authnMemoryTokenFetch: POST ${origin}/auth/token answered 404: the app's authn issuerUrl is not memory:// (or its auth routes are not at /auth)`,
 		);
 	}
 	if (!res.ok) {
 		throw new Error(
-			`authnMemoryTokenFetch: the memory issuer at ${baseUrl} answered ${res.status} ${await res.text()}`,
+			`authnMemoryTokenFetch: the memory issuer at ${origin} answered ${res.status} ${await res.text()}`,
 		);
 	}
 	const { access_token: token, expires_in } = tokenResponseRead(

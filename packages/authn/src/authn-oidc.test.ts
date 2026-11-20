@@ -116,7 +116,7 @@ describe("OIDC sign-in", () => {
 		expect(line).toContain("SameSite=Lax");
 	});
 
-	it("passes authorizeParams, such as Auth0's audience", async () => {
+	it("passes authorizeParams, such as an audience", async () => {
 		const { app } = await authnTestAppCreate({
 			...oidcOptions,
 			authorizeParams: { audience: "https://api.example" },

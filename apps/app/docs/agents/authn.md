@@ -33,7 +33,7 @@ The sign-in page shows one button per entry, labelled with `name`. A test signs 
 `authnMemoryClientsCreate` returns `dev-client` with every scope. A script or a seed run against a served app asks for its token:
 
 ```ts
-const baseUrl = "http://<name>.localhost:<port>"; // the URL `pnpm dev` prints
+const baseUrl = "http://<instance>.localhost:<PORT>"; // the URL `pnpm dev` prints
 
 const { authorization } = await authnMemoryTokenFetch({
 	baseUrl,
@@ -55,4 +55,4 @@ The token's Actor has `kind: "client"`. The key behind it comes from `AUTHN_SECR
 
 ## Cookies
 
-Sign-in cookies carry the `__Host-` prefix, which browsers accept on `http://localhost`, on a `*.localhost` name and on https, not on `http://127.0.0.1` or a LAN name. Open the app at the URL `pnpm dev` prints (`http://<name>.localhost:<port>/`).
+Sign-in cookies carry the `__Host-` prefix, which browsers accept on `http://localhost`, on a `*.localhost` name and on https, not on `http://127.0.0.1` or a LAN name. Open the app at the URL `pnpm dev` prints (`http://<instance>.localhost:<PORT>/`).
