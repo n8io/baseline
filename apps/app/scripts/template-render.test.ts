@@ -345,6 +345,11 @@ describe("templateFileRender", () => {
 		}
 		const script = { path: "scripts/x.ts", text: "const foo = 1;\n" };
 		expect(templateFileRender(script, answers)).toEqual(script);
+		const lockfile = {
+			path: "pnpm-lock.yaml",
+			text: "  x@1.0.0:\n    resolution: {integrity: sha512-UOV3gVXVFooA==}\n",
+		};
+		expect(templateFileRender(lockfile, answers)).toEqual(lockfile);
 	});
 
 	it("makes biome.json a root config and names the package", () => {
