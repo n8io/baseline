@@ -1,5 +1,36 @@
 # app
 
+## 13.0.0
+
+### Major Changes
+
+- 50194c9: Every route sets a one-line `summary` ("Create one foo", "List foos, one page at a time"…). It is the generated CLI command's help and the generated SDK function's doc comment, and `aggregate-create` writes one for each route it adds. `test/integration/server-wiring.test.ts` now fails on an operation without a summary.
+
+  To upgrade a Project: after `pnpm template-upgrade`, add a one-line `summary` to each of your routes' `createRoute` calls (`pnpm test:integration` names any you missed). If the Project keeps `clients/sdk`, run the `sdk-generate` script and commit `clients/sdk`.
+
+### Minor Changes
+
+- b1a02f4: `pnpm dev:prune` removes the containers and volumes of the dev instances whose linked worktree is gone, so a worktree removed without `pnpm dev:reset` leaves nothing running. `pnpm dev:prune --dry-run` only lists them. An instance counts as gone when the folder compose ran it in no longer exists, its name is the one `pnpm dev` gives that folder, and no worktree git lists uses that name; so the original checkout's stack, another Project's, a moved worktree's and an instance renamed in `.env.development.local` stay. Volumes left by a `docker compose down` without `--volumes` are not found.
+
+  To upgrade a Project: run `pnpm template-upgrade`; it adds `scripts/dev-prune.ts` and the `dev:prune` script.
+- 097083e: Boolean query parameters (`count`, `archived`) are documented as `type: boolean` with `default: false`, not as a string, so the generated SDK takes `fooList({ count: true })` and the CLI offers `--count` / `--no-count`. The server still accepts only `true` or `false`, so no request changes. `pnpm api-check` reads an older base document's string-typed booleans as booleans, so the change is not reported as breaking.
+
+  To upgrade a Project: nothing is required. To type your own Aggregates' boolean query parameters too, give each the `.openapi(...)` that `queryBoolean` has in `app@<version>:apps/app/src/contexts/foo/adapters/inbound/foo-routes.ts`, then, if the Project keeps `clients/sdk`, run the `sdk-generate` script and commit `clients/sdk`. SDK callers then pass `true`/`false` instead of `"true"`/`"false"`.
+- 40e2b26: The SDK piece runs on `@n8io/baseline-sdk`: every call gets a timeout (10 s per attempt, 30 s in all) and a GET, HEAD or DELETE is retried after a network failure, a timeout or a 408, 429, 500, 502, 503 or 504 (`retry: 0` turns it off, as an Event handler should). A caller picks an Environment by name instead of a URL: `clients/environments.json` lists them (the Template ships `development`, rendered at the Project's own `PORT`), `sdkConfigure({ environment })` takes one, typed, and the `sdk-generate` script writes them into `clients/sdk/openapi.json` as `servers`, where the CLI's `--env` finds them. `baseUrl` stays as an override for tests and worktrees. `clients-release` now publishes the SDK and CLI to GitHub Packages on the Project's own repository with the workflow's `GITHUB_TOKEN`, never to public npm, so no first publish by hand or trusted publisher is needed (a Project that published to public npm starts again at `<major>.0.0` there); `docs/agents/clients.md` says how another repository installs them. Environment is a new glossary term.
+- 91703a9: Each linked git worktree of a Project now runs `pnpm dev` as its own dev instance, so several worktrees run at once with no shared containers, volumes, data, ports or cookies. The first `pnpm dev` (or `pnpm dev:reset`) in a worktree writes its compose project, `<project>-<worktree folder>`, and its own ports to `.env.development.local`, once; edit a port there on a clash, and run `pnpm dev:reset` before removing the worktree. `pnpm test:integration` in that worktree uses its Postgres and Redis. The original checkout keeps the Project's name, ports and data.
+  - `.env.schema` has a new `COMPOSE_PROJECT_NAME` (the Project's name), which `varlock run` hands to `docker compose`; compose commands no longer pass `-p`.
+  - With the UI, the dev server listens on `PORT` (no longer Vite's 5173) and fails if it is taken. Open the URL it prints, `http://<instance>.localhost:<PORT>/`, so each instance keeps its own sign-in. A Project that signs in through a real issuer (`AUTHN_ISSUER_URL`) in development registers that URL's `/auth/callback` there.
+  - The dev Worker serves health on `HEALTH_PORT + 1`, which is the port it had.
+
+  To upgrade a Project: run `pnpm template-upgrade`. If `package.json` conflicts on `dev` or `dev:reset`, take the Template's scripts: your own Worker `HEALTH_PORT=<port>` is now `HEALTH_PORT + 1` from `.env.development`, so only an edited Worker port needs that `HEALTH_PORT` changed to one below it. Run compose by hand as `varlock run -- docker compose …`, without `-p`.
+
+### Patch Changes
+
+- d6c9261: An `/api` DELETE with no body, or a chunked request, no longer answers 500 on the Node server (production build and `pnpm dev`). hono's bodyLimit copies a request whose length it must measure with `new Request(raw, init)`, and the Node adapter's request is not a native one; `src/server.ts` now hands it a native copy first. A body over 1 MB still answers 413 `PayloadTooLarge`.
+- d626b28: app-create no longer renders the Template's `pnpm-lock.yaml`, whose integrity hashes can hold "Foo" by chance. The render dropped such a line, so pnpm ignored the broken lockfile and a new Project resolved every dependency fresh.
+
+  To upgrade a Project: nothing is required.
+
 ## 12.0.0
 
 ### Major Changes

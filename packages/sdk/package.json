@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-sdk",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "The fetch a Project's generated SDK calls: a timeout on every call and safe retries, in Node and browsers.",
 	"license": "MIT",
 	"type": "module",
