@@ -36,6 +36,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@n8io/baseline-sdk": "workspace:^",
 		"commander": "^15.1.0"
 	}
 }
