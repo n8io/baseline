@@ -6,9 +6,9 @@ import {
 	authnCookieNames,
 	authnCookieSet,
 } from "./authn-cookie.ts";
-import { secret } from "./authn-test-helpers.ts";
+import { authnTestSecret } from "./authn-test-helpers.ts";
 
-const key = authnCookieKey(secret);
+const key = authnCookieKey(authnTestSecret);
 
 const appCreate = () => {
 	const app = new Hono();

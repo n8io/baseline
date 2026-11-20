@@ -4,6 +4,7 @@ import {
 	authnCookieOpen,
 } from "./authn-cookie.ts";
 
+/** What `authnTestSignIn` returns. */
 export type AuthnTestSignedIn = {
 	/** The access cookie's sealed value, to search telemetry for. */
 	accessCookie: string;
@@ -16,23 +17,23 @@ export type AuthnTestSignedIn = {
 };
 
 /**
- * Signs in at a served app through the memory issuer's form (`issuerUrl` `memory://`) as the
+ * Signs in at the served app at `baseUrl` through the memory issuer's form (`issuerUrl` `memory://`) as the
  * `memoryUsers` entry whose id is `who`. `secret` is the server's `secret`, which opens the access
  * cookie; every server with that secret accepts the token.
  */
 export const authnTestSignIn = async ({
+	baseUrl,
 	secret,
-	url,
 	who,
 }: {
+	baseUrl: string;
 	secret: string;
-	url: string;
 	who: string;
 }): Promise<AuthnTestSignedIn> => {
-	const res = await fetch(`${url}/auth/sign-in`, {
+	const res = await fetch(`${baseUrl}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),
 		// Node's fetch sends no Origin, and a form post without one can answer 403.
-		headers: { origin: url },
+		headers: { origin: baseUrl },
 		method: "POST",
 		redirect: "manual",
 	});

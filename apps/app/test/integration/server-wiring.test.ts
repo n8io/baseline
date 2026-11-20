@@ -25,7 +25,7 @@ const request = (path: string, init: RequestInit = {}) =>
 const bearer = async () => {
 	const { authorization } = await authnMemoryTokenFetch({
 		clientId: "dev-client",
-		url: server.url,
+		baseUrl: server.url,
 	});
 	return { Authorization: authorization, "Content-Type": "application/json" };
 };

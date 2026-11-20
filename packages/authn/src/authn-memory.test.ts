@@ -1,23 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
-	appOrigin,
-	authnSetCookieLine,
 	authnTestCookieJarCreate,
+	authnTestOrigin,
 	authnTestPageBodyRead,
+	authnTestSetCookieLine,
 } from "./authn-test-helpers.ts";
-import { authnMemoryTokenCreate } from "./index.ts";
+import { authnTestTokenCreate } from "./testing.ts";
 
 const signIn = async (who: string, returnTo = "/foos") => {
 	const { app, authn } = await authnTestAppCreate();
 	const jar = authnTestCookieJarCreate();
-	const res = await app.request(`${appOrigin}/auth/sign-in`, {
+	const res = await app.request(`${authnTestOrigin}/auth/sign-in`, {
 		body: new URLSearchParams({ returnTo, who }),
 		method: "POST",
 	});
 	jar.store(res);
 	const page = (path: string, init: RequestInit = {}) =>
-		app.request(`${appOrigin}${path}`, {
+		app.request(`${authnTestOrigin}${path}`, {
 			...init,
 			headers: { Cookie: jar.header() },
 		});
@@ -32,7 +32,7 @@ describe("memory issuer sign-in", () => {
 	it("shows a dev page offering Dev user and Dev admin, keeping returnTo", async () => {
 		const { app } = await authnTestAppCreate();
 		const res = await app.request(
-			`${appOrigin}/auth/sign-in?returnTo=%2Ffoos%3Fpage%3D2`,
+			`${authnTestOrigin}/auth/sign-in?returnTo=%2Ffoos%3Fpage%3D2`,
 		);
 		const html = await res.text();
 
@@ -48,7 +48,7 @@ describe("memory issuer sign-in", () => {
 	it("escapes returnTo in the page", async () => {
 		const { app } = await authnTestAppCreate();
 		const res = await app.request(
-			`${appOrigin}/auth/sign-in?returnTo=${encodeURIComponent('/x"><script>')}`,
+			`${authnTestOrigin}/auth/sign-in?returnTo=${encodeURIComponent('/x"><script>')}`,
 		);
 
 		expect(await res.text()).not.toContain("<script>");
@@ -88,7 +88,7 @@ describe("memory issuer sign-in", () => {
 
 	it("refuses an unknown choice", async () => {
 		const { app } = await authnTestAppCreate();
-		const res = await app.request(`${appOrigin}/auth/sign-in`, {
+		const res = await app.request(`${authnTestOrigin}/auth/sign-in`, {
 			body: new URLSearchParams({ who: "root" }),
 			method: "POST",
 		});
@@ -100,8 +100,8 @@ describe("memory issuer sign-in", () => {
 describe("cookies", () => {
 	it("sets the access cookie on / and the refresh cookie on /auth, both HttpOnly, Secure and SameSite=Lax", async () => {
 		const { res } = await signIn("dev-user");
-		const access = authnSetCookieLine(res, "__Host-authn");
-		const refresh = authnSetCookieLine(res, "__Secure-authn-refresh");
+		const access = authnTestSetCookieLine(res, "__Host-authn");
+		const refresh = authnTestSetCookieLine(res, "__Secure-authn-refresh");
 
 		expect(access).toMatch(/; Path=\/(;|$)/);
 		expect(refresh).toMatch(/; Path=\/auth(;|$)/);
@@ -115,7 +115,7 @@ describe("cookies", () => {
 
 	it("encrypts the token, so the cookie never holds the JWT", async () => {
 		const { authn, jar } = await signIn("dev-user");
-		const token = await authnMemoryTokenCreate({
+		const token = await authnTestTokenCreate({
 			actor: { id: "dev-user", kind: "user", scopes: [] },
 			authn,
 		});
@@ -126,7 +126,7 @@ describe("cookies", () => {
 
 	it("rejects a refresh cookie moved into the access cookie", async () => {
 		const { app, jar } = await signIn("dev-user");
-		const res = await app.request(`${appOrigin}/foos`, {
+		const res = await app.request(`${authnTestOrigin}/foos`, {
 			headers: { Cookie: `__Host-authn=${jar.get("__Secure-authn-refresh")}` },
 		});
 
@@ -138,7 +138,7 @@ describe("cookies", () => {
 describe("authnMiddlewareCreate with the cookie", () => {
 	it("leaves the actor undefined without a cookie and never rejects", async () => {
 		const { app } = await authnTestAppCreate();
-		const res = await app.request(`${appOrigin}/foos`);
+		const res = await app.request(`${authnTestOrigin}/foos`);
 
 		expect(res.status).toBe(200);
 		expect(await res.json()).toStrictEqual({ actor: null, expiresAt: null });
@@ -146,7 +146,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 
 	it("clears both cookies and redirects to sign-in for an invalid cookie, never anonymous", async () => {
 		const { app } = await authnTestAppCreate();
-		const res = await app.request(`${appOrigin}/foos?page=2`, {
+		const res = await app.request(`${authnTestOrigin}/foos?page=2`, {
 			headers: { Cookie: "__Host-authn=forged" },
 		});
 
@@ -154,8 +154,8 @@ describe("authnMiddlewareCreate with the cookie", () => {
 		expect(res.headers.get("Location")).toBe(
 			"/auth/sign-in?returnTo=%2Ffoos%3Fpage%3D2",
 		);
-		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=0/,
 		);
 	});
@@ -163,10 +163,10 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	it("treats a cookie from another AUTHN_SECRET as invalid", async () => {
 		const { jar } = await signIn("dev-user");
 		const { app } = await authnTestAppCreate({
-			...(await import("./authn-test-helpers.ts")).memoryOptions,
+			...(await import("./authn-test-helpers.ts")).authnTestMemoryOptions,
 			secret: Buffer.alloc(32, 9).toString("base64url"),
 		});
-		const res = await app.request(`${appOrigin}/foos`, {
+		const res = await app.request(`${authnTestOrigin}/foos`, {
 			headers: { Cookie: jar.header() },
 		});
 
@@ -175,7 +175,7 @@ describe("authnMiddlewareCreate with the cookie", () => {
 
 	it("answers a React Router data request with its document-redirect signal", async () => {
 		const { app } = await authnTestAppCreate();
-		const res = await app.request(`${appOrigin}/foos.data?_routes=root`, {
+		const res = await app.request(`${authnTestOrigin}/foos.data?_routes=root`, {
 			headers: { Cookie: "__Host-authn=forged" },
 		});
 
@@ -216,12 +216,12 @@ describe("authnMiddlewareCreate with the cookie", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
-		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
 	});
 
 	it("never reads the cookie on the API", async () => {
 		const { app, jar } = await signIn("dev-user");
-		const res = await app.request(`${appOrigin}/api/v1/whoami`, {
+		const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 			headers: { Cookie: jar.header() },
 		});
 
@@ -238,8 +238,8 @@ describe("/auth/refresh", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/foos");
-		expect(authnSetCookieLine(res, "__Host-authn")).toBeDefined();
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toBeDefined();
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeDefined();
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toBeDefined();
 		const body = await authnTestPageBodyRead(await page("/foos"));
 		expect(body.actor?.id).toBe("dev-admin");
 		expect(body.expiresAt).toBeGreaterThan(Date.now() + 14 * 60_000);
@@ -259,12 +259,16 @@ describe("/auth/refresh", () => {
 	it("answers the client's fetch 401 without a refresh cookie", async () => {
 		const { app } = await authnTestAppCreate();
 
-		expect((await app.request(`${appOrigin}/auth/refresh`)).status).toBe(401);
+		expect((await app.request(`${authnTestOrigin}/auth/refresh`)).status).toBe(
+			401,
+		);
 	});
 
 	it("redirects to sign-in when there is no refresh token", async () => {
 		const { app } = await authnTestAppCreate();
-		const res = await app.request(`${appOrigin}/auth/refresh?returnTo=%2Ffoos`);
+		const res = await app.request(
+			`${authnTestOrigin}/auth/refresh?returnTo=%2Ffoos`,
+		);
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
 	});
@@ -287,10 +291,10 @@ describe("/auth/sign-out", () => {
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/");
-		expect(authnSetCookieLine(res, "__Host-authn")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(
 			/Max-Age=0; Path=\//,
 		);
-		expect(authnSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
+		expect(authnTestSetCookieLine(res, "__Secure-authn-refresh")).toMatch(
 			/Max-Age=0; Path=\/auth/,
 		);
 	});

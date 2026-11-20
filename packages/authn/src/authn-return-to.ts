@@ -1,13 +1,13 @@
 // Browsers drop tabs and newlines from URLs and read `\` as `/`, so `/\t/evil.example` would
 // become `//evil.example`. A safe path starts with one `/` and holds neither.
-const isSamePath = (returnTo: string): boolean =>
+const authnSamePathIs = (returnTo: string): boolean =>
 	returnTo.startsWith("/") &&
 	!returnTo.startsWith("//") &&
 	![...returnTo].some((char) => char === "\\" || char.charCodeAt(0) < 0x20);
 
 /** Keeps only same-origin paths, so `returnTo` can never send a user to another site. */
 export const authnReturnToSafe = (returnTo: string | undefined): string =>
-	returnTo !== undefined && isSamePath(returnTo) ? returnTo : "/";
+	returnTo !== undefined && authnSamePathIs(returnTo) ? returnTo : "/";
 
 /** The page a request is for, with React Router's `.data` suffix and `_routes` param removed. */
 export const authnPagePath = (url: URL): string => {

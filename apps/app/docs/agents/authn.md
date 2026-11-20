@@ -26,23 +26,25 @@ An Event handler, an anti-corruption layer and a Schedule call Use cases with an
 { id: "dev-manager", name: "Dev manager", scopes: ["invoice:refund"] },
 ```
 
-The sign-in page shows one button per entry, labelled with `name`. A test signs in as one with `authnTestSignIn({ secret, url, who: "dev-manager" })`.
+The sign-in page shows one button per entry, labelled with `name`. A test signs in as one with `authnTestSignIn({ baseUrl, secret, who: "dev-manager" })`.
 
 ## A dev machine token
 
 `authnMemoryClientsCreate` returns `dev-client` with every scope. A script or a seed run against a served app asks for its token:
 
 ```ts
+const baseUrl = "http://<name>.localhost:<port>"; // the URL `pnpm dev` prints
+
 const { authorization } = await authnMemoryTokenFetch({
+	baseUrl,
 	clientId: "dev-client",
-	url: "http://localhost:3000",
 });
-await fetch("http://localhost:3000/api/v1/invoices", {
+await fetch(`${baseUrl}/api/v1/invoices`, {
 	headers: { authorization },
 });
 ```
 
-The token lives 15 minutes. A script that can run longer asks `authnMemoryAuthorizationCreate({ clientId, url })` for a function instead, and calls it for the `Authorization` value of each request: it renews the token before it expires ([scripts.md](scripts.md)).
+The token lives 15 minutes. A script that can run longer asks `authnMemoryAuthorizationCreate({ baseUrl, clientId })` for a function instead, and calls it for the `Authorization` value of each request: it renews the token before it expires ([scripts.md](scripts.md)).
 
 The token's Actor has `kind: "client"`. The key behind it comes from `AUTHN_SECRET`, so every Server that shares the secret accepts it, behind a load balancer too. With a real provider there is no `/auth/token`: create the client at the provider.
 
@@ -53,4 +55,4 @@ The token's Actor has `kind: "client"`. The key behind it comes from `AUTHN_SECR
 
 ## Cookies
 
-Sign-in cookies carry the `__Host-` prefix, which browsers accept on `http://localhost` and on https, not on `http://127.0.0.1` or a LAN name. Open the app at `localhost`.
+Sign-in cookies carry the `__Host-` prefix, which browsers accept on `http://localhost`, on a `*.localhost` name and on https, not on `http://127.0.0.1` or a LAN name. Open the app at the URL `pnpm dev` prints (`http://<name>.localhost:<port>/`).

@@ -38,7 +38,7 @@ export const authnMemoryUsersCreate = (scopes: string[]): AuthnMemoryUser[] => [
 	{ id: "dev-admin", name: "Dev admin", scopes },
 ];
 
-/** The machine clients scripts fetch a token for: `authnMemoryTokenFetch({ clientId: "dev-client", url })`. */
+/** The machine clients scripts fetch a token for: `authnMemoryTokenFetch({ baseUrl, clientId: "dev-client" })`. */
 export const authnMemoryClientsCreate = (
 	scopes: string[],
 ): AuthnMemoryClient[] => [{ id: "dev-client", scopes }];

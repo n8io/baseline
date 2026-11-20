@@ -9,7 +9,7 @@ const fooNames = async (appEnv: string): Promise<string[]> => {
 	});
 	const { authorization } = await authnMemoryTokenFetch({
 		clientId: "dev-client",
-		url: server.url,
+		baseUrl: server.url,
 	});
 	const res = await fetch(`${server.url}/api/v1/foos`, {
 		headers: { authorization },

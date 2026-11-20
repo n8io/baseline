@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
-import { appOrigin, secret } from "./authn-test-helpers.ts";
+import { authnTestOrigin, authnTestSecret } from "./authn-test-helpers.ts";
 import { authnTestSignIn } from "./testing.ts";
 
 // Routes the helper's fetch to an in-process app, so no port is opened.
@@ -24,27 +24,27 @@ describe("authnTestSignIn", () => {
 		const { app, requests } = await appServe();
 
 		const signedIn = await authnTestSignIn({
-			secret,
-			url: appOrigin,
+			secret: authnTestSecret,
+			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
 
 		expect(requests.map((request) => request.headers.get("origin"))).toEqual([
-			appOrigin,
+			authnTestOrigin,
 		]);
 		expect(signedIn.token.split(".")).toHaveLength(3);
 		expect(signedIn.authorization).toBe(`Bearer ${signedIn.token}`);
 		expect(signedIn.accessCookie.split(".")).toHaveLength(5);
 		expect(signedIn.cookie).toContain(`__Host-authn=${signedIn.accessCookie}`);
 		expect(signedIn.cookie).toContain("__Secure-authn-refresh=");
-		const api = await app.request(`${appOrigin}/api/v1/me`, {
+		const api = await app.request(`${authnTestOrigin}/api/v1/me`, {
 			headers: { Authorization: signedIn.authorization },
 		});
 		expect(await api.json()).toMatchObject({
 			id: "dev-admin",
 			scopes: ["foo:delete", "foo:update"],
 		});
-		const page = await app.request(`${appOrigin}/foos`, {
+		const page = await app.request(`${authnTestOrigin}/foos`, {
 			headers: { Cookie: signedIn.cookie },
 		});
 		expect(await page.json()).toMatchObject({ actor: { id: "dev-admin" } });
@@ -54,12 +54,12 @@ describe("authnTestSignIn", () => {
 		const { app } = await appServe();
 
 		const { authorization } = await authnTestSignIn({
-			secret,
-			url: appOrigin,
+			secret: authnTestSecret,
+			baseUrl: authnTestOrigin,
 			who: "dev-user",
 		});
 
-		const api = await app.request(`${appOrigin}/api/v1/me`, {
+		const api = await app.request(`${authnTestOrigin}/api/v1/me`, {
 			headers: { Authorization: authorization },
 		});
 		expect(await api.json()).toMatchObject({ id: "dev-user", scopes: [] });
@@ -69,7 +69,11 @@ describe("authnTestSignIn", () => {
 		vi.stubGlobal("fetch", async () => new Response(null, { status: 403 }));
 
 		await expect(
-			authnTestSignIn({ secret, url: appOrigin, who: "dev-user" }),
+			authnTestSignIn({
+				secret: authnTestSecret,
+				baseUrl: authnTestOrigin,
+				who: "dev-user",
+			}),
 		).rejects.toThrow("sign-in failed: 403");
 	});
 
@@ -79,7 +83,7 @@ describe("authnTestSignIn", () => {
 		await expect(
 			authnTestSignIn({
 				secret: Buffer.alloc(32, 9).toString("base64url"),
-				url: appOrigin,
+				baseUrl: authnTestOrigin,
 				who: "dev-user",
 			}),
 		).rejects.toThrow("the access cookie did not open with this secret");
