@@ -105,13 +105,14 @@ export const cliLoginRun = async ({
 			headers: { origin: new URL(url).origin },
 			method: "POST",
 		},
-	).catch((error: unknown) => ({
-		error: error instanceof Error ? error.message : String(error),
-	}));
+	).catch((error: unknown) => ({ error }));
 	if ("error" in sent) {
-		return {
-			error: `login failed: POST ${url}/auth/token got no answer: ${sent.error}`,
-		};
+		const { error } = sent;
+		const reason =
+			error instanceof SyntaxError
+				? "answered with a body that is not JSON"
+				: `got no answer: ${error instanceof Error ? error.message : String(error)}${error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : ""}`;
+		return { error: `login failed: POST ${url}/auth/token ${reason}` };
 	}
 	const body = (
 		typeof sent.data === "object" && sent.data !== null ? sent.data : {}

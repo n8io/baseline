@@ -383,14 +383,22 @@ describe("login without an answer", () => {
 		await new Promise((resolve) => silent.close(resolve));
 	});
 
-	it("exits 1 when nothing listens at the URL", async () => {
+	it("exits 1 with the reason when nothing listens at the URL", async () => {
+		const closed = createServer();
+		await new Promise<void>((resolve) =>
+			closed.listen(0, "127.0.0.1", resolve),
+		);
+		const address = closed.address();
+		const port = typeof address === "object" && address ? address.port : 0;
+		await new Promise((resolve) => closed.close(resolve));
 		const { code, stderr } = await cliRun(["login", "--client-id", "ci"], {
-			ACME_APP_URL: url,
+			ACME_APP_URL: `http://127.0.0.1:${port}`,
 		});
 		expect(code).toBe(1);
-		expect(stderr).toBe(
-			`login failed: POST ${url}/auth/token got no answer: fetch failed\n`,
+		expect(stderr).toMatch(
+			`login failed: POST http://127.0.0.1:${port}/auth/token got no answer:`,
 		);
+		expect(stderr).toMatch("ECONNREFUSED");
 	});
 
 	it("gives up after the SDK's 10 s timeout and sends the token request once", async () => {
