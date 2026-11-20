@@ -537,10 +537,12 @@ export const readmeRender = ({
 // A Project's own ports, from its name, so two Projects run side by side on one machine: seven in a
 // row at a multiple of ten from 20000 to 29999, below the range the OS hands out to outgoing
 // connections. compose.yaml publishes the four *_HOST_PORT ones (.env.schema); `pnpm dev` serves on
-// PORT and HEALTH_PORT (.env.development) and the Worker's health port (its `dev` script). The
+// PORT and HEALTH_PORT (.env.development) and runs the Worker on HEALTH_PORT + 1. A linked git
+// worktree's dev instance gets its own from its instance name (scripts/dev-instance.ts). The
 // Template keeps 5432, 6379, 3000, 9000 and 9001. Two names can land on the same block (one in a
-// thousand): change the four *_HOST_PORT values in .env.schema, PORT and HEALTH_PORT in
-// .env.development and the Worker's HEALTH_PORT in the `dev` script then.
+// thousand): change the four *_HOST_PORT values in .env.schema and PORT and HEALTH_PORT in
+// .env.development then (in .env.development.local for a worktree). WORKER_HEALTH_PORT names the
+// block's seventh port, HEALTH_PORT + 1; nothing writes it.
 export const hostPortsCreate = (name: string): Record<string, number> => {
 	const block =
 		createHash("sha256").update(name).digest().readUInt32BE(0) % 1000;
@@ -556,11 +558,11 @@ export const hostPortsCreate = (name: string): Record<string, number> => {
 	};
 };
 
-// The Template's own name ("app") in the compose project name and in every `docker compose -p`.
+// The Template's own name ("app") as the compose project, in compose.yaml and .env.schema.
 const composeProjectRender = (text: string, name: string): string =>
 	text
 		.replace(/^name: app$/m, `name: ${name}`)
-		.replaceAll("-p app ", `-p ${name} `);
+		.replace(/^COMPOSE_PROJECT_NAME=app$/m, `COMPOSE_PROJECT_NAME=${name}`);
 
 // Which of hostPortsCreate's ports each env file sets; .env.schema keeps the production PORT and
 // HEALTH_PORT.
@@ -585,13 +587,6 @@ const hostPortsRender = (file: TemplateFile, name: string): string => {
 		file.text,
 	);
 };
-
-// The dev Worker's HEALTH_PORT, which the `dev` script sets in front of it.
-const workerHealthPortRender = (text: string, name: string): string =>
-	text.replace(
-		/HEALTH_PORT=9001 /,
-		`HEALTH_PORT=${hostPortsCreate(name).WORKER_HEALTH_PORT} `,
-	);
 
 // The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
 // them for a Project with no bounded context: the document without foo's operations and schemas,
@@ -675,20 +670,16 @@ export const templateFileRender = (
 		delete manifest.version;
 		return {
 			path,
-			text: workerHealthPortRender(
-				composeProjectRender(
-					`${JSON.stringify(manifest, null, "\t")}\n`,
-					answers.name,
-				),
-				answers.name,
-			),
+			text: `${JSON.stringify(manifest, null, "\t")}\n`,
 		};
 	}
-	const rendered = Object.hasOwn(hostPortItems, path)
+	const ported = Object.hasOwn(hostPortItems, path)
 		? hostPortsRender(file, answers.name)
-		: path === "compose.yaml"
-			? composeProjectRender(text, answers.name)
-			: text;
+		: text;
+	const rendered =
+		path === "compose.yaml" || path === ".env.schema"
+			? composeProjectRender(ported, answers.name)
+			: ported;
 	// A root with no foo line, such as the Worker, may still hold a pair to empty.
 	if (!fooLineIs(rendered) && domainsPairsFind(rendered, path).length === 0) {
 		return { path, text: rendered };

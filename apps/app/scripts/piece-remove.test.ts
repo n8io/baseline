@@ -62,7 +62,7 @@ const manifest = {
 	scripts: {
 		build: "react-router build",
 		check: "node scripts/check.ts",
-		dev: "docker compose up -d --wait && (HEALTH_PORT=20016 node --watch --import ./src/preload.ts src/worker.ts & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
+		dev: "docker compose up -d --wait && (varlock run -- sh -c 'HEALTH_PORT=$((HEALTH_PORT + 1)) exec node --watch --import ./src/preload.ts src/worker.ts' & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
 	},
 };
 
