@@ -1,7 +1,7 @@
 import { once } from "node:events";
 import { connect, createServer } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { type HealthServer, healthServerCreate } from "./index.ts";
+import { type HealthServer, healthServerCreate } from "./health-server.ts";
 
 const portFree = (): Promise<number> =>
 	new Promise((resolve, reject) => {

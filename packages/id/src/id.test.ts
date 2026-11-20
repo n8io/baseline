@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	type Id,
 	idCreate,
 	idFromUuid,
 	idPatternCreate,
 	idToUuid,
-} from "./index.ts";
+} from "./id.ts";
 
 // Vectors from the TypeID spec's valid.yml, with a `foo` prefix where the spec has none.
 const vectors: [Id<string>, string][] = [
@@ -18,59 +18,56 @@ const vectors: [Id<string>, string][] = [
 	["prefix_01h455vb4pex5vsknk084sn02q", "01890a5d-ac96-774b-bcce-b302099a8057"],
 ];
 
-afterEach(() => {
-	vi.useRealTimers();
-});
-
 describe("idCreate", () => {
-	test("makes a prefixed id holding a UUIDv7 of the current time", () => {
-		vi.useFakeTimers({ now: Date.UTC(2026, 10, 2, 12, 0, 0, 123) });
+	it("makes a prefixed id holding a UUIDv7 of the current time", () => {
+		const before = Date.now();
 		const id = idCreate("invoice_line");
+		const after = Date.now();
 
 		expect(id).toMatch(/^invoice_line_[0-7][0-9a-hjkmnp-tv-z]{25}$/);
 		const hex = idToUuid(id).replaceAll("-", "");
-		expect(Number.parseInt(hex.slice(0, 12), 16)).toBe(
-			Date.UTC(2026, 10, 2, 12, 0, 0, 123),
-		);
+		const time = Number.parseInt(hex.slice(0, 12), 16);
+		expect(time).toBeGreaterThanOrEqual(before);
+		expect(time).toBeLessThanOrEqual(after);
 		expect(hex[12]).toBe("7");
 		expect(["8", "9", "a", "b"]).toContain(hex[16]);
 	});
 
-	test("makes a different id each call", () => {
+	it("makes a different id each call", () => {
 		const ids = new Set(Array.from({ length: 1000 }, () => idCreate("foo")));
 		expect(ids.size).toBe(1000);
 	});
 
-	test.each(["", "Foo", "foo-bar", "_foo", "foo_", "foo1", "a".repeat(64)])(
+	it.each(["", "Foo", "foo-bar", "_foo", "foo_", "foo1", "a".repeat(64)])(
 		"rejects the prefix %j",
 		(prefix) => {
 			expect(() => idCreate(prefix)).toThrow(TypeError);
 		},
 	);
 
-	test("accepts a 63-character prefix", () => {
+	it("accepts a 63-character prefix", () => {
 		expect(idCreate("a".repeat(63))).toMatch(/^a{63}_/);
 	});
 });
 
 describe("idToUuid and idFromUuid", () => {
-	test.each(vectors)("%s is %s", (id, uuid) => {
+	it.each(vectors)("%s is %s", (id, uuid) => {
 		expect(idToUuid(id)).toBe(uuid);
 		expect(idFromUuid(id.slice(0, id.lastIndexOf("_")), uuid)).toBe(id);
 	});
 
-	test("idFromUuid accepts an uppercase UUID", () => {
+	it("idFromUuid accepts an uppercase UUID", () => {
 		expect(idFromUuid("foo", "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")).toBe(
 			"foo_7zzzzzzzzzzzzzzzzzzzzzzzzz",
 		);
 	});
 
-	test("round-trips a created id", () => {
+	it("round-trips a created id", () => {
 		const id = idCreate("foo");
 		expect(idFromUuid("foo", idToUuid(id))).toBe(id);
 	});
 
-	test.each([
+	it.each([
 		"foo_8zzzzzzzzzzzzzzzzzzzzzzzzz",
 		"foo_0000000000000000000000000",
 		"foo_0000000000000000000000000u",
@@ -82,7 +79,7 @@ describe("idToUuid and idFromUuid", () => {
 		expect(() => idToUuid(id as Id<string>)).toThrow(TypeError);
 	});
 
-	test.each([
+	it.each([
 		"",
 		"not-a-uuid",
 		"00000000000000000000000000000000",
@@ -91,7 +88,7 @@ describe("idToUuid and idFromUuid", () => {
 		expect(() => idFromUuid("foo", uuid)).toThrow(TypeError);
 	});
 
-	test("idFromUuid rejects a bad prefix", () => {
+	it("idFromUuid rejects a bad prefix", () => {
 		expect(() =>
 			idFromUuid("Foo", "00000000-0000-0000-0000-000000000000"),
 		).toThrow(TypeError);
@@ -99,11 +96,11 @@ describe("idToUuid and idFromUuid", () => {
 });
 
 describe("idPatternCreate", () => {
-	test("matches an id with its prefix", () => {
+	it("matches an id with its prefix", () => {
 		expect(idPatternCreate("foo").test(idCreate("foo"))).toBe(true);
 	});
 
-	test.each([
+	it.each([
 		["another prefix", idCreate("bar")],
 		["a longer prefix", idCreate("foo_bar")],
 		["a malformed suffix", "foo_8zzzzzzzzzzzzzzzzzzzzzzzzz"],
@@ -113,7 +110,7 @@ describe("idPatternCreate", () => {
 		expect(idPatternCreate("foo").test(value)).toBe(false);
 	});
 
-	test("rejects a bad prefix", () => {
+	it("rejects a bad prefix", () => {
 		expect(() => idPatternCreate("foo-bar")).toThrow(TypeError);
 	});
 });

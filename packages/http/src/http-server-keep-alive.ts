@@ -1,6 +1,7 @@
 import type { Server } from "node:http";
 
-const keepAliveMs = 65_000;
+// Copied from packages/health/src/health-server.ts; keep the two in step.
+const httpKeepAliveMs = 65_000;
 
 /**
  * Keeps idle connections open for 65 s: longer than a load balancer or ingress keeps its own
@@ -8,6 +9,6 @@ const keepAliveMs = 65_000;
  * has already closed, and the client gets a 502. The headers timeout stays above it.
  */
 export const httpServerKeepAlive = (server: Server): void => {
-	server.keepAliveTimeout = keepAliveMs;
-	server.headersTimeout = keepAliveMs + 1_000;
+	server.keepAliveTimeout = httpKeepAliveMs;
+	server.headersTimeout = httpKeepAliveMs + 1_000;
 };

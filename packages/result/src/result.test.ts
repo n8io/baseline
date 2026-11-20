@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import * as resultExports from "./index.ts";
-import { err, ok, type Result } from "./index.ts";
+import { err, ok, type Result } from "./result.ts";
 
 class FooNotFoundError extends Error {
 	readonly type = "FooNotFoundError";
