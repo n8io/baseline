@@ -8,7 +8,7 @@ import { httpProblemCreate, httpProblemHeaders } from "./http-problem.ts";
 type HttpStatusError = { httpStatus: ContentfulStatusCode; type: string };
 
 // Only shared packages throw errors that carry an `httpStatus` (authn's 401s).
-const isHttpStatusError = (error: unknown): error is HttpStatusError => {
+const httpStatusErrorIs = (error: unknown): error is HttpStatusError => {
 	if (typeof error !== "object" || error === null) return false;
 	const { httpStatus, type } = error as {
 		httpStatus?: unknown;
@@ -24,7 +24,7 @@ const isHttpStatusError = (error: unknown): error is HttpStatusError => {
 
 // Hono and its middleware throw 4xx HTTPExceptions for requests they refuse: 400 for a body
 // that is not JSON, 415 for a wrong Content-Type, 413 for a body over `bodyLimit`.
-const isHttpException4xx = (
+const httpException4xxIs = (
 	error: unknown,
 ): error is HTTPException & { status: ContentfulStatusCode } =>
 	error instanceof HTTPException && error.status >= 400 && error.status <= 499;
@@ -42,21 +42,24 @@ const httpExceptionCode = (status: number): string =>
 
 /** `app.onError`: answers a thrown 4xx package error or Hono HTTPException with its status, anything else with a logged 500. */
 export const httpErrorHandle: ErrorHandler = (error, c) => {
-	if (isHttpStatusError(error)) {
+	if (httpStatusErrorIs(error)) {
 		return c.json(
 			httpProblemCreate(error.httpStatus, error.type),
 			error.httpStatus,
 			httpProblemHeaders,
 		);
 	}
-	if (isHttpException4xx(error)) {
+	if (httpException4xxIs(error)) {
 		return c.json(
 			httpProblemCreate(error.status, httpExceptionCode(error.status)),
 			error.status,
 			httpProblemHeaders,
 		);
 	}
-	logger.error({ err: error, route: c.req.routePath, status: 500 });
+	logger.error(
+		{ err: error, route: c.req.routePath, status: 500 },
+		"Request failed; answered 500 InternalError",
+	);
 	return c.json(
 		httpProblemCreate(500, "InternalError"),
 		500,

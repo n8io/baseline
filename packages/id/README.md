@@ -43,11 +43,13 @@ In tests, make ids with `idCreate`: they need no fake, and each one is new.
 
 <details><summary><b>Exports</b></summary>
 
-- `Id<P>`: the type of an id with prefix `P`, so a `bar` id never passes as a `foo` id.
-- `idCreate(prefix)`: a new id with a time-ordered UUIDv7 inside.
-- `idPatternCreate(prefix)`: a `RegExp` that matches only ids with exactly that prefix. Give it to your schema library to build an id schema.
-- `idToUuid(id)`: the bare UUID, for a `uuid` column.
-- `idFromUuid(prefix, uuid)`: the id back from a UUID.
+| Export                     | Does                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `Id<P>`                    | The type of an id with prefix `P`, so a `bar` id never passes as a `foo` id.                                     |
+| `idCreate(prefix)`         | A new id with a time-ordered UUIDv7 inside.                                                                      |
+| `idPatternCreate(prefix)`  | A `RegExp` that matches only ids with exactly that prefix. Give it to your schema library to build an id schema. |
+| `idToUuid(id)`             | The bare UUID, for a `uuid` column.                                                                              |
+| `idFromUuid(prefix, uuid)` | The id back from a UUID.                                                                                         |
 
 Prefixes are snake_case. A bad prefix, id or UUID throws a `TypeError`.
 

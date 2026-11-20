@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { trace } from "@opentelemetry/api";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
-/** Maps every error `type` of a domain to the HTTP status it answers with. */
+/** Maps every error `type` of a bounded context to the HTTP status it answers with. */
 export type HttpErrorStatus<E extends { type: string }> = Record<
 	E["type"],
 	ContentfulStatusCode
@@ -22,24 +22,26 @@ export type HttpProblem = {
 	errors?: { pointer: string; detail: string }[];
 };
 
+/** The `Content-Type` of every problem body: `application/problem+json`. */
 export const httpProblemHeaders: {
 	"Content-Type": "application/problem+json";
 } = {
 	"Content-Type": "application/problem+json",
 };
 
-const traceIdActive = (): string | undefined => {
+const httpTraceIdActive = (): string | undefined => {
 	const spanContext = trace.getActiveSpan()?.spanContext();
 	return spanContext !== undefined && trace.isSpanContextValid(spanContext)
 		? spanContext.traceId
 		: undefined;
 };
 
+/** The problem body for `status` with `code`, carrying the active trace id when there is one. */
 export const httpProblemCreate = (
 	status: number,
 	code: string,
 ): HttpProblem => {
-	const traceId = traceIdActive();
+	const traceId = httpTraceIdActive();
 	return {
 		status,
 		title: STATUS_CODES[status] ?? "Unknown",
@@ -48,12 +50,13 @@ export const httpProblemCreate = (
 	};
 };
 
-/** The problem body for a domain error: `code` is the error's `type` tag. */
+/** The problem body for a business error: `code` is the error's `type` tag. */
 export const httpErrorBodyCreate = (
 	error: { type: string },
 	status: ContentfulStatusCode,
 ): HttpProblem => httpProblemCreate(status, error.type);
 
+/** The OpenAPI schema of a problem body whose `code` is one of `codes`. */
 export const httpProblemSchemaCreate = (
 	codes: [string, ...string[]],
 ): z.ZodType<HttpProblem> =>
