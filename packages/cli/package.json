@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-cli",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "A command line client for a Project's API, read from its OpenAPI document.",
 	"license": "MIT",
 	"type": "module",
