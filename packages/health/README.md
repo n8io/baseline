@@ -1,6 +1,6 @@
 # @n8io/baseline-health
 
-**Probes that tell the truth about a process**: `/livez` and `/readyz` on their own port, so a busy or draining app server never hides them, and readiness turns 503 the moment shutdown starts.
+**Probes that tell the truth about a process**: `/livez` and `/readyz` on their own port, so a busy or draining HTTP server never hides them, and readiness turns 503 the moment shutdown starts.
 
 ```sh
 pnpm add @n8io/baseline-health
@@ -10,14 +10,14 @@ pnpm add @n8io/baseline-health
 
 ## Guarantees
 
-| You get                                     | How                                                                                                                                                                      |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Never ready too early**                   | `/readyz` is 503 until you call `ready()`, once every intake listens.                                                                                                    |
-| **Out of rotation before it stops serving** | `/readyz` is 503 again as soon as `isShuttingDown()` is true, while open requests still finish.                                                                          |
-| **Liveness you decide**                     | `/livez` asks only your `isAlive()`, so a database outage restarts nothing unless you say so.                                                                            |
-| **Its own port**                            | Plain `node:http`, apart from the app's server: a slow route or a saturated app server never hides a probe. It shares the event loop, so CPU-bound work still delays it. |
-| **No false probe failures**                 | Idle probe connections stay open 65 s, longer than a load balancer keeps its own, so a check never lands on a connection the server has closed.                          |
-| **A quick close**                           | `close()` drops open connections instead of waiting out keep-alive, and `await using` calls it.                                                                          |
+| You get                                     | How                                                                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Never ready too early**                   | `/readyz` is 503 until you call `ready()`, once every intake listens.                                                                                                     |
+| **Out of rotation before it stops serving** | `/readyz` is 503 again as soon as `isShuttingDown()` is true, while open requests still finish.                                                                           |
+| **Liveness you decide**                     | `/livez` asks only your `isAlive()`, so a database outage restarts nothing unless you say so.                                                                             |
+| **Its own port**                            | Plain `node:http`, apart from the app's HTTP server: a slow route or a saturated server never hides a probe. It shares the event loop, so CPU-bound work still delays it. |
+| **No false probe failures**                 | Idle probe connections stay open 65 s, longer than a load balancer keeps its own, so a check never lands on a connection the server has closed.                           |
+| **A quick close**                           | `close()` drops open connections instead of waiting out keep-alive, and `await using` calls it.                                                                           |
 
 ## Example
 

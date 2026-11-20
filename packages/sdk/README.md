@@ -17,7 +17,7 @@ pnpm add @n8io/baseline-sdk
 | **Retries only where they're safe** | GET, HEAD and DELETE are sent again, `retry` times (2), after a network failure, a timed-out attempt, or a 408, 429, 500, 502, 503 or 504. POST and PATCH are sent once: a retry could apply them twice.                                                              |
 | **The API's pace**                  | A `Retry-After` (seconds or a date), or a rate-limit reset header, sets the wait; otherwise it backs off from 0.3 s, doubling. When the wait would run past `totalTimeoutMs`, that response resolves at once instead.                                                 |
 | **No throw on a status**            | Every response, the last one after retries, resolves `{ status, data, headers }`: `data` is the parsed JSON when the content type names json, the text otherwise, or `undefined` for no body. A call rejects only when no whole response came.                        |
-| **One instance per SDK**            | `sdkFetchCreate` holds no module state, so two SDKs in one app keep their own environments, token and timeouts.                                                                                                                                                       |
+| **One instance per SDK**            | `sdkFetchCreate` holds no module state, so two SDKs in one Project keep their own environments, token and timeouts.                                                                                                                                                   |
 | **Traced with no code**             | With `@n8io/baseline-telemetry` started, a call made inside a span carries `traceparent`; the SDK adds no header of its own (`src/sdk-traceparent.test.ts`).                                                                                                          |
 | **Node and browsers**               | No `node:` import and no Node global in what ships (`src/sdk-isomorphic.test.ts`).                                                                                                                                                                                    |
 
@@ -50,20 +50,18 @@ await fooList({ limit: 10 });
 await fooDelete(fooId, { retry: 0 });
 ```
 
-Test it against a real local HTTP server (`node:http`) that answers each request in turn, sent there with the `baseUrl` override, and count the requests it saw (`src/sdk-fetch.test.ts`).
+In a Project's tests, pass the `baseUrl` of a local `node:http` server.
 
 ## Reference
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                         | Does                                                                                                                                                                |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sdkFetchCreate({ defaults?, environments? })` | Builds one instance from its environments (name to API origin) and default `SdkOptions`, and returns `SdkFetch`. With no environments, only `baseUrl` sends a call. |
-| `SdkFetch`                                     | `{ sdkConfigure, sdkFetch }`.                                                                                                                                       |
-| `SdkFetchOptions`                              | `{ defaults?, environments? }`, what `sdkFetchCreate` takes.                                                                                                        |
-| `sdkConfigure(options)`                        | Merges `SdkOptions` into what every later call of this instance uses.                                                                                               |
-| `sdkFetch(url, options)`                       | The generated SDK's mutator: `url` is the operation's path and query; `options` is `RequestInit` plus `SdkOptions`, which override for one call.                    |
-| `SdkOptions`                                   | `{ environment?, baseUrl?, token?, timeoutMs?, totalTimeoutMs?, retry? }`, below.                                                                                   |
+| Export                                         | Does                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sdkFetchCreate({ defaults?, environments? })` | Builds one instance from its environments (name to API origin) and default `SdkOptions`, and returns `SdkFetch`. With no environments, only `baseUrl` sends a call.                                                                                                                                                                                     |
+| `SdkFetch`                                     | `{ sdkConfigure, sdkFetch }`. `sdkConfigure(options)` merges `SdkOptions` into what every later call of this instance uses. `sdkFetch(url, options)` is the generated SDK's mutator: `url` is the operation's path and query; `options` is `RequestInit` plus `SdkOptions`, which override for one call. Both are members of the instance, not imports. |
+| `SdkFetchOptions`                              | `{ defaults?, environments? }`, what `sdkFetchCreate` takes.                                                                                                                                                                                                                                                                                            |
+| `SdkOptions`                                   | `{ environment?, baseUrl?, token?, timeoutMs?, totalTimeoutMs?, retry? }`, below.                                                                                                                                                                                                                                                                       |
 
 </details>
 
@@ -89,6 +87,20 @@ Every option may be `null`, which means the same as leaving it out: a call's `nu
 - A JSON content type with a body that is not JSON: the `SyntaxError` from parsing it.
 - A `retry` that is not a whole number of 0 or more, or a `timeoutMs` or `totalTimeoutMs` that is not a positive integer of at most 2147483647 (a timer's limit): a `TypeError` whose message starts with the function and the option (`sdkFetchCreate: defaults.retry`, `sdkConfigure: timeoutMs`, `sdkFetch: totalTimeoutMs`). `sdkFetchCreate` and `sdkConfigure` throw it; `sdkFetch` rejects with it.
 - No environment and no `baseUrl`: an `Error` that lists the environments and names `sdkConfigure`, or, from an instance that lists none, one that asks for a `baseUrl`. An environment that is not listed (a JavaScript caller the types do not stop): an `Error` that lists them.
+
+</details>
+
+<details><summary><b>Upgrading to 2</b></summary>
+
+- `timeout` is now `timeoutMs` and `totalTimeout` is `totalTimeoutMs`, still in milliseconds, for one call and in `sdkConfigure`.
+- The type `sdkFetchCreate` takes is `SdkFetchOptions`, not `SdkFetchCreateInput`.
+- There are no aliases: rename them where you pass or import them.
+
+</details>
+
+<details><summary><b>This Package's own tests</b></summary>
+
+Each test runs against a real local HTTP server (`node:http`) that answers each request in turn, sent there with the `baseUrl` override, and counts the requests it saw (`src/sdk-fetch.test.ts`).
 
 </details>
 

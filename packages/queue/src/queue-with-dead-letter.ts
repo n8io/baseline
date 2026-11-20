@@ -8,7 +8,7 @@ export const queueRetryLimit = 4;
 
 /**
  * Creates a queue with the shared retry settings, and its dead-letter queue (`<name>.dead` unless
- * `deadLetter` names one). A worker refreshes a running job's heartbeat; when the worker dies the
+ * `deadLetter` names one). A Worker refreshes a running job's heartbeat; when the Worker dies the
  * heartbeat stops, and the job is retried within about a minute instead of after `expireInSeconds`
  * (pg-boss's 15 minutes unless given). Safe to repeat: pg-boss creates a queue only when it is
  * missing, and the update gives a queue from an earlier release today's settings.

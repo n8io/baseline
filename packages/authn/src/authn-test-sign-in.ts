@@ -18,18 +18,18 @@ export type AuthnTestSignedIn = {
 
 /** What `authnTestSignIn` takes. */
 export type AuthnTestSignInOptions = {
-	/** The served app's origin. */
+	/** The served Project's origin. */
 	baseUrl: string;
-	/** The server's `secret`, which opens the access cookie. */
+	/** The Server's `secret`, which opens the access cookie. */
 	secret: string;
 	/** The id of the `memoryUsers` entry to sign in as. */
 	who: string;
 };
 
 /**
- * Signs in at the served app at `baseUrl` through the memory issuer's form (`issuerUrl` `memory://`) as the
- * `memoryUsers` entry whose id is `who`. `secret` is the server's `secret`, which opens the access
- * cookie; every server with that secret accepts the token.
+ * Signs in at the served Project at `baseUrl` through the memory issuer's form (`issuerUrl` `memory://`) as the
+ * `memoryUsers` entry whose id is `who`. `secret` is the Server's `secret`, which opens the access
+ * cookie; every Server with that secret accepts the token.
  */
 export const authnTestSignIn = async ({
 	baseUrl,

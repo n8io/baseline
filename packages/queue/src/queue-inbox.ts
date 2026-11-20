@@ -29,11 +29,11 @@ export const queueInboxInsert = async (
 };
 
 /**
- * The package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
+ * The Package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
  */
 export const queueInboxPruneName = "queue.inbox-prune";
 
-/** Daily, in the worker: deletes inbox rows older than 30 days. */
+/** Daily, in the Worker: deletes inbox rows older than 30 days. */
 export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
 	await queueWithDeadLetterCreate({
 		boss,

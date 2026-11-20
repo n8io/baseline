@@ -41,7 +41,7 @@ echo "$SECRET" | acme login --client-id ci
 acme foo create --name x
 ```
 
-Test it as its users run it: start the CLI as a child process over a fixture document and fake operations that answer with the arguments they got, and read its stdout, stderr and exit code (`src/cli.test.ts`).
+A Project does not test `cliCreate`: `pnpm api-check` fails a change that renames or removes an operation or tag the commands are named after.
 
 ## Reference
 
@@ -88,8 +88,14 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 - The base URL is `--url`, else `--env`'s URL, else `<NAME>_URL`, else `<NAME>_ENV`'s URL: a flag beats an env var, and a URL overrides an environment. There is no default environment: with neither, a command exits 1 and lists the names, and an unknown name exits 1 the same way.
 - `--url` and `<NAME>_URL` are an override for tests, a worktree's own instance or a one-off server; pick an environment otherwise.
 - The token is `--token`, else `<NAME>_TOKEN`, else the stored login for that base URL.
-- `<name> login --env <name> --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
+- `<name> login --env <name> --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the Project's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
 - The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere, one login per URL (an expired login, or one stored by an older version, is dropped; two `login`s at once may keep only one): the folder is mode 700 and the file 600, written to a new file and renamed into place.
+
+</details>
+
+<details><summary><b>This Package's own tests</b></summary>
+
+They run the CLI as its users do: a child process over a fixture document and fake operations that answer with the arguments they got, reading its stdout, stderr and exit code (`src/cli.test.ts`).
 
 </details>
 

@@ -1,6 +1,6 @@
 # @n8io/baseline-cache
 
-**A typed cache that, by default, never takes your app down with it.** Every read is checked by the schema you give it, an entry in an older shape reads as a miss, and a store that fails reads as a miss too.
+**A typed cache that, by default, never takes your Project down with it.** Every read is checked by the schema you give it, an entry in an older shape reads as a miss, and a store that fails reads as a miss too.
 
 ```sh
 pnpm add @n8io/baseline-cache
@@ -13,7 +13,7 @@ pnpm add @n8io/baseline-cache
 | You get                                                | How                                                                                                                                                            |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Typed reads**                                        | Each `get` runs the stored JSON through your schema; the cache's type is the schema's output.                                                                  |
-| **Old entries are misses, not crashes**                | A value the schema refuses, such as one an older version of your app wrote, reads as `undefined`.                                                              |
+| **Old entries are misses, not crashes**                | A value the schema refuses, such as one an older version of your Project wrote, reads as `undefined`.                                                          |
 | **Any schema library**                                 | Any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. The Package imports none.                                |
 | **Up while the store is down**                         | By default `get` misses and `set` and `delete` resolve. Each failure counts on `baseline.cache.store_errors`, with one warning log per 30 s per cache.         |
 | **This process never serves what it tried to replace** | By default, after a failed `set` or `delete` this process reads that id as a miss for `ttlMs`. Other processes may still serve the old entry until it expires. |
@@ -38,7 +38,7 @@ await fooCache.set(foo.id, foo);
 const cached = await fooCache.get(foo.id); // the Foo, or undefined
 ```
 
-Entries are JSON, so a `Date` comes back as a string: `z.coerce.date()` turns it back, or every read would be a miss. In unit tests build the cache on `cacheStoreMemoryCreate()`. It stores JSON as the Redis store does, and its expiry reads `Date.now`, so fake timers move it. The Package's own `pnpm test` needs Docker for Redis; `pnpm test:unit` runs the tests that need no Redis.
+Entries are JSON, so a `Date` comes back as a string: `z.coerce.date()` turns it back, or every read would be a miss. In unit tests build the cache on `cacheStoreMemoryCreate()`. It stores JSON as the Redis store does. To test expiry, give the cache a short `ttlMs` and wait. The Package's own `pnpm test` needs Docker for Redis; `pnpm test:unit` runs the tests that need no Redis.
 
 ## Reference
 
@@ -79,33 +79,7 @@ export const cacheStoreOpen = ({ redis }: { redis: RedisClient | "memory" }) =>
 
 <details><summary><b>Schemas</b></summary>
 
-Pass a Zod schema as `schema`. The cache's value type is the schema's output:
-
-```ts
-import { type CacheStore, cacheCreate } from "@n8io/baseline-cache";
-import { z } from "zod";
-
-declare const cacheStore: CacheStore; // from cacheStoreOpen
-
-const Foo = z.object({ name: z.string() });
-
-const fooCache = cacheCreate(cacheStore, {
-	prefix: "foo",
-	schema: Foo,
-	ttlMs: 30_000,
-}); // Cache<{ name: string }>
-
-await fooCache.set("foo_01", { name: "First" });
-const foo = await fooCache.get("foo_01"); // { name: "First" } or undefined
-```
-
-Entries are JSON, so a `Date` comes back as a string. Give the cache a schema that turns it back, or every read is a miss:
-
-```ts
-const FooCached = z.object({ name: z.string(), createdAt: z.coerce.date() });
-```
-
-The package does not import Zod. Any Standard Schema works the same way, for example Valibot's `v.object({ name: v.string() })`.
+The cache's value type is the schema's output: the Example's `Foo` gives a `Cache<{ createdAt: Date; name: string }>`, so `get` returns that or `undefined`. The Package does not import Zod. Any Standard Schema works the same way, for example Valibot's `v.object({ name: v.string() })`.
 
 </details>
 
@@ -129,10 +103,10 @@ The cache does not see writes to the source of truth: you `delete` (or `set`) af
 
 </details>
 
-<details><summary><b>Env</b></summary>
+<details><summary><b>Environment</b></summary>
 
 By the Template's convention: `CACHE_URL` (`redis://` or `rediss://`, or `memory://` for the memory store). You bring the schema library (the Template uses Zod), and the Redis store takes the client you pass it, so the Package needs neither `zod` nor `redis`.
 
 </details>
 
-**Needs** peer `@opentelemetry/api` for the counter (it does nothing until your app registers a meter provider); `CACHE_URL` by the Template's convention. Runs on Redis (any connected node-redis client, such as `@n8io/baseline-redis`'s) or in memory.
+**Needs** peer `@opentelemetry/api` for the counter (it does nothing until your Project registers a meter provider); `CACHE_URL` by the Template's convention. Runs on Redis (any connected node-redis client, such as `@n8io/baseline-redis`'s) or in memory.

@@ -32,7 +32,7 @@ const expiresAtKnown = (): number | undefined => {
 
 const refreshFetch = async (): Promise<void> => {
 	// A refresh may have landed in this tab while it waited for the lock (the root loader
-	// revalidated). Another tab's refresh is caught by the server, which answers without a grant
+	// revalidated). Another tab's refresh is caught by the Server, which answers without a grant
 	// while the access cookie still has over a minute left.
 	const expiresAt = expiresAtKnown();
 	if (expiresAt !== undefined && expiresAt - Date.now() >= refreshBeforeMs) {
@@ -61,8 +61,8 @@ const refreshOnce = (): Promise<void> => {
 
 /**
  * Root route `clientMiddleware`: before a navigation or form submission, refreshes the access
- * token with `fetch` when under a minute remains, so the server never sees it expire. A failed
- * refresh is left to the server, which redirects to sign-in.
+ * token with `fetch` when under a minute remains, so the Server never sees it expire. A failed
+ * refresh is left to the Server, which redirects to sign-in.
  */
 export const authnRefreshClientMiddleware: MiddlewareFunction<
 	Record<string, DataStrategyResult>
@@ -72,7 +72,7 @@ export const authnRefreshClientMiddleware: MiddlewareFunction<
 		try {
 			await refreshOnce();
 		} catch {
-			// A network failure here must not block navigation; the server still checks the token.
+			// A network failure here must not block navigation; the Server still checks the token.
 		}
 	}
 	return next();

@@ -1,4 +1,4 @@
-// The stored login: a token from the app's client-credentials grant, kept in the OS config
+// The stored login: a token from the Project's client-credentials grant, kept in the OS config
 // directory with mode 600, one per URL (so one per environment), and sent only to the URL it
 // came from.
 
@@ -108,7 +108,7 @@ export const cliLoginRun = async ({
 				...(secret === undefined ? {} : { client_secret: secret }),
 				...(scopes == null ? {} : { scope: scopes.join(" ") }),
 			}),
-			// The app's CSRF check refuses a form post without its Origin.
+			// The Project's CSRF check refuses a form post without its Origin.
 			headers: { origin: new URL(url).origin },
 			method: "POST",
 		},

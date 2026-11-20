@@ -56,7 +56,7 @@ export type LiveHubRedisOptions = {
 /**
  * Publishes to Redis channel `live:<channel>`, so every instance's streams get
  * the update. The subscriber connection, a duplicate of `redisClient`, opens
- * with the first stream; a worker that only sends never opens it. Redis pub/sub
+ * with the first stream; a Worker that only sends never opens it. Redis pub/sub
  * does not replay, so each time that connection comes back every open stream
  * is told to resync. Any connected node-redis client works.
  */

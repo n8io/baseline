@@ -15,7 +15,7 @@ export type Queue = {
 	/**
 	 * false only when this process's own poll loops are stuck, which a restart fixes. A poll that
 	 * fails (Postgres is down or failing over) still counts as proof the loop runs, so an outage
-	 * never reports a worker dead. A poll must fail and not hang for that: give `pgPool` a query
+	 * never reports a Worker dead. A poll must fail and not hang for that: give `pgPool` a query
 	 * timeout well under a minute.
 	 */
 	isAlive(): boolean;
@@ -52,7 +52,7 @@ export type Queue = {
 /** Every pg-boss table, function and queue lives in this Postgres schema, beside queue.inbox. */
 export const queueSchema = "queue";
 
-// A worker none of whose polls has ended, in a fetch or in an error, for this long is reported
+// A Worker none of whose polls has ended, in a fetch or in an error, for this long is reported
 // dead to /livez.
 const queueHeartbeatLimitMs = 60_000;
 
@@ -63,13 +63,13 @@ const queueBosses = new WeakMap<Queue, PgBoss>();
 const queueConcurrencies = new WeakMap<Queue, number>();
 
 /**
- * How many jobs the Queue's process may run at once, for the other modules of this package only.
+ * How many jobs the Queue's process may run at once, for the other modules of this Package only.
  */
 export const queueConcurrencyGet = (queue: Queue): number =>
 	queueConcurrencies.get(queue) ?? queueConcurrencyDefault;
 
 /**
- * The pg-boss instance behind a Queue, for the other modules of this package only. `caller` is the
+ * The pg-boss instance behind a Queue, for the other modules of this Package only. `caller` is the
  * public function that was given the Queue, named in the error for one that queueCreate did not make.
  */
 export const queueBossGet = (queue: Queue, caller = "queueBossGet"): PgBoss => {
@@ -153,7 +153,7 @@ export type QueueVendorOptions = Omit<ConstructorOptions, QueueOwnedKey>;
 /** What `queueCreate` takes. */
 export type QueueOptions = {
 	/**
-	 * How many Events and Schedule runs a worker has under way at once, across all its Consumers
+	 * How many Events and Schedule runs a Worker has under way at once, across all its Consumers
 	 * and Schedules. Default 4. Each holds a connection of `pgPool` while it runs, so keep it below
 	 * the pool's size.
 	 */
@@ -165,8 +165,8 @@ export type QueueOptions = {
 };
 
 /**
- * Starts pg-boss on the shared pool. A publisher (the server) only sends: it runs no workers, no
- * maintenance and no cron pass. A worker runs maintenance, cron and the Package's Inbox pruning.
+ * Starts pg-boss on the shared pool. A publisher (the Server) only sends: it runs no workers, no
+ * maintenance and no cron pass. A Worker runs maintenance, cron and the Package's Inbox pruning.
  */
 export const queueCreate = async (options: QueueOptions): Promise<Queue> => {
 	const { pgPool, role } = options;
@@ -254,7 +254,7 @@ export const queueErrorWrap = (error: unknown): Error => {
 	return wrapped;
 };
 
-// How often one queue's failures are logged. During a Postgres outage every poll of every worker
+// How often one queue's failures are logged. During a Postgres outage every poll of every Worker
 // fails, every 2 s; the first failure says so and the rest add nothing.
 const queueErrorLogEveryMs = 30_000;
 

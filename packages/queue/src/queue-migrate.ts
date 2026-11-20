@@ -53,7 +53,7 @@ export type QueueMigrateOptions = {
 /**
  * Installs or upgrades pg-boss in schema `queue`, waits for its background index builds, deletes
  * the queues of Consumers removed in an earlier release, and creates queue.inbox. Runs from the
- * migrate entry, before any server or worker starts with `migrate: false`; queueSchedulesSync
+ * migrate entry, before any Server or Worker starts with `migrate: false`; queueSchedulesSync
  * runs after it.
  */
 export const queueMigrate = async (

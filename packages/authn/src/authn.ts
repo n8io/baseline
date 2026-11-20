@@ -37,7 +37,7 @@ export type AuthnOptions = {
 	authorizeParams?: Record<string, string> | null;
 	/** `"client_id"` for a provider that names the client in `client_id` instead of `aud`: that claim must then equal `audience`. Default `"aud"`. */
 	audienceClaim?: "aud" | "client_id" | null;
-	/** Maps the verified access token's claims to the Actor; a throw means "not an actor". */
+	/** Maps the verified access token's claims to the Actor; a throw means "not an Actor". */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
 	/** The people the memory issuer's sign-in page offers; when unset or empty, one `dev-user` without scopes. */
 	memoryUsers?: AuthnMemoryUser[] | null;
@@ -81,7 +81,7 @@ declare const authnBrand: unique symbol;
 /** What `authnCreate` returns. Pass it to the other authn functions; it has no fields of its own. */
 export type Authn = { readonly [authnBrand]: true };
 
-/** What the other modules of this package reach through an Authn. */
+/** What the other modules of this Package reach through an Authn. */
 export type AuthnState = {
 	readonly clientId: string;
 	readonly cookieKey: Uint8Array;
@@ -142,7 +142,7 @@ const tokenErrors = [
 const authnTokenErrorIs = (error: unknown): boolean =>
 	tokenErrors.some((tokenError) => error instanceof tokenError);
 
-// `actorFromClaims` is the app's pure mapping; a throw means the claims are not an actor.
+// `actorFromClaims` is the Project's pure mapping; a throw means the claims are not an Actor.
 const authnActorFrom = (
 	options: AuthnOptions,
 	payload: JWTPayload,
@@ -197,7 +197,7 @@ const authnVerifyCreate =
 		};
 	};
 
-// The claims a provider would issue for this actor, in the shape the Template's default
+// The claims a provider would issue for this Actor, in the shape the Template's default
 // `actorFromClaims` reads (`sub`, space-separated `scope`, `gty` for machine tokens).
 const authnMemoryClaims = (
 	options: AuthnOptions,

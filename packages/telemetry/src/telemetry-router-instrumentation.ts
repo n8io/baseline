@@ -3,7 +3,7 @@ import { telemetryScope } from "./telemetry-scope.ts";
 import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 // The parts of React Router's ServerInstrumentation this file uses, written out
-// so the package needs no react-router peer. React Router passes a thrown
+// so the Package needs no react-router peer. React Router passes a thrown
 // handler error back in the result instead of throwing it.
 type RouterCallResult =
 	| { error: undefined; status: "success" }

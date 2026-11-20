@@ -55,23 +55,7 @@ app.all("/api/*", httpNotFoundHandle);
 
 Add `app.use(httpRouteName)` to name spans after routes. On the `node:http` server, call `httpServerKeepAlive(server)` once, and `await httpServerClose(server)` on shutdown.
 
-Then a route maps each business error to a status once, and its docs and answers both read that map:
-
-```ts
-import {
-	type HttpErrorStatus,
-	httpErrorBodyCreate,
-	httpErrorResponsesCreate,
-	httpProblemHeaders,
-} from "@n8io/baseline-http";
-
-const fooErrorStatus = { FooNotFound: 404 } as const satisfies HttpErrorStatus<FooError>;
-
-// The route's OpenAPI responses declare what the map holds, and its handler answers from it:
-const responses = { 200: fooOk, ...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]) };
-const status = fooErrorStatus[result.error.type];
-return c.json(httpErrorBodyCreate(result.error, status), status, httpProblemHeaders);
-```
+A route maps each business error to a status once, and its docs and answers both read that map: see "A whole route".
 
 Test a route with Hono's `app.request()`: the problem body comes back as JSON, with no server and no mocks.
 
@@ -90,7 +74,7 @@ Test a route with Hono's `app.request()`: the problem body comes back as JSON, w
 | `HttpErrorStatus<E>`                                           | A bounded context's map from error `type` to status; a missing type fails type-checking.                                                                                                                                                                                                  |
 | `httpErrorResponsesCreate(table, types)`, `HttpErrorResponses` | A route's OpenAPI error responses: one `application/problem+json` entry per status, listing the error types that answer with it, typed so the handler may return those statuses.                                                                                                          |
 | `httpRouteName`                                                | Middleware that names the HTTP server span after the route that answered and sets `http.route`. Catch-all routes (a pattern ending in `*`) keep the name something else gave them.                                                                                                        |
-| `httpCsrf`                                                     | Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the server's public origin, which is https when `x-forwarded-proto` says so.                                                          |
+| `httpCsrf`                                                     | Hono's `csrf()` for cookie-authenticated routes. A form, multipart or text POST answers 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is the Server's public origin, which is https when `x-forwarded-proto` says so.                                                          |
 | `httpSecureHeaders`                                            | Hono's secure headers plus an enforced CSP (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`) whose `script-src` takes a fresh nonce per request: `c.get("secureHeadersNonce")`.                                                                    |
 | `httpServerClose(server)`                                      | Stops accepting connections, closes idle keep-alive sockets every 100 ms, and resolves once every open request finishes. It never cuts a running request off.                                                                                                                             |
 | `httpServerKeepAlive(server)`                                  | Keeps idle connections open for 65 s (headers timeout 66 s), so a load balancer with the usual 60 s idle timeout never reuses a connection the server has closed (a 502). Keep the balancer's idle timeout under 65 s.                                                                    |

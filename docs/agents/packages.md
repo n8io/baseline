@@ -63,7 +63,7 @@ A Package that counts or times something gets its meter from `metrics.getMeter("
 
 ## New Package
 
-Copy the closest Package's folder and change, in one pull request:
+Copy the closest Package's folder, delete its `CHANGELOG.md` (the Release writes a new one), and change, in one pull request:
 
 1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them, in this order: `license`, `type`, `engines`, `repository.directory`, `exports` to `src/`, `files`, `publishConfig.exports` to `dist/`, the `build`, `check`, `prepack`, `test` and `test:unit` scripts (`test:unit` runs the tests that need no Docker: `vitest run` where none do, else the `unit` Vitest project), then the dependency maps. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`. `test/package-metadata.test.ts` checks the key order, the scripts, the full stop and the `LICENSE` copy.
 2. `tsdown.config.ts`: one entry per subpath; `platform: "neutral"` for code that also runs in browsers (sdk, the `client` entries), else `"node"`.

@@ -10,7 +10,7 @@ const httpPublicOrigin = (c: Context): string => {
 
 /**
  * `app.use(httpCsrf)` on cookie-authenticated routes: Hono's `csrf()` answers a form, multipart
- * or text POST with 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is this server's
+ * or text POST with 403 unless `Sec-Fetch-Site` is `same-origin` or `Origin` is this Server's
  * public origin (https when `x-forwarded-proto` says so). JSON and bearer requests pass.
  */
 export const httpCsrf: MiddlewareHandler = csrf({
