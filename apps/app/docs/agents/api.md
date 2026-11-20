@@ -28,9 +28,9 @@ A rename or a removal is two releases. First add the new shape beside the old on
 | 422    | Unprocessable Entity |
 | 429    | Too Many Requests    |
 
-A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in the context's `<context>-error-status.ts` table (at the context's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
+A Use case's error union becomes the route's statuses. Each `type` in the union needs an entry in its Aggregate's `<aggregate>-error-status.ts` table (at the context's root and exported from `index.ts`, so pages map a failed Result through it too instead of copying statuses), and a route lists the types it can answer in `httpErrorResponsesCreate(table, types)`. Adding a type to a union adds a code, or a whole status, to every route that returns it, so run `pnpm api-check` after changing a union.
 
-Type that table `as const satisfies Record<BarError["type"], number>`, not with `HttpErrorStatus` from `@n8io/baseline-http`: a context's root imports no HTTP package (the architecture test refuses it), and `adapters/inbound/` files import the table from `../index.ts`.
+Type that table `as const satisfies Record<InvoiceError["type"], number>`, not with `HttpErrorStatus` from `@n8io/baseline-http`: a context's root imports no HTTP package (the architecture test refuses it), and `adapters/inbound/` files import the table from `../index.ts`.
 
 Give a route its error list inline, or declare it `as const`: `httpErrorResponsesCreate` takes a `readonly` list. Typing the list as a plain `string[]` fails type-checking, because the types must be keys of the table.
 
@@ -38,6 +38,6 @@ Give a route its error list inline, or declare it `as const`: `httpErrorResponse
 
 - Every route sets `operationId` to the name of the Use case its handler calls (`invoiceCreate`) and exactly one tag, its Aggregate in camelCase (`tags: ["invoice"]`). Generated SDK methods and CLI commands take their names from both, so a renamed or removed operationId or tag is breaking: `pnpm api-check` fails on it. A route has one operationId, so once it ships keep it; a new name waits for the next API major (`/api/v2`). Every route also sets a one-line `summary`, a verb and `one <aggregate>` with no article (`Create one invoice`, `List invoices, one page at a time`), so `aggregate-create`'s rename reads well: it is the CLI command's help and the SDK function's doc comment. `test/integration/server-wiring.test.ts` checks every operation, and `aggregate-create` writes all three for a new Aggregate.
 - A boolean query parameter copies the context's `queryBoolean`: `z.stringbool({ falsy: ["false"], truthy: ["true"] }).default(false).openapi({ default: false, type: "boolean" })`. Without the `.openapi(...)` the document calls it a string, so the SDK types it as one and the CLI wants `--flag <value>` instead of a switch.
-- A business verb beyond create, update and delete is a command route: `POST /<things>/{<thing>Id}/<verb>` (`POST /trades/{tradeId}/accept`). It answers 200 with the changed resource.
+- A business verb beyond create, update and delete is a command route: `POST /<things>/{<thing>Id}/<verb>` (`POST /invoices/{invoiceId}/void`). It answers 200 with the changed resource.
 - A request that names another Aggregate's id that does not exist answers 422 (the request is well formed, its reference is not). 404 is only for the resource in the path.
 - An upsert (`PUT` that creates or replaces) answers 200 either way, so a caller that retries sees one status.
