@@ -26,19 +26,21 @@ pnpm add @n8io/baseline-error-tracking
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
 import { loggerErrorListen } from "@n8io/baseline-logger";
 
-// Without SENTRY_DSN, nothing is reported and errors are only logged.
 if (ENV.SENTRY_DSN) {
 	const errorTracking = errorTrackingSentryCreate({
 		dsn: ENV.SENTRY_DSN,
 		environment: ENV.APP_ENV,
 	});
 	const stop = loggerErrorListen((error) => errorTracking.report(error));
-	const close = async () => { stop(); await errorTracking.close(); };
-	resources.push({ close, name: "error tracking" }); // a shutdown step
+	const close = async () => {
+		stop();
+		await errorTracking.close();
+	};
+	resources.push({ close, name: "error tracking" });
 }
 ```
 
-There is no stand-in: with no DSN, the Project skips the connection. Code that reports takes an `ErrorTracking`, so its tests pass one (`report`, `close` and `Symbol.asyncDispose`) that records what it was handed. A test of the wiring points `dsn` at a local HTTP server, as the Template's `src/error-tracking-open.test.ts` does; no account or network needed.
+Without `SENTRY_DSN`, nothing is reported and errors are only logged; with it, `close` runs as a shutdown step. There is no stand-in: with no DSN, the Project skips the connection. Code that reports takes an `ErrorTracking`, so its tests pass one (`report`, `close` and `Symbol.asyncDispose`) that records what it was handed. A test of the wiring points `dsn` at a local HTTP server, as the Template's `src/error-tracking-open.test.ts` does; no account or network needed.
 
 ## Reference
 
