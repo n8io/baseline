@@ -16,7 +16,7 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first ([docs/agents/a
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (4 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis (`pnpm dev` starts them)
 - most of CI: `pnpm run ci` = check, unit, integration, piece-check (HEAD only, commit first); not oasdiff, migrations, sast, image
-- dev server: `pnpm dev` at the URL it prints (`<instance>.localhost:<PORT>`): starts Postgres and Redis, migrates, seeds, runs the Worker. `pnpm dev:reset` wipes the data
+- dev server: `pnpm dev` at the URL it prints (`<instance>.localhost:<PORT>`) runs Postgres, Redis, migrate, seed, Worker. `pnpm dev:reset` wipes data, `dev:prune` removed worktrees'
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `*-table.ts` file)
 - new context: `pnpm context-create`; new Aggregate: `pnpm aggregate-create`
