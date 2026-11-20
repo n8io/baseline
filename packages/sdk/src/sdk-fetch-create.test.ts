@@ -478,12 +478,12 @@ describe("sdkFetchCreate", () => {
 });
 
 describe("sdkFetchCreate environments", () => {
-	it("sends a call to the configured environment's URL", async () => {
+	it("sends a call to the environment sdkConfigure picked", async () => {
 		await using api = await apiStart(empty(204));
-		const { sdkFetch } = sdkFetchCreate({
-			defaults: { environment: "development" },
+		const { sdkConfigure, sdkFetch } = sdkFetchCreate({
 			environments: { development: `${api.baseUrl}/`, production: "x" },
 		});
+		sdkConfigure({ environment: "development" });
 
 		await sdkFetch("/api/v1/foos", { method: "GET" });
 

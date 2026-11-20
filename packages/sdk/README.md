@@ -51,6 +51,7 @@ Test it against a real local HTTP server (`node:http`) that answers each request
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sdkFetchCreate({ defaults?, environments? })` | Builds one instance from its environments (name to API origin) and default `SdkOptions`, and returns `SdkFetch`. With no environments, only `baseUrl` sends a call. |
 | `SdkFetch`                                     | `{ sdkConfigure, sdkFetch }`.                                                                                                                                       |
+| `SdkFetchCreateInput`                          | `{ defaults?, environments? }`, what `sdkFetchCreate` takes.                                                                                                        |
 | `sdkConfigure(options)`                        | Merges `SdkOptions` into what every later call of this instance uses.                                                                                               |
 | `sdkFetch(url, options)`                       | The generated SDK's mutator: `url` is the operation's path and query; `options` is `RequestInit` plus `SdkOptions`, which override for one call.                    |
 | `SdkOptions`                                   | `{ environment?, baseUrl?, token?, timeout?, totalTimeout?, retry? }`, below.                                                                                       |
@@ -77,7 +78,7 @@ A caller's own `signal` still cancels the call; it rejects with that signal's re
 - A timeout, of an attempt after the last retry or of the whole call: a `DOMException` named `TimeoutError`, as `AbortSignal.timeout` gives.
 - A network failure after the last retry: the error `fetch` gave (a `TypeError`). A connection that drops while the body is read rejects at once, without a retry.
 - A JSON content type with a body that is not JSON: the `SyntaxError` from parsing it.
-- No environment and no `baseUrl`: an `Error` that lists the environments and names `sdkConfigure`. An environment that is not listed (a JavaScript caller the types do not stop): an `Error` that lists them.
+- No environment and no `baseUrl`: an `Error` that lists the environments and names `sdkConfigure`, or, from an instance that lists none, one that asks for a `baseUrl`. An environment that is not listed (a JavaScript caller the types do not stop): an `Error` that lists them.
 
 </details>
 

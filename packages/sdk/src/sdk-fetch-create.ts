@@ -87,12 +87,12 @@ export const sdkFetchCreate = <E extends string = never>(
 		const environment = options.environment ?? configured.environment;
 		const url =
 			options.baseUrl ??
-			(options.environment === undefined ? configured.baseUrl : undefined);
-		if (url !== undefined) return url;
-		if (names === "") {
+			(options.environment == null ? configured.baseUrl : undefined);
+		if (url != null) return url;
+		if (Object.keys(environments).length === 0) {
 			throw new Error("No API URL: call sdkConfigure({ baseUrl }) first");
 		}
-		if (environment === undefined) {
+		if (environment == null) {
 			throw new Error(
 				`No environment: call sdkConfigure({ environment }) with one of ${names}`,
 			);
