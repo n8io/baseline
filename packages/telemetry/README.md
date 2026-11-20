@@ -19,7 +19,7 @@ pnpm add @n8io/baseline-telemetry import-in-the-middle
 | **Scrubbed before export**           | Before export, URL query values become `REDACTED` and exception messages are dropped, keeping the type and stack frames.                                                                 |
 | **Routes by pattern**                | `telemetryRouterInstrumentation` names the HTTP span after the route pattern and adds a span per loader and action (API routes get theirs from `@n8io/baseline-http`'s `httpRouteName`). |
 | **Exits on time**                    | With no endpoint and no exporter set, nothing exports. An exporter gives up after 1 s, and `telemetryShutdown()` never throws: a script never hangs on a missing collector.              |
-| **Spans without the SDK**            | `/span` loads only the OpenTelemetry API, so a Package can add attributes or a child span with no OpenTelemetry import.                                                                  |
+| **Spans without the SDK**            | `/span` loads only the OpenTelemetry API, so a Project's Use case can add attributes or a child span with no OpenTelemetry import.                                                       |
 
 ## Example
 

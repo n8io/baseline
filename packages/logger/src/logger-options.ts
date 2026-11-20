@@ -47,6 +47,7 @@ const errFind = (first: unknown): unknown => {
 // pino's number for the error level; fatal is the one above it.
 const levelError = 50;
 
+/** pino's options for the one logger: redaction, the safe `err` shape and the error listeners. */
 export const loggerOptionsCreate = (level: string): LoggerOptions => ({
 	hooks: {
 		// biome-ignore lint/complexity/useMaxParams: pino calls this hook with three arguments.

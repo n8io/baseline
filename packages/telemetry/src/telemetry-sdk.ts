@@ -226,6 +226,7 @@ const metricReadersFromEnv = (): IMetricReader[] =>
 
 let sdk: NodeSDK | undefined;
 
+/** Starts traces, metrics and logs once; `/register` calls it from the preload. */
 export const telemetryStart = (): void => {
 	if (sdk !== undefined) {
 		return;
@@ -309,9 +310,11 @@ const endpointRead = (): string =>
 			.find((value) => value !== "") ?? "",
 	);
 
-// Flushes and stops every signal; last in the shutdown resources. The final export is bounded by
-// the exporter timeout (1 s by default, see above). If an export failed or timed out, shutdown
-// still resolves, with one warning naming the endpoint. It never throws.
+/**
+ * Flushes and stops every signal; last in the shutdown resources. The final export is bounded by
+ * the exporter timeout (1 s by default). If an export failed or timed out, it still resolves, with
+ * one warning naming the endpoint. It never throws.
+ */
 export const telemetryShutdown = async (): Promise<void> => {
 	const started = sdk;
 	sdk = undefined;

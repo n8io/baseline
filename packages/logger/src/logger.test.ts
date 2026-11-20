@@ -22,18 +22,18 @@ describe("logger", () => {
 
 	it("reads its level from LOG_LEVEL", async () => {
 		vi.stubEnv("LOG_LEVEL", "silent");
-		const { logger } = await import("./index.ts");
+		const { logger } = await import("./logger.ts");
 
 		expect(logger.level).toBe("silent");
 	});
 
 	it("defaults to info when LOG_LEVEL is unset or empty", async () => {
 		vi.stubEnv("LOG_LEVEL", undefined);
-		expect((await import("./index.ts")).logger.level).toBe("info");
+		expect((await import("./logger.ts")).logger.level).toBe("info");
 
 		vi.resetModules();
 		vi.stubEnv("LOG_LEVEL", "");
-		expect((await import("./index.ts")).logger.level).toBe("info");
+		expect((await import("./logger.ts")).logger.level).toBe("info");
 	});
 
 	it("logs an error with its class name as msg, never its message", () => {

@@ -1,6 +1,8 @@
-// Who hears each error the logger logs at error or fatal: error tracking, without its callers
-// changing. A listener runs inside the log call, so it sees the caller's active trace, and must
-// return at once and never throw; one that throws is skipped.
+/**
+ * Who hears each error the logger logs at error or fatal: error tracking, without its callers
+ * changing. A listener runs inside the log call, so it sees the caller's active trace, and must
+ * return at once and never throw; one that throws is skipped.
+ */
 export type LoggerErrorListener = (error: unknown) => void;
 
 // Kept on globalThis, so a Project that ends up with two copies of this Package (one Package on an
@@ -23,6 +25,7 @@ export const loggerErrorListen = (
 	};
 };
 
+/** Hands `error` to every listener; the logger calls it, nothing else does. */
 export const loggerErrorEmit = (error: unknown): void => {
 	if (emitting) return;
 	emitting = true;

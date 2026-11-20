@@ -35,13 +35,14 @@ export type ErrorTrackingSentryVendorOptions = Pick<
 
 const vendorKeys = new Set(["dist", "release", "sampleRate"]);
 
+/** What `errorTrackingSentryCreate` takes. */
 export type ErrorTrackingSentryOptions = {
 	/** The Sentry project's DSN. */
 	dsn: string;
 	/** Which deployment reported it: `production`, `development`. */
 	environment: string;
 	/** Settings only Sentry has: `release`, `dist`, `sampleRate`. */
-	vendor?: ErrorTrackingSentryVendorOptions;
+	vendor?: ErrorTrackingSentryVendorOptions | null;
 };
 
 const stackParser = createStackParser(nodeStackLineParser());
@@ -90,24 +91,29 @@ const eventAllowlist = (event: ErrorEvent): ErrorEvent => ({
 	contexts: keysKeep(event.contexts ?? {}, contextKeys),
 });
 
-// Sends each Error report to Sentry with @sentry/core's ServerRuntimeClient and plain fetch, not
-// @sentry/node: that one installs a Sentry CLI under the FSL licence and module hooks this needs
-// none of. Nothing global is installed: the shutdown handle owns crashes and telemetry owns traces.
-// The Project hands it every error the logger logs (loggerErrorListen).
+// @sentry/core's ServerRuntimeClient and plain fetch, not @sentry/node: that one installs a Sentry
+// CLI under the FSL licence and module hooks this needs none of. Nothing global is installed: the
+// shutdown handle owns crashes and telemetry owns traces.
+
+/**
+ * Sends each Error report to Sentry, with a 5 s timeout per send. The Project hands it every error
+ * the logger logs (`loggerErrorListen`). Throws a `TypeError` on a `dsn` that is not a Sentry DSN,
+ * or a `vendor` key other than `release`, `dist` and `sampleRate`.
+ */
 export const errorTrackingSentryCreate = ({
 	dsn,
 	environment,
-	vendor = {},
+	vendor,
 }: ErrorTrackingSentryOptions): ErrorTracking => {
-	for (const key of Object.keys(vendor)) {
+	for (const key of Object.keys(vendor ?? {})) {
 		if (!vendorKeys.has(key)) {
 			throw new TypeError(
-				`vendor.${key} is not allowed: only ${[...vendorKeys].join(", ")} reach Sentry`,
+				`errorTrackingSentryCreate: vendor.${key} is not allowed: only ${[...vendorKeys].join(", ")} reach Sentry`,
 			);
 		}
 	}
 	const client = new ServerRuntimeClient({
-		...vendor,
+		...(vendor ?? {}),
 		beforeSend: eventAllowlist,
 		dsn,
 		environment,
@@ -142,7 +148,7 @@ export const errorTrackingSentryCreate = ({
 			}),
 	});
 	if (client.getDsn() === undefined) {
-		throw new TypeError("dsn is not a Sentry DSN");
+		throw new TypeError("errorTrackingSentryCreate: dsn is not a Sentry DSN");
 	}
 	const scope = new Scope();
 	scope.setClient(client);

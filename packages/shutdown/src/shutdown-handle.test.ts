@@ -1,6 +1,6 @@
 import { logger } from "@n8io/baseline-logger";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ShutdownStep, shutdownHandleCreate } from "./index.ts";
+import { type ShutdownStep, shutdownHandleCreate } from "./shutdown-handle.ts";
 
 type Listener = (value?: unknown) => void;
 
@@ -352,4 +352,45 @@ describe("shutdownHandleCreate", () => {
 		expect(close).toHaveBeenCalledOnce();
 		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
+
+	it("treats null as left out: 5 s drain delay, 25 s deadline", async () => {
+		const handle = shutdownHandleCreate({
+			deadlineMs: null,
+			drainDelayMs: null,
+			intakes: [hanging("http")],
+			resources: [step("telemetry")],
+		});
+
+		emit("SIGTERM");
+		expect(handle.isShuttingDown()).toBe(true);
+		await vi.advanceTimersByTimeAsync(4999);
+		expect(events).toEqual([]);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(events).toEqual(["http:start"]);
+		await vi.advanceTimersByTimeAsync(15_000);
+		expect(events).toEqual(["http:start", "telemetry:start", "telemetry:done"]);
+		expect(exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it.each([
+		[{ deadlineMs: 5000 }, "shutdownHandleCreate: deadlineMs"],
+		[{ deadlineMs: 10_000.5 }, "shutdownHandleCreate: deadlineMs"],
+		[{ deadlineMs: Number.NaN }, "shutdownHandleCreate: deadlineMs"],
+		[{ drainDelayMs: -1 }, "shutdownHandleCreate: drainDelayMs"],
+		[{ drainDelayMs: 0.5 }, "shutdownHandleCreate: drainDelayMs"],
+		[
+			{ deadlineMs: 8000 },
+			"shutdownHandleCreate: drainDelayMs must be under deadlineMs minus 5000 (3000), not 5000",
+		],
+	])(
+		"throws a TypeError on %o, before owning any signal",
+		(options, message) => {
+			const create = () =>
+				shutdownHandleCreate({ ...options, intakes: [], resources: [] });
+
+			expect(create).toThrow(TypeError);
+			expect(create).toThrow(message);
+			expect(listeners.size).toBe(0);
+		},
+	);
 });

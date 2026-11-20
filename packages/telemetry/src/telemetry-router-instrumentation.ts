@@ -1,5 +1,5 @@
-import { loggerErrSerialize } from "@n8io/baseline-logger/err-serialize";
-import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
+import { SpanKind, trace } from "@opentelemetry/api";
+import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 // The parts of React Router's ServerInstrumentation this file uses, written out
 // so the package needs no react-router peer. React Router passes a thrown
@@ -20,6 +20,7 @@ type RouterRequestInstrument = (
 	info: { readonly request: { readonly method: string } },
 ) => Promise<void>;
 
+/** The parts of React Router's server `instrumentations` entry this Package fills. */
 export type TelemetryRouterInstrumentation = {
 	handler(handler: {
 		instrument(instrumentations: { request?: RouterRequestInstrument }): void;
@@ -55,16 +56,17 @@ const handlerSpan =
 			async (span) => {
 				const { error, status } = await call();
 				if (status === "error" && error instanceof Error) {
-					const type = loggerErrSerialize(error).type;
-					span.setAttribute("error.type", type);
-					span.setStatus({ code: SpanStatusCode.ERROR, message: type });
+					telemetrySpanErrorSet(span, error);
 				}
 				span.end();
 			},
 		);
 
-// The React Router `instrumentations` entry for the server build: names the
-// HTTP server span after the route pattern and wraps loaders and actions.
+/**
+ * The React Router `instrumentations` entry for the server build: names the HTTP server span after
+ * the route pattern and adds a span per loader and action. A thrown Response (a redirect, a 404)
+ * is not an error.
+ */
 export const telemetryRouterInstrumentation: TelemetryRouterInstrumentation = {
 	handler(handler) {
 		handler.instrument({
