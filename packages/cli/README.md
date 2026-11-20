@@ -1,10 +1,12 @@
 # @n8io/baseline-cli
 
-**A command line client for your API from one call**: `cliCreate` reads the Project's OpenAPI document and turns every operation into a command that calls the generated SDK, so `fooCreate` under the tag `foo` is `acme foo create --name x`.
+**Every API operation becomes a command, with no command code of your own.** `cliCreate` reads the Project's OpenAPI document and turns each operation into a command that calls the generated SDK, so `fooCreate` under the tag `foo` is `acme foo create --name x`.
 
 ```sh
 pnpm add @n8io/baseline-cli
 ```
+
+<p align="center"><img src="https://raw.githubusercontent.com/n8io/baseline/main/docs/readme/cli-command.svg" width="880" alt="cliCreate: the command acme foo create --name x types itself, then a dot runs from the fooCreate operation in openapi.json through the command and the SDK function fooCreate to its JSON on stdout. A Problem prints title: code to stderr and exits 1."></p>
 
 ## Guarantees
 
@@ -19,13 +21,17 @@ pnpm add @n8io/baseline-cli
 
 ## Example
 
-```ts title="clients/cli/src/cli.ts"
+```ts title="clients/cli/cli.ts"
 #!/usr/bin/env node
 import { cliCreate } from "@n8io/baseline-cli";
-import * as operations from "@acme/acme-sdk";
-import document from "../openapi.json" with { type: "json" };
+import * as sdk from "acme-sdk";
+import document from "acme-sdk/openapi.json" with { type: "json" };
 
-await cliCreate({ document, name: "acme", operations }).run(process.argv.slice(2));
+const { sdkConfigure: _, ...operations } = sdk;
+
+await cliCreate({ document, name: document.info.title, operations }).run(
+	process.argv.slice(2),
+);
 ```
 
 ```sh
