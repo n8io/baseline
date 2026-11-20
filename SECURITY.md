@@ -8,5 +8,5 @@ Report it privately through GitHub: open the [Security tab](https://github.com/n
 
 Fixes ship in:
 
-- the latest major of the `app@` template release, and
-- the latest version of each `@n8io/baseline-*` package.
+- the latest major of the Template's `app@` releases, and
+- the latest version of each `@n8io/baseline-*` Package.
