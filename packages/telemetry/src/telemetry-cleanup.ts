@@ -10,7 +10,7 @@ import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 const queryValue = "REDACTED";
 
 /** Replaces every value and keeps every key: "a=1&b" becomes "a=REDACTED&b". */
-export const telemetryQueryRedact = (query: string): string =>
+export const telemetryCleanupQueryRedact = (query: string): string =>
 	query
 		.split("&")
 		.map((pair) => {
@@ -26,7 +26,7 @@ const urlFullRedact = (url: string): string => {
 	}
 	const hash = url.indexOf("#", start);
 	const end = hash === -1 ? url.length : hash;
-	return `${url.slice(0, start + 1)}${telemetryQueryRedact(url.slice(start + 1, end))}${url.slice(end)}`;
+	return `${url.slice(0, start + 1)}${telemetryCleanupQueryRedact(url.slice(start + 1, end))}${url.slice(end)}`;
 };
 
 // Keeps only the stack frames, cut the same way the logger cuts them, so a
@@ -50,7 +50,7 @@ const exceptionClean = (attributes: Attributes): void => {
 };
 
 /** Drops what can hold input text from a span before it is exported. Runs first. */
-export const telemetrySpanCleanup = (): SpanProcessor => ({
+export const telemetryCleanupSpanProcessorCreate = (): SpanProcessor => ({
 	forceFlush: () => Promise.resolve(),
 	onEnd: () => undefined,
 	// onEnding runs before the span is read-only, so it can still be changed.
@@ -65,7 +65,7 @@ export const telemetrySpanCleanup = (): SpanProcessor => ({
 		}
 		const query = attributes["url.query"];
 		if (typeof query === "string") {
-			span.setAttribute("url.query", telemetryQueryRedact(query));
+			span.setAttribute("url.query", telemetryCleanupQueryRedact(query));
 		}
 		const full = attributes["url.full"];
 		if (typeof full === "string") {
@@ -82,16 +82,17 @@ export const telemetrySpanCleanup = (): SpanProcessor => ({
 });
 
 /** Drops what can hold input text from a log record before it is exported. Runs first. */
-export const telemetryLogRecordCleanup = (): LogRecordProcessor => ({
-	forceFlush: () => Promise.resolve(),
-	onEmit(record) {
-		const { attributes } = record;
-		const message = attributes["exception.message"];
-		if (message !== undefined && record.body === message) {
-			const type = attributes["exception.type"];
-			record.setBody(typeof type === "string" ? type : "Error");
-		}
-		exceptionClean(attributes);
-	},
-	shutdown: () => Promise.resolve(),
-});
+export const telemetryCleanupLogRecordProcessorCreate =
+	(): LogRecordProcessor => ({
+		forceFlush: () => Promise.resolve(),
+		onEmit(record) {
+			const { attributes } = record;
+			const message = attributes["exception.message"];
+			if (message !== undefined && record.body === message) {
+				const type = attributes["exception.type"];
+				record.setBody(typeof type === "string" ? type : "Error");
+			}
+			exceptionClean(attributes);
+		},
+		shutdown: () => Promise.resolve(),
+	});

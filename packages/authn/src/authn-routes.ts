@@ -31,8 +31,11 @@ import {
 	authnCookieGet,
 	authnCookieSet,
 } from "./authn-cookie.ts";
-import { authnMemorySignInPage, authnSignInFailedPage } from "./authn-pages.ts";
 import { authnPublicUrl, authnReturnToSafe } from "./authn-return-to.ts";
+import {
+	authnSignInPageFailed,
+	authnSignInPageMemoryForm,
+} from "./authn-sign-in-page.ts";
 
 const FlowState = z.object({
 	codeVerifier: z.string(),
@@ -173,7 +176,7 @@ const callback = async ({
 		flowCookie === undefined || flowCookie === "invalid"
 			? undefined
 			: FlowState.safeParse(JSON.parse(flowCookie)).data;
-	if (flow === undefined) return c.html(authnSignInFailedPage("/"), 400);
+	if (flow === undefined) return c.html(authnSignInPageFailed("/"), 400);
 	const currentUrl = authnPublicUrl(c.req.raw, callbackPath);
 	currentUrl.search = new URL(c.req.url).search;
 	try {
@@ -192,7 +195,7 @@ const callback = async ({
 			},
 		});
 		if (stored === undefined) {
-			return c.html(authnSignInFailedPage(flow.returnTo), 400);
+			return c.html(authnSignInPageFailed(flow.returnTo), 400);
 		}
 		return c.redirect(flow.returnTo, 302);
 	} catch (error) {
@@ -201,7 +204,7 @@ const callback = async ({
 			{ err: error, route: callbackPath },
 			"Sign-in refused by the provider",
 		);
-		return c.html(authnSignInFailedPage(flow.returnTo), 400);
+		return c.html(authnSignInPageFailed(flow.returnTo), 400);
 	}
 };
 
@@ -413,7 +416,7 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 	routes.get("/sign-in", (c) =>
 		issuer.kind === "memory"
 			? c.html(
-					authnMemorySignInPage({
+					authnSignInPageMemoryForm({
 						returnTo: returnToQuery(c),
 						users: issuer.users,
 					}),

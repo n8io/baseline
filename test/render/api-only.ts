@@ -35,7 +35,7 @@ import {
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
-import { contextMapDefine, contextTermAdd } from "./glossary.ts";
+import { glossaryContextMapDefine, glossaryTermAdd } from "./glossary.ts";
 
 const answers = { description: "An API without pages.", name: "api-only" };
 const customer = {
@@ -69,7 +69,7 @@ const contextAdd = ({
 	files: ReturnType<typeof checkoutExport>;
 	names: typeof customer;
 }) => {
-	contextMapDefine({ context: names.kebab, directory });
+	glossaryContextMapDefine({ context: names.kebab, directory });
 	const refusal = contextRefusal({
 		appDirectory: directory,
 		context: names.kebab,
@@ -81,7 +81,7 @@ const contextAdd = ({
 		templateFull: files,
 	});
 	filesWrite(directory, shell);
-	contextTermAdd({
+	glossaryTermAdd({
 		context: names.kebab,
 		definition: names.definition,
 		directory,

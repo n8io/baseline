@@ -4,10 +4,10 @@ import {
 	telemetrySpanAttributesSet,
 	telemetrySpanRun,
 } from "./telemetry-span.ts";
-import { spans } from "./telemetry-test-providers.ts";
+import { telemetryTestSpans } from "./telemetry-test-providers.ts";
 
 beforeEach(() => {
-	spans.reset();
+	telemetryTestSpans.reset();
 });
 
 describe("telemetrySpanAttributesSet", () => {
@@ -16,7 +16,7 @@ describe("telemetrySpanAttributesSet", () => {
 			telemetrySpanAttributesSet({ "baseline.foo.id": "foo_1" });
 			span.end();
 		});
-		expect(spans.getFinishedSpans()[0]?.attributes).toEqual({
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.attributes).toEqual({
 			"baseline.foo.id": "foo_1",
 		});
 	});
@@ -25,7 +25,7 @@ describe("telemetrySpanAttributesSet", () => {
 		expect(() =>
 			telemetrySpanAttributesSet({ "baseline.foo.id": "foo_1" }),
 		).not.toThrow();
-		expect(spans.getFinishedSpans()).toEqual([]);
+		expect(telemetryTestSpans.getFinishedSpans()).toEqual([]);
 	});
 });
 
@@ -42,7 +42,7 @@ describe("telemetrySpanRun", () => {
 				return rows;
 			});
 		expect(count).toBe(2);
-		const [child, parent] = spans.getFinishedSpans();
+		const [child, parent] = telemetryTestSpans.getFinishedSpans();
 		expect(child?.name).toBe("fooImport parse");
 		expect(child?.attributes).toEqual({ "baseline.foo.row_count": 2 });
 		expect(child?.parentSpanContext?.spanId).toBe(parent?.spanContext().spanId);
@@ -55,6 +55,8 @@ describe("telemetrySpanRun", () => {
 				throw new Error("bad file");
 			}),
 		).rejects.toThrow("bad file");
-		expect(spans.getFinishedSpans()[0]?.status.code).toBe(SpanStatusCode.ERROR);
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.status.code).toBe(
+			SpanStatusCode.ERROR,
+		);
 	});
 });

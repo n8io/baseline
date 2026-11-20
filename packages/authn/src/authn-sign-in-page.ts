@@ -23,7 +23,7 @@ const userButton = ({
 };
 
 /** The memory issuer's sign-in page: one button per `memoryUsers` entry. */
-export const authnMemorySignInPage = ({
+export const authnSignInPageMemoryForm = ({
 	returnTo,
 	users,
 }: {
@@ -36,7 +36,7 @@ export const authnMemorySignInPage = ({
 	);
 
 /** Shown when the provider refuses or the sign-in flow cannot be checked; never echoes the reason. */
-export const authnSignInFailedPage = (returnTo: string): string =>
+export const authnSignInPageFailed = (returnTo: string): string =>
 	page(
 		"Sign-in failed",
 		`<h1>Sign-in failed</h1><p><a href="/auth/sign-in?returnTo=${authnHtmlEscape(encodeURIComponent(returnTo))}">Try again</a></p>`,

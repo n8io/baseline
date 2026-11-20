@@ -219,7 +219,15 @@ const sameContextLayer = (
 // components are exempt from all of it; `ok` and `err` are the result package's two constructors.
 const leadingVerbs =
 	"add|build|calculate|can|check|clear|close|compute|connect|convert|create|delete|fetch|find|format|get|handle|has|init|is|list|load|make|open|parse|read|register|remove|render|reset|run|save|send|set|should|sign|start|stop|update|validate|wait|write";
-const frameworkNames = new Set(["action", "handleError", "links", "loader"]);
+const frameworkNames = new Set([
+	"action",
+	"clientMiddleware",
+	"handleError",
+	"instrumentations",
+	"links",
+	"loader",
+	"streamTimeout",
+]);
 const unscopedNames = new Set(["err", "ok"]);
 const exemptIs = (name: string): boolean =>
 	frameworkNames.has(name) || /^[A-Z]|^use[A-Z]/.test(name);
@@ -239,6 +247,71 @@ const exportedUntypedFunction =
 	/^export (?:const (\w+)\s*=\s*(?:async\s*)?(?:<[^=;]*?>\s*)?\(|(?:async )?function (\w+))/gm;
 const thingWords =
 	/(Acl|Body|Cache|Column|Consumer|Handle|Handler|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
+// A23's file names: a file is named after its primary export, or after the subject its exports
+// share. One exported function or value, without a trailing Create, is the file's name in
+// camelCase or starts with it; an outbound adapter's dot is a word break
+// (invoice-repository.postgres.ts exports invoiceRepositoryPostgresCreate), and a test helper file
+// (<package>-test-<thing>.ts) is named after <package>Test. Not checked: tests, index.ts, a
+// Package's subpath entries (named after the subpath, so without the package's name), commands in
+// scripts/ (named after their pnpm script), the composition roots, an <aggregate>-table.ts (the
+// Aggregate's Drizzle table) and files exporting only types, classes, components, hooks and
+// framework names.
+const exportedValue = /^export (?:const|let|(?:async )?function\*?) (\w+)/gm;
+const fileNameRoots = new Set([
+	...roots,
+	"src/blocked-keys.ts",
+	"src/migrate.ts",
+	"src/preload.ts",
+]);
+const fileNamesAllowed: Record<string, string> = {
+	"src/ui/context.ts":
+		"React Router's context keys, one per bounded context, beside the load context that fills them",
+};
+const fileNameChecked = (p: string): boolean => {
+	const base = /([^/]+)\.tsx?$/.exec(p)?.[1] ?? "";
+	const pkg = /^packages\/([^/]+)\/src\/[^/]+$/.exec(p)?.[1];
+	return !(
+		testIs(p) ||
+		p.endsWith(".d.ts") ||
+		base === "index" ||
+		(pkg !== undefined && !base.startsWith(pkg)) ||
+		/(^|\/)scripts\//.test(p) ||
+		fileNameRoots.has(p) ||
+		base.endsWith("-table") ||
+		Object.hasOwn(fileNamesAllowed, p)
+	);
+};
+export const fileNamesCheck = (files: ArchitectureFile[]): string[] =>
+	files
+		.filter((f) => fileNameChecked(f.path))
+		.flatMap((f) => {
+			const names = [...f.source.matchAll(exportedValue)]
+				.map((m) => m[1] ?? "")
+				.filter((name) => !exemptIs(name) && !unscopedNames.has(name));
+			if (names.length === 0) return [];
+			const base = /([^/]+)\.tsx?$/.exec(f.path)?.[1] ?? "";
+			const stem = camel(
+				base.replace(/^(.+?-test)-.+$/, "$1").replaceAll(".", "-"),
+			);
+			const named = names.some((name) => {
+				const bare = name.replace(/Create$/, "");
+				return (
+					bare === stem ||
+					new RegExp(`^${stem}(?:[A-Z0-9]|$)`).test(bare) ||
+					name === stem
+				);
+			});
+			const first = (names[0] ?? "").replace(/Create$/, "");
+			const kebab = first
+				.replaceAll(/([a-z0-9])([A-Z])/g, "$1-$2")
+				.toLowerCase();
+			return named
+				? []
+				: [
+						`${f.path}: named after none of its exports (${names.join(", ")}); name the file after its primary export without Create (${kebab}.ts), or start its exports with ${stem}`,
+					];
+		});
+
 // The scope a file's exports start with: its package (packages/<name>/src) or context.
 const scopeOf = (p: string): string | undefined => {
 	const pkg = /^packages\/([^/]+)\/src\//.exec(p)?.[1];
@@ -900,6 +973,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	],
 
 	A23: (files) => [
+		...fileNamesCheck(files),
 		...textCheck({
 			files,
 			fileIs: () => true,

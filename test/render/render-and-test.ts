@@ -51,7 +51,7 @@ import {
 	checkoutPackagesUse,
 	lockfileTemplateRequire,
 } from "./checkout.ts";
-import { contextMapDefine, contextTermAdd } from "./glossary.ts";
+import { glossaryContextMapDefine, glossaryTermAdd } from "./glossary.ts";
 
 const fixture = join(import.meta.dirname, "second-context");
 
@@ -203,7 +203,7 @@ const main = async () => {
 	for (const { context, definition, kebab, parts, plural, reads } of contexts) {
 		const created: string[] = [];
 		if (context === undefined) {
-			contextMapDefine({ context: kebab, directory });
+			glossaryContextMapDefine({ context: kebab, directory });
 			const refusal =
 				contextRefusal({ appDirectory: directory, context: kebab }) ??
 				readsRefusal({
@@ -221,7 +221,7 @@ const main = async () => {
 			filesWrite(directory, contextFiles);
 			created.push(...contextFiles.map((f) => f.path));
 		}
-		contextTermAdd({
+		glossaryTermAdd({
 			context: context ?? kebab,
 			definition,
 			directory,
