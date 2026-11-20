@@ -110,6 +110,10 @@ export const cliTestDocument: CliDocument = {
 			},
 		},
 	},
+	servers: [
+		{ description: "development", url: "http://127.0.0.1:1" },
+		{ description: "production", url: "https://api.acme.example/" },
+	],
 	tags: [{ description: "Foos and their names", name: "foo" }],
 };
 
@@ -133,8 +137,13 @@ export const cliTestOperations: Record<string, CliOperation> = {
 };
 
 if (import.meta.main) {
+	// CLI_TEST_SERVERS replaces the environments, so a test can point one at its own server.
+	const servers = process.env.CLI_TEST_SERVERS;
 	await cliCreate({
-		document: cliTestDocument,
+		document:
+			servers === undefined
+				? cliTestDocument
+				: { ...cliTestDocument, servers: JSON.parse(servers) },
 		name: "acme-app",
 		operations: cliTestOperations,
 	}).run(process.argv.slice(2));

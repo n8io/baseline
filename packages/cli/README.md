@@ -16,7 +16,8 @@ pnpm add @n8io/baseline-cli
 | **Flags for every field**           | Path, query and JSON body fields become kebab-case flags (`customerId` is `--customer-id`); `--data '<json>'` or `--data @file.json` sends a whole body.                                                             |
 | **Output scripts can read**         | A response prints its JSON to stdout. A Problem prints `title: code` to stderr and exits 1, so `&&` and `set -e` stop on it.                                                                                         |
 | **Secrets kept off the screen**     | `login` reads the client secret from `<NAME>_CLIENT_SECRET` or stdin, never a flag, and stores the token in the OS config directory with mode 600.                                                                   |
-| **A token only where it came from** | The stored login is sent only to the URL it was issued by, and only until it expires; `login` refuses plain `http://` except to this machine.                                                                        |
+| **Environments by name**            | `--env production` (or `<NAME>_ENV`) picks a URL from the document's `servers`; with no environment and no URL a command exits 1 and lists the names, so it never guesses.                                           |
+| **A token only where it came from** | A login is stored per URL, so each environment keeps its own; it is sent only to the URL it was issued by, and only until it expires; `login` refuses plain `http://` except to this machine.                        |
 | **A document it can name**          | `cliCreate` throws at once on an operation without exactly one tag that its operationId starts with, a header or cookie parameter, a name the CLI keeps for itself, or no SDK function, instead of on a user's call. |
 
 ## Example
@@ -35,7 +36,7 @@ await cliCreate({ document, name: document.info.title, operations }).run(
 ```
 
 ```sh
-export ACME_URL=http://localhost:3000
+export ACME_ENV=development
 echo "$SECRET" | acme login --client-id ci
 acme foo create --name x
 ```
@@ -75,17 +76,19 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 - A path field is a required flag. A body field that the schema requires is marked required in its help but may come from `--data` instead.
 - `integer` and `number` fields are parsed as numbers; a `boolean` field is `--flag` for true and `--no-flag` for false; an `array` field takes several values (`--ids 4 5`), each parsed by its item type; any other field takes JSON (falling back to the text). A field's type is read through `anyOf` and `oneOf`, so a nullable string stays text, and a string `enum` is text.
 - A field's help shows its `description`, its `enum` values and its `default`. A value outside the `enum` exits 1 before any request. The default is only shown: the CLI leaves an unset field out, and the API applies its own default.
-- `--url`, `--token`, `--data` and `--help` belong to the CLI, and so do the commands `login` and `help`; `cliCreate` throws on a field or command with one of those names, or on two fields with the same flag. An operation's parameter replaces the path item's one with the same name.
+- `--env`, `--url`, `--token`, `--data` and `--help` belong to the CLI, and so do the commands `login` and `help`; `cliCreate` throws on a field or command with one of those names, or on two fields with the same flag. An operation's parameter replaces the path item's one with the same name.
 - `$ref`s inside the document are followed.
 
 </details>
 
-<details><summary><b>Base URL, token and login</b></summary>
+<details><summary><b>Environment, URL, token and login</b></summary>
 
-- The base URL is `--url`, else `<NAME>_URL`. Without one, a command exits 1 and says so.
+- An environment is a name in the document's `servers`: each server's `description` is the name and its absolute `url` the base URL (a relative or templated URL names none). `--help` lists the names. A published SDK carries its document, so every listed URL is public to whoever can install it.
+- The base URL is `--url`, else `--env`'s URL, else `<NAME>_URL`, else `<NAME>_ENV`'s URL: a flag beats an env var, and a URL overrides an environment. There is no default environment: with neither, a command exits 1 and lists the names, and an unknown name exits 1 the same way.
+- `--url` and `<NAME>_URL` are an override for tests, a worktree's own instance or a one-off server; pick an environment otherwise.
 - The token is `--token`, else `<NAME>_TOKEN`, else the stored login for that base URL.
-- `<name> login --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
-- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere: the folder is mode 700 and the file 600, written to a new file and renamed into place.
+- `<name> login --env <name> --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
+- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere, one login per URL (an expired login, or one stored by an older version, is dropped; two `login`s at once may keep only one): the folder is mode 700 and the file 600, written to a new file and renamed into place.
 
 </details>
 
