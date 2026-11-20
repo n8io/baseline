@@ -65,7 +65,7 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `queue`          | Events, Schedules and the Worker process                           | One long-running process; plain Postgres transactions                |
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
 | `error-tracking` | Error reports and `SENTRY_DSN`                                     | Errors still logged                                                  |
-| `cli`            | The Project's command line tool in `clients/cli`                   | The typed SDK for TypeScript callers                                 |
+| `cli`            | The Project's CLI in `clients/cli`                                 | The typed SDK for TypeScript callers                                 |
 | `sdk`            | The typed SDK in `clients/sdk` and its publishing (after cli)      | The API and its OpenAPI document                                     |
 
 `pnpm aggregate-create` leaves a removed piece out of every new Aggregate, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
@@ -76,7 +76,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 
 | I need to…                                                                 | Package                                     | Runs on            |
 | -------------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
-| save an aggregate in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
+| save an Aggregate in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
 | tell another context something happened, or run on a Schedule              | [`queue`](packages/queue)                   | pg-boss            |
 | refresh open pages when data changes                                       | [`live`](packages/live)                     | SSE, Redis pub/sub |
 | skip a slow read, and keep working when the store is down                  | [`cache`](packages/cache)                   | Redis or memory    |
@@ -126,8 +126,8 @@ Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creati
 .github/workflows/  ci.yml (this repo), app-ci.yml and dependabot-automerge.yml (called by Projects), release.yml
 apps/app/           the Template: src/contexts/foo is the example bounded context
 packages/*          the @n8io/baseline-* Packages
-scripts/            app-create.ts, and readme-svg/ for these diagrams
-test/               app-create tests and the render-and-test check
+scripts/            app-create.ts, ci-pin-write.ts, semgrep-rules-write.ts, readme-svg-write.ts and readme-svg/ for these diagrams
+test/               checks of the docs, the Packages' metadata and names, app-create tests and the render
 docs/               agents/ (rules and walkthroughs), adr/ (decisions), readme/ (these diagrams)
 ```
 

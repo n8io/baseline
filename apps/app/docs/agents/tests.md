@@ -15,6 +15,7 @@ const { useCases } = contextsCreate(connections).invoiceContext;
 - Assert on what the call returns and on what a later read returns (`invoiceGet` after `invoiceUpdate`), never on a memory adapter's state.
 - A context that reads another gets it from `contextsCreate`, so its test needs no fake of the upstream.
 - To set the time, spread a memory clock into the connections: `{ ...connections, clock: clockMemoryCreate(now) }`, then `clock.set` or `clock.advance`.
+- Write cases with `it`, not `test`.
 - No `vi.mock`, `vi.fn`, `vi.spyOn` or fake timers: a hand-written double on a connection is the one way to see what leaves a context, and the memory clock the one way to move time.
 - To see what leaves the context, spread a recording double into the connection it leaves through: an `analytics` that keeps what `track` gets, a `liveHub` that keeps what `send` gets, a `cacheStore` that counts hits. A failing double (a `cacheStore` that throws) tests that the change still goes through.
 - Domain events need a real queue: test them in `*-transaction.postgres.test.ts` through `contextsCreate` on `connectionsOpen({ role: "publisher", urls: { cache: "memory://", database } })`, after subscribing stand-in Event handlers.

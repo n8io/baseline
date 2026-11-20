@@ -1,6 +1,6 @@
 # Adding a context and its Aggregates
 
-Read when adding a bounded context or an Aggregate to one. Two commands copy the Template's own context under new names. Neither writes a migration or commits.
+Read when adding a bounded context, an Aggregate, a Seed, or a transition, specification or Use case to an existing Aggregate. Two commands copy the Template's own context under new names. Neither writes a migration or commits.
 
 - `pnpm context-create <context>` writes the context's shell: `src/contexts/<context>/` with its `index.ts` (`<context>ContextCreate` and its Published language), ports, transaction, Use cases entry, outbound adapters' entry, errors, repositories file and its `CONTEXT.md` (the map's subdomain type and an empty `## Language`), and its wiring into `src/contexts.ts` and the composition roots. It has no Aggregate yet, so `pnpm check` fails until it has one. It formats and runs no check.
 - `pnpm aggregate-create <context> <aggregate>` adds an Aggregate to that context: the Template Aggregate's files under the new name, its lines in the context's shared files and in the composition roots and UI, then the `sdk-generate` script when the Project has the SDK (its new routes would leave it stale), `pnpm check` and `pnpm test`. A context's first Aggregate is often named after the context (`invoice invoice`).

@@ -23,7 +23,7 @@ Most spans already exist. Instrumentations time inbound and outbound HTTP, Postg
 
 Decide in this order:
 
-1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `telemetrySpanAttributesSet({ "baseline.invoice.id": input.invoiceId })` from `@n8io/baseline-telemetry/span`. Use a semantic-convention key when one exists, otherwise `baseline.<scope>.<key>` in snake_case.
+1. Is it a fact about the work: an id, a count, which branch ran, a cache hit? Set it on the active span: `telemetrySpanAttributesSet({ "baseline.invoice.id": input.invoiceId })` from `@n8io/baseline-telemetry/span`. Use a semantic-convention key when one exists, otherwise `baseline.<prefix>.<key>` in snake_case.
 2. Does a span already time it? Then it is not a span. That covers a port call, a transaction, a whole Use case, loader or action.
 3. Is it a step inside a Use case whose own duration you would ask about in an incident? Start one child span around it. It qualifies only when no instrumentation times it and it routinely takes milliseconds or grows with input size: parsing an upload, rendering a document, hashing, a large in-memory sort or merge, or a whole batch loop.
 
@@ -37,11 +37,11 @@ Never start a span:
 
 Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
 
-Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<scope>` the context the Use case is in, or one of its Aggregates, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
+Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<prefix>` the context the Use case is in, or one of its Aggregates, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
 
-- `baseline.<scope>.id`, its own id.
-- `baseline.<scope>.<thing>_id`, another context's id or any other id (`baseline.invoice.customer_id`, `baseline.invoice.order_id`).
-- `baseline.<scope>.<thing>_count`, a count (`baseline.invoice.row_count`).
+- `baseline.<prefix>.id`, its own id.
+- `baseline.<prefix>.<thing>_id`, another context's id or any other id (`baseline.invoice.customer_id`, `baseline.invoice.order_id`).
+- `baseline.<prefix>.<thing>_count`, a count (`baseline.invoice.row_count`).
 
 Names, emails and other personal data never go on a span.
 

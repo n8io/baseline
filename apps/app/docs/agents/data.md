@@ -1,6 +1,6 @@
 # Data rules
 
-Read when touching a table, a migration, SQL or a cached read.
+Read when touching a table, a repository, a list, a migration, SQL or a cached read.
 
 - Postgres 17 or newer.
 - Drizzle stays on the pinned 1.0 rc until 1.0 GA, because the `migrations/<ts>_<name>/` folder format needs 1.x. Move to GA when it ships.

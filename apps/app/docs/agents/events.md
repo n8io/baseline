@@ -1,6 +1,6 @@
-# Events and Aggregates
+# Events and Event handlers
 
-Read when adding an Event handler, a Domain event or a repository. A context that reads another through an anti-corruption layer: [acl.md](acl.md).
+Read when adding an Event handler or a Domain event. A context that reads another through an anti-corruption layer: [acl.md](acl.md).
 
 ## Event handler with the inbox
 

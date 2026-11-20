@@ -78,15 +78,18 @@ _Avoid_: API layer, HTTP layer, controllers, transport
 
 **Outbound adapter**:
 An adapter that a bounded context drives through a port, with real technology or in memory: Postgres repositories and tables, memory fakes and anti-corruption layers, in `adapters/outbound/`. It holds no business logic, and `domain/` and `application/` never import it.
-_Avoid_: SPI, infrastructure, providers, drivers
+_Avoid_: SPI, infrastructure, adapter providers, drivers
 
 **Clock**:
 The port a bounded context reads the current time from (`<context>Clock.now()`). Use cases never call `new Date()` or `Date.now()`; tests set or advance the memory clock instead.
 _Avoid_: time provider, now function
 
 **Actor**:
-Who is performing a use case: a signed-in user or a machine client.
+Who is performing a Use case: a signed-in user or a machine client.
 _Avoid_: principal, current user, user identity, user session
+
+**Scope**:
+What an Actor may do, named `<aggregate>:<verb>` (`invoice:refund`). The Actor carries its scopes; a context's `index.ts` exports each Aggregate's list ([docs/agents/authn.md](docs/agents/authn.md)).
 
 **Intake**:
 Where new work enters a process: HTTP routes, sockets, Event handlers, Schedules.
@@ -108,7 +111,7 @@ _Avoid_: partition key, ordering key, group id
 
 **Event handler**:
 An inbound adapter that receives one kind of Domain event and calls a Use case, in `<context>-<event>-handler.ts`. The queue Package's `queueConsumerCreate` keeps its name, because it is the messaging API.
-_Avoid_: Consumer, subscriber, listener
+_Avoid_: Consumer, subscriber, event listener
 
 **Outbox**:
 Domain events written in the same transaction as the change that caused them and sent once it commits. The queue's publish is the outbox.
@@ -166,21 +169,23 @@ _Avoid_: stage, deploy target
 
 ## Baseline
 
-The words for where a Project comes from. They name what baseline is made of, not business terms.
+The words for where a Project comes from. They name what baseline is made of, not business terms. Baseline's own root `CONTEXT.md` defines the first four as well, with the same `_Avoid_` lists; `test/glossary-baseline.test.ts` there holds them equal.
 
 **Project**:
 An app made from the Template with `pnpm app-create`, in its own repository. It starts with no bounded context and takes newer Template releases by Template upgrade.
-_Avoid_: generated repo, baseline app
+_Avoid_: generated repo, child repo, downstream repo, baseline app
 
 **Template**:
 The starter app in baseline's `apps/app`, released as `app@<version>`. A Project's `.template.json` names the release it was made from or last upgraded to.
+_Avoid_: boilerplate, scaffold, skeleton
 
 **Package**:
 One of baseline's `@n8io/baseline-*` npm libraries (queue, authn, cache and the rest), which a Project depends on like any library. A change to one ships as a new version, not through a Template upgrade.
+_Avoid_: shared lib, shared module, shared code
 
 **Template upgrade**:
 Moving a Project to a newer Template release with `pnpm template-upgrade` ([docs/agents/template-upgrade.md](docs/agents/template-upgrade.md)): a 3-way merge of what changed in the Template since the Project's release into the Project, with each conflict resolved by hand.
-_Avoid_: rebase on the template, template sync
+_Avoid_: template sync, template update, rebase onto the template, rebase on the template
 
 **Piece**:
 An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project will never remove (`piece-check` skips them) ([docs/agents/pieces.md](docs/agents/pieces.md)).
