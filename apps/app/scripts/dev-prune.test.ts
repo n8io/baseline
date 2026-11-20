@@ -1,5 +1,4 @@
 // Reads and runs no file of the app, only its imports and temporary git checkouts.
-import { execFileSync } from "node:child_process";
 import {
 	mkdirSync,
 	mkdtempDisposableSync,
@@ -10,9 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { devInstancesStale } from "./dev-prune.ts";
-
-const git = (directory: string, ...args: string[]) =>
-	execFileSync("git", args, { cwd: directory, stdio: "ignore" });
+import { gitRun } from "./process-run.ts";
 
 // A repository with the Project "invoicing" in `app` ("" for its root), two linked worktrees of it,
 // and the app folder of each checkout.
@@ -20,10 +17,9 @@ const checkoutsCreate = (root: string, app: string) => {
 	const original = join(root, "invoicing");
 	mkdirSync(join(original, app), { recursive: true });
 	writeFileSync(join(original, app, "package.json"), '{"name":"invoicing"}\n');
-	git(original, "init", "-q");
-	git(original, "add", ".");
-	git(
-		original,
+	gitRun(original, ["init", "-q"]);
+	gitRun(original, ["add", "."]);
+	gitRun(original, [
 		"-c",
 		"user.name=t",
 		"-c",
@@ -31,9 +27,9 @@ const checkoutsCreate = (root: string, app: string) => {
 		"commit",
 		"-qm",
 		"one",
-	);
+	]);
 	for (const folder of ["Live", "Gone"]) {
-		git(original, "worktree", "add", "-q", join(root, folder));
+		gitRun(original, ["worktree", "add", "-q", join(root, folder)]);
 	}
 	return {
 		gone: join(root, "Gone", app),
@@ -46,7 +42,7 @@ describe("devInstancesStale", () => {
 	it("names only the instance of a removed worktree", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-prune-"));
 		const { gone, live, original } = checkoutsCreate(root.path, "apps/app");
-		git(original, "worktree", "remove", join(root.path, "Gone"));
+		gitRun(original, ["worktree", "remove", join(root.path, "Gone")]);
 		mkdirSync(join(root.path, "billing/apps/app"), { recursive: true });
 		writeFileSync(
 			join(live, ".env.development.local"),

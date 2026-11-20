@@ -21,6 +21,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { argsParse } from "./args.ts";
+import { processRun } from "./process-run.ts";
 
 // A package's path ("sdk/sdk.ts") to the text that decides its version.
 type Files = Readonly<Record<string, string>>;
@@ -145,13 +147,6 @@ const registryWait = (specs: string[]): void => {
 	}
 };
 
-const run = ([command = "", ...args]: string[], cwd?: string): void => {
-	const result = spawnSync(command, args, { cwd, stdio: "inherit" });
-	if (result.status !== 0) {
-		throw new Error(`${command} ${args.join(" ")} failed in ${cwd ?? "."}`);
-	}
-};
-
 // Unpacks the published `spec` into `folder`; leaves no folder when npm has no such version.
 const tarballUnpack = (spec: string, folder: string): void => {
 	const pack = npm(["pack", spec, "--json"], tmpdir());
@@ -164,7 +159,11 @@ const tarballUnpack = (spec: string, folder: string): void => {
 	}[];
 	const tarball = join(tmpdir(), filename);
 	mkdirSync(folder, { recursive: true });
-	run(["tar", "-xzf", tarball, "-C", folder, "--strip-components=1"]);
+	processRun({
+		command: "tar",
+		args: ["-xzf", tarball, "-C", folder, "--strip-components=1"],
+		options: { inherit: true },
+	});
 	rmSync(tarball);
 };
 
@@ -301,9 +300,9 @@ export const clientsRelease = ({
 		// Type-strip each file to dist/, with declarations. Types are checked by pnpm check, and
 		// --noResolve keeps the SDK's sources out of the CLI's build.
 		const entries = readdirSync(stage).filter((f) => f.endsWith(".ts"));
-		run(
-			[
-				"pnpm",
+		processRun({
+			command: "pnpm",
+			args: [
 				"exec",
 				"tsc",
 				...entries.map((f) => join(stage, f)),
@@ -315,8 +314,8 @@ export const clientsRelease = ({
 				"--types",
 				"",
 			],
-			directory,
-		);
+			options: { cwd: directory, inherit: true },
+		});
 		// tsc drops a JSON import's `with { type: "json" }` from declarations, which nodenext needs.
 		for (const file of readdirSync(join(stage, "dist"))) {
 			const path = join(stage, "dist", file);
@@ -334,14 +333,27 @@ export const clientsRelease = ({
 	if (!dryRun) registryWait(names.map((n) => `${scope}/${n}@${version}`));
 };
 
+const usage = `Usage: node scripts/clients-release.ts [--dry-run]
+
+Publishes clients/sdk and clients/cli to GitHub Packages when they changed.
+
+  --dry-run   pass --dry-run on to npm publish
+  -h, --help  this help`;
+
 if (import.meta.main) {
-	try {
-		clientsRelease({
-			directory: process.cwd(),
-			dryRun: process.argv.includes("--dry-run"),
-		});
-	} catch (error) {
-		console.error(error instanceof Error ? error.message : error);
-		process.exit(1);
+	const parsed = argsParse({
+		options: { "dry-run": { type: "boolean" } },
+		usage,
+	});
+	if (parsed !== undefined) {
+		try {
+			clientsRelease({
+				directory: process.cwd(),
+				dryRun: parsed.values["dry-run"] === true,
+			});
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : error);
+			process.exitCode = 1;
+		}
 	}
 }

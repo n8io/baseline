@@ -2,9 +2,9 @@
 // client's token, then calls the OpenAPI document and every route that needs no input with it.
 // Prints one line per call and a summary; exits 1 when any call fails. It is the pattern for a
 // Project's own scripts: docs/agents/scripts.md.
-import { parseArgs } from "node:util";
 import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
+import { argsParse } from "./args.ts";
 
 const usage = `Usage: pnpm api-smoke [--url <origin>] [--wait <seconds>]
 
@@ -65,22 +65,20 @@ const documentWait = async (
 	}
 };
 
-const main = async (): Promise<number> => {
-	const { values } = parseArgs({
+// The exit code, or undefined when argsParse has already said what it needed to.
+const main = async (): Promise<number | undefined> => {
+	const parsed = argsParse({
 		options: {
-			help: { short: "h", type: "boolean" },
 			url: {
 				default: `http://localhost:${process.env.PORT ?? "3000"}`,
 				type: "string",
 			},
 			wait: { default: "30", type: "string" },
 		},
-		strict: true,
+		usage,
 	});
-	if (values.help) {
-		console.log(usage);
-		return 0;
-	}
+	if (parsed === undefined) return undefined;
+	const { values } = parsed;
 	const url = values.url.replace(/\/+$/, "");
 	const waitSeconds = Number(values.wait);
 	if (!Number.isFinite(waitSeconds) || waitSeconds < 0) {
@@ -117,7 +115,7 @@ const main = async (): Promise<number> => {
 
 if (import.meta.main) {
 	try {
-		process.exitCode = await main();
+		process.exitCode = (await main()) ?? process.exitCode;
 	} catch (error) {
 		console.error(
 			`api-smoke: ${error instanceof Error ? error.message : String(error)}`,

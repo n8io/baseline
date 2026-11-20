@@ -4,7 +4,7 @@ Read when a task adds a script to `scripts/` that talks to a running app: a smok
 
 ## What a script does, in order
 
-1. Parses its flags with `parseArgs` from `node:util`, strict, so an unknown flag fails. `--help` prints the usage and exits 0. A default lives in the option, not in the code below it.
+1. Parses its flags with `argsParse` from `scripts/args.ts` (strict `parseArgs` from `node:util`), so an unknown flag prints the usage and exits 1, and `--help` prints the usage and exits 0. A default lives in the option, not in the code below it. A command it shells out to runs through `processRun` or `gitRun` from `scripts/process-run.ts`.
 2. Waits for the app with a deadline. The app may still be booting, so poll a cheap route (`/api/v1/openapi.json`) every 500 ms until it answers or `--wait` seconds pass, then fail with what it waited for. Never loop without a deadline, and never `sleep` a guessed number of seconds.
 3. Gets a token. In development and test the memory issuer hands one to a machine client; the script never signs a token itself and never imports `@n8io/baseline-authn/testing`:
 

@@ -11,7 +11,14 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { parseArgs } from "node:util";
+import { argsParse, argsUsageFail } from "./args.ts";
+import {
+	type Piece,
+	pieceBlocksRemove,
+	pieceScheduleLines,
+	piecesRemovedFind,
+} from "./pieces.ts";
+import { processRun } from "./process-run.ts";
 import {
 	camelFromKebab,
 	contextsPairsFind,
@@ -25,7 +32,6 @@ import {
 	monorepoAppIs,
 	type NameForms,
 	pascalFromKebab,
-	run,
 	type TemplateFile,
 	templateFetch,
 	templateJsonRead,
@@ -224,110 +230,59 @@ const homePaths = new Set([
 	"src/ui/routes/home.test.ts",
 ]);
 
-// The pieces of the stack a Project may remove with pnpm piece-remove. A removed piece's
-// package is gone from package.json; its files and its `piece-start:` blocks stay out of a new
-// context or Aggregate.
-const pieces = [
-	{ name: "ui", package: "react-router", paths: [/^src\/ui\//] },
-	{
-		name: "analytics",
-		package: "@n8io/baseline-analytics",
-		paths: [/^src\/contexts\/foo\/.*-analytics\.test\.ts$/],
-	},
+// What each Piece of the stack (scripts/pieces.ts) owns in the Template's foo files: the files a
+// new context or Aggregate leaves out once the Piece is removed, and the env lines. A Piece's
+// `piece-start:` blocks stay out of them too. A new Piece fails type-checking until it is listed.
+const piecesTemplate: Record<Piece, { lines?: RegExp; paths: RegExp[] }> = {
+	analytics: { paths: [/^src\/contexts\/foo\/.*-analytics\.test\.ts$/] },
 	// Owns no context file; listed so its blocks stay out once it is removed.
-	{
-		name: "error-tracking",
-		package: "@n8io/baseline-error-tracking",
-		paths: [],
-	},
-	// Owns no context file either; listed for its server.ts block.
-	{ name: "api-reference", package: "swagger-ui-dist", paths: [] },
-	// Owns no context file either (src/redis-open.ts is not a context's).
-	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
-	// The SDK and the command line tool own no context file; aggregateChecksRun regenerates the SDK. The
-	// command line tool adds no package to the app, so its folder tells it is there.
-	{ name: "sdk", package: "orval", paths: [] },
-	{ folder: "clients/cli", name: "cli", paths: [] },
-	{
-		name: "live",
-		package: "@n8io/baseline-live",
+	"api-reference": { paths: [] },
+	cache: { paths: [/^src\/contexts\/foo\/.*-cache(d|\.test)?\.ts$/] },
+	// Owns no context file.
+	cli: { paths: [] },
+	// Owns no context file; listed so its blocks stay out once it is removed.
+	"error-tracking": { paths: [] },
+	live: {
 		paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
 	},
-	{
-		name: "cache",
-		package: "@n8io/baseline-cache",
-		paths: [/^src\/contexts\/foo\/.*-cache(d|\.test)?\.ts$/],
-	},
-	{
-		name: "queue",
-		package: "@n8io/baseline-queue",
+	queue: {
+		// Env files carry no markers; this is the line pieces.ts drops from .env.schema.
+		lines: pieceScheduleLines,
 		paths: [
 			/^src\/worker\.ts$/,
 			/^src\/contexts\/foo\/adapters\/inbound\/foo-schedule(\.test)?\.ts$/,
 			/^src\/contexts\/foo\/adapters\/outbound\/foo-transaction\.postgres\.test\.ts$/,
 			/^src\/contexts\/foo\/.*-queue\.test\.ts$/,
 		],
-		// Env files carry no markers; this is the line piece-remove.ts drops from .env.schema.
-		lines:
-			/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# wiring: schedules\n)*/m,
 	},
-];
-
-export const piecesRemovedFind = (appDirectory: string): string[] => {
-	const manifest = JSON.parse(
-		readFileSync(join(appDirectory, "package.json"), "utf8"),
-	) as {
-		dependencies?: Record<string, string>;
-		devDependencies?: Record<string, string>;
-	};
-	const installed = {
-		...manifest.dependencies,
-		...manifest.devDependencies,
-	};
-	return pieces
-		.filter((p) =>
-			p.package === undefined
-				? !existsSync(join(appDirectory, p.folder ?? "", "package.json"))
-				: !(p.package in installed),
-		)
-		.map((p) => p.name);
+	// Owns no context file (src/redis-open.ts is not a context's).
+	redis: { paths: [] },
+	// Owns no context file; aggregateChecksRun regenerates the SDK.
+	sdk: { paths: [] },
+	ui: { paths: [/^src\/ui\//] },
 };
-
-// Drops every block from a `piece-start: <name>` line through its `piece-end: <name>` line.
-export const pieceBlocksRemove = (text: string, name: string): string =>
-	text.replaceAll(
-		new RegExp(
-			`^[ \\t]*(//|#) piece-start: ${name}\\n[\\s\\S]*?^[ \\t]*(//|#) piece-end: ${name}\\n`,
-			"gm",
-		),
-		"",
-	);
 
 // The template as a Project that removed those pieces would have it.
 export const templateWithoutPieces = (
 	template: TemplateFile[],
-	removed: string[],
+	removed: Piece[],
 ): TemplateFile[] =>
 	template
 		.filter(
 			(file) =>
-				!pieces.some(
-					(p) =>
-						removed.includes(p.name) && p.paths.some((r) => r.test(file.path)),
+				!removed.some((piece) =>
+					piecesTemplate[piece].paths.some((r) => r.test(file.path)),
 				),
 		)
 		.map((file) => ({
 			path: file.path,
-			text: pieces
-				.filter((p) => removed.includes(p.name))
-				.reduce(
-					(text, p) =>
-						pieceBlocksRemove(
-							p.lines === undefined ? text : text.replace(p.lines, ""),
-							p.name,
-						),
-					file.text,
-				),
+			text: removed.reduce((text, piece) => {
+				const { lines } = piecesTemplate[piece];
+				return pieceBlocksRemove(
+					lines === undefined ? text : text.replace(lines, ""),
+					piece,
+				);
+			}, file.text),
 		}));
 
 // The parts --bare leaves out unless named. analytics, cache and live are pieces too, so foo marks
@@ -344,7 +299,7 @@ export const aggregateParts = [
 ] as const;
 export type AggregatePart = (typeof aggregateParts)[number];
 
-const partPieces: Record<AggregatePart, string | undefined> = {
+const partPieces: Record<AggregatePart, Piece | undefined> = {
 	analytics: "analytics",
 	cache: "cache",
 	live: "live",
@@ -408,7 +363,10 @@ export const partsApply = ({
 					partPaths[part].some((r) => r.test(file.path)),
 				),
 		),
-		partsLeftOut.filter((part) => partPieces[part] === part),
+		partsLeftOut.flatMap((part) => {
+			const piece = partPieces[part];
+			return piece === part ? [piece] : [];
+		}),
 	).map((file) => ({
 		path: file.path,
 		text: partsLeftOut
@@ -1351,7 +1309,7 @@ export const filesFormat = ({
 	appDirectory: string;
 	paths: string[];
 }): void => {
-	run({
+	processRun({
 		command: "pnpm",
 		args: [
 			"exec",
@@ -1364,7 +1322,7 @@ export const filesFormat = ({
 		],
 		options: { cwd: appDirectory },
 	});
-	run({
+	processRun({
 		command: "pnpm",
 		args: ["exec", "biome", "check", "--write", ...paths],
 		options: { cwd: appDirectory },
@@ -1478,19 +1436,20 @@ const aggregateMigrationHas = ({
 	);
 };
 
-// Runs pnpm check and pnpm test in the Project, or exits with their output.
+// Runs pnpm check and pnpm test in the Project. When one fails it returns what to print, the
+// output and a closing line; undefined when both pass.
 export const aggregateChecksRun = ({
 	appDirectory,
 	command,
 }: {
 	appDirectory: string;
 	command: string;
-}): void => {
+}): string | undefined => {
 	try {
 		// New routes make the committed SDK stale, and CI's check job fails on a stale SDK.
 		const sdk = existsSync(join(appDirectory, "clients/sdk/package.json"));
 		for (const script of [...(sdk ? ["sdk-generate"] : []), "check", "test"]) {
-			run({
+			processRun({
 				command: "pnpm",
 				args: ["run", script],
 				options: { cwd: appDirectory },
@@ -1498,12 +1457,9 @@ export const aggregateChecksRun = ({
 		}
 	} catch (error) {
 		const { message, stdout } = error as Error & { stdout?: string };
-		console.error(`${stdout ?? ""}${message}`);
-		console.error(
-			`${command}: the new code does not pass check or unit tests yet`,
-		);
-		process.exit(1);
+		return `${stdout ?? ""}${message}\n${command}: the new code does not pass check or unit tests yet`;
 	}
+	return undefined;
 };
 
 // The template the Project's files come from: this checkout in the monorepo, else its release.
@@ -1532,54 +1488,42 @@ pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
 
 Never generated: business transitions, Event handlers, sagas. See docs/agents/context-create.md.`;
 
-const fail = (message: string): never => {
+const options = {
+	analytics: { type: "boolean" },
+	bare: { type: "boolean" },
+	cache: { type: "boolean" },
+	live: { type: "boolean" },
+	pages: { type: "boolean" },
+	plural: { type: "string" },
+	schedule: { type: "boolean" },
+	seed: { type: "boolean" },
+} as const;
+
+// Says why the command stopped and sets the exit code; the caller returns.
+const fail = (message: string): void => {
 	console.error(`aggregate-create: ${message}`);
-	process.exit(1);
+	process.exitCode = 1;
 };
 
-const argsParse = () =>
-	parseArgs({
-		allowPositionals: true,
-		options: {
-			analytics: { type: "boolean" },
-			bare: { type: "boolean" },
-			cache: { type: "boolean" },
-			help: { short: "h", type: "boolean" },
-			live: { type: "boolean" },
-			pages: { type: "boolean" },
-			plural: { type: "string" },
-			schedule: { type: "boolean" },
-			seed: { type: "boolean" },
-		},
-	});
-
 const main = () => {
-	let parsed: ReturnType<typeof argsParse>;
-	try {
-		parsed = argsParse();
-	} catch (error) {
-		console.error(`aggregate-create: ${(error as Error).message}\n\n${usage}`);
-		process.exit(1);
-	}
+	const parsed = argsParse({ allowPositionals: true, options, usage });
+	if (parsed === undefined) return;
 	const { positionals, values } = parsed;
-	if (values.help) {
-		console.log(usage);
-		return;
-	}
 	const [context, kebab] = positionals;
 	if (
 		context === undefined ||
 		kebab === undefined ||
 		positionals.length !== 2
 	) {
-		console.error(usage);
-		process.exit(1);
+		argsUsageFail(usage);
+		return;
 	}
 	const named = aggregateParts.filter((part) => values[part] === true);
 	if (!values.bare && named.length > 0) {
 		fail(
 			`--${named.join(", --")} picks parts for --bare; without --bare every part is copied`,
 		);
+		return;
 	}
 	const parts = values.bare ? named : null;
 	const aggregate: NameForms = {
@@ -1590,7 +1534,10 @@ const main = () => {
 	const refusal =
 		aggregateRefusal({ aggregate, appDirectory, context }) ??
 		aggregatePartsRefusal({ appDirectory, parts: named });
-	if (refusal !== undefined) fail(refusal);
+	if (refusal !== undefined) {
+		fail(refusal);
+		return;
+	}
 	let files: TemplateFile[] = [];
 	try {
 		files = aggregateFilesCreate({
@@ -1602,13 +1549,22 @@ const main = () => {
 		});
 	} catch (error) {
 		fail((error as Error).message);
+		return;
 	}
 	const wired = filesWriteAll({ appDirectory, files });
 	console.log(
 		`Wrote ${aggregate.kebab} into src/contexts/${context}/ and wired it into ${wired} files; running pnpm check and pnpm test.`,
 	);
 	filesFormat({ appDirectory, paths: files.map((f) => f.path) });
-	aggregateChecksRun({ appDirectory, command: "aggregate-create" });
+	const checksFailure = aggregateChecksRun({
+		appDirectory,
+		command: "aggregate-create",
+	});
+	if (checksFailure !== undefined) {
+		console.error(checksFailure);
+		process.exitCode = 1;
+		return;
+	}
 	console.log(
 		`Created ${aggregate.kebab}; pnpm check and pnpm test pass.\n${nextStepsText(
 			{

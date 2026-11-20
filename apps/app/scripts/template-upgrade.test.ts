@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
+import { gitRun } from "./process-run.ts";
 import { filesWrite, type TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
@@ -44,9 +45,6 @@ const runCapture = () => {
 		},
 	};
 };
-
-const git = (cwd: string, ...args: string[]) =>
-	execFileSync("git", args, { cwd, encoding: "utf8" });
 
 // A Project that kept every piece.
 const piecePackages = {
@@ -93,9 +91,9 @@ const tools: UpgradeTools = {
 const projectCreate = (a: string): DisposableTempDir => {
 	const folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
 	const app = folder.path;
-	git(app, "init", "--quiet", "--initial-branch=main");
-	git(app, "config", "user.email", "test@example.com");
-	git(app, "config", "user.name", "Test");
+	gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+	gitRun(app, ["config", "user.email", "test@example.com"]);
+	gitRun(app, ["config", "user.name", "Test"]);
 	const files: Record<string, string> = {
 		".template.json": '{ "release": "1.0.0", "description": "Invoices." }\n',
 		"CONTEXT.md": "# Invoices.\n",
@@ -108,8 +106,8 @@ const projectCreate = (a: string): DisposableTempDir => {
 		execFileSync("mkdir", ["-p", join(app, path, "..")]);
 		writeFileSync(join(app, path), text);
 	}
-	git(app, "add", ".");
-	git(app, "commit", "--quiet", "-m", "project");
+	gitRun(app, ["add", "."]);
+	gitRun(app, ["commit", "--quiet", "-m", "project"]);
 	return folder;
 };
 
@@ -136,7 +134,7 @@ describe("templateUpgradeRun", () => {
 		expect(
 			JSON.parse(readFileSync(join(app, ".template.json"), "utf8")).release,
 		).toBe("1.1.0");
-		expect(git(app, "rev-list", "--count", "HEAD").trim()).toBe("1");
+		expect(gitRun(app, ["rev-list", "--count", "HEAD"]).trim()).toBe("1");
 		expect(run.scripts).toEqual([
 			"install --lockfile-only",
 			"wait",
@@ -178,9 +176,9 @@ describe("templateUpgradeRun", () => {
 		};
 		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
 		const app = folder.path;
-		git(app, "init", "--quiet", "--initial-branch=main");
-		git(app, "config", "user.email", "test@example.com");
-		git(app, "config", "user.name", "Test");
+		gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+		gitRun(app, ["config", "user.email", "test@example.com"]);
+		gitRun(app, ["config", "user.name", "Test"]);
 		execFileSync("mkdir", ["-p", join(app, "src")]);
 		writeFileSync(
 			join(app, ".template.json"),
@@ -188,8 +186,8 @@ describe("templateUpgradeRun", () => {
 		);
 		writeFileSync(join(app, "package.json"), manifestOf(false));
 		writeFileSync(join(app, "src/a.ts"), 'import a from "a";\nold\n');
-		git(app, "add", ".");
-		git(app, "commit", "--quiet", "-m", "project");
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "project"]);
 
 		expect(
 			await templateUpgradeRun({
@@ -240,9 +238,9 @@ describe("templateUpgradeRun", () => {
 		};
 		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
 		const app = folder.path;
-		git(app, "init", "--quiet", "--initial-branch=main");
-		git(app, "config", "user.email", "test@example.com");
-		git(app, "config", "user.name", "Test");
+		gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+		gitRun(app, ["config", "user.email", "test@example.com"]);
+		gitRun(app, ["config", "user.name", "Test"]);
 		const release = (version: string) =>
 			writeFileSync(
 				join(app, ".template.json"),
@@ -250,8 +248,8 @@ describe("templateUpgradeRun", () => {
 			);
 		release("3.0.0");
 		writeFileSync(join(app, "package.json"), manifestOf(false));
-		git(app, "add", ".");
-		git(app, "commit", "--quiet", "-m", "project");
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "project"]);
 		const upgrade = (to: string) =>
 			templateUpgradeRun({
 				appDirectory: app,
@@ -270,8 +268,8 @@ describe("templateUpgradeRun", () => {
 
 		// The Project regenerates its SDK; the next upgrade leaves the generated file alone.
 		writeFileSync(join(app, "clients/sdk/openapi.json"), '{"title":"own"}\n');
-		git(app, "add", ".");
-		git(app, "commit", "--quiet", "-m", "upgrade");
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "upgrade"]);
 		expect(await upgrade("3.2.0")).toBe(0);
 		expect(readFileSync(join(app, "clients/sdk/openapi.json"), "utf8")).toBe(
 			'{"title":"own"}\n',
@@ -305,17 +303,17 @@ describe("templateUpgradeRun", () => {
 		const upgraded = async (sdk: boolean) => {
 			const folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
 			const app = folder.path;
-			git(app, "init", "--quiet", "--initial-branch=main");
-			git(app, "config", "user.email", "test@example.com");
-			git(app, "config", "user.name", "Test");
+			gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+			gitRun(app, ["config", "user.email", "test@example.com"]);
+			gitRun(app, ["config", "user.name", "Test"]);
 			writeFileSync(
 				join(app, ".template.json"),
 				'{ "release": "4.0.0", "description": "Invoices." }\n',
 			);
 			writeFileSync(join(app, "package.json"), manifestOf(sdk));
 			if (sdk) filesWrite(app, [sdkFile]);
-			git(app, "add", ".");
-			git(app, "commit", "--quiet", "-m", "project");
+			gitRun(app, ["add", "."]);
+			gitRun(app, ["commit", "--quiet", "-m", "project"]);
 			expect(
 				await templateUpgradeRun({
 					appDirectory: app,
@@ -352,7 +350,7 @@ describe("templateUpgradeRun", () => {
 			"already on release 1.0.0; nothing to upgrade",
 		);
 		expect(run.scripts).toEqual([]);
-		expect(git(app, "status", "--porcelain")).toBe("");
+		expect(gitRun(app, ["status", "--porcelain"])).toBe("");
 	});
 
 	it("leaves conflict markers and exits 1 when both sides changed the same line", async () => {
@@ -440,7 +438,7 @@ describe("templateUpgradeRun", () => {
 				join(app, "pnpm-lock.yaml"),
 				"packages:\n\n  '@n8io/baseline-id@1.0.0':\n    resolution: {}\n",
 			);
-			git(app, "commit", "--quiet", "-am", "lockfile");
+			gitRun(app, ["commit", "--quiet", "-am", "lockfile"]);
 			const run = runCapture();
 			expect(
 				await templateUpgradeRun({
@@ -601,9 +599,9 @@ describe("languageKeep", () => {
 		};
 		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
 		const app = folder.path;
-		git(app, "init", "--quiet", "--initial-branch=main");
-		git(app, "config", "user.email", "test@example.com");
-		git(app, "config", "user.name", "Test");
+		gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+		gitRun(app, ["config", "user.email", "test@example.com"]);
+		gitRun(app, ["config", "user.name", "Test"]);
 		writeFileSync(
 			join(app, ".template.json"),
 			'{ "release": "3.0.0", "description": "Invoices." }\n',
@@ -613,8 +611,8 @@ describe("languageKeep", () => {
 			join(app, "CONTEXT.md"),
 			`# Invoices.\n\n## Architecture\n\nold\n\n${language}`,
 		);
-		git(app, "add", ".");
-		git(app, "commit", "--quiet", "-m", "project");
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "project"]);
 
 		expect(
 			await templateUpgradeRun({

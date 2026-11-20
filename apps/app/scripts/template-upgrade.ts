@@ -10,18 +10,19 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { parseArgs } from "node:util";
+import { argsParse } from "./args.ts";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import {
-	pieceRemovals,
+	type Piece,
 	pieceSign,
-	piecesGoneFind,
+	pieces,
+	piecesRemovedFind,
 	piecesRemoveFromTree,
-} from "./piece-remove.ts";
+} from "./pieces.ts";
+import { gitRun, processRun } from "./process-run.ts";
 import {
 	filesWrite,
 	releaseLatest,
-	run,
 	type TemplateAnswers,
 	type TemplateFile,
 	templateAnswers,
@@ -50,7 +51,7 @@ const renderCommit = ({
 	message: string;
 	parent?: string;
 	// The Pieces the Project removed; the render drops them too.
-	removed: string[];
+	removed: Piece[];
 	repository: string;
 	tools: UpgradeTools;
 }): string => {
@@ -60,8 +61,10 @@ const renderCommit = ({
 	piecesRemoveFromTree(tree, removed);
 	tools.finish(tree);
 	const env = { ...process.env, GIT_INDEX_FILE: join(work.path, "index") };
-	const git = (args: string[]) =>
-		run({
+	// Unlike gitRun, it works on the Project's repository with the rendered tree as its work tree
+	// and a private index, so the Project's own index and files stay as they are.
+	const treeGitRun = (args: string[]) =>
+		processRun({
 			command: "git",
 			args: [
 				"--git-dir",
@@ -75,9 +78,9 @@ const renderCommit = ({
 				env,
 			},
 		}).trim();
-	git(["add", "--all", "--force", "."]);
-	const treeId = git(["write-tree"]);
-	return git([
+	treeGitRun(["add", "--all", "--force", "."]);
+	const treeId = treeGitRun(["write-tree"]);
+	return treeGitRun([
 		"commit-tree",
 		treeId,
 		"-m",
@@ -88,11 +91,7 @@ const renderCommit = ({
 
 // The paths git left unmerged after the cherry-pick.
 const conflictsRead = (repository: string): string[] =>
-	run({
-		command: "git",
-		args: ["diff", "--name-only", "--diff-filter=U"],
-		options: { cwd: repository },
-	})
+	gitRun(repository, ["diff", "--name-only", "--diff-filter=U"])
 		.split("\n")
 		.filter((path) => path !== "");
 
@@ -107,7 +106,7 @@ const templateMerge = ({
 }: {
 	from: TemplateFile[];
 	labels: { from: string; to: string };
-	removed: string[];
+	removed: Piece[];
 	repository: string;
 	to: TemplateFile[];
 	tools: UpgradeTools;
@@ -128,12 +127,8 @@ const templateMerge = ({
 		parent: base,
 	});
 	try {
-		run({
-			command: "git",
-			args: ["cherry-pick", "--no-commit", next],
-			// A conflict is reported below; run keeps git's own "could not apply" hints quiet.
-			options: { cwd: repository },
-		});
+		// A conflict is reported below; gitRun keeps git's own "could not apply" hints quiet.
+		gitRun(repository, ["cherry-pick", "--no-commit", next]);
 	} catch (error) {
 		// A conflict exits non-zero and leaves unmerged paths; anything else is a real failure.
 		const conflicts = conflictsRead(repository);
@@ -253,8 +248,8 @@ const pieceInRelease = (files: TemplateFile[]) => {
 		...Object.keys(manifest.dependencies ?? {}),
 		...Object.keys(manifest.devDependencies ?? {}),
 	]);
-	return (piece: string) => {
-		const folder = pieceRemovals[piece]?.folder;
+	return (piece: Piece) => {
+		const { folder } = pieces[piece];
 		return folder === undefined
 			? names.has(pieceSign(piece))
 			: files.some((f) => f.path.startsWith(`${folder}/`));
@@ -262,10 +257,10 @@ const pieceInRelease = (files: TemplateFile[]) => {
 };
 
 // A Piece that must go before a removed one (the cli before the sdk) cannot arrive without it.
-const piecesRemovedWith = (removed: string[]): string[] => [
+const piecesRemovedWith = (removed: Piece[]): Piece[] => [
 	...new Set([
 		...removed,
-		...removed.flatMap((piece) => pieceRemovals[piece]?.after ?? []),
+		...removed.flatMap((piece) => pieces[piece].after ?? []),
 	]),
 ];
 
@@ -278,11 +273,7 @@ export const templateUpgrade = async ({
 	to: string;
 	tools: UpgradeTools;
 }): Promise<{ conflicts: string[]; changelog: string }> => {
-	const status = run({
-		command: "git",
-		args: ["status", "--porcelain"],
-		options: { cwd: appDirectory },
-	});
+	const status = gitRun(appDirectory, ["status", "--porcelain"]);
 	if (status.trim() !== "") {
 		throw new Error("the working tree has changes; commit or stash them first");
 	}
@@ -319,7 +310,7 @@ export const templateUpgrade = async ({
 		to: await kept(toFiles),
 		tools,
 		removed: piecesRemovedWith(
-			piecesGoneFind(appDirectory).filter(pieceInRelease(fromFiles)),
+			piecesRemovedFind(appDirectory).filter(pieceInRelease(fromFiles)),
 		),
 		labels: { from: template.release, to },
 	});
@@ -411,8 +402,18 @@ export const templateUpgradeRun = async ({
 	return 0;
 };
 
+const usage = `Usage: pnpm template-upgrade [--to <version>]
+
+Renders the Project's Template release and the new one, and merges the difference into the working
+tree without committing. Exits 1 on a conflict.
+
+  --to <version>  the release to upgrade to (default: the latest)
+  -h, --help      this help`;
+
 const main = async () => {
-	const { values } = parseArgs({ options: { to: { type: "string" } } });
+	const parsed = argsParse({ options: { to: { type: "string" } }, usage });
+	if (parsed === undefined) return;
+	const { values } = parsed;
 	const appDirectory = process.cwd();
 	process.exitCode = await templateUpgradeRun({
 		appDirectory,
@@ -422,7 +423,7 @@ const main = async () => {
 			finish: (directory) => templateFinish(directory, appDirectory),
 		},
 		pnpm: (args) => {
-			run({
+			processRun({
 				command: "pnpm",
 				args,
 				options: { cwd: appDirectory, inherit: true },

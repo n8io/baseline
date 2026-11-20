@@ -13,7 +13,7 @@ import {
 	pieceDevUi,
 	pieceDevWorker,
 	pieceMarkersProblems,
-} from "./scripts/piece-remove.ts";
+} from "./scripts/pieces.ts";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
 import.meta.glob(

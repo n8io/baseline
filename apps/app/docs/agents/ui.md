@@ -67,7 +67,7 @@ A page that shows an entity others can change reruns its loaders when that entit
 useLiveUpdates({ channel: "baz", id: baz.id });
 ```
 
-- The channel is the Aggregate's name, the id the entity's. Its Use case sends on that channel after commit, and `adapters/inbound/<aggregate>-live.ts` serves the stream only to an Actor its read Use case allows.
+- The channel is the Aggregate's name, the id the entity's. Its Use case sends on that channel after commit, and `adapters/inbound/<aggregate>-live-routes.ts` serves the stream only to an Actor its read Use case allows.
 - A hook cannot be called conditionally. A page that follows a second entity only some of the time passes `id: null` while there is none: no stream opens.
 
 ## Forms

@@ -29,7 +29,7 @@ Rules for code that belongs to a piece, so the removal stays clean:
 
 A Project that will never remove a piece lists it in `.template.json`: `"piecesKept": ["live", "cache"]`. `piece-check` skips it, and new code needs no markers for it. Decide that once, on purpose; the Template's own pieces stay removable.
 
-A Project's own file that belongs to a piece, such as a test of the pages under `test/ui` or an integration test of analytics, is listed in `.template.json` too, so `pnpm piece-remove` and `piece-check` delete it with the piece: `"pieceFiles": { "ui": ["test/ui"], "analytics": ["test/integration/observability-analytics.test.ts"] }`. Paths are from the Project root and tracked by git (the undo of a failed removal restores only tracked files); a folder goes whole. List them there, never in `scripts/piece-remove.ts`: the Template owns that script, so each release that changes that script conflicts with lines you added to it, and a Template script copied over yours drops them. An unknown piece or a path outside the Project makes both commands stop and say which entry is wrong.
+A Project's own file that belongs to a piece, such as a test of the pages under `test/ui` or an integration test of analytics, is listed in `.template.json` too, so `pnpm piece-remove` and `piece-check` delete it with the piece: `"pieceFiles": { "ui": ["test/ui"], "analytics": ["test/integration/observability-analytics.test.ts"] }`. Paths are from the Project root and tracked by git (the undo of a failed removal restores only tracked files); a folder goes whole. List them there, never in `scripts/pieces.ts`: the Template owns that script, so each release that changes that script conflicts with lines you added to it, and a Template script copied over yours drops them. An unknown piece or a path outside the Project makes both commands stop and say which entry is wrong.
 
 `pnpm template-upgrade` renders both releases with the pieces this Project removed already removed (found by their missing package in `package.json`, or for `cli` its missing folder), so a removed piece's package, files and lines do not come back. If a piece's lines still conflict, commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
 
@@ -51,7 +51,7 @@ Add the UI pages back: `git revert` the "Remove ui" commit. For each Aggregate c
 
 The live update streams (`/live/<aggregate>/<id>`, `@n8io/baseline-live`) and each Aggregate's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Aggregate created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, with its route inside the `piece-start: live` block of the context's `index.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Aggregate created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live-routes.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, with its route inside the `piece-start: live` block of the context's `index.ts`.
 
 ## The cache
 

@@ -9,20 +9,25 @@ import { spawn } from "node:child_process";
 import { mkdtempDisposableSync, rmSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { argsParse } from "./args.ts";
 import {
 	filesNamedIn,
+	type Piece,
+	pieceIs,
+	pieceNames,
 	pieceRemovals,
 	pieceRemove,
 	pieceSettingsRead,
 	pieceSign,
 	pieceSignsFind,
-	toolRun,
-} from "./piece-remove.ts";
-import { run } from "./template-render.ts";
+	pieces,
+	pnpmRun,
+} from "./pieces.ts";
+import { gitRun } from "./process-run.ts";
 
 export type PieceCheckPlan = {
 	// Each piece to check, with the pieces to remove before it in the same worktree.
-	checks: { first: string[]; piece: string }[];
+	checks: { first: Piece[]; piece: Piece }[];
 	// Why a piece is not checked.
 	notes: string[];
 };
@@ -38,12 +43,12 @@ export const pieceCheckPlanCreate = ({
 	installed: Set<string>;
 	kept: string[];
 	// Why a piece cannot be removed at all, as piece-remove would say.
-	refusal: (piece: string) => string | undefined;
-	requested: string[];
+	refusal: (piece: Piece) => string | undefined;
+	requested: Piece[];
 }): PieceCheckPlan => {
 	const plan: PieceCheckPlan = { checks: [], notes: [] };
-	const present = (piece: string) => installed.has(pieceSign(piece));
-	for (const piece of Object.keys(pieceRemovals)) {
+	const present = (piece: Piece) => installed.has(pieceSign(piece));
+	for (const piece of pieceNames) {
 		if (requested.length > 0 && !requested.includes(piece)) continue;
 		if (!present(piece)) {
 			plan.notes.push(`${piece}: not installed`);
@@ -53,7 +58,7 @@ export const pieceCheckPlanCreate = ({
 			plan.notes.push(`${piece}: kept (piecesKept in .template.json)`);
 			continue;
 		}
-		const first = (pieceRemovals[piece]?.after ?? []).filter(present);
+		const first = (pieces[piece].after ?? []).filter(present);
 		const keptFirst = first.find((p) => kept.includes(p));
 		if (keptFirst !== undefined) {
 			plan.notes.push(`${piece}: skipped, ${keptFirst} is kept and runs on it`);
@@ -70,28 +75,25 @@ export const pieceCheckPlanCreate = ({
 	return plan;
 };
 
-const git = (directory: string, args: string[]) =>
-	run({ command: "git", args, options: { cwd: directory } });
-
 // A checkout of HEAD that goes away with the scope; `path` is the app inside it. The folder's
 // unique name is also the worktree's name in git, so checks running at once never share one.
 const worktreeCreate = (directory: string) => {
 	const folder = mkdtempDisposableSync(join(tmpdir(), "piece-check-"));
 	const root = join(folder.path, basename(folder.path));
 	try {
-		git(directory, ["worktree", "add", "--detach", "--quiet", root, "HEAD"]);
+		gitRun(directory, ["worktree", "add", "--detach", "--quiet", root, "HEAD"]);
 	} catch (error) {
 		rmSync(folder.path, { force: true, recursive: true });
 		throw error;
 	}
 	return {
-		path: join(root, git(directory, ["rev-parse", "--show-prefix"]).trim()),
+		path: join(root, gitRun(directory, ["rev-parse", "--show-prefix"]).trim()),
 		[Symbol.dispose]() {
 			try {
-				git(directory, ["worktree", "remove", "--force", root]);
+				gitRun(directory, ["worktree", "remove", "--force", root]);
 			} finally {
 				rmSync(folder.path, { force: true, recursive: true });
-				git(directory, ["worktree", "prune"]);
+				gitRun(directory, ["worktree", "prune"]);
 			}
 		},
 	};
@@ -118,12 +120,12 @@ const pieceCheckFailureInstall = (output: string): PieceCheckFailure => ({
 const treeCheck = (directory: string): PieceCheckFailure | undefined => {
 	using worktree = worktreeCreate(directory);
 	const tree = worktree.path;
-	const installed = toolRun(tree, ["install", "--frozen-lockfile"]);
+	const installed = pnpmRun(tree, ["install", "--frozen-lockfile"]);
 	if (!installed.ok) {
 		return pieceCheckFailureInstall(installed.output);
 	}
 	for (const step of ["check", "test"]) {
-		const ran = toolRun(tree, [step]);
+		const ran = pnpmRun(tree, [step]);
 		if (!ran.ok) return { files: [], output: ran.output, step: `pnpm ${step}` };
 	}
 	return undefined;
@@ -132,7 +134,7 @@ const treeCheck = (directory: string): PieceCheckFailure | undefined => {
 // The tools a piece's check runs in its worktree; a test replaces them.
 type PieceCheckTools = {
 	pieceRemove: typeof pieceRemove;
-	toolRun: typeof toolRun;
+	pnpmRun: typeof pnpmRun;
 };
 
 // Installs, removes the pieces and tests in a worktree at `tree`. Only a failure after a
@@ -143,12 +145,12 @@ export const pieceCheckRun = ({
 	tools,
 	tree,
 }: {
-	first: string[];
-	piece: string;
+	first: Piece[];
+	piece: Piece;
 	tools: PieceCheckTools;
 	tree: string;
 }): PieceCheckFailure | undefined => {
-	const installed = tools.toolRun(tree, ["install", "--frozen-lockfile"]);
+	const installed = tools.pnpmRun(tree, ["install", "--frozen-lockfile"]);
 	if (!installed.ok) return pieceCheckFailureInstall(installed.output);
 	for (const name of [...first, piece]) {
 		const failed = tools.pieceRemove(tree, name);
@@ -162,7 +164,7 @@ export const pieceCheckRun = ({
 			};
 		}
 	}
-	const tested = tools.toolRun(tree, ["test"]);
+	const tested = tools.pnpmRun(tree, ["test"]);
 	return tested.ok
 		? undefined
 		: {
@@ -174,19 +176,19 @@ export const pieceCheckRun = ({
 
 const pieceCheck = (
 	directory: string,
-	{ first, piece }: { first: string[]; piece: string },
+	{ first, piece }: { first: Piece[]; piece: Piece },
 ): PieceCheckFailure | undefined => {
 	using worktree = worktreeCreate(directory);
 	return pieceCheckRun({
 		first,
 		piece,
-		tools: { pieceRemove, toolRun },
+		tools: { pieceRemove, pnpmRun },
 		tree: worktree.path,
 	});
 };
 
 // One unit of work for a child process: the unmodified tree, or a piece.
-type PieceCheckJob = { tree: true } | { first: string[]; piece: string };
+type PieceCheckJob = { tree: true } | { first: Piece[]; piece: Piece };
 
 // A child exits with this code when its check fails. Any other ending (a throw, a kill, no
 // memory) says nothing about a piece, so it blames none.
@@ -316,12 +318,26 @@ export const eachConcurrently = async <T>({
 	);
 };
 
+const usage = `Usage: pnpm piece-check [<piece>...]
+
+Proves that every installed Piece can still be removed: ${pieceNames.join(", ")}.
+Name Pieces to check only those.
+
+  -h, --help  this help`;
+
 const main = async () => {
 	const directory = process.cwd();
-	if (process.argv[2] === "--job") {
+	// --job is how it runs each check in a child process of its own; it is not for people.
+	const parsed = argsParse({
+		allowPositionals: true,
+		options: { job: { type: "string" } },
+		usage,
+	});
+	if (parsed === undefined) return;
+	if (parsed.values.job !== undefined) {
 		const failed = jobRun(
 			directory,
-			JSON.parse(process.argv[3] ?? "") as PieceCheckJob,
+			JSON.parse(parsed.values.job) as PieceCheckJob,
 		);
 		if (failed !== undefined) {
 			console.error(failed.text);
@@ -329,11 +345,11 @@ const main = async () => {
 		}
 		return;
 	}
-	const requested = process.argv.slice(2);
-	const unknown = requested.filter((p) => pieceRemovals[p] === undefined);
+	const requested = parsed.positionals.filter(pieceIs);
+	const unknown = parsed.positionals.filter((p) => !pieceIs(p));
 	if (unknown.length > 0) {
 		console.error(
-			`piece-check: unknown piece ${unknown.join(", ")}; pieces are ${Object.keys(pieceRemovals).join(", ")}`,
+			`piece-check: unknown piece ${unknown.join(", ")}; pieces are ${pieceNames.join(", ")}`,
 		);
 		process.exitCode = 1;
 		return;
@@ -349,7 +365,7 @@ const main = async () => {
 	const plan = pieceCheckPlanCreate({
 		installed: pieceSignsFind(directory),
 		kept,
-		refusal: (piece) => pieceRemovals[piece]?.refusal?.(directory),
+		refusal: (piece) => pieceRemovals[piece].refusal?.(directory),
 		requested,
 	});
 	for (const note of plan.notes) console.log(`piece-check: ${note}`);

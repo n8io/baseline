@@ -29,10 +29,10 @@ import {
 	contextRefusal,
 } from "../../apps/app/scripts/context-create.ts";
 import { npmTarballsWait } from "../../apps/app/scripts/npm-tarballs-wait.ts";
+import { processRun } from "../../apps/app/scripts/process-run.ts";
 import {
 	filesWrite,
 	releaseLatest,
-	run,
 	templateFetch,
 	templateFinish,
 } from "../../apps/app/scripts/template-render.ts";
@@ -42,7 +42,7 @@ import {
 	appRender,
 	gitCommitAll,
 	glossaryTerm,
-	pnpmRun,
+	pnpmInheritRun,
 	toolsDirectory,
 } from "../../scripts/app-create.ts";
 import {
@@ -137,12 +137,16 @@ const main = async () => {
 	answersWrite({ directory, answers: { ...answers, release: previous } });
 	// The template's lockfile drops our own packages, so this install adds them, resolved first so
 	// their tarballs can be awaited.
-	pnpmRun(directory, ["install", "--lockfile-only", "--no-frozen-lockfile"]);
+	pnpmInheritRun(directory, [
+		"install",
+		"--lockfile-only",
+		"--no-frozen-lockfile",
+	]);
 	await npmTarballsWait({ directory });
-	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	pnpmInheritRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, previousFiles);
 	gitCommitAll(directory, `Create render-test from app@${previous}`);
-	run({
+	processRun({
 		command: "git",
 		args: ["update-ref", "refs/remotes/origin/main", "HEAD"],
 		options: {
@@ -162,7 +166,7 @@ const main = async () => {
 	if (conflicts.length > 0) {
 		throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
 	}
-	const upgraded = run({
+	const upgraded = processRun({
 		command: "git",
 		args: ["status", "--porcelain"],
 		options: { cwd: directory },
@@ -176,11 +180,12 @@ const main = async () => {
 		files.find((f) => f.path === "pnpm-lock.yaml")?.text ?? "",
 	);
 	// The upgrade and the overrides change dependencies; CI's pnpm otherwise installs frozen.
-	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
+	pnpmInheritRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, files);
 	// app-create makes no bounded context, so a Project's first commit is this tree.
 	console.log("HEAD with no bounded context: check, test and build");
-	for (const script of ["check", "test", "build"]) pnpmRun(directory, [script]);
+	for (const script of ["check", "test", "build"])
+		pnpmInheritRun(directory, [script]);
 	// A fresh render writes the SDK as pnpm sdk-generate does for a Project with no bounded context.
 	// template-upgrade keeps a Project's own generated SDK files, so compare a render of this checkout
 	// with what the generator writes here; a Project runs it after an upgrade, as this one does now.
@@ -190,7 +195,7 @@ const main = async () => {
 	using fresh = mkdtempDisposableSync(join(tmpdir(), "render-fresh-"));
 	await appRender({ directory: fresh.path, files, answers });
 	const sdkRendered = sdkRead(fresh.path);
-	pnpmRun(directory, ["sdk-generate"]);
+	pnpmInheritRun(directory, ["sdk-generate"]);
 	const sdkChanged = sdkRead(directory).flatMap((text, k) =>
 		text === sdkRendered[k] ? [] : [sdkFiles[k]],
 	);
@@ -255,19 +260,19 @@ const main = async () => {
 		return;
 	}
 	cpSync(join(fixture, "files"), directory, { recursive: true });
-	run({
+	processRun({
 		command: "git",
 		args: ["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")],
 		options: {
 			cwd: directory,
 		},
 	});
-	pnpmRun(directory, ["exec", "biome", "check", "--write", "."]);
-	pnpmRun(directory, ["codegen"]);
+	pnpmInheritRun(directory, ["exec", "biome", "check", "--write", "."]);
+	pnpmInheritRun(directory, ["codegen"]);
 	// The contexts added routes, so the SDK is regenerated, as a Project does after aggregate-create.
-	pnpmRun(directory, ["sdk-generate"]);
-	pnpmRun(directory, ["check"]);
-	pnpmRun(directory, ["test"]);
+	pnpmInheritRun(directory, ["sdk-generate"]);
+	pnpmInheritRun(directory, ["check"]);
+	pnpmInheritRun(directory, ["test"]);
 	checkoutPackagesTrack(directory);
 	gitCommitAll(directory, "Upgrade and add the contexts");
 	console.log(readFileSync(join(directory, ".template.json"), "utf8"));

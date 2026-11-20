@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
 	existsSync,
 	mkdtempDisposableSync,
@@ -22,7 +21,6 @@ import {
 	linesRemove,
 	lockfileRender,
 	readmeRender,
-	run,
 	templateFileRender,
 	templateFilesRender,
 	templateFinish,
@@ -56,34 +54,6 @@ const template =
 	readdirSync(domainsUrl)
 		.filter((name) => !name.startsWith("."))
 		.join() === "foo";
-
-describe("run", () => {
-	it("keeps a working command's stderr out of the terminal", () => {
-		const module = new URL("./template-render.ts", import.meta.url).pathname;
-		const child = spawnSync(
-			process.execPath,
-			[
-				"--input-type=module",
-				"-e",
-				`import { run } from ${JSON.stringify(module)};
-run({ command: process.execPath, args: ["-e", "process.stderr.write('error: could not apply')"] });`,
-			],
-			{ encoding: "utf8" },
-		);
-
-		expect(child.status).toBe(0);
-		expect(child.stderr).toBe("");
-	});
-
-	it("puts a failing command's stderr in its error", () => {
-		expect(() =>
-			run({
-				command: process.execPath,
-				args: ["-e", "process.stderr.write('it broke'); process.exit(3)"],
-			}),
-		).toThrow("it broke");
-	});
-});
 
 describe("fooRename", () => {
 	it("spells each occurrence the way its place needs", () => {
@@ -716,6 +686,32 @@ describe("templateFinish", () => {
 		using folder = treeCreate("# @defaultSensitive=false\n# ---\nA=1\n");
 		expect(() => templateFinish(folder.path, tools)).toThrow(
 			/No code-generation decorator/,
+		);
+	});
+});
+
+// template-upgrade writes a release's template-render.ts alone into a folder and imports it
+// (releaseRender), so the file imports nothing local, and its copy of processRun stays the same.
+describe("template-render.ts on its own", () => {
+	const read = (name: string) =>
+		readFileSync(new URL(name, import.meta.url), "utf8");
+
+	it("imports only node: builtins", () => {
+		const specifiers = [
+			...read("./template-render.ts").matchAll(
+				/^(?:import|export)\b[^;]*?from "([^"]+)";/gms,
+			),
+		].map((m) => m[1]);
+		expect(specifiers.length).toBeGreaterThan(0);
+		expect(specifiers.filter((s) => !s?.startsWith("node:"))).toEqual([]);
+	});
+
+	it("keeps its processRun the same as process-run.ts's", () => {
+		const body = (text: string) =>
+			/const processRun = (\(\{[\s\S]*?\?\? "";)/.exec(text)?.[1];
+		expect(body(read("./template-render.ts"))).toBeDefined();
+		expect(body(read("./template-render.ts"))).toBe(
+			body(read("./process-run.ts")),
 		);
 	});
 });

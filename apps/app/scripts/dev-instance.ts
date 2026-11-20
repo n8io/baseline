@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseEnv } from "node:util";
+import { gitRun } from "./process-run.ts";
 import { hostPortsCreate } from "./template-render.ts";
 
 // A linked git worktree is its own dev instance, so several worktrees of one Project run `pnpm dev`
@@ -10,15 +10,6 @@ import { hostPortsCreate } from "./template-render.ts";
 // In a linked worktree it adds the instance's compose project and ports to .env.development.local,
 // once, and never changes a line there: change a port in it on a clash.
 export const devInstanceFile = ".env.development.local";
-
-export const git = (directory: string, ...args: string[]): string[] =>
-	execFileSync("git", args, {
-		cwd: directory,
-		encoding: "utf8",
-		stdio: ["ignore", "pipe", "ignore"],
-	})
-		.trim()
-		.split("\n");
 
 // `<project>-<worktree folder>` in what a compose project name allows: a-z, 0-9 and hyphens.
 export const devInstanceNameCreate = (project: string, folder: string) =>
@@ -31,13 +22,14 @@ export const devInstanceNameCreate = (project: string, folder: string) =>
 // (a copy, no git binary) it is the original checkout.
 export const devInstanceLinkedIs = (directory: string): boolean => {
 	try {
-		const [gitDir, commonDir] = git(
-			directory,
+		const [gitDir, commonDir] = gitRun(directory, [
 			"rev-parse",
 			"--path-format=absolute",
 			"--git-dir",
 			"--git-common-dir",
-		);
+		])
+			.trim()
+			.split("\n");
 		return gitDir !== commonDir;
 	} catch {
 		return false;
@@ -55,7 +47,12 @@ export const devInstanceWrite = (directory: string): string | undefined => {
 	const manifest = JSON.parse(
 		readFileSync(join(directory, "package.json"), "utf8"),
 	) as { name: string };
-	const [toplevel = directory] = git(directory, "rev-parse", "--show-toplevel");
+	const [toplevel = directory] = gitRun(directory, [
+		"rev-parse",
+		"--show-toplevel",
+	])
+		.trim()
+		.split("\n");
 	const name = devInstanceNameCreate(manifest.name, basename(toplevel));
 	// A folder name with no a-z or 0-9 would give the original checkout's name, stack and ports.
 	if (name === devInstanceNameCreate(manifest.name, "")) {
