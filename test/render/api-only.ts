@@ -22,7 +22,8 @@ import {
 	contextFilesCreate,
 	contextRefusal,
 } from "../../apps/app/scripts/context-create.ts";
-import { filesWrite, run } from "../../apps/app/scripts/template-render.ts";
+import { gitRun, processRun } from "../../apps/app/scripts/process-run.ts";
+import { filesWrite } from "../../apps/app/scripts/template-render.ts";
 import {
 	answersWrite,
 	appRender,
@@ -268,7 +269,7 @@ const apiServe = async (directory: string) => {
 };
 
 const git = (directory: string, args: string[]): string =>
-	run({ command: "git", args, options: { cwd: directory } }).trim();
+	gitRun(directory, args).trim();
 
 // As pieces.md says: remove, then the checks the command prints (only check when every piece
 // goes), then commit, so the commit carries what check regenerates.
@@ -311,7 +312,7 @@ const main = async () => {
 	const files = checkoutExport();
 	await appRender({ directory, files, answers });
 	answersWrite({ directory, answers: { ...answers, release: "checkout" } });
-	run({
+	processRun({
 		command: "git",
 		args: ["init", "--quiet", "--initial-branch=main"],
 		options: { cwd: directory },

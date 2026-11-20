@@ -139,7 +139,7 @@ describe("pieceCheckRun", () => {
 			removed.push(name);
 			return undefined;
 		},
-		toolRun: (_tree: string, args: string[]) =>
+		pnpmRun: (_tree: string, args: string[]) =>
 			args[0] === failing
 				? { ok: false, output: `ERR_PNPM_TARBALL_HTTP_STATUS on ${args[0]}` }
 				: { ok: true, output: "" },

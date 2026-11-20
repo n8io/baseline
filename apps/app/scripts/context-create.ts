@@ -5,7 +5,6 @@
 // over another context. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
 import {
 	aggregateLineIs,
 	aggregateParts,
@@ -20,14 +19,15 @@ import {
 	type PairWanted,
 	pairsEmptyFillableHas,
 	partsApply,
-	piecesRemovedFind,
 	readsApply,
 	readsRefusal,
 	templateOf,
 	templateWithoutPieces,
 	wiringInsert,
 } from "./aggregate-create.ts";
+import { argsParse, argsUsageFail } from "./args.ts";
 import { contextMapRead } from "./glossary-check.ts";
+import { piecesRemovedFind } from "./pieces.ts";
 import {
 	fooLineIs,
 	fooPathRename,
@@ -224,37 +224,24 @@ Aggregate's term to its CONTEXT.md and the Aggregate with pnpm aggregate-create.
 
 See docs/agents/context-create.md.`;
 
-const fail = (message: string): never => {
+const options = {
+	reads: { multiple: true, type: "string" },
+} as const;
+
+// Says why the command stopped and sets the exit code; the caller returns.
+const fail = (message: string): void => {
 	console.error(`context-create: ${message}`);
-	process.exit(1);
+	process.exitCode = 1;
 };
 
-const argsParse = () =>
-	parseArgs({
-		allowPositionals: true,
-		options: {
-			help: { short: "h", type: "boolean" },
-			reads: { multiple: true, type: "string" },
-		},
-	});
-
 const main = () => {
-	let parsed: ReturnType<typeof argsParse>;
-	try {
-		parsed = argsParse();
-	} catch (error) {
-		console.error(`context-create: ${(error as Error).message}\n\n${usage}`);
-		process.exit(1);
-	}
+	const parsed = argsParse({ allowPositionals: true, options, usage });
+	if (parsed === undefined) return;
 	const { positionals, values } = parsed;
-	if (values.help) {
-		console.log(usage);
-		return;
-	}
 	const [context] = positionals;
 	if (context === undefined || positionals.length !== 1) {
-		console.error(usage);
-		process.exit(1);
+		argsUsageFail(usage);
+		return;
 	}
 	const reads = values.reads ?? [];
 	const appDirectory = process.cwd();
@@ -265,7 +252,10 @@ const main = () => {
 			names: { kebab: context, plural: `${context}s` },
 			reads,
 		});
-	if (refusal !== undefined) fail(refusal);
+	if (refusal !== undefined) {
+		fail(refusal);
+		return;
+	}
 	let files: TemplateFile[] = [];
 	try {
 		files = contextFilesCreate({
@@ -276,6 +266,7 @@ const main = () => {
 		});
 	} catch (error) {
 		fail((error as Error).message);
+		return;
 	}
 	const wired = filesWriteAll({ appDirectory, files });
 	filesFormat({

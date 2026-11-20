@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { parseArgs, parseEnv } from "node:util";
-import { devInstanceFile, devInstanceNameCreate, git } from "./dev-instance.ts";
+import { parseEnv } from "node:util";
+import { argsParse } from "./args.ts";
+import { devInstanceFile, devInstanceNameCreate } from "./dev-instance.ts";
+import { gitRun } from "./process-run.ts";
 
 // `pnpm dev:prune [--dry-run]` removes the containers and volumes of this Project's dev instances
 // (scripts/dev-instance.ts) whose linked worktree is gone. Compose labels each container with the
@@ -22,12 +24,14 @@ export const devInstancesStale = (
 		readFileSync(join(directory, "package.json"), "utf8"),
 	) as { name: string };
 	// The app's folder in its repository: "/apps/app" in the Template's, "" in a Project's.
-	const [prefix = ""] = git(directory, "rev-parse", "--show-prefix");
+	const [prefix = ""] = gitRun(directory, ["rev-parse", "--show-prefix"])
+		.trim()
+		.split("\n");
 	const suffix = prefix && `/${prefix.replace(/\/$/, "")}`;
 	// The instance names in use: every worktree git lists with its folder, by its file and by its name.
 	const live = new Set([project]);
-	for (const block of git(directory, "worktree", "list", "--porcelain")
-		.join("\n")
+	for (const block of gitRun(directory, ["worktree", "list", "--porcelain"])
+		.trim()
 		.split("\n\n")) {
 		const worktree = block.split("\n")[0]?.slice("worktree ".length) ?? "";
 		if (/^prunable/m.test(block)) continue;
@@ -50,11 +54,20 @@ export const devInstancesStale = (
 	return [...new Set(stale.map(({ name }) => name))];
 };
 
-if (import.meta.main) {
-	const { values } = parseArgs({
+const usage = `Usage: pnpm dev:prune [--dry-run]
+
+Removes the containers and volumes of this Project's dev instances whose linked worktree is gone.
+
+  --dry-run   list what it would remove
+  -h, --help  this help`;
+
+const main = () => {
+	const parsed = argsParse({
 		options: { "dry-run": { type: "boolean" } },
+		usage,
 	});
-	const dryRun = values["dry-run"] === true;
+	if (parsed === undefined) return;
+	const dryRun = parsed.values["dry-run"] === true;
 	// Each container's compose project and the folder compose ran in; a container compose did not
 	// start has neither label.
 	const label = "com.docker.compose.project";
@@ -84,4 +97,6 @@ if (import.meta.main) {
 			});
 		}
 	}
-}
+};
+
+if (import.meta.main) main();

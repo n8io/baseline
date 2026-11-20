@@ -29,10 +29,10 @@ import {
 	contextRefusal,
 } from "../../apps/app/scripts/context-create.ts";
 import { npmTarballsWait } from "../../apps/app/scripts/npm-tarballs-wait.ts";
+import { processRun } from "../../apps/app/scripts/process-run.ts";
 import {
 	filesWrite,
 	releaseLatest,
-	run,
 	templateFetch,
 	templateFinish,
 } from "../../apps/app/scripts/template-render.ts";
@@ -142,7 +142,7 @@ const main = async () => {
 	pnpmRun(directory, ["install", "--no-frozen-lockfile"]);
 	lockfileTemplateRequire(directory, previousFiles);
 	gitCommitAll(directory, `Create render-test from app@${previous}`);
-	run({
+	processRun({
 		command: "git",
 		args: ["update-ref", "refs/remotes/origin/main", "HEAD"],
 		options: {
@@ -162,7 +162,7 @@ const main = async () => {
 	if (conflicts.length > 0) {
 		throw new Error(`template-upgrade conflicts: ${conflicts.join(", ")}`);
 	}
-	const upgraded = run({
+	const upgraded = processRun({
 		command: "git",
 		args: ["status", "--porcelain"],
 		options: { cwd: directory },
@@ -255,7 +255,7 @@ const main = async () => {
 		return;
 	}
 	cpSync(join(fixture, "files"), directory, { recursive: true });
-	run({
+	processRun({
 		command: "git",
 		args: ["apply", "--whitespace=nowarn", join(fixture, "wiring.patch")],
 		options: {

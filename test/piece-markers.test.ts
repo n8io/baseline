@@ -13,7 +13,7 @@ const markersPerFileAllowed: Record<string, number> = {
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 
-// The marker line that piece-remove.ts deletes from; Markdown only describes markers.
+// The marker line that scripts/pieces.ts deletes from; Markdown only describes markers.
 const markerCounts = (): [path: string, count: number][] =>
 	execFileSync(
 		"git",

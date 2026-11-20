@@ -13,7 +13,7 @@ import {
 const theme = readmeSvgThemes.marquee;
 const width = 880;
 const height = 428;
-// Every piece in apps/app/scripts/piece-remove.ts pieceRemovals, in the README's order.
+// Every piece in apps/app/scripts/pieces.ts pieceNames, in the README's order.
 const pieces = [
 	"ui",
 	"api-reference",

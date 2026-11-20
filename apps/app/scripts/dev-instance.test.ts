@@ -1,5 +1,4 @@
 // Reads and runs no file of the app, only its imports and temporary git checkouts.
-import { execFileSync } from "node:child_process";
 import {
 	existsSync,
 	mkdirSync,
@@ -16,10 +15,8 @@ import {
 	devInstanceNameCreate,
 	devInstanceWrite,
 } from "./dev-instance.ts";
+import { gitRun } from "./process-run.ts";
 import { hostPortsCreate } from "./template-render.ts";
-
-const git = (directory: string, ...args: string[]) =>
-	execFileSync("git", args, { cwd: directory, stdio: "ignore" });
 
 // A Project's original checkout with one commit, and a linked worktree of it.
 const checkoutsCreate = (root: string) => {
@@ -31,10 +28,9 @@ const checkoutsCreate = (root: string) => {
 		join(original, ".env.schema"),
 		"PORT=3000\nHEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nCOMPOSE_PROJECT_NAME=invoicing\n",
 	);
-	git(original, "init", "-q");
-	git(original, "add", ".");
-	git(
-		original,
+	gitRun(original, ["init", "-q"]);
+	gitRun(original, ["add", "."]);
+	gitRun(original, [
 		"-c",
 		"user.name=t",
 		"-c",
@@ -42,8 +38,8 @@ const checkoutsCreate = (root: string) => {
 		"commit",
 		"-qm",
 		"one",
-	);
-	git(original, "worktree", "add", "-q", linked);
+	]);
+	gitRun(original, ["worktree", "add", "-q", linked]);
 	return { linked, original };
 };
 
@@ -98,7 +94,7 @@ describe("devInstanceWrite", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
 		const { original } = checkoutsCreate(root.path);
 		const linked = join(root.path, "___");
-		git(original, "worktree", "add", "-q", linked);
+		gitRun(original, ["worktree", "add", "-q", linked]);
 
 		expect(() => devInstanceWrite(linked)).toThrow(/letter or digit/);
 		expect(existsSync(join(linked, devInstanceFile))).toBe(false);

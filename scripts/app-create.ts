@@ -10,10 +10,10 @@ import { createInterface } from "node:readline/promises";
 import { setTimeout } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { npmTarballsWait } from "../apps/app/scripts/npm-tarballs-wait.ts";
+import { processRun } from "../apps/app/scripts/process-run.ts";
 import {
 	filesWrite,
 	releaseLatest,
-	run,
 	type TemplateAnswers,
 	type TemplateFile,
 	templateAnswers,
@@ -92,12 +92,16 @@ export const answersWrite = ({
 };
 
 export const pnpmRun = (directory: string, args: string[]): void => {
-	run({ command: "pnpm", args, options: { cwd: directory, inherit: true } });
+	processRun({
+		command: "pnpm",
+		args,
+		options: { cwd: directory, inherit: true },
+	});
 };
 
 export const gitCommitAll = (directory: string, message: string): void => {
 	if (!existsSync(join(directory, ".git"))) {
-		run({
+		processRun({
 			command: "git",
 			args: ["init", "--quiet", "--initial-branch=main"],
 			options: {
@@ -105,8 +109,12 @@ export const gitCommitAll = (directory: string, message: string): void => {
 			},
 		});
 	}
-	run({ command: "git", args: ["add", "--all"], options: { cwd: directory } });
-	run({
+	processRun({
+		command: "git",
+		args: ["add", "--all"],
+		options: { cwd: directory },
+	});
+	processRun({
 		command: "git",
 		args: ["commit", "--quiet", "--message", message],
 		options: { cwd: directory },
@@ -556,7 +564,7 @@ const projectRender = async (answers: TemplateAnswers): Promise<string> => {
 
 type GhAsk = (args: string[]) => Promise<string>;
 
-const ghAsk: GhAsk = async (args) => run({ command: "gh", args }).trim();
+const ghAsk: GhAsk = async (args) => processRun({ command: "gh", args }).trim();
 
 // Dispatches ci.yml on main and prints the new run's URL. GitHub indexes a new repository's
 // workflows a few seconds after the push, so a missing workflow is retried (a ci.yml without
@@ -633,7 +641,7 @@ export const repositoryFromRemote = (url: string): string | null =>
 const originRead = (directory: string): string | null => {
 	try {
 		return repositoryFromRemote(
-			run({
+			processRun({
 				command: "git",
 				args: ["remote", "get-url", "origin"],
 				options: { cwd: directory },
@@ -662,9 +670,12 @@ const githubCreate = async ({
 	if (repository === null) {
 		const login =
 			owner ??
-			run({ command: "gh", args: ["api", "user", "--jq", ".login"] }).trim();
+			processRun({
+				command: "gh",
+				args: ["api", "user", "--jq", ".login"],
+			}).trim();
 		repository = `${login}/${name}`;
-		run({
+		processRun({
 			command: "gh",
 			args: [
 				"repo",
@@ -687,7 +698,7 @@ const githubCreate = async ({
 	console.log(
 		rulesetReconcile({
 			gh: (args, input) =>
-				run({
+				processRun({
 					command: "gh",
 					args,
 					options: input === undefined ? {} : { input },
@@ -695,9 +706,9 @@ const githubCreate = async ({
 			repository,
 		}),
 	);
-	run({ command: "gh", args: mergeSettingsCall(repository) });
+	processRun({ command: "gh", args: mergeSettingsCall(repository) });
 	for (const args of securityUpdatesCalls(repository))
-		run({ command: "gh", args });
+		processRun({ command: "gh", args });
 	console.log(`Set up https://github.com/${repository}`);
 	console.log(await ciDispatch({ repository }));
 };

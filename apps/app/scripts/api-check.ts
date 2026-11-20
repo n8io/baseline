@@ -5,6 +5,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { processRun } from "./process-run.ts";
 
 const installLine =
 	"oasdiff is not on PATH. Install it with `brew install oasdiff`, or download v1.35.0 from https://github.com/oasdiff/oasdiff/releases.";
@@ -12,20 +13,6 @@ const installLine =
 // oasdiff scores a renamed or removed operationId or tag as info, but SDK methods and CLI
 // commands are named after them, so a client breaks: raise both to errors.
 const severityLevels = "api-operation-id-removed err\napi-tag-removed err\n";
-
-const step = ({
-	args,
-	command,
-	cwd,
-}: {
-	args: string[];
-	command: string;
-	cwd: string;
-}) => {
-	const result = spawnSync(command, args, { cwd, stdio: "inherit" });
-	if (result.status !== 0)
-		throw new Error(`${command} ${args.join(" ")} failed`);
-};
 
 // A base document built before boolean query parameters were documented as booleans lists each
 // one as `type: string` with a boolean `default` (Zod's stringbool). The server took only "true"
@@ -67,7 +54,11 @@ export const documentSave = async ({
 	port: number;
 	prepare?: (document: unknown) => unknown;
 }) => {
-	step({ args: ["build"], command: "pnpm", cwd: directory });
+	processRun({
+		command: "pnpm",
+		args: ["build"],
+		options: { cwd: directory, inherit: true },
+	});
 	const server: ChildProcess = spawn(
 		"node",
 		["--import", "varlock/auto-load", "build/server/index.js"],
@@ -111,7 +102,8 @@ export const documentSave = async ({
 const main = async () => {
 	if (spawnSync("oasdiff", ["--version"]).status !== 0) {
 		console.error(installLine);
-		process.exit(1);
+		process.exitCode = 1;
+		return;
 	}
 	using scratch = mkdtempDisposableSync(join(tmpdir(), "api-check-"));
 	const base = join(scratch.path, "main");
@@ -121,15 +113,15 @@ const main = async () => {
 	try {
 		writeFileSync(levelsFile, severityLevels);
 		await documentSave({ directory: ".", file: revisionFile, port: 3100 });
-		step({
-			args: ["worktree", "add", "--detach", base, "origin/main"],
+		processRun({
 			command: "git",
-			cwd: ".",
+			args: ["worktree", "add", "--detach", base, "origin/main"],
+			options: { cwd: ".", inherit: true },
 		});
-		step({
-			args: ["install", "--frozen-lockfile"],
+		processRun({
 			command: "pnpm",
-			cwd: base,
+			args: ["install", "--frozen-lockfile"],
+			options: { cwd: base, inherit: true },
 		});
 		// Inside a monorepo the app is a subfolder of the worktree.
 		const prefix = spawnSync("git", ["rev-parse", "--show-prefix"], {
@@ -141,7 +133,8 @@ const main = async () => {
 			port: 3101,
 			prepare: queryBooleansTyped,
 		});
-		step({
+		processRun({
+			command: "oasdiff",
 			args: [
 				"breaking",
 				baseFile,
@@ -151,8 +144,7 @@ const main = async () => {
 				"--severity-levels",
 				levelsFile,
 			],
-			command: "oasdiff",
-			cwd: ".",
+			options: { cwd: ".", inherit: true },
 		});
 	} finally {
 		spawnSync("git", ["worktree", "remove", "--force", base]);
@@ -162,6 +154,6 @@ const main = async () => {
 if (import.meta.main) {
 	main().catch((error: unknown) => {
 		console.error(error instanceof Error ? error.message : error);
-		process.exit(1);
+		process.exitCode = 1;
 	});
 }

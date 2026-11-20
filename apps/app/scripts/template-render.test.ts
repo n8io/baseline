@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
 	existsSync,
 	mkdtempDisposableSync,
@@ -22,7 +21,6 @@ import {
 	linesRemove,
 	lockfileRender,
 	readmeRender,
-	run,
 	templateFileRender,
 	templateFilesRender,
 	templateFinish,
@@ -56,34 +54,6 @@ const template =
 	readdirSync(domainsUrl)
 		.filter((name) => !name.startsWith("."))
 		.join() === "foo";
-
-describe("run", () => {
-	it("keeps a working command's stderr out of the terminal", () => {
-		const module = new URL("./template-render.ts", import.meta.url).pathname;
-		const child = spawnSync(
-			process.execPath,
-			[
-				"--input-type=module",
-				"-e",
-				`import { run } from ${JSON.stringify(module)};
-run({ command: process.execPath, args: ["-e", "process.stderr.write('error: could not apply')"] });`,
-			],
-			{ encoding: "utf8" },
-		);
-
-		expect(child.status).toBe(0);
-		expect(child.stderr).toBe("");
-	});
-
-	it("puts a failing command's stderr in its error", () => {
-		expect(() =>
-			run({
-				command: process.execPath,
-				args: ["-e", "process.stderr.write('it broke'); process.exit(3)"],
-			}),
-		).toThrow("it broke");
-	});
-});
 
 describe("fooRename", () => {
 	it("spells each occurrence the way its place needs", () => {

@@ -24,14 +24,13 @@ import {
 	nameRefusal,
 	nameTerm,
 	nextStepsText,
-	pieceBlocksRemove,
-	piecesRemovedFind,
 	readsApply,
 	readsRefusal,
 	templateWithoutPieces,
 	wiringInsert,
 } from "./aggregate-create.ts";
 import { contextFilesCreate } from "./context-create.ts";
+import { type Piece, pieceBlocksRemove, piecesRemovedFind } from "./pieces.ts";
 import {
 	filesRead,
 	filesWrite,
@@ -574,7 +573,7 @@ const projectBuild = ({
 }: {
 	aggregates: { names: typeof names; parts?: AggregatePart[] | null }[];
 	reads?: string[];
-	removed?: string[];
+	removed?: Piece[];
 }) => {
 	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
 	const app = folder.path;

@@ -33,9 +33,10 @@ export type NameForms = { kebab: string; plural: string };
 
 const templateRepository = "n8io/baseline";
 
+// Copied from scripts/process-run.ts; template-upgrade loads this file alone (releaseRender), so it imports nothing local. Keep the two in step.
 // Runs a command and returns its stdout. Its stderr is kept out of the terminal: a failure's error
 // carries it, so a run that works prints nothing alarming. `inherit` shows all its output instead.
-export const run = ({
+const processRun = ({
 	args,
 	command,
 	options = {},
@@ -774,7 +775,7 @@ export const templateFinish = (
 	if (linked) symlinkSync(join(toolsDirectory, "node_modules"), modules);
 	try {
 		const bin = (name: string) => join(modules, ".bin", name);
-		run({
+		processRun({
 			command: bin("biome"),
 			args: [
 				"lint",
@@ -785,13 +786,13 @@ export const templateFinish = (
 			],
 			options: { cwd: directory },
 		});
-		run({
+		processRun({
 			command: bin("biome"),
 			args: ["check", "--write", "."],
 			options: { cwd: directory },
 		});
 		try {
-			run({
+			processRun({
 				command: bin("varlock"),
 				args: ["codegen"],
 				options: { cwd: directory },
@@ -818,7 +819,7 @@ export const templateFinish = (
 const releaseTag = (version: string): string => `app@${version}`;
 
 export const releaseLatest = (): string => {
-	const tags = run({
+	const tags = processRun({
 		command: "git",
 		args: [
 			"ls-remote",
@@ -917,17 +918,17 @@ export const templateExport = (
 	const app = join(work.path, "app");
 	mkdirSync(app);
 	const archive = join(work.path, "app.tar");
-	run({
+	processRun({
 		command: "git",
 		args: ["archive", "--output", archive, `${ref}:apps/app`],
 		options: {
 			cwd: checkout,
 		},
 	});
-	run({ command: "tar", args: ["-xf", archive, "-C", app] });
+	processRun({ command: "tar", args: ["-xf", archive, "-C", app] });
 	const packed = join(work.path, "packed");
 	mkdirSync(packed);
-	run({
+	processRun({
 		command: "pnpm",
 		args: ["pack", "--pack-destination", packed],
 		options: {
@@ -936,7 +937,7 @@ export const templateExport = (
 	});
 	const tarball = readdirSync(packed).find((f) => f.endsWith(".tgz"));
 	if (tarball === undefined) throw new Error("pnpm pack wrote no tarball");
-	run({
+	processRun({
 		command: "tar",
 		args: ["-xzf", join(packed, tarball), "-C", packed, "package/package.json"],
 	});
@@ -989,7 +990,7 @@ export const templateExport = (
 export const templateFetch = (version: string): TemplateFile[] => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
 	const clone = join(work.path, "clone");
-	run({
+	processRun({
 		command: "git",
 		args: [
 			"-c",

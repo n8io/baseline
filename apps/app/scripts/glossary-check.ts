@@ -14,7 +14,9 @@
 // only: the agent judges each hit, so it always exits 0.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { codeFileIs, modesRead, run } from "./template-render.ts";
+import { argsParse, argsUsageFail } from "./args.ts";
+import { processRun } from "./process-run.ts";
+import { codeFileIs, modesRead } from "./template-render.ts";
 
 type GlossaryAlias = { alias: string; term: string };
 
@@ -526,16 +528,29 @@ const languageOfRead = (
 	});
 };
 
-const main = (
-	[glossary = "CONTEXT-MAP.md", tree = "."] = process.argv.slice(2),
-) => {
+const usage = `Usage: pnpm glossary-check [map] [tree]
+
+Warns on words the glossaries rule out, in lines added against origin/main under the tree.
+
+  map   the app's CONTEXT-MAP.md (default), or one CONTEXT.md that holds every file
+  tree  the folder to check (default ".")
+  -h, --help  this help`;
+
+const main = () => {
+	const parsed = argsParse({ allowPositionals: true, options: {}, usage });
+	if (parsed === undefined) return;
+	if (parsed.positionals.length > 2) {
+		argsUsageFail(usage);
+		return;
+	}
+	const [glossary = "CONTEXT-MAP.md", tree = "."] = parsed.positionals;
 	try {
 		const languageOf = languageOfRead(glossary);
-		const diff = run({
+		const diff = processRun({
 			command: "git",
 			args: ["diff", "--unified=0", "--no-color", "origin/main", "--", tree],
 		});
-		const root = run({
+		const root = processRun({
 			command: "git",
 			args: ["rev-parse", "--show-toplevel"],
 		}).trim();

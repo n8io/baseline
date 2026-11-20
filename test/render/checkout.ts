@@ -10,8 +10,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { processRun } from "../../apps/app/scripts/process-run.ts";
 import {
-	run,
 	type TemplateFile,
 	templateExport,
 } from "../../apps/app/scripts/template-render.ts";
@@ -22,7 +22,7 @@ const monorepo = resolve(import.meta.dirname, "../..");
 export const checkoutExport = (): TemplateFile[] => {
 	using work = mkdtempDisposableSync(join(tmpdir(), "render-and-test-"));
 	const clone = join(work.path, "clone");
-	run({
+	processRun({
 		command: "git",
 		args: ["clone", "--quiet", "--shared", monorepo, clone],
 	});
@@ -54,7 +54,7 @@ export const workspaceOverridesAdd = (
 // project's checks never read .tgz files.
 export const checkoutPackagesUse = (directory: string) => {
 	const folder = ".baseline-packages";
-	run({
+	processRun({
 		command: "pnpm",
 		args: [
 			"-r",
@@ -140,7 +140,7 @@ export const lockfileTemplateRequire = (
 // Git ignores the tarballs, but `pnpm piece-check` installs in a worktree of HEAD, where the
 // overrides must find them. Call it before the commit that the check runs on.
 export const checkoutPackagesTrack = (directory: string) => {
-	run({
+	processRun({
 		command: "git",
 		args: ["add", "--force", ".baseline-packages"],
 		options: { cwd: directory },

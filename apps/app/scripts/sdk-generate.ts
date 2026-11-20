@@ -64,6 +64,6 @@ export const sdkGenerate = async (): Promise<void> => {
 if (import.meta.main) {
 	sdkGenerate().catch((error: unknown) => {
 		console.error(error instanceof Error ? error.message : error);
-		process.exit(1);
+		process.exitCode = 1;
 	});
 }
