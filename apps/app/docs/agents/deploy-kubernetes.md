@@ -81,7 +81,7 @@ Set `terminationGracePeriodSeconds: 30`. The process ends itself within 25 s of 
 
 ## Sign-in without an identity provider
 
-The memory issuer (`AUTHN_ISSUER_URL=memory://`) is for development and test: `APP_ENV` must be `development` or `test`, and production refuses to boot with it. Its tokens are signed with a key derived from `AUTHN_SECRET`, so every Server that shares the secret accepts them, and a session started at one refreshes at the next: a prod-like stack of several Servers behind a load balancer needs no sticky sessions. The drain does not depend on `APP_ENV`: `.env.development` and `.env.test` set `SHUTDOWN_DRAIN_DELAY_MS=0`, so a prod-like run sets it to 5000, the timing production gets when it is unset. Sign-in cookies carry the `__Host-` prefix, so open the stack at `http://localhost:<port>`, not at `127.0.0.1` or a LAN name. See [authn.md](authn.md).
+The memory issuer (`AUTHN_ISSUER_URL=memory://`) is for development and test: `APP_ENV` must be `development` or `test`, and production refuses to boot with it. Its tokens are signed with a key derived from `AUTHN_SECRET`, so every Server that shares the secret accepts them, and a session started at one refreshes at the next: a prod-like stack of several Servers behind a load balancer needs no sticky sessions. The drain does not depend on `APP_ENV`: `.env.development` and `.env.test` set `SHUTDOWN_DRAIN_DELAY_MS=0`, so a prod-like run sets it to 5000, the timing production gets when it is unset. Sign-in cookies carry the `__Host-` prefix, so open the stack at `localhost` or a `*.localhost` name (`http://<instance>.localhost:<port>`, as `pnpm dev` prints), not at `127.0.0.1` or a LAN name. See [authn.md](authn.md).
 
 ## Rolling deploys
 

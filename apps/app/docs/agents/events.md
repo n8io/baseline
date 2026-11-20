@@ -8,7 +8,7 @@ An Event handler lives in the reacting context's `adapters/inbound/`, one file p
 
 ```ts
 // src/contexts/billing/adapters/inbound/billing-order-placed-handler.ts
-import { orderPlaced } from "#contexts/order/index.ts"; // the one allowed cross-context import: Event schemas only
+import { orderPlaced } from "#contexts/order/index.ts"; // an Event handler may import another context's Event schemas (acl.md lists the other two)
 const billingOrderPlacedHandlerActor: Actor = {
 	id: "billing-order-placed-handler",
 	kind: "client",
@@ -59,26 +59,22 @@ await transaction.orderEvents.publish({
 
 Order holds per Event key and per Event handler. Plan for the three places it does not reach:
 
-- **Across Event keys.** `score.posted` (key: the score) can reach an Event handler before `tournament.started` (key: the tournament) has been handled by another. When an Event handler needs a row another key's Event creates, create it on demand: upsert the row it needs (`INSERT ... ON CONFLICT DO NOTHING`, then read it), and let the later Event fill in the rest. Never wait or retry until the other Event lands: a throw holds this key back through five attempts, then blocks it until someone releases it. Do not return `err` for the missing row either: `err` completes the Event and it never runs again.
+- **Across Event keys.** `order.placed` (key: the order) can reach an Event handler before `customer.created` (key: the customer) has been handled by another. When an Event handler needs a row another key's Event creates, create it on demand: upsert the row it needs (`INSERT ... ON CONFLICT DO NOTHING`, then read it), and let the later Event fill in the rest. Never wait or retry until the other Event lands: a throw holds this key back through five attempts, then blocks it until someone releases it. Do not return `err` for the missing row either: `err` completes the Event and it never runs again.
 - **A redriven Event.** Releasing a blocked key by giving its Event up (`blockedKeyGiveUp`), then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it (runbook: "A blocked key" in the `@n8io/baseline-queue` README). Retrying it in place (`blockedKeyRetry`) keeps its turn.
 - **A stale Event.** Where a late or repeated Event must not undo a newer state, put a version or sequence on the Event (one the publisher keeps on its row, or the source feed's sequence number) and keep the last one applied on the row. The Use case compares it inside its transaction, skips an Event whose version is not newer and returns `ok`. The inbox already skips an exact repeat; the guard covers a redriven or out-of-band one.
 
 ## Event handlers that write a shared Aggregate
 
-Two Events with different Event keys run at once, on one worker or several. When both change the same Aggregate (two `score.posted` Events for two golfers of one Team both add to the Team's Standing), both read it, and the second save overwrites the first: points lost under load, with no error.
+Two Events with different Event keys run at once, on one worker or several. When both change the same Aggregate (two `payment.received` Events, keyed by payment, both add to one invoice's paid total), both read it, and the second save overwrites the first: money lost under load, with no error.
 
-- Lock the root before reading it, inside the transaction: `findByIdForUpdate(id)` (Drizzle's `.for("update")`). The second Event handler waits for the first to commit, then reads the new state.
-- Or make the write one atomic statement (`UPDATE standing SET points = points + $1 WHERE id = $2`), when the change does not depend on what else the row holds.
-- One transaction writes one Aggregate. Two of the same context's Aggregates may share one only for an invariant that needs both, named in a `// invariant: <what>` comment above it (A28); across contexts, publish an Event and let the other context react.
-- Several roots in one transaction: lock them in id order (`ORDER BY id ... FOR UPDATE`), on every path that locks them, Use cases and Schedules too. Two paths that lock the same rows in different orders deadlock, and Postgres aborts one.
-- A race test proves it: force the interleaving with `postgresTestInterleave` (`@n8io/baseline-postgres/testing`) and see the test fail with the lock removed.
+Lock the root before reading it (`findByIdForUpdate`), or make the write one atomic statement, and prove it with a race test: the rules, id-order locking and the test are in [data.md](data.md#locking-and-limits). One transaction writes one Aggregate unless one invariant spans several (the **Aggregate** glossary entry, A28); across contexts, publish an Event and let the other context react. Lock on every path that touches the rows, Use cases and Schedules too.
 
 ## Fan-out in an Event handler
 
-An Event handler that writes many rows for one Event (open a Tournament: one row per Team per golfer):
+An Event handler that writes many rows for one Event (an `order.placed` with hundreds of lines: one invoice line each):
 
 - Insert and update rows in one order (sorted by id or by the unique key), so two fan-outs over overlapping rows queue up instead of deadlocking. A bulk `UPDATE ... WHERE` locks in scan order: lock with `SELECT ... ORDER BY id FOR UPDATE` first.
-- Chunk inserts under Postgres's 65,535 bind parameters per statement (rows × columns): 1,000 rows a statement is a safe start.
+- Chunk inserts under Postgres's bind-parameter limit ([data.md](data.md#locking-and-limits)): 1,000 rows a statement is a safe start.
 - A transaction ends after 5 s (`postgresTransactionRun`'s `timeoutMs`), and the Event retries from scratch. When the work can outgrow that, split it into several transactions in one run: each writes one chunk and is safe to repeat (an upsert, or skip what is there), and only the last takes the inbox. A retry then redoes only what is missing. Keep the whole run well under the queue's five-minute limit.
 
 ## Holding another context's id
@@ -87,8 +83,8 @@ A table column that holds another context's id ships with the Event handler that
 
 The repository side is one bulk method per clean-up, repeated in the memory adapter and held equal by `adapters/outbound/<aggregate>-repository.contract.ts`:
 
-- Rows that cannot live without the other entity: `deleteByTeamId(teamId)` deletes them and returns the ids it removed, sorted, so the Use case can publish `<entity>.deleted` for each, in the same transaction and in id order (each publish locks its Event key until the transaction ends, so two clean-ups publishing in different orders deadlock).
-- Rows that can: `clearByTeamId(teamId)` sets the column to null (or removes the child rows) and returns the ids of the roots it touched, so the Use case can recompute or notify them.
+- Rows that cannot live without the other entity: `deleteByCustomerId(customerId)` deletes them and returns the ids it removed, sorted, so the Use case can publish `<entity>.deleted` for each, in the same transaction and in id order (each publish locks its Event key until the transaction ends, so two clean-ups publishing in different orders deadlock).
+- Rows that can: `clearByCustomerId(customerId)` sets the column to null (or removes the child rows) and returns the ids of the roots it touched, so the Use case can recompute or notify them.
 
 With an inbox the transaction returns `Result<void, E>`, so a value the Use case needs after commit (ids for live updates) goes in a `let` that the work assigns, read only when the result is ok. A repeat skips the work and leaves it empty, so nothing is sent twice.
 
@@ -114,7 +110,7 @@ expect(await useCases.invoiceList(actor, { orderId })).toMatchObject({
 
 - It validates `data` as the worker does, so pass the whole Event as the publisher sends it; a missing field rejects ("Event failed validation for ...").
 - Pass the same `eventId` twice to check a repeat changes nothing.
-- Assert on what a later read returns, not on calls or memory state. No mocks.
+- Assert on what a later read returns, not on memory state. No `vi.mock`, `vi.fn` or `vi.spyOn` ([tests.md](tests.md)).
 
 ## Changing an Event's shape
 
@@ -140,11 +136,5 @@ Never rename an Event or remove a required field in one release. A new Event wit
 
 ## Naming beside Events
 
-- A change with no Event still names its analytics event as an Event would be named, `<entity>.<past-tense verb>` (`team.renamed`), and a machine Actor tracks with its Actor id (`billing-order-placed-handler`).
-- A live channel is named after the Aggregate that sends it. When the UI watches another context's entity (the Standings of one League), the channel keeps its own name and its `id` is that entity's id; the live route checks the Actor can read that entity.
-
-## Aggregate
-
-- One repository per Aggregate root, named after it. Its tables live in `adapters/outbound/`.
-- An entity or value object inside an Aggregate gets no repository. Save and load it through the root's repository.
-- A transaction may change more than one Aggregate only within one context, under a `// invariant:` comment (above).
+- A change with no Event still names its analytics event as an Event would be named, `<entity>.<past-tense verb>` (`customer.renamed`), and a machine Actor tracks with its Actor id (`billing-order-placed-handler`).
+- A live channel is named after the Aggregate that sends it. When the UI watches another context's entity (the invoices of one customer), the channel keeps its own name and its `id` is that entity's id; the live route checks the Actor can read that entity.

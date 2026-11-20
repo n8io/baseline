@@ -28,7 +28,7 @@ export const bazScheduleCreate = (u: BazUseCases) =>
 
 - The Actor is a `client` with id `<aggregate>-schedule` and only the scopes its Use case checks.
 - The name is `<aggregate>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
-- Two Schedules for one Aggregate: one file each, `adapters/inbound/<aggregate>-<words>-schedule.ts` exporting `<aggregate><Words>Schedule` and `<aggregate><Words>ScheduleCreate` (`tournamentStartSchedule`, `tournamentStartScheduleCreate`). They may share one Actor in `adapters/inbound/<aggregate>-schedule-actor.ts`.
+- Two Schedules for one Aggregate: one file each, `adapters/inbound/<aggregate>-<words>-schedule.ts` exporting `<aggregate><Words>Schedule` and `<aggregate><Words>ScheduleCreate` (`invoiceOverdueMarkSchedule`, `invoiceOverdueMarkScheduleCreate`). They may share one Actor in `adapters/inbound/<aggregate>-schedule-actor.ts`.
 
 ## Wiring
 
@@ -44,7 +44,7 @@ export const bazScheduleCreate = (u: BazUseCases) =>
 SCHEDULE_BAZ_STALE_ARCHIVE=
 ```
 
-- `queueScheduleEnvName` makes the variable's name: upper case, with `.` and `-` turned into `_` (`baz.stale-archive` is `SCHEDULE_BAZ_STALE_ARCHIVE`). Its value is a cron or `off`. A cron override acts in migrate; the Worker reads only `off`.
+- The queue makes the variable's name from the Schedule's: `SCHEDULE_`, then the name in upper case, with `.` and `-` turned into `_` (`baz.stale-archive` is `SCHEDULE_BAZ_STALE_ARCHIVE`). Its value is a cron or `off`. A cron override acts in migrate; the Worker reads only `off`.
 - migrate adds, updates and removes Schedules once per rollout. The Worker only starts the ones migrate has added: it logs "Schedule is not in the database" for any other, and runs it after a restart that follows a migrate.
 - Removing a Schedule: delete its file, its export, its two list entries and its `.env.schema` lines. The next migrate removes it from the database.
 

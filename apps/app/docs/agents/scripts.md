@@ -26,11 +26,12 @@ A memory token lives 15 minutes. A script that can run longer (a feed, an import
 "api-smoke": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts scripts/api-smoke.ts"
 ```
 
-The Node version guard comes first, so an older Node stops with what it needs (`structure.test.ts` holds every `node` script to it). `src/preload.ts` loads the environment (varlock) and the telemetry SDK. A script that needs neither (a pure file tool such as `glossary-check`) runs as `node --import ./scripts/node-version-require.ts scripts/<name>.ts`.
+- `./scripts/node-version-require.ts` comes first, so an older Node stops with "This script needs Node 26" before the next import fails on syntax it cannot read.
+- `./src/preload.ts` loads the environment (varlock) and the telemetry SDK. A script that needs neither (a pure file tool such as `glossary-check`) keeps only the first import: `node --import ./scripts/node-version-require.ts scripts/<name>.ts`.
 
 ## Rules
 
 - A script is not an import target: the part worth testing is a pure function it exports (`apiSmokeRoutesFind`), tested in `scripts/<name>.test.ts`, and the file runs `main` only under `if (import.meta.main)`.
 - A script that needs a served app is tested in `test/integration/`, which boots the production build on memory adapters (`productionServerStart`) and runs the script as a child process. Set the three `OTEL_*_EXPORTER` variables to `none` for the child: with an OTLP endpoint and no collector, the last export holds the exit for seconds.
 - Exports follow the naming rules like everything else: entity first, `apiSmokeRoutesFind`, not `findRoutes`.
-- Seed data is not a script: `pnpm seed` runs `src/seed.ts`. An `<aggregate>Seed` ensures each development row by its natural key (create, and when the Use case answers that the key is taken, read the row that holds it) and returns every row it ensured, so it converges from an empty, half-seeded or seeded database. The context's `index.ts` lists it in `seeds`, and `src/seed.ts` runs every context's seeds in the order `contextsCreate` returns the contexts. Seeds that need each other's rows go in one entry that awaits them in order (`async (actor) => { const golfers = await golferSeed(useCases, actor); await teamSeed(useCases, actor, { golfers }); }`); a seed reads another context's rows through its upstream.
+- Seed data is not a script: `pnpm seed` runs `src/seed.ts`, and each context lists its own `<aggregate>Seed` ([context-create.md](context-create.md#seeds)).

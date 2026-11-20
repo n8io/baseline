@@ -29,8 +29,4 @@ Each Template release moves the `app-ci.yml@v<major>` tag. Re-running failed job
 
 ## Semgrep rules
 
-`ci / sast` scans with a pinned snapshot of Semgrep's `p/typescript`, `p/nodejs`, `p/react` and `p/secrets` packs, never fetched live from semgrep.dev: baseline's `.github/semgrep/rules.txt` names one commit of github.com/semgrep/semgrep-rules and the rule files, and each scan fetches them from there, so `sast` needs github.com and raw.githubusercontent.com. A new upstream rule cannot fail a pull request on its own; Dependabot does not move this pin.
-
-- **Who moves it.** A baseline maintainer, by hand, in a baseline pull request. A Project gets the new snapshot with its next `app-ci.yml` release.
-- **How.** In baseline, `node scripts/semgrep-rules-write.ts <semgrep-rules commit>` rewrites `.github/semgrep/rules.txt` from today's packs at that commit of github.com/semgrep/semgrep-rules. Then run `sh .github/semgrep/rules.sh .github/semgrep/rules.txt <dir>` and `semgrep scan --no-rewrite-rule-ids --config <dir>` on baseline's `packages scripts test`, a rendered Template and each known Project, before and after. Commit the new `rules.txt` with a changeset.
-- **New findings.** A bump that adds a finding is a new failing check: it ships with the fixes in the same release, or waits for the next major.
+`ci / sast` scans with a pinned snapshot of Semgrep's packs, fetched from github.com at scan time (never semgrep.dev), that only a baseline maintainer moves, so a new upstream rule never fails a pull request on its own and Dependabot does not move it; a Project gets a new snapshot, with any fixes it needs, in an `app-ci.yml` release.

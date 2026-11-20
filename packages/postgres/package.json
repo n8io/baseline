@@ -1,25 +1,25 @@
 {
 	"name": "@n8io/baseline-postgres",
 	"version": "5.3.1",
-	"description": "Postgres pool, Result-aware transactions, migrations and prefixed-id columns on pg and Drizzle.",
-	"type": "module",
+	"description": "One pool, transactions that follow your Result and migrations that run once however many processes start, plus prefixed-id columns and keyset paging.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/postgres"
 	},
-	"engines": {
-		"node": ">=26"
+	"exports": {
+		".": "./src/index.ts",
+		"./testing": "./src/testing.ts"
 	},
 	"files": [
 		"dist",
 		"README.md"
 	],
-	"exports": {
-		".": "./src/index.ts",
-		"./testing": "./src/testing.ts"
-	},
 	"publishConfig": {
 		"access": "public",
 		"exports": {
@@ -46,6 +46,11 @@
 		"@n8io/baseline-logger": "workspace:^",
 		"@n8io/baseline-result": "workspace:^"
 	},
+	"devDependencies": {
+		"@types/pg": "^8.23.1",
+		"drizzle-orm": "1.0.0-rc.5",
+		"pg": "^8.23.1"
+	},
 	"peerDependencies": {
 		"@types/pg": "^8",
 		"drizzle-orm": "1.0.0-rc.5",
@@ -55,10 +60,5 @@
 		"@types/pg": {
 			"optional": true
 		}
-	},
-	"devDependencies": {
-		"@types/pg": "^8.23.1",
-		"drizzle-orm": "1.0.0-rc.5",
-		"pg": "^8.23.1"
 	}
 }

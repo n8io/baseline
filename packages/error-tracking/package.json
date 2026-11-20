@@ -1,7 +1,7 @@
 {
 	"name": "@n8io/baseline-error-tracking",
 	"version": "1.0.1",
-	"description": "Error reports sent to Sentry with their trace id and never their message, without blocking the request.",
+	"description": "Every logged error becomes an Error report linked to its trace and never carrying its message, sent without slowing or failing a request.",
 	"license": "MIT",
 	"type": "module",
 	"engines": {

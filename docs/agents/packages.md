@@ -63,7 +63,7 @@ Only `@n8io/baseline-telemetry` starts spans. Other Packages set attributes on t
 
 Copy the closest Package's folder and change, in one pull request:
 
-1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them: `type`, `license`, `repository.directory`, `engines`, `files`, `exports` to `src/` with `publishConfig.exports` to `dist/`, and the `build`, `check`, `prepack`, `test` and `test:unit` scripts. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`.
+1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them, in this order: `license`, `type`, `engines`, `repository.directory`, `exports` to `src/`, `files`, `publishConfig.exports` to `dist/`, the `build`, `check`, `prepack`, `test` and `test:unit` scripts, then the dependency maps. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`. `test/package-metadata.test.ts` checks the key order, the full stop and the `LICENSE` copy.
 2. `tsdown.config.ts`: one entry per subpath; `platform: "neutral"` for code that also runs in browsers (sdk, the `client` entries), else `"node"`.
 3. `vitest.config.ts`, and a `turbo.json` when its tests use a shared service setup under `test/` (cache's is the model).
 4. `LICENSE`: a copy of the root one.

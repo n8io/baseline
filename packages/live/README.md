@@ -137,4 +137,4 @@ await liveHub.close();
 
 </details>
 
-**Needs** `@opentelemetry/api` as a peer, for the counter (it does nothing until your app registers a meter provider); `redis` only for its types, as this Package never imports it (`@n8io/baseline-redis` brings it); `react` and `react-router` only for `@n8io/baseline-live/client`, so a service that only sends or streams updates installs neither. Runs on Redis pub/sub and Server-Sent Events.
+**Needs** `@opentelemetry/api` as a peer, for the counter (it does nothing until your app registers a meter provider); for the Redis hub, a connected node-redis client you pass in (such as `@n8io/baseline-redis`'s), so the Package needs no `redis` of its own; `react` and `react-router` only for `@n8io/baseline-live/client`, so a service that only sends or streams updates installs neither. Runs on Redis pub/sub and Server-Sent Events.

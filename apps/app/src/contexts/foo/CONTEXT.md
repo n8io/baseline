@@ -7,7 +7,7 @@ The Template's example bounded context. It holds two Aggregates, Foo and Bar, an
 ## Language
 
 **Foo**:
-The Template's example bounded context, `foo`, and its Aggregate root: a named record that shows every pattern a context uses. A project never contains it: it starts with no context, `context-create` copies foo's context-level files under a new context's name, and `aggregate-create` copies Foo under each new Aggregate's name.
+The Template's example bounded context, `foo`, and its Aggregate root: a named record that shows every pattern a context uses. A Project never contains it: it starts with no context, `context-create` copies foo's context-level files under a new context's name, and `aggregate-create` copies Foo under each new Aggregate's name.
 _Avoid_: widget, example, sample
 
 **Bar**:

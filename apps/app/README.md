@@ -19,14 +19,15 @@ pnpm dev
 
 ## What runs
 
-| Part     | What it does                                                                                                                               | Runs on            |
+| Service  | What it does                                                                                                                               | Runs on            |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
 | Server   | The API under `/api/v1`, its OpenAPI document (`/api/v1/openapi.json`) and reference page (`/api/v1/docs`), the UI pages, and live updates | Hono, React Router |
 | Worker   | Event handlers, which get each Domain event once it commits, in order per Event key, and Schedules                                         | pg-boss            |
 | Database | Every bounded context's tables, and the Domain events waiting for the Worker                                                               | Postgres 18        |
 | Cache    | The read-through cache, and the fan-out of live updates to every Server                                                                    | Redis 8            |
+| Clients  | A typed SDK (`clients/sdk`) with one function per API operation, and a CLI (`clients/cli`) built on it, published to GitHub Packages       | Node, browsers     |
 
-Every request is one trace through each Event it publishes; `compose.yaml`'s `telemetry` profile adds a local trace and log viewer on `localhost:3001` (how is at the top of that file). The UI pages, live updates, the cache, Redis, the queue, analytics, error reports and the API reference are pieces: `pnpm piece-remove <piece>` takes out one this Project does not use (then drop what this README says about it), and `pnpm piece-check` proves each still can.
+Every request is one trace through each Event it publishes; `compose.yaml`'s `telemetry` profile adds a local trace and log viewer on `localhost:3001` (how is at the top of that file). The UI pages, live updates, the cache, Redis, the queue, analytics, error reports, the API reference, the SDK and the CLI are pieces: `pnpm piece-remove <piece>` takes out one this Project does not use (then drop what this README says about it), and `pnpm piece-check` proves each still can.
 
 ## Bounded contexts
 
@@ -55,6 +56,8 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Aggrega
 | migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                                                    |
 | list or release a blocked Event key           | `pnpm blocked-keys`                                                            |
 | catch a breaking API change                   | `pnpm api-check`                                                               |
+| regenerate the SDK after a route change       | `pnpm sdk-generate`                                                            |
+| smoke-test the API of a running app           | `pnpm api-smoke`                                                               |
 | remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check`                                |
 | take a newer Template release                 | `pnpm template-upgrade`                                                        |
 | find glossary aliases                         | `pnpm glossary-check`                                                          |
@@ -62,4 +65,4 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Aggrega
 
 ## For AI agents
 
-Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one.
+Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one. Publishing and installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md).

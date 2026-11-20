@@ -1,25 +1,25 @@
 {
 	"name": "@n8io/baseline-logger",
 	"version": "3.1.1",
-	"description": "The one pino logger every baseline app and package logs through.",
-	"type": "module",
+	"description": "One JSON logger for a Project and its Packages that keeps credentials and error messages out of every line.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/logger"
 	},
-	"engines": {
-		"node": ">=26"
+	"exports": {
+		".": "./src/index.ts",
+		"./err-serialize": "./src/logger-err-serialize.ts"
 	},
 	"files": [
 		"dist",
 		"README.md"
 	],
-	"exports": {
-		".": "./src/index.ts",
-		"./err-serialize": "./src/logger-err-serialize.ts"
-	},
 	"publishConfig": {
 		"access": "public",
 		"exports": {

@@ -20,19 +20,20 @@ postgresPoolCreate({
 });
 ```
 
-| Factory                           | `vendor` is                                     | Where to call it             |
-| --------------------------------- | ----------------------------------------------- | ---------------------------- |
-| `postgresPoolCreate`              | pg's pool settings                              | `src/connections.ts`         |
-| `postgresMigrate`, `queueMigrate` | the same, for the migration's own connection    | `src/migrate.ts`             |
-| `queueCreate`                     | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
-| `analyticsMixpanelCreate`         | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
-| `errorTrackingSentryCreate`       | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
-| `redisClientCreate`               | node-redis's client settings (`socket.ca`)      | `src/redis-open.ts`          |
+| Factory                              | `vendor` is                                     | Where to call it             |
+| ------------------------------------ | ----------------------------------------------- | ---------------------------- |
+| `postgresPoolCreate`                 | pg's pool settings                              | `src/connections.ts`         |
+| `postgresMigrate`                    | pg's client settings, for its own connection    | `src/migrate.ts`             |
+| `queueMigrate`, `queueSchedulesSync` | pg-boss's `ssl`, `application_name`, `options`  | `src/migrate.ts`             |
+| `queueCreate`                        | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
+| `analyticsMixpanelCreate`            | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
+| `errorTrackingSentryCreate`          | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
+| `redisClientCreate`                  | node-redis's client settings (`socket.ca`)      | `src/redis-open.ts`          |
 
 Rules:
 
 - A named option wins. `vendor` throws on a key that a named option sets, that the Package depends on, or that would do nothing, and the error says where the setting belongs.
-- Postgres reads TLS from one place. With `sslmode` or another `ssl*` parameter in `DATABASE_URL`, pg ignores `vendor.ssl`, so the Package refuses the pair. A Project that sets `vendor.ssl` on the pool passes the same to `postgresMigrate` and `queueMigrate`.
+- Postgres reads TLS from one place. With `sslmode` or another `ssl*` parameter in `DATABASE_URL`, pg ignores `vendor.ssl`, so the Package refuses the pair. A Project that sets `vendor.ssl` on the pool passes the same to `postgresMigrate`, `queueMigrate` and `queueSchedulesSync`.
 - Leave a key out to leave it unset. `vendor: { ssl: undefined }` is a type error; spread it in instead: `vendor: { ...(ca ? { ssl: { ca } } : {}) }`.
 - `vendor` is outside what the Package promises. The Package does not test it, and a vendor swap deletes it. Search for `vendor:` to see what a swap must solve again.
 - Never reach a vendor from a bounded context, the UI or a composition root. Architecture rule A12 allows these factories only in the files named above. For a vendor-only call at run time (a Redis command, say), write an adapter of your own in `adapters/outbound/` behind a port, built on what `connections` holds.
