@@ -90,8 +90,8 @@ const projectFiles: Record<string, string> = {
 	"docs/agents/pieces.md": `${block({ body: "Kept: docs are left alone.", piece: "live" })}\n`,
 	"package.json": `${JSON.stringify(manifest, null, "\t")}\n`,
 	"public/favicon.ico": "icon",
-	"src/contexts/invoice/adapters/inbound/invoice-live.test.ts": "test\n",
-	"src/contexts/invoice/adapters/inbound/invoice-live.ts": "live\n",
+	"src/contexts/invoice/adapters/inbound/invoice-live-routes.test.ts": "test\n",
+	"src/contexts/invoice/adapters/inbound/invoice-live-routes.ts": "live\n",
 	"src/analytics-open.ts": "analytics\n",
 	"src/api-reference.ts": "api reference\n",
 	"src/api-reference.test.ts": "api reference\n",
@@ -328,7 +328,7 @@ describe("pieceFilesRemove", () => {
 			existsSync(
 				join(
 					directory,
-					"src/contexts/invoice/adapters/inbound/invoice-live.ts",
+					"src/contexts/invoice/adapters/inbound/invoice-live-routes.ts",
 				),
 			),
 		).toBe(false);
@@ -336,7 +336,7 @@ describe("pieceFilesRemove", () => {
 			existsSync(
 				join(
 					directory,
-					"src/contexts/invoice/adapters/inbound/invoice-live.test.ts",
+					"src/contexts/invoice/adapters/inbound/invoice-live-routes.test.ts",
 				),
 			),
 		).toBe(false);

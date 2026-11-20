@@ -252,7 +252,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	live: {
 		packages: ["@n8io/baseline-live"],
 		paths: ["src/live-hub-open.ts"],
-		srcFiles: /-live(\.test)?\.ts$/,
+		srcFiles: /-live(-routes)?(\.test)?\.ts$/,
 	},
 	queue: {
 		edit: (directory) => {

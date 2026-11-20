@@ -791,7 +791,7 @@ describe.runIf(template)(
 			live: (created) =>
 				created.some(
 					(f) =>
-						f.path.endsWith("/invoice-line-live.ts") ||
+						f.path.endsWith("/invoice-line-live-routes.ts") ||
 						/"\/live\/invoice[-_]line"/.test(f.text),
 				),
 			pages: (created) =>
@@ -1000,7 +1000,7 @@ describe.runIf(template)(
 			expect(paths).toContain("src/contexts/billing/application/ports.ts");
 			expect(
 				paths.filter((p) =>
-					/^src\/(ui\/|worker\.ts)|-analytics\.|-live\.|-cached?\.|-schedule\.|-transaction\.postgres\.test|-queue\.test/.test(
+					/^src\/(ui\/|worker\.ts)|-analytics\.|-live(-routes)?\.|-cached?\.|-schedule\.|-transaction\.postgres\.test|-queue\.test/.test(
 						p,
 					),
 				),

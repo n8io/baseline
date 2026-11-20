@@ -251,7 +251,7 @@ const pieces = [
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
-		paths: [/^src\/contexts\/foo\/.*-live(\.test)?\.ts$/],
+		paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
 	},
 	{
 		name: "cache",
