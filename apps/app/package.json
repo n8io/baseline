@@ -22,8 +22,8 @@
 		"check": "node --import ./scripts/node-version-require.ts scripts/check.ts",
 		"ci": "pnpm check && pnpm test && pnpm test:integration && pnpm piece-check",
 		"codegen": "drizzle-kit generate",
-		"dev": "varlock run -- docker compose -p app up -d --wait && node --import ./src/preload.ts src/migrate.ts && node --import ./src/preload.ts src/seed.ts && (HEALTH_PORT=9001 node --watch --import ./src/preload.ts src/worker.ts & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
-		"dev:reset": "varlock run -- docker compose -p app down --volumes",
+		"dev": "node scripts/dev-instance.ts && varlock run -- docker compose up -d --wait && node --import ./src/preload.ts src/migrate.ts && node --import ./src/preload.ts src/seed.ts && (varlock run -- sh -c 'HEALTH_PORT=$((HEALTH_PORT + 1)) exec node --watch --import ./src/preload.ts src/worker.ts' & node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev)",
+		"dev:reset": "node scripts/dev-instance.ts && varlock run -- docker compose down --volumes",
 		"aggregate-create": "node --import ./scripts/node-version-require.ts scripts/aggregate-create.ts",
 		"context-create": "node --import ./scripts/node-version-require.ts scripts/context-create.ts",
 		"format": "biome check --write .",
@@ -35,7 +35,7 @@
 		"seed": "node --import ./src/preload.ts src/seed.ts",
 		"template-upgrade": "node --import ./scripts/node-version-require.ts scripts/template-upgrade.ts",
 		"test": "vitest run --project unit --project unit-contexts",
-		"test:integration": "pnpm build && vitest run --project integration"
+		"test:integration": "node scripts/dev-instance.ts && pnpm build && vitest run --project integration"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",

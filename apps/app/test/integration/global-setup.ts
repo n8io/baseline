@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import pg from "pg";
 import type { TestProject } from "vitest/node";
@@ -19,13 +19,17 @@ declare module "vitest" {
 
 // Only INTEGRATION_* URLs count, so a DATABASE_URL set for something else is never dropped into. Without
 // them, the compose.yaml services on this Project's host ports (CI's service containers use the defaults).
-// This Project's host ports: the shell's, else the defaults in .env.schema (not loaded through varlock, so
-// a .env.development.local with infisical() references cannot stop the run).
-const schemaPorts = parseEnv(
-	readFileSync(new URL("../../.env.schema", import.meta.url), "utf8"),
-);
+// This Project's host ports: the shell's, else a linked worktree's dev instance's (.env.development.local),
+// else the defaults in .env.schema (neither loaded through varlock, so a .env.development.local with
+// infisical() references cannot stop the run).
+const envFileRead = (name: string): Record<string, string | undefined> => {
+	const url = new URL(`../../${name}`, import.meta.url);
+	return existsSync(url) ? parseEnv(readFileSync(url, "utf8")) : {};
+};
+const instancePorts = envFileRead(".env.development.local");
+const schemaPorts = envFileRead(".env.schema");
 const portRead = (item: string): string | undefined =>
-	process.env[item] ?? schemaPorts[item];
+	process.env[item] ?? instancePorts[item] ?? schemaPorts[item];
 
 const urlCreate = (
 	value: string | undefined,

@@ -74,16 +74,23 @@ describe("the SDK on the production build", { timeout: 30_000 }, () => {
 		expect(missing.status).toBe(404);
 	});
 
-	it("sends a call to the Environment it names", async () => {
-		// development is http://localhost:3000 (clients/environments.json); nothing listens there here.
-		const error = await fooList(undefined, {
+	it("sends a call to the Environment it names, over the configured URL", async () => {
+		const created = await fooCreate({ name: "Here only" });
+		if (created.status !== 201) throw new Error(`fooCreate: ${created.status}`);
+		// development is http://localhost:3000 (clients/environments.json): refused when nothing
+		// listens there, else answered by a server that does not hold this foo (pnpm dev's).
+		const outcome = await fooGet(created.data.id, {
 			environment: "development",
 			retry: 0,
-		}).catch((rejection: unknown) => rejection);
-		// Where localhost is both ::1 and 127.0.0.1, Node gives one error per address.
-		const cause = (error as { cause: { errors?: unknown[] } }).cause;
-		expect(cause.errors ?? [cause]).toContainEqual(
-			expect.objectContaining({ code: "ECONNREFUSED", port: 3000 }),
-		);
+		}).catch((error: Error) => error);
+		if (outcome instanceof Error) {
+			// Where localhost is both ::1 and 127.0.0.1, Node gives one error per address.
+			const cause = outcome.cause as { errors?: unknown[] };
+			expect(cause.errors ?? [cause]).toContainEqual(
+				expect.objectContaining({ code: "ECONNREFUSED", port: 3000 }),
+			);
+		} else {
+			expect(outcome.status).not.toBe(200);
+		}
 	});
 });
