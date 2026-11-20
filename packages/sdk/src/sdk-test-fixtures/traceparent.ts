@@ -5,7 +5,10 @@ import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { telemetrySpanRun } from "@n8io/baseline-telemetry/span";
 import { sdkFetchCreate } from "../sdk-fetch-create.ts";
 
-const { sdkFetch } = sdkFetchCreate({ baseUrl: process.argv[2] ?? "" });
+const { sdkFetch } = sdkFetchCreate({
+	defaults: { environment: "test" },
+	environments: { test: process.argv[2] ?? "" },
+});
 
 await telemetrySpanRun("caller", () =>
 	sdkFetch("/api/v1/foos", { method: "GET" }),

@@ -193,6 +193,9 @@ describe("cliCommandsRead", () => {
 			cliCommandsRead(operationDocument(body({ url: { type: "string" } }))),
 		).toThrow("both --url, or one that the CLI keeps for itself");
 		expect(() =>
+			cliCommandsRead(operationDocument(body({ env: { type: "string" } }))),
+		).toThrow("both --env, or one that the CLI keeps for itself");
+		expect(() =>
 			cliCommandsRead(
 				operationDocument(body({ a_b: { type: "string" }, aB: {} })),
 			),
