@@ -729,7 +729,6 @@ export const readsRefusal = ({
 	return undefined;
 };
 
-// Inserts lines before (or after) the one line that is exactly `anchor`.
 // Inserts before the anchor line, after it, or above the comment block that leads into it, so an
 // anchor is code or a `// wiring:` marker and rewording a prose comment breaks nothing.
 const linesAt = ({

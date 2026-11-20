@@ -8,7 +8,7 @@ import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import { Bar } from "../../domain/bar.ts";
 import { Foo } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
-import { fooHttpErrorAnswer, fooHttpJson } from "./foo-http.ts";
+import { fooHttpErrorAnswer, fooHttpJsonCreate } from "./foo-http.ts";
 
 // The API's own schemas: Aggregate schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const BarResponse = z
@@ -55,7 +55,7 @@ const barCreateRoute = createRoute({
 		params: BarParams,
 	},
 	responses: {
-		201: fooHttpJson(BarResponse, "Created"),
+		201: fooHttpJsonCreate(BarResponse, "Created"),
 		...httpErrorResponsesCreate(fooErrorStatus, [
 			"FooNotFound",
 			"FooForbidden",
@@ -71,7 +71,7 @@ const barListRoute = createRoute({
 	path: "/{fooId}/bars",
 	request: { params: BarParams },
 	responses: {
-		200: fooHttpJson(BarListResponse, "The foo's bars, oldest first"),
+		200: fooHttpJsonCreate(BarListResponse, "The foo's bars, oldest first"),
 		...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
 	},
 });

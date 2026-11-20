@@ -9,7 +9,7 @@ import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import type { FooError } from "../../domain/errors.ts";
 import { Foo, FooListInput } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
-import { fooHttpErrorAnswer, fooHttpJson } from "./foo-http.ts";
+import { fooHttpErrorAnswer, fooHttpJsonCreate } from "./foo-http.ts";
 
 // The route table is the API's view of the context's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;
@@ -83,7 +83,7 @@ const fooCreateRoute = createRoute({
 		},
 	},
 	responses: {
-		201: fooHttpJson(FooResponse, "Created"),
+		201: fooHttpJsonCreate(FooResponse, "Created"),
 		...httpErrorResponsesCreate(fooErrorStatus, ["FooNameTaken"]),
 	},
 });
@@ -95,7 +95,7 @@ const fooListRoute = createRoute({
 	method: "get",
 	path: "/",
 	request: { query: FooListQuery },
-	responses: { 200: fooHttpJson(FooListResponse, "A page of foos") },
+	responses: { 200: fooHttpJsonCreate(FooListResponse, "A page of foos") },
 });
 
 const fooGetRoute = createRoute({
@@ -106,7 +106,7 @@ const fooGetRoute = createRoute({
 	path: "/{fooId}",
 	request: { params: FooParams },
 	responses: {
-		200: fooHttpJson(FooResponse, "The foo"),
+		200: fooHttpJsonCreate(FooResponse, "The foo"),
 		...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
 	},
 });
@@ -126,7 +126,7 @@ const fooUpdateRoute = createRoute({
 		params: FooParams,
 	},
 	responses: {
-		200: fooHttpJson(FooResponse, "Updated"),
+		200: fooHttpJsonCreate(FooResponse, "Updated"),
 		...httpErrorResponsesCreate(fooErrorStatus, [
 			"FooNotFound",
 			"FooNameTaken",

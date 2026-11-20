@@ -15,7 +15,7 @@ export const fooHttpErrorAnswer = <T extends FooError["type"]>(
 };
 
 // A JSON response or body in a route's OpenAPI definition.
-export const fooHttpJson = <S extends z.ZodType>(
+export const fooHttpJsonCreate = <S extends z.ZodType>(
 	schema: S,
 	description: string,
 ) => ({

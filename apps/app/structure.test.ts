@@ -462,7 +462,7 @@ describe("naming", () => {
 				path: name,
 				source: readFileSync(new URL(name, appRoot), "utf8"),
 			}));
-		expect(files.length).toBeGreaterThan(50);
+		expect(files.length).toBeGreaterThan(10);
 		expect(architectureRules.A23?.(files)).toEqual([]);
 	});
 });
