@@ -1,5 +1,6 @@
 // Reads an OpenAPI document into the commands the CLI offers: one per operation, grouped by its tag.
 
+/** The parts of an OpenAPI document the CLI reads. */
 export type CliDocument = {
 	readonly info?: {
 		readonly description?: string;
@@ -204,8 +205,8 @@ const fieldsRead = ({
 		(parameter) => parameter.in !== "path" && parameter.in !== "query",
 	);
 	if (other !== undefined) {
-		throw new Error(
-			`cliCreate: ${String(operation.operationId)} has a ${String(other.in)} parameter, ${String(other.name)}; the CLI sends only path, query and body fields`,
+		throw new TypeError(
+			`cliCreate: document ${String(operation.operationId)} has a ${String(other.in)} parameter, ${String(other.name)}; the CLI sends only path, query and body fields`,
 		);
 	}
 	const parameterFields = parameters
@@ -277,15 +278,15 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 					tag === "" ||
 					!new RegExp(`^${tag}[A-Z]`).test(operationId)
 				) {
-					throw new Error(
-						`cliCreate: ${where} needs one tag and an operationId that starts with it (tag foo, operationId fooCreate), not tags ${JSON.stringify(tags)} and operationId "${operationId}"`,
+					throw new TypeError(
+						`cliCreate: document ${where} needs one tag and an operationId that starts with it (tag foo, operationId fooCreate), not tags ${JSON.stringify(tags)} and operationId "${operationId}"`,
 					);
 				}
 				const group = cliKebab(tag);
 				const name = cliKebab(operationId.slice(tag.length));
 				if (reservedCommands.has(group) || name === "help") {
-					throw new Error(
-						`cliCreate: ${operationId} would be the command "${group} ${name}", but the CLI keeps login and help for itself; rename its tag or operationId`,
+					throw new TypeError(
+						`cliCreate: document ${operationId} would be the command "${group} ${name}", but the CLI keeps login and help for itself; rename its tag or operationId`,
 					);
 				}
 				const fields = fieldsRead({ document, operation, path, pathItem });
@@ -295,8 +296,8 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 						reservedFlags.has(flag) || flags.indexOf(flag) !== index,
 				);
 				if (clash !== undefined) {
-					throw new Error(
-						`cliCreate: ${operationId} has two fields that are both --${clash}, or one that the CLI keeps for itself (--data, --env, --help, --token, --url); rename one`,
+					throw new TypeError(
+						`cliCreate: document ${operationId} has two fields that are both --${clash}, or one that the CLI keeps for itself (--data, --env, --help, --token, --url); rename one`,
 					);
 				}
 				const summary = textRead(operation.summary);

@@ -5,7 +5,7 @@ import {
 } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it } from "vitest";
-import { type SdkOptions, sdkFetchCreate } from "./sdk-fetch-create.ts";
+import { type SdkOptions, sdkFetchCreate } from "./sdk-fetch.ts";
 
 type Answer = (request: IncomingMessage, response: ServerResponse) => void;
 
@@ -63,7 +63,7 @@ const silent: Answer = () => undefined;
 const overrideCreate = (defaults: SdkOptions<never> = {}) =>
 	sdkFetchCreate({ defaults });
 
-const fastRetry = { retry: 2, timeout: 1000, totalTimeout: 5000 };
+const fastRetry = { retry: 2, timeoutMs: 1000, totalTimeoutMs: 5000 };
 
 describe("sdkFetchCreate", () => {
 	it("resolves the status, the parsed body and the headers, as the SDK's fetch always has", async () => {
@@ -195,7 +195,7 @@ describe("sdkFetchCreate", () => {
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 1,
-			timeout: 100,
+			timeoutMs: 100,
 		});
 
 		const error = await sdkFetch("/api/v1/foos", { method: "GET" }).catch(
@@ -207,13 +207,13 @@ describe("sdkFetchCreate", () => {
 		expect(api.requests).toHaveLength(2);
 	});
 
-	it("stops retrying at totalTimeout", async () => {
+	it("stops retrying at totalTimeoutMs", async () => {
 		await using api = await apiStart(silent);
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 10,
-			timeout: 200,
-			totalTimeout: 500,
+			timeoutMs: 200,
+			totalTimeoutMs: 500,
 		});
 		const started = performance.now();
 
@@ -227,14 +227,14 @@ describe("sdkFetchCreate", () => {
 		expect(api.requests.length).toBeLessThan(4);
 	});
 
-	it("bounds a slow body by totalTimeout too", async () => {
+	it("bounds a slow body by totalTimeoutMs too", async () => {
 		await using api = await apiStart((_request, response) => {
 			response.writeHead(200, { "content-type": "application/json" });
 			response.write('{"id":');
 		});
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
-			totalTimeout: 300,
+			totalTimeoutMs: 300,
 		});
 
 		const error = await sdkFetch("/api/v1/foos", { method: "GET" }).catch(
@@ -245,11 +245,11 @@ describe("sdkFetchCreate", () => {
 		expect(error).toHaveProperty("name", "TimeoutError");
 	});
 
-	it("resolves a 503 at once when its Retry-After is past totalTimeout", async () => {
+	it("resolves a 503 at once when its Retry-After is past totalTimeoutMs", async () => {
 		await using api = await apiStart(empty(503, { "retry-after": "60" }));
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
-			totalTimeout: 2000,
+			totalTimeoutMs: 2000,
 		});
 		const started = performance.now();
 
@@ -309,7 +309,7 @@ describe("sdkFetchCreate", () => {
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 2,
-			timeout: 200,
+			timeoutMs: 200,
 		});
 
 		const failed = await sdkFetch("/api/v1/foos", { method: "POST" }).catch(
@@ -342,22 +342,29 @@ describe("sdkFetchCreate", () => {
 	});
 
 	it.each([
-		["a rate-limit reset past totalTimeout", { "ratelimit-reset": "60" }, 2000],
-		["a backoff past totalTimeout", {}, 200],
-	])("resolves a 429 at once when %s", async (_case, headers, totalTimeout) => {
-		await using api = await apiStart(empty(429, headers));
-		const { sdkFetch } = overrideCreate({
-			baseUrl: api.baseUrl,
-			totalTimeout,
-		});
+		[
+			"a rate-limit reset past totalTimeoutMs",
+			{ "ratelimit-reset": "60" },
+			2000,
+		],
+		["a backoff past totalTimeoutMs", {}, 200],
+	])(
+		"resolves a 429 at once when %s",
+		async (_case, headers, totalTimeoutMs) => {
+			await using api = await apiStart(empty(429, headers));
+			const { sdkFetch } = overrideCreate({
+				baseUrl: api.baseUrl,
+				totalTimeoutMs,
+			});
 
-		const response = await sdkFetch<Answered>("/api/v1/foos", {
-			method: "GET",
-		});
+			const response = await sdkFetch<Answered>("/api/v1/foos", {
+				method: "GET",
+			});
 
-		expect(response.status).toBe(429);
-		expect(api.requests).toHaveLength(1);
-	});
+			expect(response.status).toBe(429);
+			expect(api.requests).toHaveLength(1);
+		},
+	);
 
 	it("parses a retried status's body as every other status's", async () => {
 		await using api = await apiStart(
@@ -443,18 +450,18 @@ describe("sdkFetchCreate", () => {
 		const { sdkFetch } = overrideCreate({
 			baseUrl: api.baseUrl,
 			retry: 0,
-			timeout: 5000,
-			totalTimeout: 5000,
+			timeoutMs: 5000,
+			totalTimeoutMs: 5000,
 		});
 		const started = performance.now();
 
 		const perAttempt = await sdkFetch("/a", {
 			method: "GET",
-			timeout: 100,
+			timeoutMs: 100,
 		}).catch((caught: unknown) => caught);
 		const total = await sdkFetch("/b", {
 			method: "GET",
-			totalTimeout: 100,
+			totalTimeoutMs: 100,
 		}).catch((caught: unknown) => caught);
 
 		expect(perAttempt).toHaveProperty("name", "TimeoutError");
@@ -474,6 +481,48 @@ describe("sdkFetchCreate", () => {
 
 		expect(first.requests[0]?.headers.authorization).toBe("Bearer one");
 		expect(second.requests[0]?.headers.authorization).toBe("Bearer two");
+	});
+});
+
+describe("sdkFetchCreate options", () => {
+	it("throws a TypeError naming the function and the option on a bad retry or timeout", async () => {
+		expect(() => overrideCreate({ retry: -1 })).toThrow(
+			new TypeError(
+				"sdkFetchCreate: defaults.retry must be a whole number, 0 or more",
+			),
+		);
+		const { sdkConfigure, sdkFetch } = overrideCreate();
+		expect(() => sdkConfigure({ timeoutMs: 0 })).toThrow(
+			new TypeError("sdkConfigure: timeoutMs must be a positive integer"),
+		);
+		await expect(
+			sdkFetch("/a", { method: "GET", totalTimeoutMs: Number.NaN }),
+		).rejects.toThrow(
+			new TypeError("sdkFetch: totalTimeoutMs must be a positive integer"),
+		);
+	});
+
+	it("reads null as the configured value, and a configured null as the default", async () => {
+		await using api = await apiStart(empty(503), empty(503), empty(204));
+		const { sdkConfigure, sdkFetch } = overrideCreate({
+			baseUrl: api.baseUrl,
+			retry: 0,
+			token: "configured",
+		});
+
+		const sentOnce = await sdkFetch<Answered>("/a", {
+			method: "GET",
+			retry: null,
+			token: null,
+		});
+		sdkConfigure({ retry: null, token: null });
+		const retried = await sdkFetch<Answered>("/b", { method: "GET" });
+
+		expect(sentOnce.status).toBe(503);
+		expect(api.requests[0]?.headers.authorization).toBe("Bearer configured");
+		expect(retried.status).toBe(204);
+		expect(api.requests).toHaveLength(3);
+		expect(api.requests[2]?.headers).not.toHaveProperty("authorization");
 	});
 });
 

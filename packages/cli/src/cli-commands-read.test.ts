@@ -176,7 +176,7 @@ describe("cliCommandsRead", () => {
 			{ operationId: "foolCreate", tags: ["foo"] },
 		]) {
 			expect(() => cliCommandsRead(operationDocument(operation))).toThrow(
-				"cliCreate: POST /api/v1/foos needs one tag and an operationId that starts with it",
+				"cliCreate: document POST /api/v1/foos needs one tag and an operationId that starts with it",
 			);
 		}
 	});
@@ -238,7 +238,11 @@ describe("cliCommandsRead refusals", () => {
 					tags: ["foo"],
 				}),
 			),
-		).toThrow("fooCreate has a header parameter, x-tenant");
+		).toThrow(
+			new TypeError(
+				"cliCreate: document fooCreate has a header parameter, x-tenant; the CLI sends only path, query and body fields",
+			),
+		);
 	});
 });
 

@@ -1,6 +1,6 @@
 export type {
 	SdkFetch,
-	SdkFetchCreateInput,
+	SdkFetchOptions,
 	SdkOptions,
-} from "./sdk-fetch-create.ts";
-export { sdkFetchCreate } from "./sdk-fetch-create.ts";
+} from "./sdk-fetch.ts";
+export { sdkFetchCreate } from "./sdk-fetch.ts";
