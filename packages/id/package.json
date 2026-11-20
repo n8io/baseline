@@ -1,16 +1,16 @@
 {
 	"name": "@n8io/baseline-id",
 	"version": "3.0.1",
-	"description": "Prefixed TypeIDs: create, validate and convert to and from UUIDs",
+	"description": "Prefixed ids that sort by time and carry their type: TypeIDs backed by UUIDv7 and stored as a plain Postgres uuid.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/id"
-	},
-	"type": "module",
-	"engines": {
-		"node": ">=26"
 	},
 	"exports": {
 		".": "./src/index.ts"

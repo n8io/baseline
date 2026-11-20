@@ -1,0 +1,14 @@
+{
+	"$schema": "../../node_modules/turbo/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"test": {
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"!CHANGELOG.md",
+				"!README.md",
+				"../../test/redis/*.ts"
+			]
+		}
+	}
+}

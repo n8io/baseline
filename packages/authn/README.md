@@ -242,4 +242,4 @@ await fetch(`${baseUrl}/invoices`, {
 By the Template's convention: `AUTHN_ISSUER_URL` (`https://` or `memory://`), `AUTHN_CLIENT_ID`, `AUTHN_CLIENT_SECRET`, `AUTHN_AUDIENCE`, and `AUTHN_SECRET` (base64url, at least 32 bytes; it encrypts the cookies and keys the memory issuer). Make one with `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='`.
 </details>
 
-**Needs** `hono` and `@opentelemetry/api` as peers; `react` and `react-router` only for the `/react-router` and `/client` subpaths. Zod is its own dependency, not yours. Env: the five `AUTHN_*` above. Runs on any OIDC provider (`openid-client`, `jose`); no option or export is specific to one provider.
+**Needs** `hono` and `@opentelemetry/api` as peers; `react-router` only for the `/react-router` and `/client` subpaths. Zod is its own dependency, not yours. Env: the five `AUTHN_*` above. Runs on any OIDC provider (`openid-client`, `jose`); no option or export is specific to one provider.

@@ -1,7 +1,7 @@
 {
 	"name": "@n8io/baseline-analytics",
 	"version": "2.0.1",
-	"description": "Analytics events sent to Mixpanel after commit, without blocking the request.",
+	"description": "Analytics events that never slow or fail a request: what an Actor did, sent after the change commits.",
 	"license": "MIT",
 	"type": "module",
 	"engines": {

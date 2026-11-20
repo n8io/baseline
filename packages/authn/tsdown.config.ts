@@ -1,14 +1,17 @@
 import { defineConfig } from "tsdown";
 
-export default defineConfig({
+const shared = {
 	dts: true,
-	entry: [
-		"src/index.ts",
-		"src/client.ts",
-		"src/react-router.ts",
-		"src/testing.ts",
-	],
 	fixedExtension: false,
 	format: "esm",
-	platform: "node",
-});
+} as const;
+
+// The client entry runs in browsers, so it builds for no platform, like sdk.
+export default defineConfig([
+	{
+		...shared,
+		entry: ["src/index.ts", "src/react-router.ts", "src/testing.ts"],
+		platform: "node",
+	},
+	{ ...shared, entry: ["src/client.ts"], platform: "neutral" },
+]);

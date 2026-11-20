@@ -1,26 +1,26 @@
 {
 	"name": "@n8io/baseline-telemetry",
 	"version": "2.0.1",
-	"description": "The OpenTelemetry preload and use-case spans every baseline app starts with.",
-	"type": "module",
+	"description": "One trace from the request to the Event handler: a preload for traces, metrics and logs, and a span and duration metric per Use case.",
 	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/n8io/baseline.git",
 		"directory": "packages/telemetry"
 	},
-	"engines": {
-		"node": ">=26"
-	},
-	"files": [
-		"dist",
-		"README.md"
-	],
 	"exports": {
 		".": "./src/index.ts",
 		"./register": "./src/register.ts",
 		"./span": "./src/telemetry-span.ts"
 	},
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"publishConfig": {
 		"access": "public",
 		"exports": {
