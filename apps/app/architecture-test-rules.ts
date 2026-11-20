@@ -142,8 +142,8 @@ const aclOf = (p: string): string | undefined => {
 };
 const tableIs = (p: string): boolean =>
 	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
-// A context's Aggregates: a model in domain/ with its own table in adapters/outbound/. A table
-// with no model of its name (a projection) is not one.
+// A context's Aggregates: an Aggregate root schema in domain/ with its own table in adapters/outbound/. A table
+// with no domain/ file of its name (a projection) is not one.
 const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
 	files.flatMap((f) => {
 		const name = new RegExp(
@@ -157,7 +157,7 @@ const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
 const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
 // Where Use cases must not be built bare: contextsCreate and the composition roots (a context's
 // index.ts is checked too).
-const useCasesBuilders = [...roots, "src/use-cases.ts"];
+const useCasesBuilders = [...roots, "src/contexts.ts"];
 
 // One message per offending import: `check` returns the reason, or undefined when allowed.
 const importsCheck = ({
@@ -440,7 +440,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			check: ({ context, f, imp }) => {
 				// The composition: only tests and test helpers build contexts or open connections.
 				if (
-					["src/use-cases.ts", "src/connections.ts"].includes(imp.target) &&
+					["src/contexts.ts", "src/connections.ts"].includes(imp.target) &&
 					!imp.typeOnly &&
 					!testIs(f.path) &&
 					!/-test-[^/]*\.ts$/.test(f.path)
@@ -494,7 +494,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				}
 				return imp.specifier === "@n8io/baseline-telemetry/span" &&
 					layerOf(f.path) !== "application"
-					? "only use cases touch spans; set span attributes in application/, and wrap use cases with telemetryUseCasesTrace in src/use-cases.ts"
+					? "only use cases touch spans; set span attributes in application/, and wrap use cases with telemetryUseCasesTrace in src/contexts.ts"
 					: undefined;
 			},
 		}),
@@ -587,7 +587,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>ContextCreate through src/use-cases.ts`,
+				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>ContextCreate through src/contexts.ts`,
 		}),
 		...textCheck({
 			files,
@@ -783,7 +783,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		const contexts = contextsOf(files);
 		// Comments aside, so a commented-out context counts as missing.
 		const builder = (
-			files.find((f) => f.path === "src/use-cases.ts")?.source ?? ""
+			files.find((f) => f.path === "src/contexts.ts")?.source ?? ""
 		).replaceAll(/\/\/.*$/gm, "");
 		// The roots mount what contextsCreate returns, so a context built only for another's ACL is lost.
 		const returned = /return\s*\{([^}]*)\}/.exec(builder)?.[1] ?? "";
@@ -795,7 +795,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			)
 			.map(
 				(d) =>
-					`src/use-cases.ts: never builds and returns ${camel(d)}Context; build every context in contextsCreate with ${camel(d)}ContextCreate, after the contexts it reads, and return it`,
+					`src/contexts.ts: never builds and returns ${camel(d)}Context; build every context in contextsCreate with ${camel(d)}ContextCreate, after the contexts it reads, and return it`,
 			);
 		const unwrapped = files
 			.filter(
@@ -880,14 +880,13 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				}
 				const rootsWithEnv = [
 					...roots,
-					"src/authn.ts",
 					// Opens every connection for the roots, so it reads their settings itself.
 					"src/connections.ts",
 					"src/migrate.ts",
 					"src/blocked-keys.ts",
 				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the composition roots, src/authn.ts and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+					? "only the composition roots and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
 		}),
@@ -964,7 +963,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: undefined,
 		}),
 
-	// A7 keeps OpenAPI out of domain/. A model is plain Zod, so `.openapi` is missing on it until
+	// A7 keeps OpenAPI out of domain/. An Aggregate schema is plain Zod, so `.openapi` is missing on it until
 	// @hono/zod-openapi has loaded: a call on one works or throws with test order.
 	A25: (files) =>
 		files

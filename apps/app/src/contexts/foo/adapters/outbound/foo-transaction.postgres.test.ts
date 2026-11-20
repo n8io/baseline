@@ -6,7 +6,7 @@ import { err, ok } from "@n8io/baseline-result";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
 import { type Connections, connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 import { fooCreated, fooDeleted } from "../../domain/foo.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 

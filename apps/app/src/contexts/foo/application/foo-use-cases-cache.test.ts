@@ -4,7 +4,7 @@ import { err } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { type Clock, clockMemoryCreate } from "../../../clock.ts";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import { FooNotFoundError } from "../domain/errors.ts";
 
 // The read-through in fooGet and the clears after a change; the cache piece owns this file.

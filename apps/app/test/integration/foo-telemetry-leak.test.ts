@@ -3,17 +3,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
-	canaries,
 	type OtlpReceiver,
 	type OtlpSpan,
-	otlpEnv,
+	otlpReceiverCanaries,
+	otlpReceiverEnvCreate,
+	otlpReceiverSignals,
+	otlpReceiverSignalsLeaking,
+	otlpReceiverSpanAncestors,
+	otlpReceiverSpanAttribute,
+	otlpReceiverSpanKindClient,
+	otlpReceiverSpanKindServer,
 	otlpReceiverStart,
-	signalsLeaking,
-	spanAncestors,
-	spanAttribute,
-	spanKindClient,
-	spanKindServer,
-	telemetrySignals,
 } from "./otlp-receiver.ts";
 import {
 	type ProductionServer,
@@ -22,7 +22,7 @@ import {
 
 // telemetry-leak.test.ts covers routes every project has; this adds a use case, its pg queries
 // and a Postgres error whose detail holds the canaries.
-const fooName = `Canary ${canaries.email} ${canaries.card} ${canaries.health}`;
+const fooName = `Canary ${otlpReceiverCanaries.email} ${otlpReceiverCanaries.card} ${otlpReceiverCanaries.health}`;
 const clientSecret = `canary-client-secret-${randomUUID()}`;
 
 let receiver: OtlpReceiver;
@@ -59,7 +59,7 @@ beforeAll(async () => {
 	server = await productionServerStart({
 		databaseUrl: database.databaseUrl,
 		env: {
-			...otlpEnv(receiver),
+			...otlpReceiverEnvCreate(receiver),
 			AUTHN_CLIENT_SECRET: clientSecret,
 			LOG_LEVEL: "trace",
 		},
@@ -69,11 +69,16 @@ beforeAll(async () => {
 	// The repeat fails on the unique name: Postgres's 23505 detail now holds the canaries.
 	expect(await apiPost({ name: fooName })).toBe(409);
 	// An unknown key holding a canary fails validation.
-	expect(await apiPost({ name: "Other", note: canaries.email })).toBe(400);
 	expect(
-		await request(`/foos?cursor=${encodeURIComponent(canaries.email)}`, {
-			headers: { cookie: session.cookie },
-		}),
+		await apiPost({ name: "Other", note: otlpReceiverCanaries.email }),
+	).toBe(400);
+	expect(
+		await request(
+			`/foos?cursor=${encodeURIComponent(otlpReceiverCanaries.email)}`,
+			{
+				headers: { cookie: session.cookie },
+			},
+		),
 	).toBe(200);
 	expect(responseBodies.at(-1)).toContain(fooName);
 	// A read by id goes through the cache.
@@ -104,22 +109,22 @@ describe("telemetry from the production build with foo traffic", {
 		const spans = receiver.spans();
 		const created = spans.find(
 			(span) =>
-				span.kind === spanKindServer &&
+				span.kind === otlpReceiverSpanKindServer &&
 				span.name === "POST /api/v1/foos" &&
-				spanAttribute(span, "http.response.status_code") === "201",
+				otlpReceiverSpanAttribute(span, "http.response.status_code") === "201",
 		);
 		expect(created).toBeDefined();
 		const useCase = spans.find(
 			(span) =>
 				span.name === "fooCreate" &&
-				spanAncestors(span, spans).includes(created as OtlpSpan),
+				otlpReceiverSpanAncestors(span, spans).includes(created as OtlpSpan),
 		);
 		expect(useCase).toBeDefined();
 		const queries = spans.filter(
 			(span) =>
-				span.kind === spanKindClient &&
-				spanAttribute(span, "db.system.name") === "postgresql" &&
-				spanAncestors(span, spans).includes(useCase as OtlpSpan),
+				span.kind === otlpReceiverSpanKindClient &&
+				otlpReceiverSpanAttribute(span, "db.system.name") === "postgresql" &&
+				otlpReceiverSpanAncestors(span, spans).includes(useCase as OtlpSpan),
 		);
 		expect(queries.length).toBeGreaterThan(0);
 	});
@@ -129,7 +134,10 @@ describe("telemetry from the production build with foo traffic", {
 	it("makes no Postgres or Redis span outside a trace", () => {
 		const clientSpans = receiver
 			.spans()
-			.filter((span) => spanAttribute(span, "db.system.name") !== undefined);
+			.filter(
+				(span) =>
+					otlpReceiverSpanAttribute(span, "db.system.name") !== undefined,
+			);
 		expect(clientSpans.length).toBeGreaterThan(0);
 		expect(
 			clientSpans
@@ -154,8 +162,10 @@ describe("telemetry from the production build with foo traffic", {
 		const spans = receiver.spans();
 		const commands = spans.filter(
 			(span) =>
-				spanAttribute(span, "db.system.name") === "redis" &&
-				spanAncestors(span, spans).some((parent) => parent.name === "fooGet"),
+				otlpReceiverSpanAttribute(span, "db.system.name") === "redis" &&
+				otlpReceiverSpanAncestors(span, spans).some(
+					(parent) => parent.name === "fooGet",
+				),
 		);
 		expect(commands.map((span) => span.name)).toEqual([
 			"redis-GET",
@@ -169,11 +179,11 @@ describe("telemetry from the production build with foo traffic", {
 			.spans()
 			.find(
 				(span) =>
-					span.kind === spanKindServer &&
-					spanAttribute(span, "url.path") === "/foos",
+					span.kind === otlpReceiverSpanKindServer &&
+					otlpReceiverSpanAttribute(span, "url.path") === "/foos",
 			);
 		expect(list).toBeDefined();
-		expect(spanAttribute(list as OtlpSpan, "url.query")).toBe(
+		expect(otlpReceiverSpanAttribute(list as OtlpSpan, "url.query")).toBe(
 			"cursor=REDACTED",
 		);
 	});
@@ -182,15 +192,18 @@ describe("telemetry from the production build with foo traffic", {
 		Object.entries({
 			"access cookie": () => session.accessCookie,
 			"bearer token": () => session.token,
-			"card number": () => canaries.card,
+			"card number": () => otlpReceiverCanaries.card,
 			"client secret": () => clientSecret,
-			email: () => canaries.email,
-			"health term": () => canaries.health,
+			email: () => otlpReceiverCanaries.email,
+			"health term": () => otlpReceiverCanaries.health,
 		}),
 	)("never exports or prints the %s", (_name, value) => {
-		expect(signalsLeaking(telemetrySignals(server, receiver), value())).toEqual(
-			[],
-		);
+		expect(
+			otlpReceiverSignalsLeaking(
+				otlpReceiverSignals(server, receiver),
+				value(),
+			),
+		).toEqual([]);
 	});
 
 	it("never sends the client secret in a response body", () => {

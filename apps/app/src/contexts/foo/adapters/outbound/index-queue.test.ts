@@ -1,7 +1,7 @@
 import type { Events } from "@n8io/baseline-queue";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 
 // The queue piece owns this file.
 describe("the context with the queue", () => {

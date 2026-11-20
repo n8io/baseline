@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
 import { clockMemoryCreate } from "../../../../clock.ts";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import { FooListInput } from "../../domain/foo.ts";
 import { fooSeed } from "./foo-seed.ts";

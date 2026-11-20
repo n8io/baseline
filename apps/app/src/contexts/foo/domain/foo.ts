@@ -5,6 +5,8 @@ import { z } from "zod";
 import { idSchemaCreate } from "../../../id-schema.ts";
 import { FooForbiddenError } from "./errors.ts";
 
+// Schema casing: a schema that doubles as its type is PascalCase (Foo, FooCreateInput, and the
+// API's FooResponse). A Domain event schema is camelCase (fooCreated) beside its PascalCase type.
 export const Foo = z.object({
 	id: idSchemaCreate("foo"),
 	name: z.string().trim().min(1).max(100),

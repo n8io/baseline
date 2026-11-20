@@ -3,7 +3,7 @@ import { err } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { clockMemoryCreate } from "../../../clock.ts";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import { FooNameTakenError } from "../domain/errors.ts";
 import { FooListInput } from "../domain/foo.ts";
 

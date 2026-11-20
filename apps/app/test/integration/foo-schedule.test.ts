@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import pg from "pg";
 import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
-import { workerStart } from "./production-server.ts";
+import { productionServerWorkerStart } from "./production-server.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -93,7 +93,7 @@ describe("schedules", { timeout: 60_000 }, () => {
 		await using database = await integrationDatabaseCreate();
 
 		// A Worker of another version mid-rollout: here, one that has the Schedule turned off.
-		await using _worker = await workerStart({
+		await using _worker = await productionServerWorkerStart({
 			databaseUrl: database.databaseUrl,
 			env: scheduleEnv("off"),
 		});
@@ -107,7 +107,7 @@ describe("schedules", { timeout: 60_000 }, () => {
 		await using database = await integrationDatabaseCreate();
 		await query(database.databaseUrl, "DELETE FROM queue.schedule");
 
-		await using worker = await workerStart({
+		await using worker = await productionServerWorkerStart({
 			databaseUrl: database.databaseUrl,
 			env: { LOG_LEVEL: "warn" },
 		});

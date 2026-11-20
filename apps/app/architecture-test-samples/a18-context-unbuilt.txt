@@ -1,6 +1,6 @@
-// A18: src/use-cases.ts builds every context
-// expect: src/use-cases.ts: never builds and returns bazContext; build every context in contextsCreate
-// @file src/use-cases.ts
+// A18: src/contexts.ts builds every context
+// expect: src/contexts.ts: never builds and returns bazContext; build every context in contextsCreate
+// @file src/contexts.ts
 import { barContextCreate } from "#contexts/bar/index.ts";
 
 export const contextsCreate = () => {

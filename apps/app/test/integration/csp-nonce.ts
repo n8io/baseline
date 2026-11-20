@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 
 /** The response's CSP nonce, after checking that every <script> tag in `html` carries it. */
-export const scriptsNonce = (res: Response, html: string): string => {
+export const cspNonce = (res: Response, html: string): string => {
 	const csp = res.headers.get("content-security-policy") ?? "";
 	expect(csp).toMatch(
 		/^base-uri 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-/,

@@ -40,8 +40,8 @@ import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
 import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
+import { type ContextMounts, contextsCreate } from "./contexts.ts";
 import { seedsRun } from "./seed.ts";
-import { type ContextMounts, contextsCreate } from "./use-cases.ts";
 
 // piece-start: ui
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is
@@ -83,7 +83,7 @@ if (ENV.APP_ENV === "development" && connections.database === "memory") {
 }
 
 // piece-start: queue
-// Creates queues and subscriptions; consumers run only in the worker.
+// Creates queues and subscriptions; Event handlers run only in the Worker.
 if (connections.events !== "memory") {
 	await connections.events.consumersSubscribe(
 		mounts.flatMap((m) => m.handlers),

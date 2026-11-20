@@ -1,8 +1,8 @@
-import { cacheCreate, cacheStoreMemoryCreate } from "@n8io/baseline-cache";
+import { cacheStoreMemoryCreate } from "@n8io/baseline-cache";
 import { type ClockMemory, clockMemoryCreate } from "../../../../clock.ts";
 import type { FooPorts } from "../../application/ports.ts";
 import { barRepositoryMemoryCreate } from "./bar-repository.memory.ts";
-import { fooCached } from "./foo-cached.ts";
+import { fooCacheCreate } from "./foo-cached.ts";
 import { fooRepositoryMemoryCreate } from "./foo-repository.memory.ts";
 import {
 	fooMemoryStateCreate,
@@ -20,11 +20,7 @@ export const fooPortsMemoryCreate = () => {
 		fooAnalytics: { track: () => undefined },
 		// piece-end: analytics
 		// piece-start: cache
-		fooCache: cacheCreate(cacheStoreMemoryCreate(), {
-			keyOf: (foo) => foo.id,
-			prefix: "foo",
-			schema: fooCached,
-		}),
+		fooCache: fooCacheCreate(cacheStoreMemoryCreate()),
 		// piece-end: cache
 		// piece-start: live
 		fooLiveUpdates: { send: async () => undefined },

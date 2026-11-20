@@ -2,8 +2,8 @@ import { once } from "node:events";
 import { createServer as netServerCreate, type Socket } from "node:net";
 import { describe, expect, it } from "vitest";
 import {
-	httpStatus,
 	productionServerBootMs,
+	productionServerHttpStatus,
 	productionServerSpawn,
 	productionServerStart,
 	productionServerWaitFor,
@@ -45,7 +45,9 @@ describe("server readiness", { timeout: 60_000 }, () => {
 			await productionServerWaitFor({
 				what: "the exit",
 				check: async () => {
-					statuses.add(await httpStatus(server.healthPort, "/readyz"));
+					statuses.add(
+						await productionServerHttpStatus(server.healthPort, "/readyz"),
+					);
 					return server.child.exitCode !== null;
 				},
 				// The boot itself must fail, so the exit comes after a whole boot.
@@ -71,7 +73,9 @@ describe("server readiness", { timeout: 60_000 }, () => {
 		await productionServerWaitFor({
 			what: "the exit",
 			check: async () => {
-				statuses.add(await httpStatus(server.healthPort, "/readyz"));
+				statuses.add(
+					await productionServerHttpStatus(server.healthPort, "/readyz"),
+				);
 				return server.child.exitCode !== null;
 			},
 			timeoutMs: 30_000,
@@ -108,8 +112,12 @@ describe("server readiness", { timeout: 60_000 }, () => {
 			await productionServerWaitFor({
 				what: "one and a half seconds without an answer",
 				check: async () => {
-					statuses.add(await httpStatus(server.healthPort, "/livez"));
-					statuses.add(await httpStatus(server.healthPort, "/readyz"));
+					statuses.add(
+						await productionServerHttpStatus(server.healthPort, "/livez"),
+					);
+					statuses.add(
+						await productionServerHttpStatus(server.healthPort, "/readyz"),
+					);
 					return Date.now() > until;
 				},
 			});

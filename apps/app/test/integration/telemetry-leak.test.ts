@@ -3,15 +3,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn, type SignedIn } from "./integration-sign-in.ts";
 import {
-	canaries,
 	type OtlpReceiver,
 	type OtlpSpan,
-	otlpEnv,
+	otlpReceiverCanaries,
+	otlpReceiverEnvCreate,
+	otlpReceiverSignals,
+	otlpReceiverSignalsLeaking,
+	otlpReceiverSpanAttribute,
+	otlpReceiverSpanKindServer,
 	otlpReceiverStart,
-	signalsLeaking,
-	spanAttribute,
-	spanKindServer,
-	telemetrySignals,
 } from "./otlp-receiver.ts";
 import {
 	type ProductionServer,
@@ -21,10 +21,10 @@ import {
 const clientSecret = `canary-client-secret-${randomUUID()}`;
 // The canaries ride in queries and bodies; url.path is exported as is, so none goes there.
 const canaryQuery = new URLSearchParams({
-	card: canaries.card,
-	email: canaries.email,
+	card: otlpReceiverCanaries.card,
+	email: otlpReceiverCanaries.email,
 }).toString();
-const canaryBody = JSON.stringify(canaries);
+const canaryBody = JSON.stringify(otlpReceiverCanaries);
 
 let receiver: OtlpReceiver;
 let server: ProductionServer;
@@ -50,7 +50,7 @@ beforeAll(async () => {
 	server = await productionServerStart({
 		databaseUrl: database.databaseUrl,
 		env: {
-			...otlpEnv(receiver),
+			...otlpReceiverEnvCreate(receiver),
 			AUTHN_CLIENT_SECRET: clientSecret,
 			LOG_LEVEL: "trace",
 		},
@@ -59,7 +59,7 @@ beforeAll(async () => {
 	// A sign-in that fails validation on a canary.
 	expect(
 		await request("/auth/sign-in", {
-			body: new URLSearchParams({ who: canaries.email }),
+			body: new URLSearchParams({ who: otlpReceiverCanaries.email }),
 			headers: { origin: server.url },
 			method: "POST",
 		}),
@@ -107,17 +107,17 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 			.spans()
 			.find(
 				(span) =>
-					span.kind === spanKindServer &&
-					spanAttribute(span, "url.path") === "/no-such-page",
+					span.kind === otlpReceiverSpanKindServer &&
+					otlpReceiverSpanAttribute(span, "url.path") === "/no-such-page",
 			);
 		expect(page).toBeDefined();
-		expect(spanAttribute(page as OtlpSpan, "url.query")).toBe(
+		expect(otlpReceiverSpanAttribute(page as OtlpSpan, "url.query")).toBe(
 			"card=REDACTED&email=REDACTED",
 		);
 	});
 
 	it("exports pino records as OTLP logs", () => {
-		const signals = telemetrySignals(server, receiver);
+		const signals = otlpReceiverSignals(server, receiver);
 		expect(signals.logs).toContain("Server listening");
 	});
 
@@ -125,15 +125,18 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 		Object.entries({
 			"access cookie": () => session.accessCookie,
 			"bearer token": () => session.token,
-			"card number": () => canaries.card,
+			"card number": () => otlpReceiverCanaries.card,
 			"client secret": () => clientSecret,
-			email: () => canaries.email,
-			"health term": () => canaries.health,
+			email: () => otlpReceiverCanaries.email,
+			"health term": () => otlpReceiverCanaries.health,
 		}),
 	)("never exports or prints the %s", (_name, value) => {
-		expect(signalsLeaking(telemetrySignals(server, receiver), value())).toEqual(
-			[],
-		);
+		expect(
+			otlpReceiverSignalsLeaking(
+				otlpReceiverSignals(server, receiver),
+				value(),
+			),
+		).toEqual([]);
 	});
 
 	it("answers an API problem with the trace id of its request's span", () => {
@@ -141,8 +144,9 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 			.spans()
 			.find(
 				(span) =>
-					span.kind === spanKindServer &&
-					spanAttribute(span, "url.path") === "/api/v1/no-such-thing",
+					span.kind === otlpReceiverSpanKindServer &&
+					otlpReceiverSpanAttribute(span, "url.path") ===
+						"/api/v1/no-such-thing",
 			);
 		expect(api).toBeDefined();
 		expect(JSON.parse(responseBodies.at(-1) ?? "{}")).toMatchObject({

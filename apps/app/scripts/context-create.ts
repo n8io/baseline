@@ -106,7 +106,7 @@ export const contextFilesCreate = ({
 	);
 	const read = readsApply({
 		files: template.filter(
-			(f) => contextFilePaths.has(f.path) || f.path === "src/use-cases.ts",
+			(f) => contextFilePaths.has(f.path) || f.path === "src/contexts.ts",
 		),
 		reads,
 	});
@@ -114,7 +114,7 @@ export const contextFilesCreate = ({
 		fooRename({ names, path, text });
 	// The context's files lose every Aggregate's lines and the part blocks that hold them.
 	const own = read
-		.filter((f) => f.path !== "src/use-cases.ts")
+		.filter((f) => f.path !== "src/contexts.ts")
 		.map((file): TemplateFile => {
 			const [shell = file] = contextFilePaths.has(file.path)
 				? partsApply({ files: [file], partsLeftOut: [...aggregateParts] })

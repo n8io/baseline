@@ -11,7 +11,7 @@ import { Bar } from "../../domain/bar.ts";
 import { Foo } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
 
-// The API's own schemas: models carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
+// The API's own schemas: Aggregate schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const BarResponse = z
 	.object({
 		id: Bar.shape.id,
@@ -71,7 +71,7 @@ const barCreateRoute = createRoute({
 
 const barListRoute = createRoute({
 	operationId: "barList",
-	summary: "List one foo's bars, one page at a time",
+	summary: "List one foo's bars, oldest first",
 	tags: ["bar"],
 	method: "get",
 	path: "/{fooId}/bars",

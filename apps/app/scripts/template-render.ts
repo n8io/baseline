@@ -28,7 +28,8 @@ export type TemplateAnswers = {
 
 export type TemplateFile = { path: string; text: string };
 
-export type DomainNames = { kebab: string; plural: string };
+// The forms of the name foo becomes: a context's or an Aggregate's.
+export type NameForms = { kebab: string; plural: string };
 
 const templateRepository = "n8io/baseline";
 
@@ -173,7 +174,7 @@ export const modesRead = (text: string, path: string): Mode[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Renaming foo to another domain
+// Renaming foo to another context or Aggregate
 
 export const camelFromKebab = (kebab: string): string =>
 	kebab.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -258,7 +259,7 @@ const spell = ({
 	token,
 }: {
 	form: Form;
-	names: DomainNames;
+	names: NameForms;
 	plural: boolean;
 	token: string;
 }): string => {
@@ -287,7 +288,7 @@ export const fooRename = ({
 	path,
 	text,
 }: {
-	names: DomainNames;
+	names: NameForms;
 	path: string;
 	text: string;
 }): string => {
@@ -305,7 +306,7 @@ export const fooRename = ({
 	);
 };
 
-export const fooPathRename = (path: string, names: DomainNames): string =>
+export const fooPathRename = (path: string, names: NameForms): string =>
 	path
 		.replace(/(^|\/)foos(?=[-./]|$)/g, `$1${names.plural}`)
 		.replace(/(^|\/|-)foo(?=[-./]|$)/g, `$1${names.kebab}`);
@@ -461,25 +462,25 @@ const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines between a `wiring: contexts-start` and `contexts-end` marker pair are valid only while
 // a context exists. The render empties each pair; context-create and aggregate-create fill them.
-const domainsStart = /^\s*(\/\/|#) wiring: contexts-start\s*$/;
-const domainsEnd = /^\s*(\/\/|#) wiring: contexts-end\s*$/;
+const contextsStart = /^\s*(\/\/|#) wiring: contexts-start\s*$/;
+const contextsEnd = /^\s*(\/\/|#) wiring: contexts-end\s*$/;
 
 // Each pair's marker lines [start, end].
-export const domainsPairsFind = (
+export const contextsPairsFind = (
 	text: string,
 	path: string,
 ): [number, number][] => {
 	const pairs: [number, number][] = [];
 	let start: number | undefined;
 	for (const [k, line] of text.split("\n").entries()) {
-		const misplaced = domainsStart.test(line)
+		const misplaced = contextsStart.test(line)
 			? start !== undefined
-			: domainsEnd.test(line) && start === undefined;
+			: contextsEnd.test(line) && start === undefined;
 		if (misplaced) {
 			throw new Error(`${path}:${k + 1}: wiring markers must pair up`);
 		}
-		if (domainsStart.test(line)) start = k;
-		if (domainsEnd.test(line) && start !== undefined) {
+		if (contextsStart.test(line)) start = k;
+		if (contextsEnd.test(line) && start !== undefined) {
 			pairs.push([start, k]);
 			start = undefined;
 		}
@@ -490,10 +491,10 @@ export const domainsPairsFind = (
 	return pairs;
 };
 
-export const domainsPairsEmpty = (text: string, path: string): string =>
+export const contextsPairsEmpty = (text: string, path: string): string =>
 	linesRemove(
 		text,
-		domainsPairsFind(text, path).map(([start, end]) => [start + 1, end - 1]),
+		contextsPairsFind(text, path).map(([start, end]) => [start + 1, end - 1]),
 	);
 
 // CONTEXT.md keeps every Architecture term as written, foo in their examples too; its title
@@ -694,10 +695,10 @@ export const templateFileRender = (
 			? composeProjectRender(ported, answers.name)
 			: ported;
 	// A root with no foo line, such as the Worker, may still hold a pair to empty.
-	if (!fooLineIs(rendered) && domainsPairsFind(rendered, path).length === 0) {
+	if (!fooLineIs(rendered) && contextsPairsFind(rendered, path).length === 0) {
 		return { path, text: rendered };
 	}
-	const emptied = domainsPairsEmpty(rendered, path);
+	const emptied = contextsPairsEmpty(rendered, path);
 	return { path, text: linesRemove(emptied, fooBlocksFind(emptied, path)) };
 };
 

@@ -1,4 +1,4 @@
-import { idCreate } from "@n8io/baseline-id";
+import { idCreate, idToUuid } from "@n8io/baseline-id";
 import { err, ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import type { FooTransaction } from "../../application/ports.ts";
@@ -49,6 +49,20 @@ export const barRepositoryContract = (
 				earlier,
 				later,
 			]);
+		});
+
+		it("lists bars made at the same time by id, as Postgres orders the uuid", async () => {
+			const ports = await create();
+			const fooId = idCreate("foo");
+			const byId = [
+				barBuild({ fooId }),
+				barBuild({ fooId }),
+				barBuild({ fooId }),
+			].toSorted((a, b) => (idToUuid(a.id) < idToUuid(b.id) ? -1 : 1));
+			// Inserted last id first, so insertion order cannot pass for id order.
+			await insert(ports, byId.toReversed());
+
+			expect(await ports.barReadRepository.listByFooId(fooId)).toEqual(byId);
 		});
 
 		it("deletes a foo's bars and says how many", async () => {

@@ -3,7 +3,7 @@ import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
 import {
 	type OtlpReceiver,
-	otlpEnv,
+	otlpReceiverEnvCreate,
 	otlpReceiverStart,
 } from "./otlp-receiver.ts";
 import {
@@ -21,7 +21,7 @@ beforeAll(async () => {
 	drop = database.drop;
 	server = await productionServerStart({
 		databaseUrl: database.databaseUrl,
-		env: otlpEnv(receiver),
+		env: otlpReceiverEnvCreate(receiver),
 	});
 	const session = await integrationSignIn(server.url);
 	const res = await fetch(`${server.url}/api/v1/foos`, {

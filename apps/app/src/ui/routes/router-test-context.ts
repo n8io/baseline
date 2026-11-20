@@ -5,7 +5,7 @@ import {
 } from "@n8io/baseline-authn/react-router";
 import { type RouterContext, RouterContextProvider } from "react-router";
 
-export const routerContextCreate = (
+export const routerTestContextCreate = (
 	actor: Actor | undefined,
 	entries: [RouterContext<unknown>, unknown][] = [],
 ): RouterContextProvider =>
@@ -17,7 +17,7 @@ export const routerContextCreate = (
 		]),
 	);
 
-export const routeArgs = <
+export const routerTestArgsCreate = <
 	Params extends Record<string, string> = Record<never, never>,
 >(options: {
 	context: RouterContextProvider;

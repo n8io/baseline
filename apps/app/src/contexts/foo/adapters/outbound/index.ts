@@ -1,10 +1,9 @@
-import { cacheCreate } from "@n8io/baseline-cache";
 import type { Events } from "@n8io/baseline-queue";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { Connections } from "../../../../connections.ts";
 import type { FooPorts } from "../../application/ports.ts";
 import { barRepositoryPostgresCreate } from "./bar-repository.postgres.ts";
-import { fooCached } from "./foo-cached.ts";
+import { fooCacheCreate } from "./foo-cached.ts";
 import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
@@ -51,11 +50,7 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 		},
 		// piece-end: analytics
 		// piece-start: cache
-		fooCache: cacheCreate(connections.cacheStore, {
-			keyOf: (foo) => foo.id,
-			prefix: "foo",
-			schema: fooCached,
-		}),
+		fooCache: fooCacheCreate(connections.cacheStore),
 		// piece-end: cache
 		// piece-start: live
 		fooLiveUpdates: {

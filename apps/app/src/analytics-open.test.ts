@@ -5,7 +5,7 @@ import { analyticsOpen } from "./analytics-open.ts";
 describe("analyticsOpen", () => {
 	it("logs instead of sending, with nothing to close, when there is no token", () => {
 		const steps: ShutdownStep[] = [];
-		analyticsOpen({ steps, token: undefined });
+		analyticsOpen({ steps });
 		expect(steps).toEqual([]);
 	});
 

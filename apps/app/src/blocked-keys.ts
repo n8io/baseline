@@ -9,7 +9,7 @@ import type { Queue } from "@n8io/baseline-queue";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { ENV } from "#env";
-import { databaseOpen } from "./connections.ts";
+import { connectionsClose, databaseOpen } from "./connections.ts";
 import { queueOpen } from "./queue-open.ts";
 
 const blockedKeyReleases = {
@@ -87,9 +87,7 @@ try {
 		process.exitCode = await blockedKeysRun(queue, process.argv.slice(2));
 	}
 } finally {
-	for (const step of resources) {
-		await step.close();
-	}
+	await connectionsClose({ intakes: [], resources });
 	// Its spans and logs are lost when the process ends unflushed.
 	await telemetryShutdown();
 }

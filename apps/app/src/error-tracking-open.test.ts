@@ -44,7 +44,7 @@ const ingestOpen = async () => {
 describe("errorTrackingOpen", () => {
 	it("reports nothing, with nothing to close, when there is no DSN", () => {
 		const steps: ShutdownStep[] = [];
-		errorTrackingOpen({ dsn: undefined, environment: "test", steps });
+		errorTrackingOpen({ environment: "test", steps });
 		expect(steps).toEqual([]);
 	});
 

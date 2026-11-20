@@ -65,7 +65,7 @@ export const connectionsOpen = async ({
 	// piece-start: error-tracking
 	// First, so it reports what the other connections log while they open. It closes first too.
 	errorTrackingOpen({
-		dsn: ENV.SENTRY_DSN,
+		dsn: ENV.SENTRY_DSN ?? null,
 		environment: ENV.APP_ENV,
 		steps: resources,
 	});
@@ -81,7 +81,10 @@ export const connectionsOpen = async ({
 	// piece-end: redis
 	return {
 		// piece-start: analytics
-		analytics: analyticsOpen({ steps: resources, token: ENV.MIXPANEL_TOKEN }),
+		analytics: analyticsOpen({
+			steps: resources,
+			token: ENV.MIXPANEL_TOKEN ?? null,
+		}),
 		// piece-end: analytics
 		// piece-start: cache
 		cacheStore: cacheStoreOpen({ redis }),
@@ -109,3 +112,16 @@ export const connectionsOpen = async ({
 };
 
 export type Connections = Awaited<ReturnType<typeof connectionsOpen>>;
+
+// Closes the shutdown steps of opened connections, in shutdown's order: intakes, then resources. For a process
+// that ends on its own (a script, the dev server's re-run); a long-lived one closes through
+// shutdownHandleCreate instead.
+export const connectionsClose = async ({
+	intakes,
+	resources,
+}: {
+	intakes: ShutdownStep[];
+	resources: ShutdownStep[];
+}): Promise<void> => {
+	for (const step of [...intakes, ...resources]) await step.close();
+};

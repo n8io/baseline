@@ -278,13 +278,13 @@ describe("wiringInsert", () => {
 			contextAggregateRename({
 				aggregate: { kebab: "order", plural: "orders" },
 				context: { kebab: "order", plural: "orders" },
-				path: "src/use-cases.ts",
+				path: "src/contexts.ts",
 				text,
 			});
 		const insert = (project: string, template: string) =>
 			wiringInsert({
 				blockIs: (line) => line.includes("foo"),
-				path: "src/use-cases.ts",
+				path: "src/contexts.ts",
 				project,
 				rename: order,
 				template,
@@ -693,15 +693,15 @@ describe.runIf(template)(
 			);
 		});
 
-		it("builds the context in src/use-cases.ts, with each Aggregate's routes, schedules and seeds in its index.ts", () => {
+		it("builds the context in src/contexts.ts, with each Aggregate's routes, schedules and seeds in its index.ts", () => {
 			const shell = built?.shell ?? [];
 			expect(textOf(shell, "src/contexts/billing/index.ts")).toMatch(
 				/telemetryUseCasesTrace\(\s*billingUseCasesCreate\(billingPortsCreate\(connections\)\),\s*\);/,
 			);
-			expect(textOf(shell, "src/use-cases.ts")).toContain(
+			expect(textOf(shell, "src/contexts.ts")).toContain(
 				"const billingContext = billingContextCreate({ connections });\n\t// wiring: contexts\n",
 			);
-			expect(textOf(shell, "src/use-cases.ts")).toContain(
+			expect(textOf(shell, "src/contexts.ts")).toContain(
 				"billingContext,\n\t\t// wiring: contexts-returned",
 			);
 			const index = file("src/contexts/billing/index.ts");
@@ -876,7 +876,7 @@ describe.runIf(template)(
 			expect(shell(`${outbound}/billing-test-upstream.ts`)).toContain(
 				"return { customer: contexts.customerContext };",
 			);
-			expect(shell("src/use-cases.ts")).toMatch(
+			expect(shell("src/contexts.ts")).toMatch(
 				/upstream: \{\s*\/\/ Built after customer: it reads customer through an ACL\.\s*customer: customerContext\s*\}/,
 			);
 			expect(shell("src/contexts/billing/index.ts")).toContain(

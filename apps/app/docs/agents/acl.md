@@ -48,7 +48,7 @@ export const invoiceLineCustomerAclCreate = ({
 
 ```ts
 // src/contexts/invoice-line/adapters/outbound/index.ts
-// The contexts this context reads, built before it in src/use-cases.ts: each fills its ACL.
+// The contexts this context reads, built before it in src/contexts.ts: each fills its ACL.
 export type InvoiceLineUpstream = { customer: InvoiceLineCustomerUpstream };
 ```
 
@@ -60,10 +60,10 @@ export const invoiceLinePortsCreate = (
 ): InvoiceLinePorts => {
 ```
 
-The context's interface takes them as `upstream`, and `contextsCreate` in `src/use-cases.ts` passes each upstream context it built first. The Server, the Worker, the seed and page tests all build their contexts there, so no Composition root names an ACL:
+The context's interface takes them as `upstream`, and `contextsCreate` in `src/contexts.ts` passes each upstream context it built first. The Server, the Worker, the seed and page tests all build their contexts there, so no Composition root names an ACL:
 
 ```ts
-// src/use-cases.ts
+// src/contexts.ts
 const invoiceLineContext = invoiceLineContextCreate({
 	connections,
 	upstream: {
@@ -87,7 +87,7 @@ const setup = async () => {
 ```
 
 - **Build order.** `contextsCreate` builds a context after every context it reads. Two contexts never read each other: when they would, one of them reacts to the other's Domain events instead. Add the relationship to `CONTEXT-MAP.md` (`| invoice-line | customer | ACL |`).
-- **Rules.** Architecture rule A11 fails an ACL that imports anything of another context but its upstream's `index.ts`, or calls an upstream Use case that is not a `*Get` or `*List`. A6 fails any other file that imports another context, except an Event handler (its Domain event schemas) and a seed (an upstream's types). Inside a context only tests and test helpers import `src/use-cases.ts` or `src/connections.ts`.
+- **Rules.** Architecture rule A11 fails an ACL that imports anything of another context but its upstream's `index.ts`, or calls an upstream Use case that is not a `*Get` or `*List`. A6 fails any other file that imports another context, except an Event handler (its Domain event schemas) and a seed (an upstream's types). Inside a context only tests and test helpers import `src/contexts.ts` or `src/connections.ts`.
 - **Lists.** An ACL that needs every match calls the upstream's `*List` Use case page by page, passing `nextCursor` back until it is `null`, and returns one array. Keep such a read to lists that stay small; a large one is a Projection fed by the upstream's Domain events.
 - **Seeds.** A seed that needs upstream rows gets the upstream from `index.ts` and runs after the upstream's seeds: [context-create.md](context-create.md#seeds).
 - **Between the read and the commit.** An ACL reads before the downstream context's transaction opens, so the upstream can change in between (the customer is deleted after the check). Pick one, and say which in the Use case's comment: accept it, because an Event handler of the upstream's `<aggregate>.deleted` cleans up; read again after commit and undo; or sweep with a Schedule.

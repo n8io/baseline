@@ -3,7 +3,7 @@ import { httpErrorHandle, httpRouterCreate } from "@n8io/baseline-http";
 import { idCreate } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 const stranger: Actor = { id: "user-2", kind: "user", scopes: [] };

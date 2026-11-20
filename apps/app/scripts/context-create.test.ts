@@ -172,7 +172,7 @@ describe.runIf(template)("context-create on the template", () => {
 		expect(file("src/contexts/billing/index.ts")).toContain(
 			"// wiring: routes",
 		);
-		expect(file("src/use-cases.ts")).toContain(
+		expect(file("src/contexts.ts")).toContain(
 			"billingContextCreate({ connections })",
 		);
 	});

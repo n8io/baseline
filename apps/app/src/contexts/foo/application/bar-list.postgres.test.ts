@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { type Connections, connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import { bar } from "../adapters/outbound/bar-table.ts";
 
 // A Bar never outlives its Foo. No read through the interface can show a deleted foo's bars, so

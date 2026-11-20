@@ -3,7 +3,7 @@ import { queueTestConsumerRun } from "@n8io/baseline-queue/testing";
 import { ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });

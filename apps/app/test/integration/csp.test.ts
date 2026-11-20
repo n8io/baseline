@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { scriptsNonce } from "./csp-nonce.ts";
+import { cspNonce } from "./csp-nonce.ts";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import { integrationSignIn } from "./integration-sign-in.ts";
 import {
@@ -39,7 +39,7 @@ describe("security headers on the production build", {
 			expect(res.headers.get("strict-transport-security")).toContain(
 				"max-age=",
 			);
-			nonces.push(scriptsNonce(res, await res.text()));
+			nonces.push(cspNonce(res, await res.text()));
 		}
 		expect(nonces[0]).not.toBe(nonces[1]);
 	});

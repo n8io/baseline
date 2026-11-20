@@ -18,13 +18,13 @@ import {
 } from "../apps/app/scripts/template-render.ts";
 
 // apps/app/docs/agents/acl.md quotes the render test's invoice-line context. Each ts block
-// starts with `// <path>` and must appear in that file: in the second-domain fixture's files when
+// starts with `// <path>` and must appear in that file: in the second-context fixture's files when
 // the fixture adds the file, in one hunk of its wiring.patch when it changes a generated one, or
 // else in what `context-create invoice-line --reads customer` and then
 // `aggregate-create invoice-line invoice-line --bare` write. Whitespace and
 // trailing commas are ignored: Biome reformats both the quoted block and the generated code.
 const doc = new URL("../apps/app/docs/agents/acl.md", import.meta.url);
-const fixture = new URL("render/second-domain/", import.meta.url);
+const fixture = new URL("render/second-context/", import.meta.url);
 
 // The new side of each hunk wiring.patch makes to path, hunks apart.
 const patchedRead = (path: string): string[] => {

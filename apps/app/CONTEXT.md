@@ -145,7 +145,7 @@ An unexpected error sent to error tracking (Sentry) for triage: its class name, 
 _Avoid_: crash report, Sentry issue
 
 **Composition root**:
-A file that starts one process: it parses config, opens connections, builds each bounded context through `src/use-cases.ts` and mounts what each one's interface returns (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/blocked-keys.ts`). It imports no adapter (each context's `index.ts` picks its own) and holds no business logic.
+A file that starts one process: it parses config, opens connections, builds each bounded context through `src/contexts.ts` and mounts what each one's interface returns (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/blocked-keys.ts`). It imports no adapter (each context's `index.ts` picks its own) and holds no business logic.
 _Avoid_: bootstrap, main file, DI container
 
 **Worker**:

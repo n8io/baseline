@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	productionServerConnectResult,
+	productionServerShutdownStarted,
+	productionServerSlowRequestStart,
 	productionServerStart,
 	productionServerWaitFor,
-	shutdownStarted,
-	slowRequestStart,
 } from "./production-server.ts";
 
 describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
@@ -18,7 +18,7 @@ describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 
 		const sigtermAt = Date.now();
 		server.child.kill("SIGTERM");
-		await shutdownStarted(server);
+		await productionServerShutdownStarted(server);
 
 		expect(await productionServerConnectResult(server.port)).toBe("connected");
 		await productionServerWaitFor({
@@ -41,7 +41,7 @@ describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 
 		// The memory issuer's sign-in form needs no domain. Declared after the server, so it is
 		// dropped before server.stop, which would otherwise wait for it until its deadline.
-		using slow = await slowRequestStart(server.port, {
+		using slow = await productionServerSlowRequestStart(server.port, {
 			body: new URLSearchParams({ who: "dev-admin" }).toString(),
 			headers: {
 				"content-type": "application/x-www-form-urlencoded",
@@ -51,7 +51,7 @@ describe("server shutdown on SIGTERM", { timeout: 60_000 }, () => {
 		});
 
 		server.child.kill("SIGTERM");
-		await shutdownStarted(server);
+		await productionServerShutdownStarted(server);
 		await productionServerWaitFor({
 			what: "new connections refused",
 			check: async () =>

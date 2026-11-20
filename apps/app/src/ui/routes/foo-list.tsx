@@ -1,7 +1,11 @@
 import { authnPageActorRequire } from "@n8io/baseline-authn/react-router";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
-import { FooCreateInput, FooListInput } from "#contexts/foo/index.ts";
+import {
+	FooCreateInput,
+	FooListInput,
+	fooErrorStatus,
+} from "#contexts/foo/index.ts";
 import { Button } from "#ui/components/button.tsx";
 import {
 	Card,
@@ -54,7 +58,7 @@ export const action = async (args: Route.ActionArgs) => {
 		if (result.error.type === "FooNameTaken") {
 			return data(
 				{ errors: { name: [result.error.message] }, values },
-				{ status: 409 },
+				{ status: fooErrorStatus.FooNameTaken },
 			);
 		}
 		// An error this page does not handle yet goes to handleError as a 500.

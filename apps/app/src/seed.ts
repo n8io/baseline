@@ -4,8 +4,8 @@ import { logger } from "@n8io/baseline-logger";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
-import { connectionsOpen } from "./connections.ts";
-import { type ContextMounts, contextsCreate } from "./use-cases.ts";
+import { connectionsClose, connectionsOpen } from "./connections.ts";
+import { type ContextMounts, contextsCreate } from "./contexts.ts";
 
 const devSeedActor: Actor = {
 	id: "dev-seed",
@@ -44,8 +44,6 @@ if (import.meta.main) {
 	]);
 	logger.info("seeds done");
 
-	for (const step of [...connections.intakes, ...connections.resources]) {
-		await step.close();
-	}
+	await connectionsClose(connections);
 	await telemetryShutdown();
 }

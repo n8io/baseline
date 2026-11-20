@@ -1,6 +1,8 @@
-// Preloaded by every package.json script (`node --import ./scripts/node-version-require.ts`), so
-// an older Node stops with what it needs before it loads a script it cannot run: a preload is
-// evaluated before the script's imports are parsed. It uses only what Node 22 can run.
+// Preloaded by the first `node` call of every package.json script that starts with one (`node
+// --import ./scripts/node-version-require.ts`; structure.test.ts holds that), so an older Node stops
+// with what it needs before it loads a script it cannot run: a preload is evaluated before the
+// script's imports are parsed. The calls after `&&` run only once it passed. It uses only what
+// Node 22 can run.
 import { readFileSync } from "node:fs";
 
 const { engines } = JSON.parse(

@@ -330,7 +330,7 @@ describe("context structure", () => {
 			message:
 				"src/contexts/bar/CONTEXT.md: add a **Bar line**: term for bar-line",
 			paths: [...barBase, "src/contexts/bar/domain/bar-line.ts"],
-			name: "a model with no glossary term",
+			name: "an Aggregate with no glossary term",
 		},
 	])("fails on $name", ({ message, paths }) => {
 		expect(structureViolations(paths, () => context)).toEqual([
@@ -370,7 +370,7 @@ describe("context structure", () => {
 		).toEqual([expect.stringContaining("a context root holds only")]);
 	});
 
-	it("passes a model once the glossary has its term", () => {
+	it("passes an Aggregate once the glossary has its term", () => {
 		const paths = [...barBase, "src/contexts/bar/domain/bar-line.ts"];
 		expect(
 			structureViolations(paths, () => `${context}**Bar line**:\n`),
@@ -440,6 +440,51 @@ describe("test placement", () => {
 		expect(testPlacementViolations(paths)).toEqual([
 			expect.stringContaining("put a test beside the file it covers"),
 		]);
+	});
+});
+
+// The Template's tests show the way, and a Project copies them: memory adapters are the fakes, a
+// collaborator is real, and output is captured. No module mocks, spies, call-recording functions
+// or fake clocks: no `vi` but vi.waitFor and vi.waitUntil.
+const mocksBanned =
+	/\bvi\.(?!waitFor\b|waitUntil\b)\w+|import\s*\{[^}]*\bvi\b[^}]*\}\s*from\s*"vitest"/;
+const mocksFind = (source: string): string[] =>
+	source
+		.split("\n")
+		.map((text, index) => ({ line: index + 1, text }))
+		.filter(({ text }) => mocksBanned.test(text))
+		.map(({ line, text }) => `line ${line}: ${text.trim()}`);
+
+describe("tests", () => {
+	it("use no mocks, spies or fake timers", () => {
+		const files = appFilesList(appRoot).filter((name) => /\.tsx?$/.test(name));
+		expect(files.length).toBeGreaterThan(10);
+		const found = files.flatMap((name) =>
+			mocksFind(readFileSync(new URL(name, appRoot), "utf8")).map(
+				(hit) =>
+					`${name}: no mocks (use a memory adapter or a hand-written double on a connection), ${hit}`,
+			),
+		);
+		expect(found).toEqual([]);
+	});
+
+	// Built from parts, so this file's own source holds no call the check would flag.
+	it.each([
+		["mock", '("./a.ts", () => ({}))'],
+		["fn", "()"],
+		["spyOn", '(console, "log")'],
+		["useFakeTimers", "()"],
+		["stubGlobal", '("window", {})'],
+		["setSystemTime", "(new Date())"],
+		["hoisted", "(() => ({}))"],
+		["doMock", '("varlock/env", () => ({}))'],
+	])("flags vi.%s", (name, args) => {
+		expect(mocksFind(`vi.${name}${args};`)).toHaveLength(1);
+	});
+
+	it("allows vi.waitFor and vi.waitUntil", () => {
+		expect(mocksFind("await vi.waitFor(() => true);")).toEqual([]);
+		expect(mocksFind("await vi.waitUntil(() => true);")).toEqual([]);
 	});
 });
 
@@ -739,9 +784,19 @@ describe("docker compose commands", () => {
 			([, script]) =>
 				script.includes("docker compose") &&
 				!script.startsWith(
-					"node scripts/dev-instance.ts && varlock run -- docker compose",
+					"node --import ./scripts/node-version-require.ts scripts/dev-instance.ts && varlock run -- docker compose",
 				),
 		);
+		expect(bad).toEqual([]);
+	});
+
+	it("start with the Node version guard in package.json scripts that run node", () => {
+		const guard = "node --import ./scripts/node-version-require.ts ";
+		const bad = Object.entries(manifest.scripts)
+			.filter(
+				([, script]) => script.startsWith("node ") && !script.startsWith(guard),
+			)
+			.map(([name]) => name);
 		expect(bad).toEqual([]);
 	});
 

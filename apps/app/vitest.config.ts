@@ -26,6 +26,16 @@ const integration: TestProjectConfiguration = {
 	},
 };
 
+// Unit tests run on memory adapters even where the shell exports real URLs, and every one that
+// opens connections keeps analytics and error tracking local.
+const unitEnv = {
+	APP_ENV: "test",
+	CACHE_URL: "memory://",
+	DATABASE_URL: "memory://",
+	MIXPANEL_TOKEN: "",
+	SENTRY_DSN: "",
+} as const;
+
 export default defineConfig({
 	test: {
 		expect: { requireAssertions: true },
@@ -44,12 +54,7 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					// Unit tests run on memory adapters even where the shell exports real URLs.
-					env: {
-						APP_ENV: "test",
-						CACHE_URL: "memory://",
-						DATABASE_URL: "memory://",
-					},
+					env: unitEnv,
 					exclude: [
 						"src/**/*.{postgres,redis}.test.ts",
 						"src/contexts/**/*.test.ts",
@@ -67,14 +72,7 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					// Every context test opens connections: keep analytics and error tracking local too.
-					env: {
-						APP_ENV: "test",
-						CACHE_URL: "memory://",
-						DATABASE_URL: "memory://",
-						MIXPANEL_TOKEN: "",
-						SENTRY_DSN: "",
-					},
+					env: unitEnv,
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					hookTimeout: 20_000,
 					include: ["src/contexts/**/*.test.ts"],

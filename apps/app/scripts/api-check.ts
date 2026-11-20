@@ -27,55 +27,10 @@ const step = ({
 		throw new Error(`${command} ${args.join(" ")} failed`);
 };
 
-// A base document built before the problem `code` became an `x-extensible-enum` lists its codes
-// as a closed `enum`. oasdiff reports that one-time switch as breaking on every response, so the
-// base is read as the open list it is now. Delete this once no Project is older than that release.
-export const problemCodesOpen = (document: unknown): unknown => {
-	const walk = (node: unknown) => {
-		if (Array.isArray(node)) node.forEach(walk);
-		else if (node !== null && typeof node === "object") {
-			const record = node as Record<string, unknown>;
-			const problem = (
-				record["application/problem+json"] as {
-					schema?: { properties?: { code?: Record<string, unknown> } };
-				}
-			)?.schema;
-			const code = problem?.properties?.code;
-			if (code !== undefined && Array.isArray(code.enum)) {
-				code["x-extensible-enum"] = code.enum;
-				delete code.enum;
-			}
-			Object.values(record).forEach(walk);
-		}
-	};
-	walk(document);
-	return document;
-};
-
-// A base document built before the bearer scheme was declared has no `security`. oasdiff reports
-// the first top-level requirement as "no longer allows anonymous access" on every operation, so the
-// base is read as the secured document it is now (every /api/v1 route already needed a token).
-// Delete this once no Project is older than that release.
-export const securityBearerDeclare = (document: unknown): unknown => {
-	const doc = document as {
-		components?: { securitySchemes?: Record<string, unknown> };
-		security?: unknown;
-	};
-	if (doc.security !== undefined) return document;
-	doc.components = {
-		...doc.components,
-		securitySchemes: {
-			bearer: { bearerFormat: "JWT", scheme: "bearer", type: "http" },
-		},
-	};
-	doc.security = [{ bearer: [] }];
-	return document;
-};
-
 // A base document built before boolean query parameters were documented as booleans lists each
 // one as `type: string` with a boolean `default` (Zod's stringbool). The server took only "true"
-// or "false" then too, so the base is read as the boolean it was. Delete this once no Project is
-// older than that release.
+// or "false" then too, so the base is read as the boolean it was. Delete this once every Project is
+// on app@13.0.0 or later.
 export const queryBooleansTyped = (document: unknown): unknown => {
 	const paths = (document as { paths?: Record<string, unknown> }).paths ?? {};
 	for (const operation of Object.values(paths).flatMap((item) =>
@@ -184,8 +139,7 @@ const main = async () => {
 			directory: join(base, prefix),
 			file: baseFile,
 			port: 3101,
-			prepare: (document) =>
-				queryBooleansTyped(securityBearerDeclare(problemCodesOpen(document))),
+			prepare: queryBooleansTyped,
 		});
 		step({
 			args: [

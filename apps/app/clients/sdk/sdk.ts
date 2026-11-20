@@ -530,7 +530,7 @@ const getBarListUrl = (fooId: string) => {
 };
 
 /**
- * @summary List one foo's bars, one page at a time
+ * @summary List one foo's bars, oldest first
  */
 export const barList = async (
 	fooId: string,
