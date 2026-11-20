@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
 	type ArchitectureFile,
 	architectureFileCreate,
+	architectureFileNamesCheck,
 	architectureRules,
 	architectureSrcRead,
 } from "./architecture-test-rules.ts";
@@ -303,6 +304,84 @@ describe("architecture", () => {
 		);
 		expect(architectureRules.A23?.([table, aggregate, useCase])).toEqual([
 			expect.stringContaining("noteCreate is exported from billing"),
+		]);
+	});
+
+	it.each([
+		[
+			"its primary export",
+			"src/invoice-routes.ts",
+			"export const invoiceRoutesCreate = () => 1;",
+		],
+		[
+			"the subject of its exports",
+			"src/cursor.ts",
+			"export const cursorEncode = () => 1;",
+		],
+		[
+			"a Use case",
+			"src/contexts/billing/application/invoice-create.ts",
+			"export const invoiceCreate = () => 1;",
+		],
+		[
+			"an adapter's dot",
+			"src/contexts/billing/adapters/outbound/invoice-repository.postgres.ts",
+			"export const invoiceRepositoryPostgresCreate = () => 1;",
+		],
+		[
+			"a test helper's package",
+			"packages/cli/src/cli-test-app.ts",
+			"export const cliTestDocument = {};",
+		],
+		[
+			"a Package entry",
+			"packages/authn/src/client.ts",
+			"export const authnRefresh = () => 1;",
+		],
+		["a command", "scripts/app-create.ts", "export const appRender = () => 1;"],
+		[
+			"a table",
+			"src/contexts/billing/adapters/outbound/invoice-table.ts",
+			"export const invoice = {};",
+		],
+		[
+			"only types and classes",
+			"src/contexts/billing/domain/errors.ts",
+			"export class InvoiceNotFoundError {}",
+		],
+		[
+			"only React Router's names",
+			"src/ui/routes/invoice-list.tsx",
+			"export const meta = () => [];\nexport const headers = () => ({});\nexport const shouldRevalidate = () => true;",
+		],
+		[
+			"its subject, before .server",
+			"src/ui/invoice-session.server.ts",
+			"export const invoiceSessionRead = () => 1;",
+		],
+	])("A23 passes a file named after %s", async (_name, path, source) => {
+		expect(
+			architectureFileNamesCheck([await architectureFileCreate(path, source)]),
+		).toEqual([]);
+	});
+
+	it("A23 keeps a Use case's verb in the file it suggests", async () => {
+		const file = await architectureFileCreate(
+			"src/contexts/billing/application/invoice.ts",
+			"export const noteCreate = () => 1;\n",
+		);
+		expect(architectureFileNamesCheck([file])).toEqual([
+			expect.stringContaining("(note-create.ts)"),
+		]);
+	});
+
+	it("A23 fails a file named after none of its exports", async () => {
+		const file = await architectureFileCreate(
+			"packages/telemetry/src/telemetry-sdk.ts",
+			"export const telemetryStart = () => 1;\nexport const telemetryShutdown = () => 1;\n",
+		);
+		expect(architectureRules.A23?.([file])).toEqual([
+			"packages/telemetry/src/telemetry-sdk.ts: named after none of its exports (telemetryStart, telemetryShutdown); name the file after its primary export (telemetry-start.ts), or start its exports with telemetrySdk",
 		]);
 	});
 

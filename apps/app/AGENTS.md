@@ -70,7 +70,7 @@ One context per business area, holding its Aggregates (context-create.md).
   - Every exported function in a Package starts with its Package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
   - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`. A method or option callback keeps the `isAlive()` form.
-  - A file is named as its primary export in kebab case, without a factory's `Create`: `invoice-routes.ts` exports `invoiceRoutesCreate`. A port's adapters are `<port>.memory.ts` and `<port>.postgres.ts` (A19 needs the suffix), their shared cases `<port>.contract.ts`.
+  - A file is named after its primary export without `Create` (`invoice-routes.ts` has `invoiceRoutesCreate`) or the subject its exports share (`cursor.ts`). Port adapters are `<port>.memory.ts` and `<port>.postgres.ts` (A19 needs it), shared cases `<port>.contract.ts`.
   - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.

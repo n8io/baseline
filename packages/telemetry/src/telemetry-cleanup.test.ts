@@ -1,7 +1,10 @@
 import { logs, SpanStatusCode, trace } from "@opentelemetry/api";
 import { beforeEach, describe, expect, it } from "vitest";
-import { telemetryQueryRedact } from "./telemetry-cleanup.ts";
-import { logRecords, spans } from "./telemetry-test-providers.ts";
+import { telemetryCleanupQueryRedact } from "./telemetry-cleanup.ts";
+import {
+	telemetryTestLogRecords,
+	telemetryTestSpans,
+} from "./telemetry-test-providers.ts";
 
 const canary = "jane@example.com";
 
@@ -19,15 +22,15 @@ const frames = [
 ].join("\n");
 
 beforeEach(() => {
-	spans.reset();
-	logRecords.reset();
+	telemetryTestSpans.reset();
+	telemetryTestLogRecords.reset();
 });
 
-describe("telemetryQueryRedact", () => {
+describe("telemetryCleanupQueryRedact", () => {
 	it("replaces every value and keeps every key", () => {
-		expect(telemetryQueryRedact(`email=${canary}&page=2&flag&empty=`)).toBe(
-			"email=REDACTED&page=REDACTED&flag&empty=REDACTED",
-		);
+		expect(
+			telemetryCleanupQueryRedact(`email=${canary}&page=2&flag&empty=`),
+		).toBe("email=REDACTED&page=REDACTED&flag&empty=REDACTED");
 	});
 });
 
@@ -40,7 +43,7 @@ describe("span cleanup", () => {
 			message: `duplicate ${canary}`,
 		});
 		span.end();
-		expect(spans.getFinishedSpans()[0]?.status).toEqual({
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.status).toEqual({
 			code: SpanStatusCode.ERROR,
 			message: "23505",
 		});
@@ -54,7 +57,9 @@ describe("span cleanup", () => {
 		const withoutText = tracer.startSpan("b");
 		withoutText.setStatus({ code: SpanStatusCode.ERROR });
 		withoutText.end();
-		expect(spans.getFinishedSpans().map((span) => span.status)).toEqual([
+		expect(
+			telemetryTestSpans.getFinishedSpans().map((span) => span.status),
+		).toEqual([
 			{ code: SpanStatusCode.ERROR, message: "Error" },
 			{ code: SpanStatusCode.ERROR },
 		]);
@@ -68,7 +73,7 @@ describe("span cleanup", () => {
 			"url.query": `email=${canary}&page=2`,
 		});
 		span.end();
-		expect(spans.getFinishedSpans()[0]?.attributes).toEqual({
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.attributes).toEqual({
 			"url.full":
 				"https://api.example.com/foos?email=REDACTED&page=REDACTED#top",
 			"url.path": "/foos",
@@ -83,7 +88,9 @@ describe("span cleanup", () => {
 		error.stack = stack;
 		span.recordException(error);
 		span.end();
-		expect(spans.getFinishedSpans()[0]?.events[0]?.attributes).toEqual({
+		expect(
+			telemetryTestSpans.getFinishedSpans()[0]?.events[0]?.attributes,
+		).toEqual({
 			"exception.stacktrace": frames,
 			"exception.type": "DrizzleQueryError",
 		});
@@ -96,7 +103,7 @@ describe("log record cleanup", () => {
 		error.name = "DrizzleQueryError";
 		error.stack = stack;
 		logs.getLogger("test").emit({ body: message, exception: error });
-		const [record] = logRecords.getFinishedLogRecords();
+		const [record] = telemetryTestLogRecords.getFinishedLogRecords();
 		expect(record?.attributes).toEqual({
 			"exception.stacktrace": frames,
 			"exception.type": "DrizzleQueryError",
@@ -108,7 +115,7 @@ describe("log record cleanup", () => {
 		logs
 			.getLogger("test")
 			.emit({ attributes: { route: "/foos" }, body: "request done" });
-		const [record] = logRecords.getFinishedLogRecords();
+		const [record] = telemetryTestLogRecords.getFinishedLogRecords();
 		expect(record?.attributes).toEqual({ route: "/foos" });
 		expect(record?.body).toBe("request done");
 	});

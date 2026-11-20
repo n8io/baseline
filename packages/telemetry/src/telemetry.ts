@@ -26,8 +26,8 @@ import {
 	type SpanProcessor,
 } from "@opentelemetry/sdk-trace";
 import {
-	telemetryLogRecordCleanup,
-	telemetrySpanCleanup,
+	telemetryCleanupLogRecordProcessorCreate,
+	telemetryCleanupSpanProcessorCreate,
 } from "./telemetry-cleanup.ts";
 
 // Probes are never traced.
@@ -259,13 +259,13 @@ export const telemetryStart = (): void => {
 		spanProcessors:
 			spanProcessors.length === 0
 				? []
-				: [telemetrySpanCleanup(), ...spanProcessors],
+				: [telemetryCleanupSpanProcessorCreate(), ...spanProcessors],
 		// None given lets NodeSDK skip the logger provider (OTEL_LOGS_EXPORTER=none).
 		...(logRecordProcessors.length === 0
 			? {}
 			: {
 					logRecordProcessors: [
-						telemetryLogRecordCleanup(),
+						telemetryCleanupLogRecordProcessorCreate(),
 						...logRecordProcessors,
 					],
 				}),

@@ -17,20 +17,21 @@ import {
 	TracerProvider,
 } from "@opentelemetry/sdk-trace";
 import {
-	telemetryLogRecordCleanup,
-	telemetrySpanCleanup,
+	telemetryCleanupLogRecordProcessorCreate,
+	telemetryCleanupSpanProcessorCreate,
 } from "./telemetry-cleanup.ts";
 
 // Global providers with in-memory exporters, the cleanup processors first,
 // as the preload wires them.
-export const spans: InMemorySpanExporter = new InMemorySpanExporter();
-export const logRecords: InMemoryLogRecordExporter =
+export const telemetryTestSpans: InMemorySpanExporter =
+	new InMemorySpanExporter();
+export const telemetryTestLogRecords: InMemoryLogRecordExporter =
 	new InMemoryLogRecordExporter();
-export const metricExporter: InMemoryMetricExporter =
+export const telemetryTestMetricExporter: InMemoryMetricExporter =
 	new InMemoryMetricExporter(AggregationTemporality.DELTA);
-export const metricReader: PeriodicExportingMetricReader =
+export const telemetryTestMetricReader: PeriodicExportingMetricReader =
 	new PeriodicExportingMetricReader({
-		exporter: metricExporter,
+		exporter: telemetryTestMetricExporter,
 		exportIntervalMillis: 60_000,
 	});
 
@@ -38,17 +39,19 @@ context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
 trace.setGlobalTracerProvider(
 	new TracerProvider({
 		spanProcessors: [
-			telemetrySpanCleanup(),
-			new SimpleSpanProcessor({ exporter: spans }),
+			telemetryCleanupSpanProcessorCreate(),
+			new SimpleSpanProcessor({ exporter: telemetryTestSpans }),
 		],
 	}),
 );
-metrics.setGlobalMeterProvider(new MeterProvider({ readers: [metricReader] }));
+metrics.setGlobalMeterProvider(
+	new MeterProvider({ readers: [telemetryTestMetricReader] }),
+);
 logs.setGlobalLoggerProvider(
 	new LoggerProvider({
 		processors: [
-			telemetryLogRecordCleanup(),
-			new SimpleLogRecordProcessor({ exporter: logRecords }),
+			telemetryCleanupLogRecordProcessorCreate(),
+			new SimpleLogRecordProcessor({ exporter: telemetryTestLogRecords }),
 		],
 	}),
 );

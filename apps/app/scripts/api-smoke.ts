@@ -12,7 +12,7 @@ Calls GET /api/v1/openapi.json and every other GET route of the API that takes n
 parameter, with the dev client's token, and exits 1 when any call does not answer 2xx.
 The app must run with the memory issuer (AUTHN_ISSUER_URL=memory://).
 
-  --url <origin>    the app's origin (default http://localhost:3000)
+  --url <origin>    the app's origin (default http://localhost:$PORT, this worktree's port)
   --wait <seconds>  how long to wait for the app to answer (default 30)
   -h, --help        print this`;
 
@@ -69,7 +69,10 @@ const main = async (): Promise<number> => {
 	const { values } = parseArgs({
 		options: {
 			help: { short: "h", type: "boolean" },
-			url: { default: "http://localhost:3000", type: "string" },
+			url: {
+				default: `http://localhost:${process.env.PORT ?? "3000"}`,
+				type: "string",
+			},
 			wait: { default: "30", type: "string" },
 		},
 		strict: true,

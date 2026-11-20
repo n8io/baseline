@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // The map with a row for the context added at the end of its `## Contexts` table.
-export const contextMapRowAdd = ({
+export const glossaryContextMapRowAdd = ({
 	context,
 	map,
 	subdomain,
@@ -27,7 +27,7 @@ export const contextMapRowAdd = ({
 	return lines.join("\n");
 };
 
-export const contextMapDefine = ({
+export const glossaryContextMapDefine = ({
 	context,
 	directory,
 }: {
@@ -37,7 +37,7 @@ export const contextMapDefine = ({
 	const path = join(directory, "CONTEXT-MAP.md");
 	writeFileSync(
 		path,
-		contextMapRowAdd({
+		glossaryContextMapRowAdd({
 			context,
 			map: readFileSync(path, "utf8"),
 			subdomain: "core",
@@ -46,7 +46,7 @@ export const contextMapDefine = ({
 };
 
 // Appends a term to a context's CONTEXT.md, under the `## Language` context-create left last.
-export const contextTermAdd = ({
+export const glossaryTermAdd = ({
 	context,
 	definition,
 	directory,

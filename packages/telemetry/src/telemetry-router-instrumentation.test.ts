@@ -4,7 +4,7 @@ import {
 	type TelemetryRouterInstrumentation,
 	telemetryRouterInstrumentation,
 } from "./telemetry-router-instrumentation.ts";
-import { spans } from "./telemetry-test-providers.ts";
+import { telemetryTestSpans } from "./telemetry-test-providers.ts";
 
 type RouteInstruments = Parameters<
 	Parameters<TelemetryRouterInstrumentation["route"]>[0]["instrument"]
@@ -40,7 +40,7 @@ const success = { error: undefined, status: "success" } as const;
 class FooLoadFailed extends Error {}
 
 beforeEach(() => {
-	spans.reset();
+	telemetryTestSpans.reset();
 });
 
 describe("telemetryRouterInstrumentation", () => {
@@ -58,7 +58,7 @@ describe("telemetryRouterInstrumentation", () => {
 			{ pattern: "foos/:fooId" },
 		);
 		await action?.(async () => success, { pattern: "foos/:fooId" });
-		const finished = spans.getFinishedSpans();
+		const finished = telemetryTestSpans.getFinishedSpans();
 		expect(finished.map((span) => span.name)).toEqual([
 			"loader root",
 			"loader routes/foo-detail",
@@ -90,7 +90,7 @@ describe("telemetryRouterInstrumentation", () => {
 			}),
 			{ pattern: "/foos" },
 		);
-		const [failed, redirected] = spans.getFinishedSpans();
+		const [failed, redirected] = telemetryTestSpans.getFinishedSpans();
 		expect(failed?.status).toEqual({
 			code: SpanStatusCode.ERROR,
 			message: "FooLoadFailed",
@@ -114,7 +114,7 @@ describe("telemetryRouterInstrumentation", () => {
 				active.end();
 			});
 		server.end();
-		const [named] = spans.getFinishedSpans();
+		const [named] = telemetryTestSpans.getFinishedSpans();
 		expect(named?.name).toBe("GET /foos/:fooId");
 		expect(named?.attributes["http.route"]).toBe("/foos/:fooId");
 	});
@@ -129,7 +129,7 @@ describe("telemetryRouterInstrumentation", () => {
 				});
 				active.end();
 			});
-		const [named] = spans.getFinishedSpans();
+		const [named] = telemetryTestSpans.getFinishedSpans();
 		expect(named?.name).toBe("GET /");
 		expect(named?.attributes["http.route"]).toBe("/");
 	});
@@ -144,6 +144,6 @@ describe("telemetryRouterInstrumentation", () => {
 				});
 				active.end();
 			});
-		expect(spans.getFinishedSpans()[0]?.name).toBe("GET");
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.name).toBe("GET");
 	});
 });

@@ -3,9 +3,9 @@ import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import type { HistogramMetricData } from "@opentelemetry/sdk-metrics";
 import { beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
-	metricExporter,
-	metricReader,
-	spans,
+	telemetryTestMetricExporter,
+	telemetryTestMetricReader,
+	telemetryTestSpans,
 } from "./telemetry-test-providers.ts";
 import { telemetryUseCasesTrace } from "./telemetry-use-cases-trace.ts";
 
@@ -30,8 +30,8 @@ const fooUseCases = {
 };
 
 const durationPoints = async () => {
-	await metricReader.forceFlush();
-	const metric = metricExporter
+	await telemetryTestMetricReader.forceFlush();
+	const metric = telemetryTestMetricExporter
 		.getMetrics()
 		.at(-1)
 		?.scopeMetrics.flatMap((scope) => scope.metrics)
@@ -42,9 +42,9 @@ const durationPoints = async () => {
 };
 
 beforeEach(async () => {
-	spans.reset();
-	await metricReader.forceFlush();
-	metricExporter.reset();
+	telemetryTestSpans.reset();
+	await telemetryTestMetricReader.forceFlush();
+	telemetryTestMetricExporter.reset();
 });
 
 describe("telemetryUseCasesTrace", () => {
@@ -57,7 +57,7 @@ describe("telemetryUseCasesTrace", () => {
 
 	it("records an ok call as one INTERNAL span with status Unset", async () => {
 		await telemetryUseCasesTrace(fooUseCases).fooCreate({ name: "a" });
-		const [span, ...rest] = spans.getFinishedSpans();
+		const [span, ...rest] = telemetryTestSpans.getFinishedSpans();
 		expect(rest).toEqual([]);
 		expect(span?.name).toBe("fooCreate");
 		expect(span?.kind).toBe(SpanKind.INTERNAL);
@@ -70,7 +70,7 @@ describe("telemetryUseCasesTrace", () => {
 			name: "taken",
 		});
 		expect(result.ok).toBe(false);
-		const [span] = spans.getFinishedSpans();
+		const [span] = telemetryTestSpans.getFinishedSpans();
 		expect(span?.attributes).toEqual({
 			"code.function.name": "fooCreate",
 			"error.type": "FooNameTaken",
@@ -84,7 +84,7 @@ describe("telemetryUseCasesTrace", () => {
 		await expect(traced.fooDelete({ fooId: "foo_1" })).rejects.toBeInstanceOf(
 			FooStoreDown,
 		);
-		const [span] = spans.getFinishedSpans();
+		const [span] = telemetryTestSpans.getFinishedSpans();
 		expect(span?.attributes["error.type"]).toBe("FooStoreDown");
 		expect(span?.status).toEqual({
 			code: SpanStatusCode.ERROR,

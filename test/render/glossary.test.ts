@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { contextMapRowAdd } from "./glossary.ts";
+import { glossaryContextMapRowAdd } from "./glossary.ts";
 
-describe("contextMapRowAdd", () => {
+describe("glossaryContextMapRowAdd", () => {
 	const map = [
 		"# Context map",
 		"",
@@ -18,12 +18,12 @@ describe("contextMapRowAdd", () => {
 	].join("\n");
 
 	it("adds the row at the end of the Contexts table", () => {
-		const once = contextMapRowAdd({
+		const once = glossaryContextMapRowAdd({
 			context: "billing",
 			map,
 			subdomain: "core",
 		});
-		const twice = contextMapRowAdd({
+		const twice = glossaryContextMapRowAdd({
 			context: "crm",
 			map: once,
 			subdomain: "generic",
@@ -40,7 +40,7 @@ describe("contextMapRowAdd", () => {
 
 	it("throws on a map with no Contexts table", () => {
 		expect(() =>
-			contextMapRowAdd({
+			glossaryContextMapRowAdd({
 				context: "billing",
 				map: "# Map\n",
 				subdomain: "core",
