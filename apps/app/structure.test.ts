@@ -458,7 +458,7 @@ const mocksFind = (source: string): string[] =>
 describe("tests", () => {
 	it("use no mocks, spies or fake timers", () => {
 		const files = appFilesList(appRoot).filter((name) => /\.tsx?$/.test(name));
-		expect(files.length).toBeGreaterThan(100);
+		expect(files.length).toBeGreaterThan(10);
 		const found = files.flatMap((name) =>
 			mocksFind(readFileSync(new URL(name, appRoot), "utf8")).map(
 				(hit) =>

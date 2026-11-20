@@ -113,7 +113,7 @@ export const connectionsOpen = async ({
 
 export type Connections = Awaited<ReturnType<typeof connectionsOpen>>;
 
-// Closes what connectionsOpen opened, in shutdown's order: intakes, then resources. For a process
+// Closes the shutdown steps of opened connections, in shutdown's order: intakes, then resources. For a process
 // that ends on its own (a script, the dev server's re-run); a long-lived one closes through
 // shutdownHandleCreate instead.
 export const connectionsClose = async ({

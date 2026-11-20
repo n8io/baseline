@@ -21,7 +21,7 @@ import {
 } from "./production-server.ts";
 
 // telemetry-leak.test.ts covers routes every project has; this adds a use case, its pg queries
-// and a Postgres error whose detail holds the otlpReceiverCanaries.
+// and a Postgres error whose detail holds the canaries.
 const fooName = `Canary ${otlpReceiverCanaries.email} ${otlpReceiverCanaries.card} ${otlpReceiverCanaries.health}`;
 const clientSecret = `canary-client-secret-${randomUUID()}`;
 
@@ -66,7 +66,7 @@ beforeAll(async () => {
 	});
 	session = await integrationSignIn(server.url);
 	expect(await apiPost({ name: fooName })).toBe(201);
-	// The repeat fails on the unique name: Postgres's 23505 detail now holds the otlpReceiverCanaries.
+	// The repeat fails on the unique name: Postgres's 23505 detail now holds the canaries.
 	expect(await apiPost({ name: fooName })).toBe(409);
 	// An unknown key holding a canary fails validation.
 	expect(

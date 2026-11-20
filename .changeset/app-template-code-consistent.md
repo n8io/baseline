@@ -13,7 +13,7 @@ The Template's code follows its own naming and testing rules more closely.
 - `fooCacheCreate(store)` in `foo-cached.ts` holds the cache's key, prefix and schema once, for the real and memory ports.
 - The memory Bar repository breaks `createdAt` ties by id as Postgres orders the uuid, and the contract test holds both to it.
 - The foo list page answers a taken name with `fooErrorStatus.FooNameTaken`, not a literal 409. The bar list operation's summary is "List one foo's bars, oldest first" (it never paged).
-- `lucide-react` is no longer a dependency: no component used it. `pnpm exec shadcn add` brings it back with the first component that needs an icon.
+- `lucide-react` is no longer a dependency: no Template component used it. A Project whose components import it keeps its `package.json` and `dependencies-allowed.json` lines when `pnpm template-upgrade` conflicts on them; one that adds an icon later adds both back (`pnpm exec shadcn add` installs it, and `dependencies-allowed.test.ts` asks for the reason).
 - `pnpm api-check` drops two shims for bases older than app@8.1.0 (`problemCodesOpen`, `securityBearerDeclare`); the boolean one names app@13.0.0 as its end.
 - A22 no longer lists `src/authn.ts` among the files that may read `#env` (it never did).
 - Words: scripts and comments say context, not domain, and Event handler, not consumer.

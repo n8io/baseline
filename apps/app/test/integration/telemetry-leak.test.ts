@@ -19,7 +19,7 @@ import {
 } from "./production-server.ts";
 
 const clientSecret = `canary-client-secret-${randomUUID()}`;
-// The otlpReceiverCanaries ride in queries and bodies; url.path is exported as is, so none goes there.
+// The canaries ride in queries and bodies; url.path is exported as is, so none goes there.
 const canaryQuery = new URLSearchParams({
 	card: otlpReceiverCanaries.card,
 	email: otlpReceiverCanaries.email,
@@ -64,7 +64,7 @@ beforeAll(async () => {
 			method: "POST",
 		}),
 	).toBe(400);
-	// A page load with the cookie and otlpReceiverCanaries in the query.
+	// A page load with the cookie and canaries in the query.
 	expect(
 		await request(`/no-such-page?${canaryQuery}`, {
 			headers: { cookie: session.cookie },
@@ -76,7 +76,7 @@ beforeAll(async () => {
 			headers: { authorization: session.authorization },
 		}),
 	).toBe(200);
-	// An unknown API path with otlpReceiverCanaries in the query and the body.
+	// An unknown API path with canaries in the query and the body.
 	expect(
 		await request(`/api/v1/no-such-thing?${canaryQuery}`, {
 			body: canaryBody,

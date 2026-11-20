@@ -23,10 +23,10 @@ A memory token lives 15 minutes. A script that can run longer (a feed, an import
 ## The package.json line
 
 ```json
-"api-smoke": "node --import ./src/preload.ts scripts/api-smoke.ts"
+"api-smoke": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts scripts/api-smoke.ts"
 ```
 
-The preload loads the environment (varlock) and the telemetry SDK. A script that needs neither (a pure file tool such as `glossary-check`) runs as `node scripts/<name>.ts`.
+The Node version guard comes first, so an older Node stops with what it needs (`structure.test.ts` holds every `node` script to it). `src/preload.ts` loads the environment (varlock) and the telemetry SDK. A script that needs neither (a pure file tool such as `glossary-check`) runs as `node --import ./scripts/node-version-require.ts scripts/<name>.ts`.
 
 ## Rules
 

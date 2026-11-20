@@ -355,6 +355,8 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"@types/react-dom",
 			"class-variance-authority",
 			"cn",
+			// Gone from the Template, but a Project may have added it with a shadcn component.
+			"lucide-react",
 			"radix-ui",
 			"react",
 			"react-dom",
