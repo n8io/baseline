@@ -23,20 +23,21 @@ pnpm add @n8io/baseline-health
 
 ```ts
 import { healthServerCreate } from "@n8io/baseline-health";
-import type { ShutdownHandle } from "@n8io/baseline-shutdown";
+import { shutdownHandleCreate } from "@n8io/baseline-shutdown";
 
-let shutdown: ShutdownHandle | undefined; // set once every intake listens
 const health = healthServerCreate({
 	isAlive: () => queue.isAlive(),
-	isShuttingDown: () => shutdown?.isShuttingDown() ?? false,
+	isShuttingDown: () => shutdown.isShuttingDown(), // /readyz asks only after ready()
 	port: ENV.HEALTH_PORT,
 });
 
-// Once every intake listens, open the shutdown handle, then:
+// Once every intake listens:
+const shutdown = shutdownHandleCreate({
+	intakes,
+	resources: [...resources, { close: () => health.close(), name: "health" }],
+});
 health.ready();
 ```
-
-List `{ close: () => health.close(), name: "health" }` among the shutdown handle's resources, so the probes close on shutdown after the connections.
 
 Test it the way a probe sees it: pick a free port, pass it, and `fetch` `/livez` and `/readyz` (retry the first fetch: `listen` is asynchronous). No mocks needed.
 
