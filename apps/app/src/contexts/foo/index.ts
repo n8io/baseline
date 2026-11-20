@@ -16,7 +16,7 @@ import { fooPortsCreate } from "./adapters/outbound/index.ts";
 import { fooUseCasesCreate } from "./application/foo-use-cases.ts";
 
 // Picks the context's adapters from the connections a composition root opened, and traces every
-// Use case. Each part comes only with its piece: handlers and schedules with the queue.
+// Use case. Each part comes only with its Piece: handlers and schedules with the queue.
 export const fooContextCreate = ({
 	connections,
 }: {
@@ -74,7 +74,7 @@ export {
 } from "./domain/foo.ts";
 export { fooErrorStatus } from "./foo-error-status.ts";
 
-// Scopes an actor may hold to change other people's foos.
+// Scopes an Actor may hold to change other people's foos.
 export const fooScopes = ["foo:update", "foo:delete"] as const;
 // wiring: exports
 

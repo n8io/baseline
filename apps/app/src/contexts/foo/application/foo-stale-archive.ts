@@ -3,7 +3,7 @@ import { ok, type Result } from "@n8io/baseline-result";
 import { fooStaleBefore } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
-// The schedule's use case: archives every foo that is stale as of now and returns how many.
+// The Schedule's Use case: archives every foo that is stale as of now and returns how many.
 // `actor` is unused but required, so every caller states who is asking.
 export const fooStaleArchive =
 	({

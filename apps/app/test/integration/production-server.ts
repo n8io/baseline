@@ -9,6 +9,7 @@ import {
 } from "node:http";
 import { connect } from "node:net";
 import { join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { inject } from "vitest";
 import { integrationPortClaimerCreate } from "./integration-port-claimer.ts";
 
@@ -24,9 +25,6 @@ const ports = integrationPortClaimerCreate();
 // default. A wait that also covers a Postgres connection failing may allow longer.
 export const productionServerBootMs = 20_000;
 
-const sleep = (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
-
 // Polls `check` every 50 ms until it returns true, or throws `what` after `timeoutMs`.
 export const productionServerWaitFor = async ({
 	check,
@@ -40,7 +38,7 @@ export const productionServerWaitFor = async ({
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		if (await check()) return;
-		await sleep(50);
+		await delay(50);
 	}
 	throw new Error(`timed out waiting for ${what}`);
 };

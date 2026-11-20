@@ -4,6 +4,7 @@
 // stale type behind and a failed codegen leaves the old ones.
 import { spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { argsParse } from "./args.ts";
 
 type Step = { args: string[]; command: string };
 
@@ -40,7 +41,14 @@ export const checksRun = ({
 	return { failed };
 };
 
+const usage = `Usage: pnpm check
+
+Generates env and route types, then runs Biome and tsc and reports both.
+
+  -h, --help  this help`;
+
 const main = () => {
+	if (argsParse({ options: {}, usage }) === undefined) return;
 	const uiIs = existsSync("react-router.config.ts");
 	const { failed } = checksRun({
 		plan: checksPlanCreate({ uiIs }),
@@ -48,6 +56,7 @@ const main = () => {
 			if (step.command === "react-router") {
 				rmSync(".react-router/types", { force: true, recursive: true });
 			}
+			// The exit status is what checksRun reports, so this runs through spawnSync, not processRun.
 			const result = spawnSync(step.command, step.args, { stdio: "inherit" });
 			if (result.error) console.error(result.error.message);
 			return result.status ?? 1;

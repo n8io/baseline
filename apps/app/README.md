@@ -65,4 +65,4 @@ pnpm codegen --name invoice_create  # its migration, after you shape the Aggrega
 
 ## For AI agents
 
-Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one. Publishing and installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md).
+Read [AGENTS.md](AGENTS.md) first: it holds the commands, the rules and where new work goes, and loads [CONTEXT.md](CONTEXT.md), the shared glossary; [CONTEXT-MAP.md](CONTEXT-MAP.md) links each context's own. Task rules live in [docs/agents/](docs/agents/), and AGENTS.md says when to read each one. Using, publishing and installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md).

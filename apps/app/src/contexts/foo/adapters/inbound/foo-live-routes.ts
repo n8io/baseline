@@ -5,7 +5,7 @@ import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import { FooGetInput } from "../../domain/foo.ts";
 import { fooHttpErrorAnswer } from "./foo-http.ts";
 
-// Live updates for one foo: the stream opens only if fooGet succeeds for the actor (cookie auth).
+// Live updates for one foo: the stream opens only if fooGet succeeds for the Actor (cookie auth).
 export const fooLiveRoutesCreate = (u: FooUseCases, liveHub: LiveHub) =>
 	httpRouterCreate().get("/:fooId", async (c) => {
 		const actor = authnActorRequire(c);

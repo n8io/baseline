@@ -1,5 +1,5 @@
 // Composition root for the HTTP server: the API, sign-in, pages and live streams. A block marked
-// with a piece's name belongs to that piece; `pnpm piece-remove` takes it out.
+// with a Piece's name belongs to that Piece; `pnpm piece-remove` takes it out.
 import type { Server } from "node:http";
 import {
 	authnActorRequire,
@@ -154,7 +154,7 @@ for (const { path, router } of mounts.flatMap((m) => m.routes)) {
 	app.route(path, router);
 }
 // piece-start: api-reference
-// Public like openapi.json (the guard above exempts /api/v1/docs); without this piece it is a 404.
+// Public like openapi.json (the guard above exempts /api/v1/docs); without this Piece it is a 404.
 app.route("/api/v1/docs", apiReferenceRoutesCreate());
 // piece-end: api-reference
 // Every operation needs a bearer token, which the API reference page's Authorize button takes.

@@ -7,9 +7,9 @@ Read when adding a log line, a span, a span attribute or a metric.
 One client request is one trace, with no app code. The telemetry preload (`src/preload.ts`: every entry that runs app code, the Server, the Worker, migrate, seed and scripts that call the app, starts with `--import ./src/preload.ts`, and the image sets it in `NODE_OPTIONS`) does all of it:
 
 - **HTTP in and out.** An incoming W3C `traceparent` is continued; without one the request starts a trace. Outbound `fetch` and `node:http` calls send it on.
-- **Into the worker.** An Event carries the publishing request's trace on its pg-boss job row. The Event handler runs in that trace, retries included.
+- **Into the Worker.** An Event carries the publishing request's trace on its pg-boss job row. The Event handler runs in that trace, retries included.
 - **Schedules.** Each tick starts its own trace; Events it publishes carry that one on.
-- **Logs.** Every `logger` line inside a request, job or Event handler has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the server and the worker.
+- **Logs.** Every `logger` line inside a request, job or Event handler has `trace_id` and `span_id`. Search logs by `trace_id` to see one request across the Server and the Worker.
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
 - **Error reports.** Every `logger.error` or `logger.fatal` with an `err` is also an Error report in Sentry when the Project has `SENTRY_DSN`, tagged with the same `trace_id`. So log only the unexpected there: an err a Use case returns is expected and is not logged at error.
 

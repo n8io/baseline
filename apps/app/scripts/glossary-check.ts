@@ -311,17 +311,17 @@ export const glossaryLanguageOf = ({
 // matches only as written, as prose writes a glossary term; "a dto" and "a golfer id" pass.
 // `plural` also takes "Golfers".
 const wordPattern = ({
-	global = "",
-	plural = "",
+	global,
+	plural,
 	word,
 }: {
-	global?: string;
-	plural?: string;
+	global?: string | null;
+	plural?: string | null;
 	word: string;
 }): RegExp =>
 	new RegExp(
-		`(?<![\\w-]|[/.:])${RegExp.escape(word)}${plural}(?![\\w-]|[/.]\\w)`,
-		`${global}${/^[a-z]/.test(word) ? "i" : ""}`,
+		`(?<![\\w-]|[/.:])${RegExp.escape(word)}${plural ?? ""}(?![\\w-]|[/.]\\w)`,
+		`${global ?? ""}${/^[a-z]/.test(word) ? "i" : ""}`,
 	);
 
 type LanguagePatterns = {

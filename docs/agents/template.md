@@ -65,6 +65,13 @@ A new or changed architecture rule:
 
 A Template change that should ship needs an `app` changeset, beside one for each Package it touches. It is major when a Project must adapt to it: a renamed or moved file a Project edits, a new architecture rule or check that can fail a Project that passed before, or an added, renamed or removed `app-ci.yml` job. The [release walkthrough](release.md) has the rest.
 
+## Changing CI
+
+- `app-ci.yml` is the Template's CI, copied into every Project. A job added, renamed or removed there is a Template major, and `requiredJobs` in `scripts/app-create.ts` lists the jobs a new Project's ruleset requires: keep the two equal.
+- `ci.yml`, `release.yml` and `dependabot-automerge.yml` are baseline's own. `test/ci-concurrency.test.ts` holds their triggers, concurrency and token use, and `test/release-workflow.test.ts` the release token.
+- `test/ci-pin.test.ts` holds the `app-ci.yml` pins that move with each Template version (`pnpm run version`), and `test/semgrep-pin.test.ts` the Semgrep snapshot below.
+- Run `pnpm exec vitest run test/` at the root after any change under `.github/workflows/`.
+
 ## Semgrep rules
 
 `ci / sast` scans with a pinned snapshot of Semgrep's `p/typescript`, `p/nodejs`, `p/react` and `p/secrets` packs: `.github/semgrep/rules.txt` names one commit of github.com/semgrep/semgrep-rules and the rule files, so a new upstream rule cannot fail a pull request on its own, and Dependabot does not move it. A maintainer moves it by hand, in a baseline pull request; Projects get it with their next `app-ci.yml` release.

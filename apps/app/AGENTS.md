@@ -8,15 +8,13 @@ Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
 
 ## Verify
 
-On a fresh cloud machine run `bash scripts/agent-setup.sh` first (agent-setup.md).
-
 - setup: `pnpm install`
 - format: `pnpm format`
 - lint + format check + typecheck: `pnpm check` (30 s budget)
 - unit tests: `pnpm test` (2 min budget; memory adapters only)
 - integration tests: `pnpm test:integration` (4 min budget), one file: `pnpm test:integration <path>`; needs Postgres and Redis (`pnpm dev` starts them)
 - most of CI: `pnpm run ci` = check, unit, integration, piece-check (HEAD only, commit first); not oasdiff, migrations, sast, image
-- dev server: `pnpm dev` at the URL it prints (`<instance>.localhost:<PORT>`) runs Postgres, Redis, migrate, seed, Worker. `pnpm dev:reset` wipes data, `dev:prune` removed worktrees'
+- dev server: `pnpm dev` at the URL it prints runs Postgres, Redis, migrate, seed, Worker. `pnpm dev:reset` wipes data, `dev:prune` removed worktrees'
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `*-table.ts` file)
 - new context: `pnpm context-create`; new Aggregate: `pnpm aggregate-create`
@@ -24,8 +22,6 @@ On a fresh cloud machine run `bash scripts/agent-setup.sh` first (agent-setup.md
 - pieces removable: `pnpm piece-check`
 - template upgrade: `pnpm template-upgrade`
 - glossary: `pnpm glossary-check`
-
-There is no coverage tooling.
 
 Dev, tests, the Worker, migrate and seed run TypeScript directly, erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
 
@@ -77,7 +73,7 @@ One context per business area, holding its Aggregates (context-create.md).
     - `ok` and `err` (result Package) take no prefix: every Use case and adapter returns them.
     - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
-- Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`). Biome's `useMaxParams` misses `export default function` and type signatures; a callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
+- Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`), whose optional fields are `?: T | null`. A callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
 - UI pages live in `src/ui/`. They import contexts only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result Package and the authn and id types (A2).
@@ -160,9 +156,10 @@ Read the one that matches before you start.
 - A dependency, a Dependabot PR or an update walkthrough: [docs/agents/dependency-updates.md](docs/agents/dependency-updates.md)
 - Closing what a test, script or helper opens (`await using`): [docs/agents/using.md](docs/agents/using.md)
 - A context's tests: [docs/agents/tests.md](docs/agents/tests.md)
+- An outside service (email, payments, a partner API): [docs/agents/ports.md](docs/agents/ports.md)
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
-- Removing, restoring or keeping (`piecesKept`) a piece: [docs/agents/pieces.md](docs/agents/pieces.md)
+- Removing, restoring or keeping (`piecesKept`) a piece, or writing code that uses one: [docs/agents/pieces.md](docs/agents/pieces.md)
 - Using, publishing or installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md)
 - Planning a build of several contexts: [docs/agents/planning.md](docs/agents/planning.md)
 - A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

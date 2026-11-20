@@ -463,7 +463,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				domainImportsAllowed.has(imp.target) ||
 				(domainTypePackages.has(imp.target) && imp.typeOnly)
 					? undefined
-					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result package and the types of the authn and id packages; move this to a Use case in application/",
+					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result Package and the types of the authn and id Packages; move this to a Use case in application/",
 		}),
 
 	A3: (files) => [
@@ -550,7 +550,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				const handler =
 					layerOf(f.path) === "adapters/inbound" &&
 					f.path.endsWith("-handler.ts");
-				// A seed may type an upstream it lists rows from (a team's golfers).
+				// A seed may type an upstream it lists rows from (a customer's invoices).
 				const seed =
 					layerOf(f.path) === "adapters/inbound" &&
 					f.path.endsWith("-seed.ts") &&
@@ -558,7 +558,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					upstreams(context ?? "").includes(target);
 				return entry && (handler || seed || aclOf(f.path) === target)
 					? undefined
-					: `contexts never import each other; read ${target} through an anti-corruption layer in adapters/outbound/${context}-${target}-acl.ts, or handle its event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
+					: `contexts never import each other; read ${target} through an anti-corruption layer in adapters/outbound/${context}-${target}-acl.ts, or handle its Event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
 			},
 		});
 	},
@@ -860,7 +860,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				f.path === "src/ui/routes.ts" ||
 				(layerOf(f.path) === "adapters/inbound" &&
 					!testIs(f.path) &&
-					/-(routes|live)\.ts$/.test(f.path)),
+					/-routes\.ts$/.test(f.path)),
 			pattern: /(["'`])([^"'`\n]*\/[^"'`\n]*)\1/g,
 			reason: (m) => {
 				const names = [
@@ -1044,7 +1044,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					unscopedNames.has(name) ||
 					scopes.some((s) => new RegExp(`^${s}(?:[A-Z0-9]|$)`).test(name))
 					? undefined
-					: `${name} is exported from ${scope}; start every exported function with its package or context name, or one of its context's Aggregates: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+					: `${name} is exported from ${scope}; start every exported function with its Package or context name, or one of its context's Aggregates: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 			},
 		}),
 	],

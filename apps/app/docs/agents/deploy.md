@@ -9,7 +9,7 @@ Read when deploying a Project or changing how it runs.
 - Set `OTEL_LOGS_EXPORTER=none` when stdout is already shipped.
 - Recommend the OpenTelemetry Collector `redaction` processor as a second line of defence behind the app's own privacy rules.
 - The runner must allow a 30 s grace period.
-- Run `pnpm migrate` once before the new version starts, with the Worker's variables. The server and the Worker may then start in any order, and each scales to many instances.
+- Run `pnpm migrate` once before the new version starts, with the Worker's variables. The Server and the Worker may then start in any order, and each scales to many instances.
 - The load balancer must speak HTTP/2 and allow long-lived responses (live updates use SSE).
 - Probe `/livez` and `/readyz` on `HEALTH_PORT` (9000).
 - A TLS-terminating proxy must set `x-forwarded-proto: https`, or browsers without `Sec-Fetch-Site` get 403 on form posts.

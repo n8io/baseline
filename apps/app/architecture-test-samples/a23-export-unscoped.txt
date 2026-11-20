@@ -1,4 +1,4 @@
 // A23: every exported function in a context or package starts with its name (barNameNormalize)
-// expect: src/contexts/bar/domain/bar-name-normalize.ts: nameNormalize is exported from bar; start every exported function with its package or context name, or one of its context's Aggregates: barNameNormalize
+// expect: src/contexts/bar/domain/bar-name-normalize.ts: nameNormalize is exported from bar; start every exported function with its Package or context name, or one of its context's Aggregates: barNameNormalize
 // @file src/contexts/bar/domain/bar-name-normalize.ts
 export const nameNormalize = (name: string): string => name.trim();

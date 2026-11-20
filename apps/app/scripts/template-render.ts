@@ -39,24 +39,24 @@ const templateRepository = "n8io/baseline";
 const processRun = ({
 	args,
 	command,
-	options = {},
+	options,
 }: {
 	args: string[];
 	command: string;
 	options?: {
-		cwd?: string;
-		env?: NodeJS.ProcessEnv;
-		inherit?: boolean;
-		input?: string;
-	};
+		cwd?: string | null;
+		env?: NodeJS.ProcessEnv | null;
+		inherit?: boolean | null;
+		input?: string | null;
+	} | null;
 }): string =>
 	execFileSync(command, args, {
-		cwd: options.cwd,
+		cwd: options?.cwd ?? undefined,
 		encoding: "utf8",
-		env: options.env ?? process.env,
-		input: options.input,
+		env: options?.env ?? process.env,
+		input: options?.input ?? undefined,
 		maxBuffer: 256 * 1024 * 1024,
-		stdio: options.inherit ? "inherit" : "pipe",
+		stdio: options?.inherit ? "inherit" : "pipe",
 	}) ?? "";
 
 // ---------------------------------------------------------------------------

@@ -19,7 +19,7 @@ const connections = await connectionsOpen({ role: "worker" }).catch((error) => {
 const { events, queue } = connections;
 // connectionsOpen refuses a memory database here, so the queue and Events are real.
 if (queue === "memory" || events === "memory") {
-	throw new Error("The worker needs a real queue");
+	throw new Error("The Worker needs a real queue");
 }
 // Liveness is this process only: false when its own poll loops are stuck, which a restart fixes.
 // A Postgres outage never fails it, so the Workers running ride a failover out. connectionsOpen

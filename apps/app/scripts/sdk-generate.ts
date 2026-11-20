@@ -3,10 +3,11 @@
 // (one per environment, `description` its name), and generates clients/sdk/sdk.ts from it: one typed
 // function per operation, named by its operationId. Run it after any change to a route; CI fails
 // when the committed files differ from what it writes. This is the only file that imports the generator.
-import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { generate } from "orval";
 import { documentSave } from "./api-check.ts";
+import { argsParse } from "./args.ts";
+import { processRun } from "./process-run.ts";
 
 const sdk = "clients/sdk";
 
@@ -55,13 +56,20 @@ export const sdkGenerate = async (): Promise<void> => {
 			"const $1 =",
 		),
 	);
-	const format = spawnSync("pnpm", ["exec", "biome", "check", "--write", sdk], {
-		stdio: "inherit",
+	processRun({
+		command: "pnpm",
+		args: ["exec", "biome", "check", "--write", sdk],
+		options: { inherit: true },
 	});
-	if (format.status !== 0) throw new Error(`biome check ${sdk} failed`);
 };
 
-if (import.meta.main) {
+const usage = `Usage: pnpm sdk-generate
+
+Writes clients/sdk/openapi.json and clients/sdk/sdk.ts from the app's OpenAPI document.
+
+  -h, --help  this help`;
+
+if (import.meta.main && argsParse({ options: {}, usage }) !== undefined) {
 	sdkGenerate().catch((error: unknown) => {
 		console.error(error instanceof Error ? error.message : error);
 		process.exitCode = 1;

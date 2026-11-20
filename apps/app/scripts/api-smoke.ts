@@ -2,6 +2,8 @@
 // client's token, then calls the OpenAPI document and every route that needs no input with it.
 // Prints one line per call and a summary; exits 1 when any call fails. It is the pattern for a
 // Project's own scripts: docs/agents/scripts.md.
+
+import { setTimeout } from "node:timers/promises";
 import { authnMemoryTokenFetch } from "@n8io/baseline-authn";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { argsParse } from "./args.ts";
@@ -14,7 +16,7 @@ The app must run with the memory issuer (AUTHN_ISSUER_URL=memory://).
 
   --url <origin>    the app's origin (default http://localhost:$PORT, this worktree's port)
   --wait <seconds>  how long to wait for the app to answer (default 30)
-  -h, --help        print this`;
+  -h, --help        this help`;
 
 type Operation = { parameters?: { required?: boolean }[] };
 
@@ -34,9 +36,6 @@ export const apiSmokeRoutesFind = (document: unknown): string[] => {
 		.map(([path]) => path)
 		.sort();
 };
-
-const sleep = (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms));
 
 // Polls the document until the app answers it or the deadline passes.
 const documentWait = async (
@@ -61,7 +60,7 @@ const documentWait = async (
 				`${url}/api/v1/openapi.json did not answer in time (last: ${last})`,
 			);
 		}
-		await sleep(500);
+		await setTimeout(500);
 	}
 };
 

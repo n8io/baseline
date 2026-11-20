@@ -1,4 +1,4 @@
-// A17: path parameter names in adapters/inbound/*-routes.ts, adapters/inbound/*-live.ts and src/ui/routes.ts end in Id
+// A17: path parameter names in adapters/inbound/*-routes.ts (API and live) and src/ui/routes.ts end in Id
 // expect: src/contexts/bar/adapters/inbound/bar-routes.ts: path parameter bar in "/:bar" must end in Id
 // @file src/contexts/bar/adapters/inbound/bar-routes.ts
 import { httpRouterCreate } from "@n8io/baseline-http";

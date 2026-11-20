@@ -15,6 +15,7 @@ import {
 	aclPath,
 	aggregateFilesCreate,
 	aggregateLineIs,
+	aggregateNextStepsText,
 	aggregateParts,
 	aggregateRefusal,
 	barLineIs,
@@ -23,7 +24,6 @@ import {
 	contextsPairsFill,
 	nameRefusal,
 	nameTerm,
-	nextStepsText,
 	readsApply,
 	readsRefusal,
 	templateWithoutPieces,
@@ -477,9 +477,9 @@ describe("readsRefusal and contextReadsFind", () => {
 	});
 });
 
-describe("nextStepsText", () => {
+describe("aggregateNextStepsText", () => {
 	it("names the codegen step only before a migration exists, and only the parts copied", () => {
-		const bare = nextStepsText({
+		const bare = aggregateNextStepsText({
 			aggregate: names,
 			context: "billing",
 			migrated: false,
@@ -492,7 +492,7 @@ describe("nextStepsText", () => {
 		expect(bare).not.toContain("Schedule");
 		expect(bare).not.toContain("pages");
 
-		const full = nextStepsText({
+		const full = aggregateNextStepsText({
 			aggregate: names,
 			context: "billing",
 			migrated: true,
