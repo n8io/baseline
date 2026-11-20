@@ -18,7 +18,7 @@ it("ships source with no node: import and no Node global, so it runs in a browse
 	expect(sourcesShipped).toContain("sdk-fetch-create.ts");
 	for (const path of sourcesShipped) {
 		const source = readFileSync(`${sourceDirectory}${path}`, "utf8");
-		expect(source, path).not.toMatch(/from\s+["']node:|import\(\s*["']node:/);
+		expect(source, path).not.toMatch(/["']node:/);
 		expect(source, path).not.toMatch(/\b(process|Buffer|__dirname|require)\b/);
 	}
 });
