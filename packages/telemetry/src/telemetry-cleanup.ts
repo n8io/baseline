@@ -9,7 +9,7 @@ import type { SpanProcessor } from "@opentelemetry/sdk-trace";
 
 const queryValue = "REDACTED";
 
-// Replaces every value and keeps every key: "a=1&b" becomes "a=REDACTED&b".
+/** Replaces every value and keeps every key: "a=1&b" becomes "a=REDACTED&b". */
 export const telemetryQueryRedact = (query: string): string =>
 	query
 		.split("&")
@@ -49,6 +49,7 @@ const exceptionClean = (attributes: Attributes): void => {
 	delete attributes["exception.message"];
 };
 
+/** Drops what can hold input text from a span before it is exported. Runs first. */
 export const telemetrySpanCleanup = (): SpanProcessor => ({
 	forceFlush: () => Promise.resolve(),
 	onEnd: () => undefined,
@@ -80,6 +81,7 @@ export const telemetrySpanCleanup = (): SpanProcessor => ({
 	shutdown: () => Promise.resolve(),
 });
 
+/** Drops what can hold input text from a log record before it is exported. Runs first. */
 export const telemetryLogRecordCleanup = (): LogRecordProcessor => ({
 	forceFlush: () => Promise.resolve(),
 	onEmit(record) {

@@ -9,13 +9,14 @@ export type ShutdownStep = { name: string; close: () => Promise<void> };
 /** What `shutdownHandleCreate` closes, and how long it may take. */
 export type ShutdownOptions = {
 	/**
-	 * When it gives up and exits, counted from the signal, drain delay included. At least 5000:
-	 * the last 5 s belong to the resources. Default 25 000.
+	 * When it gives up and exits, counted from the signal, drain delay included. Over 5000: the
+	 * last 5 s belong to the resources. Default 25 000.
 	 */
 	deadlineMs?: number | null;
 	/**
-	 * How long readiness answers 503 before the intakes close, so load balancers notice. Default
-	 * 5000; the Template reads `SHUTDOWN_DRAIN_DELAY_MS` and sets 0 in development.
+	 * How long readiness answers 503 before the intakes close, so load balancers notice. Under
+	 * `deadlineMs` minus 5000, so the intakes get time to close. Default 5000; the Template reads
+	 * `SHUTDOWN_DRAIN_DELAY_MS` and sets 0 in development.
 	 */
 	drainDelayMs?: number | null;
 	/** Closed together; each stops accepting, then waits for its active work. */
@@ -55,7 +56,8 @@ const drainDelayMsDefault = 5000;
 /**
  * Owns SIGTERM, SIGINT, uncaughtException and unhandledRejection, and exits the process: 0 when
  * every step closed in time, 1 otherwise or after a crash. Throws a `TypeError` on a
- * `deadlineMs` under 5000 or a `drainDelayMs` that is not a whole number.
+ * `deadlineMs` that is not an integer over 5000, or a `drainDelayMs` that is not a whole number
+ * under `deadlineMs` minus 5000.
  */
 export const shutdownHandleCreate = ({
 	deadlineMs: deadlineMsGiven,
@@ -65,15 +67,21 @@ export const shutdownHandleCreate = ({
 }: ShutdownOptions): ShutdownHandle => {
 	const deadlineMs = deadlineMsGiven ?? deadlineMsDefault;
 	const drainDelayMs = drainDelayMsGiven ?? drainDelayMsDefault;
-	// Under the reserve, the intake cutoff would come at once and cut every intake.
-	if (!Number.isInteger(deadlineMs) || deadlineMs < RESOURCE_RESERVE_MS) {
+	// At or under the reserve, or with the drain reaching the cutoff, the intakes would get no
+	// time: every one would be cut at once.
+	if (!Number.isInteger(deadlineMs) || deadlineMs <= RESOURCE_RESERVE_MS) {
 		throw new TypeError(
-			`shutdownHandleCreate: deadlineMs must be an integer of at least ${RESOURCE_RESERVE_MS}, not ${deadlineMs}`,
+			`shutdownHandleCreate: deadlineMs must be an integer over ${RESOURCE_RESERVE_MS}, not ${deadlineMs}`,
 		);
 	}
 	if (!Number.isInteger(drainDelayMs) || drainDelayMs < 0) {
 		throw new TypeError(
 			`shutdownHandleCreate: drainDelayMs must be a whole number, not ${drainDelayMs}`,
+		);
+	}
+	if (drainDelayMs >= deadlineMs - RESOURCE_RESERVE_MS) {
+		throw new TypeError(
+			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${RESOURCE_RESERVE_MS} (${deadlineMs - RESOURCE_RESERVE_MS}), not ${drainDelayMs}`,
 		);
 	}
 	let shuttingDown = false;

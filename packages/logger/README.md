@@ -28,7 +28,7 @@ logger.error({ err: error }, "Postgres idle client error");
 logger.error({ err: error });
 ```
 
-Nothing to configure in tests. Assert on what the code returns, not on log lines; a test that must read a line replaces `process.stdout.write` for its run and restores it in `onTestFinished`, as the Template's `src/error-tracking-open.test.ts` does.
+Nothing to configure in tests. Assert on what the code returns, not on log lines; a test that must read a line captures stdout for its run and restores it in `onTestFinished`, as the Template's `src/error-tracking-open.test.ts` does.
 
 ## Reference
 

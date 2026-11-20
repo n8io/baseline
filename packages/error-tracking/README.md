@@ -26,17 +26,15 @@ pnpm add @n8io/baseline-error-tracking
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
 import { loggerErrorListen } from "@n8io/baseline-logger";
 
-// SENTRY_DSN is optional: without it, nothing is reported and errors are only logged.
+// Without SENTRY_DSN, nothing is reported and errors are only logged.
 if (ENV.SENTRY_DSN) {
 	const errorTracking = errorTrackingSentryCreate({
 		dsn: ENV.SENTRY_DSN,
 		environment: ENV.APP_ENV,
 	});
 	const stop = loggerErrorListen((error) => errorTracking.report(error));
-
-	// At shutdown:
-	stop();
-	await errorTracking.close();
+	const close = async () => { stop(); await errorTracking.close(); };
+	resources.push({ close, name: "error tracking" }); // a shutdown step
 }
 ```
 
