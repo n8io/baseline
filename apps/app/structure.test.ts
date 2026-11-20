@@ -6,6 +6,10 @@ import {
 	agentDocsViolationsRead,
 } from "./agent-docs-test-rules.ts";
 import {
+	architectureAggregatesFind,
+	architectureRules,
+} from "./architecture-test-rules.ts";
+import {
 	pieceDevUi,
 	pieceDevWorker,
 	pieceMarkersProblems,
@@ -65,12 +69,7 @@ const structureViolations = (
 	for (const [name, files] of byContext) {
 		const base = `src/contexts/${name}`;
 		// The context's CONTEXT.md, and each Aggregate's error statuses (one table file each).
-		const aggregates = files.flatMap((f) => {
-			const aggregate = /^adapters\/outbound\/([^/]+)-table\.ts$/.exec(f)?.[1];
-			return aggregate && files.includes(`domain/${aggregate}.ts`)
-				? [aggregate]
-				: [];
-		});
+		const aggregates = architectureAggregatesFind(paths, name);
 		const allowed = new Set([
 			"CONTEXT.md",
 			"index.ts",
@@ -160,15 +159,7 @@ const testPlacementViolations = (paths: string[]): string[] => {
 		const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1];
 		return context === undefined
 			? []
-			: sources.flatMap((source) => {
-					const aggregate = new RegExp(
-						`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
-					).exec(source)?.[1];
-					return aggregate &&
-						sources.includes(`src/contexts/${context}/domain/${aggregate}.ts`)
-						? [aggregate]
-						: [];
-				});
+			: architectureAggregatesFind(sources, context);
 	};
 	return paths
 		.filter((path) => path.endsWith(".test.ts"))
@@ -222,7 +213,7 @@ const appFilesList = (dir: URL, prefix = ""): string[] =>
 
 const filesList = (dir: URL, prefix: string) =>
 	readdirSync(dir, { encoding: "utf8", recursive: true })
-		// Dotfiles (.DS_Store) are the OS's, not the project's.
+		// Dotfiles (.DS_Store) are the OS's, not the Project's.
 		.filter((name) => !/(^|\/)\./.test(name))
 		.filter((name) => statSync(new URL(name, dir)).isFile())
 		.map((name) => `${prefix}/${name}`);
@@ -265,7 +256,7 @@ describe("context structure", () => {
 			const glossary = new URL(`${context}/CONTEXT.md`, contexts);
 			return existsSync(glossary) ? readFileSync(glossary, "utf8") : "";
 		};
-		// A rendered project starts with no context, so only the folder must exist.
+		// A rendered Project starts with no context, so only the folder must exist.
 		expect(existsSync(contexts)).toBe(true);
 		expect(structureViolations(paths, glossaryOf)).toEqual([]);
 	});
@@ -454,6 +445,27 @@ const mocksFind = (source: string): string[] =>
 		.map((text, index) => ({ line: index + 1, text }))
 		.filter(({ text }) => mocksBanned.test(text))
 		.map(({ line, text }) => `line ${line}: ${text.trim()}`);
+
+// architecture.test.ts runs A23 over src/; this runs it over the rest of the Project's code, so a
+// Project checks the names of its scripts, tests and clients too.
+describe("naming", () => {
+	it("names every export outside src/ generic to specific (A23)", () => {
+		const files = appFilesList(appRoot)
+			.filter(
+				(name) =>
+					/\.tsx?$/.test(name) &&
+					!name.endsWith(".d.ts") &&
+					!name.startsWith("src/"),
+			)
+			.map((name) => ({
+				imports: [],
+				path: name,
+				source: readFileSync(new URL(name, appRoot), "utf8"),
+			}));
+		expect(files.length).toBeGreaterThan(10);
+		expect(architectureRules.A23?.(files)).toEqual([]);
+	});
+});
 
 describe("tests", () => {
 	it("use no mocks, spies or fake timers", () => {
@@ -790,16 +802,6 @@ describe("docker compose commands", () => {
 		expect(bad).toEqual([]);
 	});
 
-	it("start with the Node version guard in package.json scripts that run node", () => {
-		const guard = "node --import ./scripts/node-version-require.ts ";
-		const bad = Object.entries(manifest.scripts)
-			.filter(
-				([, script]) => script.startsWith("node ") && !script.startsWith(guard),
-			)
-			.map(([name]) => name);
-		expect(bad).toEqual([]);
-	});
-
 	it("keep the dev script parts piece-remove edits while their pieces are here", () => {
 		const here = (path: string) => existsSync(new URL(path, appRoot));
 		expect(manifest.scripts.dev?.includes(pieceDevUi)).toBe(here("src/ui"));
@@ -817,7 +819,23 @@ describe("docker compose commands", () => {
 	});
 });
 
-// piece-remove cuts from a piece's start line to its end line, so a start without its end, or two
+// node-version-require stops a script on the wrong Node before any other import loads.
+describe("node scripts", () => {
+	it("start with the Node version guard in package.json scripts that run node", () => {
+		const { scripts } = JSON.parse(
+			readFileSync(new URL("package.json", appRoot), "utf8"),
+		) as { scripts: Record<string, string> };
+		const guard = "node --import ./scripts/node-version-require.ts ";
+		const bad = Object.entries(scripts)
+			.filter(
+				([, script]) => script.startsWith("node ") && !script.startsWith(guard),
+			)
+			.map(([name]) => name);
+		expect(bad).toEqual([]);
+	});
+});
+
+// piece-remove cuts from a Piece's start line to its end line, so a start without its end, or two
 // blocks that cross (Biome's import and export sorting can do that), deletes the wrong code.
 describe("piece markers", () => {
 	const skipped = new Set([".git", ".react-router", "build", "node_modules"]);

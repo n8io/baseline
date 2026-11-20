@@ -143,18 +143,32 @@ const aclOf = (p: string): string | undefined => {
 const tableIs = (p: string): boolean =>
 	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
 // A context's Aggregates: an Aggregate root schema in domain/ with its own table in adapters/outbound/. A table
-// with no domain/ file of its name (a projection) is not one.
-const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
-	files.flatMap((f) => {
+// with no domain/ file of its name (a projection) is not one. structure.test.ts reads it too.
+export const architectureAggregatesFind = (
+	paths: string[],
+	context: string,
+): string[] =>
+	paths.flatMap((p) => {
 		const name = new RegExp(
 			`^src/contexts/${context}/adapters/outbound/([^/]+)-table\\.ts$`,
-		).exec(f.path)?.[1];
-		return name &&
-			files.some((m) => m.path === `src/contexts/${context}/domain/${name}.ts`)
+		).exec(p)?.[1];
+		return name && paths.includes(`src/contexts/${context}/domain/${name}.ts`)
 			? [name]
 			: [];
 	});
-const roots = ["src/server.ts", "src/worker.ts", "src/seed.ts"];
+const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
+	architectureAggregatesFind(
+		files.map((f) => f.path),
+		context,
+	);
+// The composition roots, as CONTEXT.md lists them: each file starts one process.
+const roots = [
+	"src/blocked-keys.ts",
+	"src/migrate.ts",
+	"src/seed.ts",
+	"src/server.ts",
+	"src/worker.ts",
+];
 // Where Use cases must not be built bare: contextsCreate and the composition roots (a context's
 // index.ts is checked too).
 const useCasesBuilders = [...roots, "src/contexts.ts"];
@@ -265,12 +279,7 @@ const thingWords =
 // table), the generated SDK and files exporting only types, classes, components, hooks and
 // framework names. It reads `export const|let|function` lines, not `export { … }` lists.
 const exportedValue = /^export (?:const|let|(?:async )?function\*?) (\w+)/gm;
-const fileNameRoots = new Set([
-	...roots,
-	"src/blocked-keys.ts",
-	"src/migrate.ts",
-	"src/preload.ts",
-]);
+const fileNameRoots = new Set([...roots, "src/preload.ts"]);
 const fileNamesAllowed: Record<string, string> = {
 	"src/ui/context.ts":
 		"React Router's context keys, one per bounded context, beside the load context that fills them",
@@ -560,7 +569,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) === "domain",
 			check: ({ imp }) =>
 				imp.specifier.startsWith("@hono/")
-					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<context>-routes.ts"
+					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<aggregate>-routes.ts"
 					: undefined,
 		}),
 		...textCheck({
@@ -568,7 +577,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
 			pattern: /\.openapi\(/g,
 			reason: () =>
-				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<context>-routes.ts",
+				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<aggregate>-routes.ts",
 		}),
 	],
 
@@ -582,7 +591,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				}
 				return imp.specifier === "@n8io/baseline-telemetry/span" &&
 					layerOf(f.path) !== "application"
-					? "only use cases touch spans; set span attributes in application/, and wrap use cases with telemetryUseCasesTrace in src/contexts.ts"
+					? "only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
 					: undefined;
 			},
 		}),
@@ -609,7 +618,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (f.path.startsWith("src/ui/")) {
 					const target = contextOf(imp.target);
 					return target && partsOf(imp.target).join("/") !== "index.ts"
-						? `the UI calls contexts only through src/contexts/${target}/index.ts; loaders and actions get use cases from the load context`
+						? `the UI calls contexts only through src/contexts/${target}/index.ts; loaders and actions get Use cases from the load context`
 						: undefined;
 				}
 				return imp.target.startsWith("src/ui/")
@@ -652,7 +661,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					)
 					.map(
 						(name) =>
-							`${f.path}: an ACL only reads, so it calls only *Get and *List use cases, not ${name}; a change belongs in a use case of the context that owns it`,
+							`${f.path}: an ACL only reads, so it calls only *Get and *List Use cases, not ${name}; a change belongs in a Use case of the context that owns it`,
 					);
 				return [...importMisses, ...callMisses];
 			}),
@@ -675,7 +684,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots (src/server.ts, src/worker.ts, src/seed.ts) own connections and pass them to <context>ContextCreate through src/contexts.ts`,
+				`${m[1]}( opens a connection; the composition roots own connections and pass them to <context>ContextCreate through src/contexts.ts`,
 		}),
 		...textCheck({
 			files,
@@ -901,7 +910,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						),
 					].map(
 						() =>
-							`${f.path}: wrap ${camel(d)}UseCasesCreate(...) in telemetryUseCasesTrace(...) so every use case gets a span`,
+							`${f.path}: wrap ${camel(d)}UseCasesCreate(...) in telemetryUseCasesTrace(...) so every Use case gets a span`,
 					),
 				),
 			);
@@ -970,8 +979,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					...roots,
 					// Opens every connection for the roots, so it reads their settings itself.
 					"src/connections.ts",
-					"src/migrate.ts",
-					"src/blocked-keys.ts",
 				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
 					? "only the composition roots and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
@@ -1016,7 +1023,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			reason: ([, constName, functionName]) => {
 				const name = constName ?? functionName ?? "";
 				return !exemptIs(name) && !/(Is|Has|Can)$/.test(name)
-					? `${name} returns a boolean; a predicate ends in Is, Has or Can (barDeleteCan, barStaleIs)`
+					? `${name} returns a boolean; a predicate ends in Is, Has or Can (invoiceDeleteCan, postgresUniqueViolationIs)`
 					: undefined;
 			},
 		}),

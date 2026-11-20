@@ -485,14 +485,15 @@ describe("hostPortsCreate and the files it renders into", () => {
 		"HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nREDIS_HOST_PORT=6379\nSERVER_HOST_PORT=3000\nHEALTH_HOST_PORT=9000\nCOMPOSE_PROJECT_NAME=app\n";
 	const compose = "name: app\nservices:\n";
 
-	it("gives each name seven ports in a row in 20000 to 29999, the same ones every time", () => {
+	// The Worker takes the block's seventh, HEALTH_PORT + 1.
+	it("gives each name six ports in a row in 20000 to 29999, the same ones every time", () => {
 		const ports = hostPortsCreate("invoicing");
 		const values = Object.values(ports);
 
 		expect(hostPortsCreate("invoicing")).toEqual(ports);
 		expect(values.every((port) => port >= 20_000 && port < 30_000)).toBe(true);
 		expect(values.map((port) => port - (values[0] ?? 0))).toEqual([
-			0, 1, 2, 3, 4, 5, 6,
+			0, 1, 2, 3, 4, 5,
 		]);
 	});
 

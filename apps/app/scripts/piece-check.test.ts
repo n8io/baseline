@@ -3,7 +3,7 @@ import {
 	eachConcurrently,
 	jobEndRead,
 	pieceCheckFailureReport,
-	pieceCheckPlan,
+	pieceCheckPlanCreate,
 	pieceCheckRun,
 } from "./piece-check.ts";
 
@@ -18,8 +18,10 @@ const all = new Set([
 	"swagger-ui-dist",
 ]);
 
-const plan = (options: Partial<Parameters<typeof pieceCheckPlan>[0]> = {}) =>
-	pieceCheckPlan({
+const plan = (
+	options: Partial<Parameters<typeof pieceCheckPlanCreate>[0]> = {},
+) =>
+	pieceCheckPlanCreate({
 		installed: all,
 		kept: [],
 		refusal: () => undefined,
@@ -27,7 +29,7 @@ const plan = (options: Partial<Parameters<typeof pieceCheckPlan>[0]> = {}) =>
 		...options,
 	});
 
-describe("pieceCheckPlan", () => {
+describe("pieceCheckPlanCreate", () => {
 	it("checks every installed piece, redis after the cache and live updates", () => {
 		expect(plan().checks).toEqual([
 			{ first: [], piece: "analytics" },

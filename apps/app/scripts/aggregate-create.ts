@@ -244,14 +244,14 @@ const pieces = [
 	{ name: "api-reference", package: "swagger-ui-dist", paths: [] },
 	// Owns no context file either (src/redis-open.ts is not a context's).
 	{ name: "redis", package: "@n8io/baseline-redis", paths: [] },
-	// The SDK and the command line tool own no context file; checksRun regenerates the SDK. The
+	// The SDK and the command line tool own no context file; aggregateChecksRun regenerates the SDK. The
 	// command line tool adds no package to the app, so its folder tells it is there.
 	{ name: "sdk", package: "orval", paths: [] },
 	{ folder: "clients/cli", name: "cli", paths: [] },
 	{
 		name: "live",
 		package: "@n8io/baseline-live",
-		paths: [/^src\/contexts\/foo\/.*-live(\.test)?\.ts$/],
+		paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
 	},
 	{
 		name: "cache",
@@ -712,7 +712,8 @@ export const readsRefusal = ({
 			return `--reads "${kebab}" is not kebab-case`;
 		if (kebab === names.kebab) return `${kebab} cannot read itself`;
 		// The Template's own context is renamed with the copy, so it cannot be a target.
-		if (kebab.includes("foo")) return `--reads ${kebab}: contains foo`;
+		if (fooLineIs(kebab))
+			return `--reads ${kebab}: names foo, the Template's example name, which the render renames`;
 		if (!existsSync(join(appDirectory, "src/contexts", kebab, "index.ts")))
 			return `--reads ${kebab}: no src/contexts/${kebab}/`;
 		if (
@@ -728,26 +729,29 @@ export const readsRefusal = ({
 	return undefined;
 };
 
-// Inserts lines before (or after) the one line that is exactly `anchor`.
+// Inserts before the anchor line, after it, or above the comment block that leads into it, so an
+// anchor is code or a `// wiring:` marker and rewording a prose comment breaks nothing.
 const linesAt = ({
-	after = false,
 	anchor,
 	lines,
 	path,
 	text,
+	where = "before",
 }: {
-	after?: boolean;
 	anchor: string;
 	lines: string[];
 	path: string;
 	text: string;
+	where?: "after" | "before" | "aboveComment";
 }): string => {
 	const all = text.split("\n");
-	const at = all.indexOf(anchor);
-	if (at === -1 || all.indexOf(anchor, at + 1) !== -1) {
+	const found = all.indexOf(anchor);
+	if (found === -1 || all.indexOf(anchor, found + 1) !== -1) {
 		throw new Error(`${path}: --reads needs exactly one line "${anchor}"`);
 	}
-	all.splice(after ? at + 1 : at, 0, ...lines);
+	let at = where === "after" ? found + 1 : found;
+	while (where === "aboveComment" && /^\s*\/\//.test(all[at - 1] ?? "")) at--;
+	all.splice(at, 0, ...lines);
 	return all.join("\n");
 };
 
@@ -818,7 +822,7 @@ const upstreamTestBuild = ({
 			`import { fooTestUpstreamCreate } from "${specifier}";`,
 		]),
 		path,
-		after: true,
+		where: "after",
 		anchor: `import { fooTestUpstreamCreate } from "${specifier}";`,
 		lines: [
 			"",
@@ -937,8 +941,8 @@ export const readsApply = ({
 					text: linesAt({
 						text: withTypes,
 						path,
-						anchor:
-							"\t// Every Use case reads the time here, never from new Date().",
+						anchor: "\t// wiring: ports",
+						where: "after",
 						lines: targets.map((t) => `\t${field(t)}: Foo${t.pascal}Acl;`),
 					}),
 				};
@@ -971,8 +975,8 @@ export const readsApply = ({
 				const declared = linesAt({
 					text: imported,
 					path,
-					anchor:
-						"// Picks each port's adapter from the connections the composition root opened: a real one, or",
+					anchor: "export const fooPortsCreate = (",
+					where: "aboveComment",
 					lines: [
 						"// The contexts this context reads, built before it in src/contexts.ts: each fills its ACL.",
 						`export type FooUpstream = { ${targets.map((t) => `${t.camel}: Foo${t.pascal}Upstream`).join("; ")} };`,
@@ -1111,7 +1115,8 @@ export const nameRefusal = ({
 	kebab: string;
 }): string | undefined => {
 	if (!kebabPattern.test(kebab)) return `"${kebab}" is not kebab-case`;
-	if (kebab.includes("foo")) return `"${kebab}" contains foo`;
+	if (fooLineIs(kebab))
+		return `"${kebab}" names foo, the Template's example name, which the render renames`;
 	const term = nameTerm(kebab);
 	const path = `src/contexts/${context}/CONTEXT.md`;
 	const file = join(appDirectory, path);
@@ -1474,7 +1479,7 @@ const aggregateMigrationHas = ({
 };
 
 // Runs pnpm check and pnpm test in the Project, or exits with their output.
-export const checksRun = ({
+export const aggregateChecksRun = ({
 	appDirectory,
 	command,
 }: {
@@ -1603,7 +1608,7 @@ const main = () => {
 		`Wrote ${aggregate.kebab} into src/contexts/${context}/ and wired it into ${wired} files; running pnpm check and pnpm test.`,
 	);
 	filesFormat({ appDirectory, paths: files.map((f) => f.path) });
-	checksRun({ appDirectory, command: "aggregate-create" });
+	aggregateChecksRun({ appDirectory, command: "aggregate-create" });
 	console.log(
 		`Created ${aggregate.kebab}; pnpm check and pnpm test pass.\n${nextStepsText(
 			{

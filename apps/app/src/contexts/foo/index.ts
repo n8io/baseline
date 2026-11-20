@@ -5,7 +5,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
 import type { Connections } from "../../connections.ts";
 import { barRoutesCreate } from "./adapters/inbound/bar-routes.ts";
-import { fooLiveRoutesCreate } from "./adapters/inbound/foo-live.ts";
+import { fooLiveRoutesCreate } from "./adapters/inbound/foo-live-routes.ts";
 import { fooRoutesCreate } from "./adapters/inbound/foo-routes.ts";
 import {
 	fooSchedule,

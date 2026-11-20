@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempDisposableSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
 import.meta.glob(["./.env.*"], { query: "?raw" });
@@ -64,8 +64,8 @@ describe("env files", () => {
 	);
 
 	it("fail to load when a required item has no value", () => {
-		const dir = mkdtempSync(join(tmpdir(), "env-files-"));
-		onTestFinished(() => rmSync(dir, { force: true, recursive: true }));
+		using folder = mkdtempDisposableSync(join(tmpdir(), "env-files-"));
+		const dir = folder.path;
 		writeFileSync(
 			join(dir, ".env.schema"),
 			"# @currentEnv=$APP_ENV\n# @defaultRequired=true\n# ---\nAPP_ENV=test\nA_KEY=\n",

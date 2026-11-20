@@ -2,15 +2,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { authnActorRequire } from "@n8io/baseline-authn";
 import {
 	type HttpErrorStatus,
-	httpErrorBodyCreate,
 	httpErrorResponsesCreate,
-	httpProblemHeaders,
 	httpRouterCreate,
 } from "@n8io/baseline-http";
 import type { FooUseCases } from "../../application/foo-use-cases.ts";
 import type { FooError } from "../../domain/errors.ts";
 import { Foo, FooListInput } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
+import { fooHttpErrorAnswer, fooHttpJsonCreate } from "./foo-http.ts";
 
 // The route table is the API's view of the context's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;
@@ -68,11 +67,6 @@ const fooResponse = (foo: Foo): z.infer<typeof FooResponse> => ({
 	archivedAt: foo.archivedAt?.toISOString() ?? null,
 });
 
-const json = <S extends z.ZodType>(schema: S, description: string) => ({
-	content: { "application/json": { schema } },
-	description,
-});
-
 // Each operation is named after the Use case it calls and tagged with its Aggregate; SDK methods
 // and CLI commands take their names from both and their help from the summary (docs/agents/api.md).
 const fooCreateRoute = createRoute({
@@ -89,7 +83,7 @@ const fooCreateRoute = createRoute({
 		},
 	},
 	responses: {
-		201: json(FooResponse, "Created"),
+		201: fooHttpJsonCreate(FooResponse, "Created"),
 		...httpErrorResponsesCreate(fooErrorStatus, ["FooNameTaken"]),
 	},
 });
@@ -101,7 +95,7 @@ const fooListRoute = createRoute({
 	method: "get",
 	path: "/",
 	request: { query: FooListQuery },
-	responses: { 200: json(FooListResponse, "A page of foos") },
+	responses: { 200: fooHttpJsonCreate(FooListResponse, "A page of foos") },
 });
 
 const fooGetRoute = createRoute({
@@ -112,7 +106,7 @@ const fooGetRoute = createRoute({
 	path: "/{fooId}",
 	request: { params: FooParams },
 	responses: {
-		200: json(FooResponse, "The foo"),
+		200: fooHttpJsonCreate(FooResponse, "The foo"),
 		...httpErrorResponsesCreate(fooErrorStatus, ["FooNotFound"]),
 	},
 });
@@ -132,7 +126,7 @@ const fooUpdateRoute = createRoute({
 		params: FooParams,
 	},
 	responses: {
-		200: json(FooResponse, "Updated"),
+		200: fooHttpJsonCreate(FooResponse, "Updated"),
 		...httpErrorResponsesCreate(fooErrorStatus, [
 			"FooNotFound",
 			"FooNameTaken",
@@ -157,7 +151,7 @@ const fooDeleteRoute = createRoute({
 	},
 });
 
-// Mounted at /api/v1/foos. Each route calls exactly one use case.
+// Mounted at /api/v1/foos. Each route calls exactly one Use case.
 export const fooRoutesCreate = (u: FooUseCases) =>
 	httpRouterCreate()
 		.openapi(fooCreateRoute, async (c) => {
@@ -165,14 +159,7 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 				authnActorRequire(c),
 				c.req.valid("json"),
 			);
-			if (!result.ok) {
-				const status = fooErrorStatus[result.error.type];
-				return c.json(
-					httpErrorBodyCreate(result.error, status),
-					status,
-					httpProblemHeaders,
-				);
-			}
+			if (!result.ok) return fooHttpErrorAnswer(c, result.error);
 			return c.json(fooResponse(result.value), 201);
 		})
 		.openapi(fooListRoute, async (c) => {
@@ -189,14 +176,7 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 		})
 		.openapi(fooGetRoute, async (c) => {
 			const result = await u.fooGet(authnActorRequire(c), c.req.valid("param"));
-			if (!result.ok) {
-				const status = fooErrorStatus[result.error.type];
-				return c.json(
-					httpErrorBodyCreate(result.error, status),
-					status,
-					httpProblemHeaders,
-				);
-			}
+			if (!result.ok) return fooHttpErrorAnswer(c, result.error);
 			return c.json(fooResponse(result.value), 200);
 		})
 		.openapi(fooUpdateRoute, async (c) => {
@@ -204,14 +184,7 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 				...c.req.valid("json"),
 				...c.req.valid("param"),
 			});
-			if (!result.ok) {
-				const status = fooErrorStatus[result.error.type];
-				return c.json(
-					httpErrorBodyCreate(result.error, status),
-					status,
-					httpProblemHeaders,
-				);
-			}
+			if (!result.ok) return fooHttpErrorAnswer(c, result.error);
 			return c.json(fooResponse(result.value), 200);
 		})
 		.openapi(fooDeleteRoute, async (c) => {
@@ -219,13 +192,6 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 				authnActorRequire(c),
 				c.req.valid("param"),
 			);
-			if (!result.ok) {
-				const status = fooErrorStatus[result.error.type];
-				return c.json(
-					httpErrorBodyCreate(result.error, status),
-					status,
-					httpProblemHeaders,
-				);
-			}
+			if (!result.ok) return fooHttpErrorAnswer(c, result.error);
 			return c.body(null, 204);
 		});

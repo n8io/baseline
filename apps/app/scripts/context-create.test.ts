@@ -63,7 +63,11 @@ describe("contextRefusal", () => {
 			"src/contexts/crm/ already exists",
 		);
 		expect(contextRefusal({ appDirectory: app, context: "foo-two" })).toContain(
-			"contains foo",
+			"example name",
+		);
+		// Only the word foo: the render leaves food and football alone.
+		expect(contextRefusal({ appDirectory: app, context: "food" })).toContain(
+			"CONTEXT-MAP.md lists no food",
 		);
 		expect(contextRefusal({ appDirectory: app, context: "Billing" })).toContain(
 			"not kebab-case",

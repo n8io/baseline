@@ -1,4 +1,4 @@
-// pnpm template-upgrade [--to <version>]: renders the project's template release and the new one
+// pnpm template-upgrade [--to <version>]: renders the Project's Template release and the new one
 // with the saved answers, stores both as commits and cherry-picks the difference without
 // committing: a 3-way merge that leaves standard conflict markers and exits 1 on a conflict.
 import {
@@ -37,7 +37,7 @@ export type UpgradeTools = {
 	finish: (directory: string) => void;
 };
 
-// Stores a rendered tree as a commit in the project's repository, without touching its index.
+// Stores a rendered tree as a commit in the Project's repository, without touching its index.
 const renderCommit = ({
 	files,
 	message,
@@ -49,7 +49,7 @@ const renderCommit = ({
 	files: TemplateFile[];
 	message: string;
 	parent?: string;
-	// The pieces the Project removed; the render drops them too.
+	// The Pieces the Project removed; the render drops them too.
 	removed: string[];
 	repository: string;
 	tools: UpgradeTools;
@@ -96,7 +96,7 @@ const conflictsRead = (repository: string): string[] =>
 		.split("\n")
 		.filter((path) => path !== "");
 
-// Applies the change between two renders to the project's working tree.
+// Applies the change between two renders to the Project's working tree.
 const templateMerge = ({
 	from,
 	labels,
@@ -172,8 +172,9 @@ export const changelogBetween = ({
 		.trim();
 };
 
-// Renders a release with that release's own render code, so a project's older scripts never
-// misread a newer template. Releases without scripts/ use this file's.
+// Renders a release with that release's own render code, so a Project's older scripts never
+// misread a newer Template. app@1.0.0, the one release without scripts/, uses this file's;
+// delete that fallback once no Project upgrades from app@1.0.0.
 export const releaseRender = async (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
@@ -190,7 +191,7 @@ export const releaseRender = async (
 };
 
 // pnpm writes its own minimumReleaseAgeExclude of exact @n8io/baseline-* versions when they are
-// under a day old; once the template brings its own list, the merge holds the key twice.
+// under a day old; once the Template brings its own list, the merge holds the key twice.
 export const workspaceExcludesDedupe = (workspace: string): string => {
 	const pnpmList =
 		/^minimumReleaseAgeExclude:\n(?: {2}- "@n8io\/baseline-[^"@]+@[^"]+"\n)+/m;
@@ -220,7 +221,8 @@ export const secretKeep = ({
 // A Project from before each context had its own CONTEXT.md keeps its terms under CONTEXT.md's
 // `## Language`, which the Template no longer has. Both renders carry that section as the Project
 // has it, so the merge leaves it in place instead of conflicting with it; glossary-check's test
-// then fails until the Project moves each term into its context's CONTEXT.md.
+// then fails until the Project moves each term into its context's CONTEXT.md. Delete this once
+// every Project is on app@12.0.0 or later.
 export const languageKeep = ({
 	files,
 	project,
@@ -242,7 +244,7 @@ export const languageKeep = ({
 
 const sdkGeneratedPaths = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
 
-// A piece whose package (or folder) the Project's own release did not have yet is new, not removed: it arrives.
+// A Piece whose package (or folder) the Project's own release did not have yet is new, not removed: it arrives.
 const pieceInRelease = (files: TemplateFile[]) => {
 	const manifest = JSON.parse(
 		files.find((f) => f.path === "package.json")?.text ?? "{}",
@@ -259,7 +261,7 @@ const pieceInRelease = (files: TemplateFile[]) => {
 	};
 };
 
-// A piece that must go before a removed one (the cli before the sdk) cannot arrive without it.
+// A Piece that must go before a removed one (the cli before the sdk) cannot arrive without it.
 const piecesRemovedWith = (removed: string[]): string[] => [
 	...new Set([
 		...removed,
@@ -288,7 +290,7 @@ export const templateUpgrade = async ({
 	const answers: TemplateAnswers = templateAnswers(appDirectory, template);
 	const fromFiles = tools.fetch(template.release);
 	const toFiles = tools.fetch(to);
-	// The project's lockfile is its own after app-create: its next install moves only what changed.
+	// The Project's lockfile is its own after app-create: its next install moves only what changed.
 	// So are the SDK's generated files once it has them: pnpm sdk-generate writes them from its API.
 	const sdkOwn = existsSync(join(appDirectory, "clients/sdk/openapi.json"));
 	const merged = (files: TemplateFile[]) =>

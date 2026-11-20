@@ -1,8 +1,8 @@
-// pnpm piece-remove <piece>: removes a piece of the stack from this Project (ui, live, cache,
-// redis, queue, analytics, error-tracking, api-reference, sdk or cli). It deletes the piece's files and its `piece-start:` to `piece-end:`
+// pnpm piece-remove <piece>: removes a Piece of the stack from this Project (ui, live, cache,
+// redis, queue, analytics, error-tracking, api-reference, sdk or cli). It deletes the Piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
-// commits. When the check fails it undoes the removal and lists the files that use the piece outside
-// its markers. docs/agents/pieces.md says what each piece is and how to take one back. Running it
+// commits. When the check fails it undoes the removal and lists the files that use the Piece outside
+// its markers. docs/agents/pieces.md says what each Piece is and how to take one back. Running it
 // again after a template-upgrade takes out the lines the upgrade brought back.
 import { spawnSync } from "node:child_process";
 import {
@@ -20,9 +20,9 @@ type PieceRemoval = {
 	// Pieces that must go first, when installed.
 	after?: string[];
 	// The packages it removes; the first one is how aggregate-create and this script tell it is gone,
-	// unless the piece has a folder.
+	// unless the Piece has a folder.
 	packages: string[];
-	// For a piece that adds no package to the app: the package folder (its package.json) that tells
+	// For a Piece that adds no package to the app: the package folder (its package.json) that tells
 	// it is there instead. A folder left with only ignored files, such as node_modules, does not.
 	folder?: string;
 	// Paths from the Project root, deleted when present.
@@ -81,7 +81,7 @@ const dependenciesAllowedEdit = (
 			`${JSON.stringify(edit(JSON.parse(text) as Record<string, string>), null, "\t")}\n`,
 	});
 
-// Drops the piece's packages; without the UI, Hono serves itself through @hono/node-server.
+// Drops the Piece's packages; without the UI, Hono serves itself through @hono/node-server.
 const dependenciesAllowedPieceRemove = (directory: string, piece: string) =>
 	dependenciesAllowedEdit(directory, (allowed) => {
 		for (const name of pieceRemovals[piece]?.packages ?? []) {
@@ -103,11 +103,11 @@ export const packagesInstalled = (directory: string): Set<string> => {
 	);
 };
 
-// What tells a piece is in a Project: its folder, else its first package.
+// What tells a Piece is in a Project: its folder, else its first package.
 export const pieceSign = (piece: string): string =>
 	pieceRemovals[piece]?.folder ?? pieceRemovals[piece]?.packages[0] ?? "";
 
-// The app's packages and the piece folders the Project holds: every pieceSign it shows.
+// The app's packages and the Piece folders the Project holds: every pieceSign it shows.
 export const pieceSignsFind = (directory: string): Set<string> =>
 	new Set([
 		...packagesInstalled(directory),
@@ -198,7 +198,7 @@ const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
 // The SCHEDULE_* overrides and the marker aggregate-create adds them at.
 const scheduleLines =
 	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# wiring: schedules\n)*/m;
-// REDIS_HOST_PORT, its decorator, and the unit tests' CACHE_URL.
+// REDIS_HOST_PORT and its decorator.
 const redisHostPortLines =
 	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;
 // The parts of the `dev` script the ui and queue removals edit (structure.test.ts holds them to it).
@@ -252,7 +252,7 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 	live: {
 		packages: ["@n8io/baseline-live"],
 		paths: ["src/live-hub-open.ts"],
-		srcFiles: /-live(\.test)?\.ts$/,
+		srcFiles: /-live(-routes)?(\.test)?\.ts$/,
 	},
 	queue: {
 		edit: (directory) => {
@@ -380,9 +380,9 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 
 const markerLine = /^[ \t]*(?:\/\/|#) piece-(start|end): ([a-z-]+)$/;
 
-// What is wrong with the piece markers in a file's text: a start without its end, an end without
-// its start, a block of a piece inside a block of the same piece, or blocks that cross each other.
-// Blocks of different pieces may nest; they may not interleave.
+// What is wrong with the Piece markers in a file's text: a start without its end, an end without
+// its start, a block of a Piece inside a block of the same Piece, or blocks that cross each other.
+// Blocks of different Pieces may nest; they may not interleave.
 export const pieceMarkersProblems = (text: string): string[] => {
 	const problems: string[] = [];
 	const open: { line: number; piece: string }[] = [];
@@ -420,8 +420,8 @@ export const pieceMarkersProblems = (text: string): string[] => {
 	return problems;
 };
 
-// What `.template.json` says about pieces: `piecesKept`, the pieces this Project keeps, and
-// `pieceFiles`, the Project's own paths that go with a piece, such as a test that exercises it.
+// What `.template.json` says about Pieces: `piecesKept`, the Pieces this Project keeps, and
+// `pieceFiles`, the Project's own paths that go with a Piece, such as a test that exercises it.
 // They live there, not in pieceRemovals, so this script stays the Template's and upgrades never conflict on them.
 export type PieceSettings = { files: Record<string, string[]>; kept: string[] };
 
@@ -486,7 +486,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 
 const usage = `usage: pnpm piece-remove <${Object.keys(pieceRemovals).join("|")}>`;
 
-// Why the piece cannot be removed from this Project now, or undefined when it can.
+// Why the Piece cannot be removed from this Project now, or undefined when it can.
 export const pieceRemoveRefusal = (
 	directory: string,
 	piece: string | undefined,
@@ -520,7 +520,7 @@ export const filesWalk = (directory: string): string[] =>
 		.filter((e) => e.isFile() && !e.parentPath.includes("node_modules"))
 		.map((e) => relative(directory, join(e.parentPath, e.name)));
 
-// Deletes the piece's files and blocks and edits what carries no markers. Leaves packages alone.
+// Deletes the Piece's files and blocks and edits what carries no markers. Leaves packages alone.
 // `filesList` says which files exist.
 const filesRemove = ({
 	directory,
@@ -584,7 +584,7 @@ const filesRemove = ({
 export const pieceFilesRemove = (directory: string, piece: string) =>
 	filesRemove({ directory, filesList: trackedFiles, piece });
 
-// Every piece whose pieceSign the Project lacks, redis included.
+// Every Piece whose pieceSign the Project lacks, redis included.
 export const piecesGoneFind = (directory: string): string[] => {
 	const signs = pieceSignsFind(directory);
 	return Object.keys(pieceRemovals).filter(
@@ -592,9 +592,9 @@ export const piecesGoneFind = (directory: string): string[] => {
 	);
 };
 
-// A freshly rendered tree as a Project that removed those pieces would have it: the pieces' files,
+// A freshly rendered tree as a Project that removed those Pieces would have it: the Pieces' files,
 // blocks, env lines and packages, by the same file, block, env and package steps as `pnpm piece-remove`. template-upgrade
-// renders both releases this way, so a removed piece never comes back.
+// renders both releases this way, so a removed Piece never comes back.
 export const piecesRemoveFromTree = (directory: string, removed: string[]) => {
 	for (const piece of removed) {
 		filesRemove({ directory, filesList: filesWalk, piece });
@@ -611,11 +611,11 @@ export const piecesRemoveFromTree = (directory: string, removed: string[]) => {
 
 // What a failed removal tells the person.
 export type PieceRemoveFailure = {
-	// Files the failing check names: the code that uses the piece outside its markers.
+	// Files the failing check names: the code that uses the Piece outside its markers.
 	files: string[];
 	output: string;
 	// Set when the package manager failed (registry, network, store), not the Project's code:
-	// the command that failed, such as `pnpm remove`. The piece is not to blame.
+	// the command that failed, such as `pnpm remove`. The Piece is not to blame.
 	packageManager?: string;
 	// False when the undo's own `pnpm install` failed too, so the tree needs one.
 	restored?: boolean;
@@ -669,7 +669,7 @@ const removalUndo = (directory: string): boolean => {
 	return toolRun(directory, ["install"]).ok;
 };
 
-// Removes the piece, then requires `pnpm check` to pass. On a failure it undoes the removal and
+// Removes the Piece, then requires `pnpm check` to pass. On a failure it undoes the removal and
 // returns what failed; on success it leaves the removal in the tree, uncommitted.
 export const pieceRemove = (
 	directory: string,
