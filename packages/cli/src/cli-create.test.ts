@@ -194,13 +194,28 @@ describe("cliCreate", () => {
 			code: 1,
 			stderr: "No environment dev: pick one of development, production.\n",
 		});
+		const fromEnvVar = await cliRun(["foo", "get", "--id", "1"], {
+			ACME_APP_ENV: "dev",
+		});
+		expect(fromEnvVar.stderr).toBe(
+			"No environment dev: pick one of development, production.\n",
+		);
+		// A relative, templated or unnamed server names no environment.
 		const unlisted = await cliRun(["foo", "get", "--id", "1"], {
 			ACME_APP_ENV: "development",
-			CLI_TEST_SERVERS: "[]",
+			CLI_TEST_SERVERS: JSON.stringify([
+				{ description: "development", url: "/" },
+				{ description: "eu", url: "https://{region}.acme.example" },
+				{ url: "https://api.acme.example" },
+			]),
 		});
 		expect(unlisted.stderr).toBe(
-			"No environment development: pick one of none listed.\n",
+			"No environment development: pick one of none: use a URL.\n",
 		);
+		const empty = await cliRun(["foo", "get", "--id", "1", "--env", ""], {
+			ACME_APP_ENV: "production",
+		});
+		expect(empty).toMatchObject({ code: 1, stderr: "--env needs a value.\n" });
 	});
 
 	it("exits 1 without a required path field", async () => {
@@ -218,6 +233,8 @@ describe("cliCreate", () => {
 		expect(root.stdout.replace(/\s+/g, " ")).toContain(
 			"the environment (default ACME_APP_ENV): development, production",
 		);
+		const login = await cliRun(["login", "--help"]);
+		expect(login.stdout).toMatch(/--env <name>/);
 		const foo = await cliRun(["foo", "--help"]);
 		expect(foo.stdout).toMatch(/create \[options\]\s+Create a foo/);
 		expect(foo.stdout).toMatch(/get \[options\]\s+Read a foo/);
@@ -392,6 +409,19 @@ describe("login", () => {
 			stderr:
 				"login failed: http://example.com is not https, so the client secret would travel in the clear\n",
 		});
+	});
+
+	it("logs in over a login.json it cannot read", async () => {
+		const home = join(config, "corrupt");
+		const file = join(home, "acme-app", "login.json");
+		await mkdir(join(file, ".."), { recursive: true });
+		await writeFile(file, "{bad");
+		const login = await cliRun(["login", "--client-id", "ci"], {
+			ACME_APP_URL: base,
+			XDG_CONFIG_HOME: home,
+		});
+		expect(login.code).toBe(0);
+		expect(JSON.parse(await readFile(file, "utf8"))[base].token).toBe("stored");
 	});
 
 	it("keeps a login per environment, and drops an older file's single login", async () => {

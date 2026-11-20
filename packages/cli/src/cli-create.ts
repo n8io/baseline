@@ -170,16 +170,19 @@ const responsePrint = (response: unknown): void => {
 	}
 };
 
-// The environments the document lists in `servers`: each `description` names one URL.
+// The environments the document lists in `servers`: each `description` names one absolute URL.
+// A relative or templated server URL (`/`, `https://{region}.acme.dev`) names none.
 const environmentsRead = (document: CliDocument): Map<string, string> =>
 	new Map(
 		(document.servers ?? []).flatMap(({ description, url }) =>
-			description === undefined ? [] : [[description, url]],
+			description === undefined || !URL.canParse(url) || url.includes("{")
+				? []
+				: [[description, url]],
 		),
 	);
 
 const environmentNames = (document: CliDocument): string =>
-	[...environmentsRead(document).keys()].join(", ") || "none listed";
+	[...environmentsRead(document).keys()].join(", ") || "none: use a URL";
 
 // The base URL: --url, else --env, else <NAME>_URL, else <NAME>_ENV. A flag beats an env var,
 // and at each level a URL overrides an environment.
@@ -193,15 +196,17 @@ const urlRead = ({
 	options: Options;
 }): string => {
 	const prefix = cliEnvPrefix(name);
+	// An empty flag (`--env "$UNSET"`) is an error, not a fall through to the env vars.
 	const [kind, value] =
 		(
 			[
 				["url", options.url],
 				["env", options.env],
-				["url", process.env[`${prefix}_URL`]],
-				["env", process.env[`${prefix}_ENV`]],
+				["url", process.env[`${prefix}_URL`] || undefined],
+				["env", process.env[`${prefix}_ENV`] || undefined],
 			] as const
-		).find(([, given]) => typeof given === "string" && given !== "") ?? [];
+		).find(([, given]) => typeof given === "string") ?? [];
+	if (value === "") throw new Error(`--${kind} needs a value.`);
 	if (typeof value !== "string") {
 		throw new Error(
 			`Pick an environment with --env or ${prefix}_ENV (${environmentNames(document)}), or set a URL with --url or ${prefix}_URL.`,
@@ -246,6 +251,7 @@ const loginAdd = ({
 			`Sign in a machine client and store its token. The client secret comes from ${cliEnvPrefix(name)}_CLIENT_SECRET or stdin.`,
 		)
 		.requiredOption("--client-id <id>", "the machine client's id")
+		.configureHelp({ showGlobalOptions: true })
 		.option("--scope <scopes...>", "scopes to ask for (default all)")
 		.action(async (_options: Options, command: Command) => {
 			const options = command.optsWithGlobals<Options>();
@@ -285,7 +291,7 @@ const programCreate = ({
 		)
 		.option(
 			"--url <url>",
-			`a base URL that overrides the environment, for tests and one-off servers (default ${prefix}_URL)`,
+			`a base URL that beats --env, for tests and one-off servers (default ${prefix}_URL, which --env beats)`,
 		)
 		.option(
 			"--token <token>",

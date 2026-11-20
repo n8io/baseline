@@ -83,12 +83,12 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 
 <details><summary><b>Environment, URL, token and login</b></summary>
 
-- An environment is a name in the document's `servers`: each server's `description` is the name and its `url` the base URL. The Template's `sdk-generate` script writes them there from `clients/environments.json`, so a published SDK carries every listed URL. `--help` lists the names.
+- An environment is a name in the document's `servers`: each server's `description` is the name and its absolute `url` the base URL (a relative or templated URL names none). `--help` lists the names. A published SDK carries its document, so every listed URL is public to whoever can install it.
 - The base URL is `--url`, else `--env`'s URL, else `<NAME>_URL`, else `<NAME>_ENV`'s URL: a flag beats an env var, and a URL overrides an environment. There is no default environment: with neither, a command exits 1 and lists the names, and an unknown name exits 1 the same way.
 - `--url` and `<NAME>_URL` are an override for tests, a worktree's own instance or a one-off server; pick an environment otherwise.
 - The token is `--token`, else `<NAME>_TOKEN`, else the stored login for that base URL.
 - `<name> login --env <name> --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
-- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere, one login per URL (a login stored by an older version is dropped, so log in again): the folder is mode 700 and the file 600, written to a new file and renamed into place.
+- The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere, one login per URL (an expired login, or one stored by an older version, is dropped; two `login`s at once may keep only one): the folder is mode 700 and the file 600, written to a new file and renamed into place.
 
 </details>
 

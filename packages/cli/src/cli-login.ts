@@ -11,13 +11,18 @@ import { sdkFetchCreate } from "@n8io/baseline-sdk";
 
 type CliLogin = { expiresAt: string; token: string };
 
-// The stored file: a login per URL. Anything else in it (an older file's shape) is dropped.
-const loginsRead = async (name: string): Promise<Record<string, CliLogin>> =>
-	Object.fromEntries(
+// The stored file: a login per URL. A missing or unreadable file, an older file's shape and an
+// expired login read as none, so the next `login` writes a clean file.
+const loginsRead = async (name: string): Promise<Record<string, CliLogin>> => {
+	const stored: unknown = await readFile(cliLoginPath(name), "utf8")
+		.then(JSON.parse)
+		.catch(() => null);
+	return Object.fromEntries(
 		Object.entries(
-			await readFile(cliLoginPath(name), "utf8").then(JSON.parse, () => ({})),
-		).filter(([, login]) => typeof login === "object" && login !== null),
-	) as Record<string, CliLogin>;
+			typeof stored === "object" && stored !== null ? stored : {},
+		).filter(([, login]) => Date.parse(login?.expiresAt) > Date.now()),
+	);
+};
 
 // The SDK's fetch, so the token request has the same timeouts; a POST is never retried.
 const { sdkFetch } = sdkFetchCreate();
@@ -53,11 +58,8 @@ export const cliLoginTokenRead = async ({
 	name: string;
 	url: string;
 }): Promise<string | undefined> => {
-	const stored: Partial<CliLogin> = (await loginsRead(name))[url] ?? {};
-	return typeof stored.token === "string" &&
-		Date.parse(stored.expiresAt ?? "") > Date.now()
-		? stored.token
-		: undefined;
+	const { token } = (await loginsRead(name))[url] ?? {};
+	return typeof token === "string" ? token : undefined;
 };
 
 // The client secret: `<NAME>_CLIENT_SECRET`, else stdin from a shell pipe or a file, never a
