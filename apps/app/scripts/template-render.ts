@@ -455,7 +455,8 @@ const templateFooPaths = [
 ];
 
 // Never rendered: the scripts and their tests name foo on purpose, and the changelog is the template's own.
-const templateUntouchedPaths = [/^scripts\//];
+// The lockfile names no foo, but an integrity hash can hold "Foo", and dropping that line breaks it.
+const templateUntouchedPaths = [/^scripts\//, /^pnpm-lock\.yaml$/];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines between a `wiring: contexts-start` and `contexts-end` marker pair are valid only while
