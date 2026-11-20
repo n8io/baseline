@@ -39,6 +39,8 @@ describe("logger", () => {
 	it("throws a TypeError on import when LOG_LEVEL is not a level", async () => {
 		vi.stubEnv("LOG_LEVEL", "verbose");
 
+		await expect(import("./logger.ts")).rejects.toThrow(TypeError);
+		vi.resetModules();
 		await expect(import("./logger.ts")).rejects.toThrow(
 			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, not "verbose"',
 		);

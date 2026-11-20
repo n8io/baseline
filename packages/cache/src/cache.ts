@@ -79,6 +79,8 @@ const cacheJsonParse = (json: string): unknown => {
  * A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
  * validated by the schema on read. An entry that fails it (an older deploy may have
  * written it) counts as a miss. So does a store that fails, unless `onStoreError` is "throw".
+ * Throws `TypeError` on a `ttlMs` that is not a positive integer, an empty `prefix` or an unknown
+ * `onStoreError`.
  */
 export function cacheCreate<T>(
 	store: CacheStore,

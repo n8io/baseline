@@ -246,14 +246,16 @@ describe("liveStreamCreate", () => {
 
 	it("refuses a hub it did not make", () => {
 		expect(() =>
-			liveHubStreams(
-				{
+			liveStreamCreate({
+				channel: "foo",
+				expiresAt: Number.POSITIVE_INFINITY,
+				id: "foo_1",
+				liveHub: {
 					close: async () => {},
 					[Symbol.asyncDispose]: async () => {},
 					send: async () => {},
 				},
-				"liveStreamCreate",
-			),
+			}),
 		).toThrow(
 			"liveStreamCreate: liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
 		);

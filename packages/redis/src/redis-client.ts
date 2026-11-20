@@ -104,7 +104,8 @@ const redisVendorAssert = ({
  * unreachable Redis stops startup within the 3 s connect timeout instead of retrying. After that a
  * dropped connection reconnects every min(retries × 100 ms, 2 s), for as long as it takes. One URL
  * fits a highly available Redis whose endpoint follows the primary (a managed one, or a proxy in
- * front of Sentinel); Sentinel or Cluster addressed directly is not supported.
+ * front of Sentinel); Sentinel or Cluster addressed directly is not supported. Rejects with
+ * `TypeError` on a `url` that is not `redis://` or `rediss://`.
  */
 export const redisClientCreate = async ({
 	url,

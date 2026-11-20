@@ -84,6 +84,9 @@ export const queueMigrate = async (
 		await queueMigrateIndexesWait(boss);
 		for (const name of options.queuesRemoved ?? []) {
 			await boss.deleteQueue(queueOrderedName(name));
+			// A Schedule's queue has the plain name, and pg-boss refuses to delete `.dead` while
+			// a queue still points at it, so the plain one goes first.
+			await boss.deleteQueue(name);
 			await boss.deleteQueue(`${name}.dead`);
 		}
 		await boss.getDb().executeSql(queueInboxTableSql);

@@ -5,7 +5,7 @@ import { build } from "tsdown";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { cliCreate } from "./cli.ts";
 import { cliTestDocument, cliTestOperations } from "./cli-test-app.ts";
-import { cliTestRun } from "./cli-test-run.ts";
+import { cliTestProcessRun } from "./cli-test-process.ts";
 
 const url = "http://127.0.0.1:1";
 let config: string;
@@ -15,7 +15,12 @@ const cliRun = (
 	env: Record<string, string> = {},
 	stdin?: string,
 ) =>
-	cliTestRun({ args, config, env, ...(stdin === undefined ? {} : { stdin }) });
+	cliTestProcessRun({
+		args,
+		config,
+		env,
+		...(stdin === undefined ? {} : { stdin }),
+	});
 
 beforeAll(async () => {
 	config = await mkdtemp(join(tmpdir(), "cli-test-"));

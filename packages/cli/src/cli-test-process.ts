@@ -4,8 +4,8 @@ import { promisify } from "node:util";
 
 const app = join(import.meta.dirname, "cli-test-app.ts");
 
-/** What `cliTestRun` takes. */
-type CliTestRunOptions = {
+/** What `cliTestProcessRun` takes. */
+type CliTestProcessRunOptions = {
 	args: string[];
 	/** The config directory this run gets as XDG_CONFIG_HOME. */
 	config: string;
@@ -14,15 +14,15 @@ type CliTestRunOptions = {
 };
 
 /** What a fixture CLI run printed and exited with. */
-type CliTestRunResult = { code: number; stderr: string; stdout: string };
+type CliTestProcessRunResult = { code: number; stderr: string; stdout: string };
 
-// Runs the fixture CLI as its own process, with a config directory of its own.
-export const cliTestRun = async ({
+/** Runs the fixture CLI as its own process, with a config directory of its own. */
+export const cliTestProcessRun = async ({
 	args,
 	config,
 	env = {},
 	stdin,
-}: CliTestRunOptions): Promise<CliTestRunResult> => {
+}: CliTestProcessRunOptions): Promise<CliTestProcessRunResult> => {
 	const run = promisify(execFile)(process.execPath, [app, ...args], {
 		env: { PATH: process.env.PATH ?? "", XDG_CONFIG_HOME: config, ...env },
 	});

@@ -219,7 +219,7 @@ The queue reports a failed poll as a plain object; the Package logs it as an `Er
 - `queueMigrate` and `queueSchedulesSync` throw on a `vendor` key other than `ssl`, `application_name` and `options`, and on `vendor.ssl` beside an `ssl…` parameter in `databaseUrl`. Their type already allowed only those three keys, so typed code is unaffected unless it sets TLS in both `vendor.ssl` and the URL.
 - A bad option's `TypeError` message now starts with the function's name (`queueCreate: concurrency must be a positive integer`).
 - Each options object has an exported type (`QueueOptions`, `QueueMigrateOptions` and the rest under Exports), and an optional field also takes `null` for its default.
-- The path for releases before 8 is gone: a worker no longer drains an unordered `<queueName>` queue, and `queueMigrate` no longer deletes one. Coming from 7 or earlier, upgrade to 8 first and follow its README's "Upgrading to 8" (Schedules moved too). 8's migrate deletes an old queue only once it has been idle for a week, so after that week run migrate on 8 once more and check that `SELECT name FROM queue.queue WHERE policy = 'standard'` lists no Event handler's `queueName`; then upgrade to 9.
+- The path for releases before 8 is gone: a worker no longer drains an unordered `<queueName>` queue. Coming from 7 or earlier, upgrade to 8 first and follow its README's "Upgrading to 8" (Schedules moved too). 8's migrate deletes an old queue only once it has been idle for a week, so after that week run migrate on 8 once more and check that `SELECT name FROM queue.queue WHERE policy = 'standard'` lists no Event handler's `queueName`; then upgrade to 9.
 
 </details>
 

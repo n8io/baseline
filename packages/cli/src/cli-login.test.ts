@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { cliTestRun } from "./cli-test-run.ts";
+import { cliTestProcessRun } from "./cli-test-process.ts";
 
 const app = join(import.meta.dirname, "cli-test-app.ts");
 const url = "http://127.0.0.1:1";
@@ -23,7 +23,12 @@ const cliRun = (
 	env: Record<string, string> = {},
 	stdin?: string,
 ) =>
-	cliTestRun({ args, config, env, ...(stdin === undefined ? {} : { stdin }) });
+	cliTestProcessRun({
+		args,
+		config,
+		env,
+		...(stdin === undefined ? {} : { stdin }),
+	});
 
 beforeAll(async () => {
 	config = await mkdtemp(join(tmpdir(), "cli-test-"));
