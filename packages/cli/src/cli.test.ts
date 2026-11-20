@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { build } from "tsdown";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { cliCreate } from "./cli-create.ts";
+import { cliCreate } from "./cli.ts";
 import { cliTestDocument, cliTestOperations } from "./cli-test-app.ts";
 
 const app = join(import.meta.dirname, "cli-test-app.ts");
@@ -277,7 +277,11 @@ describe("cliCreate", () => {
 		const { fooGet: _, ...operations } = cliTestOperations;
 		expect(() =>
 			cliCreate({ document: cliTestDocument, name: "acme-app", operations }),
-		).toThrow("cliCreate: operations has no fooGet");
+		).toThrow(
+			new TypeError(
+				"cliCreate: operations has no fooGet; regenerate the SDK from this document",
+			),
+		);
 	});
 });
 

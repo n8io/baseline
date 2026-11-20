@@ -15,7 +15,7 @@ const sourcesShipped = readdirSync(sourceDirectory, { recursive: true })
 	);
 
 it("ships source with no node: import and no Node global, so it runs in a browser", () => {
-	expect(sourcesShipped).toContain("sdk-fetch-create.ts");
+	expect(sourcesShipped).toContain("sdk-fetch.ts");
 	for (const path of sourcesShipped) {
 		const source = readFileSync(`${sourceDirectory}${path}`, "utf8");
 		const imported = [

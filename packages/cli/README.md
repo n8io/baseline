@@ -10,15 +10,15 @@ pnpm add @n8io/baseline-cli
 
 ## Guarantees
 
-| You get                             | How                                                                                                                                                                                                                  |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Commands named like the API**     | `<tag> <rest of operationId>` in kebab-case, grouped by tag in `--help`, with each operation's summary and description as its help.                                                                                  |
-| **Flags for every field**           | Path, query and JSON body fields become kebab-case flags (`customerId` is `--customer-id`); `--data '<json>'` or `--data @file.json` sends a whole body.                                                             |
-| **Output scripts can read**         | A response prints its JSON to stdout. A Problem prints `title: code` to stderr and exits 1, so `&&` and `set -e` stop on it.                                                                                         |
-| **Secrets kept off the screen**     | `login` reads the client secret from `<NAME>_CLIENT_SECRET` or stdin, never a flag, and stores the token in the OS config directory with mode 600.                                                                   |
-| **Environments by name**            | `--env production` (or `<NAME>_ENV`) picks a URL from the document's `servers`; with no environment and no URL a command exits 1 and lists the names, so it never guesses.                                           |
-| **A token only where it came from** | A login is stored per URL, so each environment keeps its own; it is sent only to the URL it was issued by, and only until it expires; `login` refuses plain `http://` except to this machine.                        |
-| **A document it can name**          | `cliCreate` throws at once on an operation without exactly one tag that its operationId starts with, a header or cookie parameter, a name the CLI keeps for itself, or no SDK function, instead of on a user's call. |
+| You get                             | How                                                                                                                                                                                                                                                                                       |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Commands named like the API**     | `<tag> <rest of operationId>` in kebab-case, grouped by tag in `--help`, with each operation's summary and description as its help.                                                                                                                                                       |
+| **Flags for every field**           | Path, query and JSON body fields become kebab-case flags (`customerId` is `--customer-id`); `--data '<json>'` or `--data @file.json` sends a whole body.                                                                                                                                  |
+| **Output scripts can read**         | A response prints its JSON to stdout. A Problem prints `title: code` to stderr and exits 1, so `&&` and `set -e` stop on it.                                                                                                                                                              |
+| **Secrets kept off the screen**     | `login` reads the client secret from `<NAME>_CLIENT_SECRET` or stdin, never a flag, and stores the token in the OS config directory with mode 600.                                                                                                                                        |
+| **Environments by name**            | `--env production` (or `<NAME>_ENV`) picks a URL from the document's `servers`; with no environment and no URL a command exits 1 and lists the names, so it never guesses.                                                                                                                |
+| **A token only where it came from** | A login is stored per URL, so each environment keeps its own; it is sent only to the URL it was issued by, and only until it expires; `login` refuses plain `http://` except to this machine.                                                                                             |
+| **A document it can name**          | `cliCreate` throws a `TypeError` (`cliCreate: document …` or `cliCreate: operations …`) at once on an operation without exactly one tag that its operationId starts with, a header or cookie parameter, a name the CLI keeps for itself, or no SDK function, instead of on a user's call. |
 
 ## Example
 
@@ -41,7 +41,7 @@ echo "$SECRET" | acme login --client-id ci
 acme foo create --name x
 ```
 
-Test it as its users run it: start the CLI as a child process over a fixture document and fake operations that answer with the arguments they got, and read its stdout, stderr and exit code (`src/cli-create.test.ts`).
+Test it as its users run it: start the CLI as a child process over a fixture document and fake operations that answer with the arguments they got, and read its stdout, stderr and exit code (`src/cli.test.ts`).
 
 ## Reference
 
@@ -53,6 +53,7 @@ Test it as its users run it: start the CLI as a child process over a fixture doc
 | `Cli`                                       | `run(argv)` runs one command from the arguments after the script (`process.argv.slice(2)`) and sets `process.exitCode`.                                                              |
 | `CliOperation`                              | An SDK function, called as described below.                                                                                                                                          |
 | `CliOperationResponse`                      | What an SDK function resolves to: `{ status, data }`.                                                                                                                                |
+| `CliOptions`                                | `{ document, name, operations }`, what `cliCreate` takes.                                                                                                                            |
 | `CliRequest`                                | The last argument of every call: `{ baseUrl, token? }`.                                                                                                                              |
 | `CliDocument`                               | The parts of an OpenAPI document the CLI reads.                                                                                                                                      |
 
