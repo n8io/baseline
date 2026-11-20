@@ -14,16 +14,16 @@ const eventSourceCreate: LiveEventSourceCreate = (url) =>
 
 /** What `useLiveUpdates` takes. */
 export type LiveUpdatesOptions = {
-	/** The channel the server sends on, such as `invoice`. */
+	/** The channel the Server sends on, such as `invoice`. */
 	channel: string;
 	/** `null` opens no stream, for a page that has no id to follow yet. */
 	id: string | null;
-	/** Where the server mounts the streams. Defaults to `/live`. */
+	/** Where the Server mounts the streams. Defaults to `/live`. */
 	pathPrefix?: string | null;
 };
 
 /**
- * Reruns the page's loaders whenever (channel, id) changes on the server, and
+ * Reruns the page's loaders whenever (channel, id) changes on the Server, and
  * whenever the stream at `<pathPrefix>/<channel>/<id>` (re)connects.
  */
 export const useLiveUpdates = ({

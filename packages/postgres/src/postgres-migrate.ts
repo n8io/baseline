@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
+import {
+	postgresDurationIs,
+	postgresDurationMessage,
+} from "./postgres-pool.ts";
 import { postgresUrlAssert } from "./postgres-url-assert.ts";
 import {
 	type PostgresVendorOwnedKey,
@@ -29,9 +33,13 @@ const lockNotAvailable = "55P03";
 
 /** What `postgresMigrate` takes. */
 export type PostgresMigrateOptions = {
+	/** The Postgres URL, `postgres://` or `postgresql://`; it must reach Postgres, not a pooler. */
 	databaseUrl: string;
+	/** How long the connect may take. Default 3 s. */
+	connectTimeoutMs?: number | null;
 	/** How long to wait for another run to release the lock. Default 60 s. */
 	lockWaitMs?: number | null;
+	/** The folder of Drizzle migrations to apply. */
 	migrationsFolder: string;
 	/** Settings only pg has, such as `ssl`: the same ones the pool takes. */
 	vendor?: PostgresMigrateVendorOptions | null;
@@ -41,6 +49,9 @@ export type PostgresMigrateOptions = {
  * Applies pending Drizzle migrations under an advisory lock, so concurrent runs (several
  * containers starting at once) apply each migration once: a second run waits, then finds nothing.
  * The lock belongs to the session, so the connection must reach Postgres itself, not a pooler.
+ * Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL, a `vendor` key the
+ * named options or the URL already set, or a `connectTimeoutMs` or `lockWaitMs` that is not a
+ * positive integer or is over 2147483647.
  */
 export const postgresMigrate = async (
 	options: PostgresMigrateOptions,
@@ -51,17 +62,23 @@ export const postgresMigrate = async (
 		databaseUrl: options.databaseUrl,
 		vendor: options.vendor ?? {},
 	});
-	const lockWaitMs = options.lockWaitMs ?? 60_000;
-	if (!Number.isSafeInteger(lockWaitMs) || lockWaitMs <= 0) {
+	const connectTimeoutMs = options.connectTimeoutMs ?? 3_000;
+	if (!postgresDurationIs(connectTimeoutMs)) {
 		throw new TypeError(
-			"postgresMigrate: lockWaitMs must be a positive integer",
+			`postgresMigrate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
+		);
+	}
+	const lockWaitMs = options.lockWaitMs ?? 60_000;
+	if (!postgresDurationIs(lockWaitMs)) {
+		throw new TypeError(
+			`postgresMigrate: lockWaitMs must be ${postgresDurationMessage}, found ${lockWaitMs}`,
 		);
 	}
 	// @types/pg leaves out processID: the backend pid the server named at connect.
 	const pgClient: pg.Client & { processID?: number | null } = new pg.Client({
 		...options.vendor,
 		connectionString: options.databaseUrl,
-		connectionTimeoutMillis: 3_000,
+		connectionTimeoutMillis: connectTimeoutMs,
 	});
 	await pgClient.connect();
 	try {

@@ -1,5 +1,6 @@
 import { trace } from "@opentelemetry/api";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { authnMiddlewareCreate } from "./authn-middleware.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
 	authnTestMemoryOptions,
@@ -117,5 +118,17 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 		});
 
 		expect(await res.json()).toMatchObject({ code: "AuthnRequired" });
+	});
+});
+
+describe("authnMiddlewareCreate source", () => {
+	it("refuses a source that is neither bearer nor cookie", async () => {
+		const { authn } = await authnTestAppCreate();
+
+		expect(() =>
+			authnMiddlewareCreate(authn, { source: "header" as "bearer" }),
+		).toThrow(
+			'authnMiddlewareCreate: source must be "bearer" or "cookie", found "header"',
+		);
 	});
 });

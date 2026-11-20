@@ -29,7 +29,7 @@ export const queueInboxInsert = async (
 };
 
 /**
- * The Package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
+ * The Package's own Schedule; queueSchedulesSync never removes names in the `queue.` namespace.
  */
 export const queueInboxPruneName = "queue.inbox-prune";
 

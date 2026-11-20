@@ -65,7 +65,7 @@ const redisUrlAssert = (url: string): void => {
 	}
 	if (protocol !== "redis:" && protocol !== "rediss:") {
 		throw new TypeError(
-			`redisClientCreate: url must start with redis:// or rediss://, found "${protocol.slice(0, -1)}"`,
+			`redisClientCreate: url must start with redis:// or rediss://, found "${protocol}//"`,
 		);
 	}
 };

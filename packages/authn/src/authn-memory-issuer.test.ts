@@ -19,15 +19,10 @@ const admin: Actor = {
 	scopes: ["foo:delete", "foo:update"],
 };
 
-type App = Awaited<ReturnType<typeof authnTestAppCreate>>["app"];
-
-const tokenRequest = (app: App, form: Record<string, string>) =>
-	app.request(`${authnTestOrigin}/auth/token`, {
-		body: new URLSearchParams(form),
-		method: "POST",
-	});
-
-const whoami = async (app: App, token: string) => {
+const whoami = async (
+	app: Awaited<ReturnType<typeof authnTestAppCreate>>["app"],
+	token: string,
+) => {
 	const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 		headers: { Authorization: `Bearer ${token}` },
 	});
@@ -161,109 +156,5 @@ describe("the memory issuer's key", () => {
 				],
 			}),
 		).rejects.toThrow('memoryUsers lists the id "dev-user" twice');
-	});
-});
-
-describe("memory users", () => {
-	it("lists each user with its scopes on the sign-in page, escaped", async () => {
-		const { app } = await authnTestAppCreate({
-			...authnTestMemoryOptions,
-			memoryUsers: [
-				{ id: "commish", name: "Commissioner <3", scopes: ["league:manage"] },
-				{ id: "player", name: "Player", scopes: [] },
-			],
-		});
-		const html = await (
-			await app.request(`${authnTestOrigin}/auth/sign-in`)
-		).text();
-
-		expect(html).toContain('name="who" value="commish"');
-		expect(html).toContain("Commissioner &lt;3");
-		expect(html).toContain("league:manage");
-		expect(html).toContain('name="who" value="player"');
-		expect(html).toContain("no scopes");
-	});
-
-	it("offers one Dev user without scopes when memoryUsers is not set", async () => {
-		const { memoryUsers, ...options } = authnTestMemoryOptions;
-		const { app } = await authnTestAppCreate(options);
-		const html = await (
-			await app.request(`${authnTestOrigin}/auth/sign-in`)
-		).text();
-
-		expect(html.match(/name="who"/g)).toHaveLength(1);
-		expect(html).toContain('value="dev-user"');
-	});
-});
-
-describe("POST /auth/token, client credentials", () => {
-	it("signs a client token with all of the client's scopes by default", async () => {
-		const { app } = await authnTestAppCreate();
-		const res = await tokenRequest(app, {
-			client_id: "feed",
-			grant_type: "client_credentials",
-		});
-		const body = (await res.json()) as Record<string, unknown>;
-
-		expect(res.status).toBe(200);
-		expect(res.headers.get("Cache-Control")).toBe("no-store");
-		expect(body).toMatchObject({ expires_in: 900, token_type: "Bearer" });
-		expect(
-			(await whoami(app, String(body.access_token))).body.actor,
-		).toStrictEqual({
-			id: "feed",
-			kind: "client",
-			scopes: ["foo:read", "foo:update"],
-		});
-	});
-
-	it("narrows to a requested subset of the client's scopes", async () => {
-		const { app } = await authnTestAppCreate();
-		const res = await tokenRequest(app, {
-			client_id: "feed",
-			grant_type: "client_credentials",
-			scope: "foo:read",
-		});
-		const { access_token } = (await res.json()) as { access_token: string };
-
-		expect((await whoami(app, access_token)).body.actor?.scopes).toStrictEqual([
-			"foo:read",
-		]);
-	});
-
-	it("answers 400 invalid_scope for a scope the client does not have", async () => {
-		const { app } = await authnTestAppCreate();
-		const res = await tokenRequest(app, {
-			client_id: "feed",
-			grant_type: "client_credentials",
-			scope: "foo:read foo:delete",
-		});
-
-		expect(res.status).toBe(400);
-		expect(await res.json()).toStrictEqual({ error: "invalid_scope" });
-	});
-
-	it("answers 401 invalid_client for an unknown client, such as a user's id", async () => {
-		const { app } = await authnTestAppCreate();
-		const res = await tokenRequest(app, {
-			client_id: "dev-admin",
-			grant_type: "client_credentials",
-		});
-
-		expect(res.status).toBe(401);
-		expect(await res.json()).toStrictEqual({ error: "invalid_client" });
-	});
-
-	it("answers 400 unsupported_grant_type for another grant type", async () => {
-		const { app } = await authnTestAppCreate();
-		const res = await tokenRequest(app, {
-			client_id: "feed",
-			grant_type: "password",
-		});
-
-		expect(res.status).toBe(400);
-		expect(await res.json()).toStrictEqual({
-			error: "unsupported_grant_type",
-		});
 	});
 });

@@ -46,12 +46,16 @@ const shutdown = shutdownHandleCreate({
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                                     | Does                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })` | Owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash. A second signal is ignored. A `deadlineMs` that is not an integer over 5000, or a `drainDelayMs` that is not a whole number under `deadlineMs` minus 5000, throws a `TypeError`. |
-| `ShutdownOptions`                                                          | The options object above. `null` means the default, as leaving it out does.                                                                                                                                                                                                                                                                     |
-| `ShutdownHandle`                                                           | `isShuttingDown()`, for `/readyz`.                                                                                                                                                                                                                                                                                                              |
-| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Event handlers) or resource (queue, pools, clients, health, telemetry).                                                                                                                                                                                                               |
+| Export                                                                     | Does                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shutdownHandleCreate({ intakes, resources, deadlineMs?, drainDelayMs? })` | Owns `SIGTERM`, `SIGINT`, `uncaughtException` and `unhandledRejection`, and exits the process: 0 when every step closed in time, 1 otherwise or after a crash. A second signal is ignored. A `deadlineMs` that is not an integer over 5000 and at most 2147483647, or a `drainDelayMs` that is not a whole number under `deadlineMs` minus 5000, throws a `TypeError`. |
+| `ShutdownOptions`                                                          | The options object above. `null` means the default, as leaving it out does.                                                                                                                                                                                                                                                                                            |
+| `ShutdownHandle`                                                           | `isShuttingDown()`, for `/readyz`.                                                                                                                                                                                                                                                                                                                                     |
+| `ShutdownStep`                                                             | `{ name, close }`: one intake (HTTP server, live streams, Event handlers) or resource (queue, pools, clients, health, telemetry).                                                                                                                                                                                                                                      |
+
+</details>
+
+<details><summary><b>The steps</b></summary>
 
 The steps, counted from the signal:
 
@@ -59,6 +63,7 @@ The steps, counted from the signal:
 2. Closes every intake (HTTP server, live streams, Event handlers) at once. One still open at the cutoff (`deadlineMs` minus 5 s) is logged at warn, and shutdown moves on.
 3. Closes each resource (queue, pools, clients, health, telemetry last) in order. One still open at the deadline is logged at error, with every resource after it.
 4. Gives up at `deadlineMs` (default 25 s), keeping the last 5 s for the resources, and logs `Shutdown finished` with the exit code.
+
 </details>
 
-**Needs** no peers (it logs through `@n8io/baseline-logger`, a dependency); `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package).
+**Needs** `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package); no peers.

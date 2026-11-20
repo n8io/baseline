@@ -488,20 +488,20 @@ describe("sdkFetchCreate options", () => {
 	it("throws a TypeError naming the function and the option on a bad retry or timeout", async () => {
 		expect(() => overrideCreate({ retry: -1 })).toThrow(
 			new TypeError(
-				"sdkFetchCreate: defaults.retry must be a whole number, 0 or more",
+				"sdkFetchCreate: defaults.retry must be a whole number, 0 or more, found -1",
 			),
 		);
 		const { sdkConfigure, sdkFetch } = overrideCreate();
 		expect(() => sdkConfigure({ timeoutMs: 0 })).toThrow(
 			new TypeError(
-				"sdkConfigure: timeoutMs must be a positive integer, 2147483647 at most",
+				"sdkConfigure: timeoutMs must be a positive integer, 2147483647 at most, found 0",
 			),
 		);
 		await expect(
 			sdkFetch("/a", { method: "GET", totalTimeoutMs: Number.NaN }),
 		).rejects.toThrow(
 			new TypeError(
-				"sdkFetch: totalTimeoutMs must be a positive integer, 2147483647 at most",
+				"sdkFetch: totalTimeoutMs must be a positive integer, 2147483647 at most, found NaN",
 			),
 		);
 	});

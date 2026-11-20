@@ -176,6 +176,9 @@ const blueprintViolations = (name: string, markdown: string): string[] => {
 	const longExamples = [
 		...beforeReference.matchAll(/^```[^\n]*\n([\s\S]*?)^```/gm),
 	].filter((match) => (match[1] ?? "").trimEnd().split("\n").length > 15);
+	const foldsClosedTight = lines.filter(
+		(line, index) => line === "</details>" && (lines[index - 1] ?? "") !== "",
+	).length;
 	return [
 		lines[0] === `# @n8io/baseline-${name}`
 			? undefined
@@ -190,6 +193,9 @@ const blueprintViolations = (name: string, markdown: string): string[] => {
 		longExamples.length === 0
 			? undefined
 			: "keeps each example above Reference to 15 lines or fewer",
+		foldsClosedTight === 0
+			? undefined
+			: "leaves a blank line before each </details>",
 		lines.at(-1)?.startsWith("**Needs**") ? undefined : "ends on **Needs**",
 	]
 		.filter((violation) => violation !== undefined)
@@ -332,11 +338,16 @@ describe("Package READMEs in the Blueprint shape", () => {
 				good
 					.replace("## Example", "## Usage")
 					.replace("```ts", `\`\`\`ts\n${"a();\n".repeat(16)}`)
+					.replace(
+						"## Reference\n",
+						"## Reference\n\n<details>\nx\n</details>\n",
+					)
 					.replace("**Needs** `DATABASE_URL`.", ""),
 			),
 		).toEqual([
 			"packages/queue/README.md has the sections Guarantees, Example, Reference in that order, not Guarantees, Usage, Reference",
 			"packages/queue/README.md keeps each example above Reference to 15 lines or fewer",
+			"packages/queue/README.md leaves a blank line before each </details>",
 			"packages/queue/README.md ends on **Needs**",
 		]);
 	});

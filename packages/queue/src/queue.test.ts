@@ -23,11 +23,23 @@ describe("queueCreate", () => {
 		);
 	});
 
+	it.each(["Worker", "", undefined, null])("refuses role %j", async (role) => {
+		await expect(
+			queueCreate({ pgPool, role: role as "worker" }),
+		).rejects.toThrow(
+			new TypeError(
+				`queueCreate: role must be "publisher" or "worker", found ${JSON.stringify(role)}`,
+			),
+		);
+	});
+
 	it.each([0, -1, 1.5])("refuses concurrency %s", async (concurrency) => {
 		await expect(
 			queueCreate({ concurrency, pgPool, role: "worker" }),
 		).rejects.toThrow(
-			new TypeError("queueCreate: concurrency must be a positive integer"),
+			new TypeError(
+				`queueCreate: concurrency must be a positive integer, found ${concurrency}`,
+			),
 		);
 	});
 });

@@ -153,7 +153,7 @@ describe("authnMemoryAuthorizationCreate", () => {
 				}),
 			).toThrow(
 				new TypeError(
-					`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, got ${renewMs}`,
+					`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, found ${renewMs}`,
 				),
 			);
 		}

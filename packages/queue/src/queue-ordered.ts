@@ -1,6 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import { type Counter, type Gauge, metrics } from "@opentelemetry/api";
 import type { PgBoss } from "pg-boss";
+import type { QueueBlockedKey } from "./queue.ts";
 
 /**
  * A Consumer's jobs wait in the queue `<queueName>.ordered`, which hands out the jobs of one key
@@ -9,7 +10,7 @@ import type { PgBoss } from "pg-boss";
 export const queueOrderedName = (name: string): string => `${name}.ordered`;
 
 // The keys whose job failed for good, per Consumer. Such a job stays where it failed and holds back
-// the later Events of its key until someone releases it (README, "A blocked key"). `deleteAt` is
+// the later Events of its key until someone releases it (README, "Runbook: a blocked key"). `deleteAt` is
 // when the queue's own deletion time runs out: its next sweep from then (pg-boss's maintenance, at
 // most a day apart) deletes the job, so the key moves on without it. `waiting` counts the Events of
 // the key held back behind it.
@@ -52,7 +53,7 @@ const queueOrderedBlockedKeysRead = async (
 /** The keys held back by an Event that failed for good, as `Queue.blockedKeys()` returns them. */
 export const queueOrderedBlockedKeysList = async (
 	boss: PgBoss,
-): Promise<{ consumer: string; deleteAt: Date; key: string; since: Date }[]> =>
+): Promise<(QueueBlockedKey & { deleteAt: Date; since: Date })[]> =>
 	(await queueOrderedBlockedKeysRead(boss)).map(
 		({ consumer, deleteAt, key, since }) => ({
 			consumer,
@@ -65,7 +66,7 @@ export const queueOrderedBlockedKeysList = async (
 // The failed Event that holds back `key` for `consumer` (its queueName), if there is one.
 const queueOrderedBlockedEventId = async (
 	boss: PgBoss,
-	{ consumer, key }: { consumer: string; key: string },
+	{ consumer, key }: QueueBlockedKey,
 ): Promise<string | undefined> => {
 	const { rows } = await boss
 		.getDb()
@@ -86,7 +87,7 @@ const queueOrderedAffected = (response: unknown): number =>
  */
 export const queueOrderedBlockedKeyRetry = async (
 	boss: PgBoss,
-	blocked: { consumer: string; key: string },
+	blocked: QueueBlockedKey,
 ): Promise<boolean> => {
 	const id = await queueOrderedBlockedEventId(boss, blocked);
 	if (id === undefined) {
@@ -104,7 +105,7 @@ export const queueOrderedBlockedKeyRetry = async (
  */
 export const queueOrderedBlockedKeyGiveUp = async (
 	boss: PgBoss,
-	{ consumer, key }: { consumer: string; key: string },
+	{ consumer, key }: QueueBlockedKey,
 ): Promise<boolean> => {
 	const { rows } = await boss
 		.getDb()

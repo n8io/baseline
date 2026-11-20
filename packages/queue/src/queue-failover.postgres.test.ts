@@ -15,6 +15,9 @@ import {
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 
+// The tests are the caller here.
+const bossGet = (queue: Queue) => queueBossGet(queue, "test");
+
 // A TCP proxy in front of the test Postgres that can play a failover for this file alone: while
 // frozen, open connections go silent without closing (a primary that died) and new ones are
 // accepted but never answered. Unfreezing drops them all, so the next connect reaches Postgres.
@@ -96,7 +99,7 @@ describe("a Postgres failover longer than the liveness window", () => {
 		timeout: 150_000,
 	}, async () => {
 		vi.spyOn(logger, "error").mockReturnValue(undefined);
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		const handled: string[] = [];
 		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate({

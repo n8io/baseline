@@ -1,6 +1,11 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
-import type { PostgresClient, PostgresPool } from "./postgres-pool.ts";
+import {
+	type PostgresClient,
+	type PostgresPool,
+	postgresDurationIs,
+	postgresDurationMessage,
+} from "./postgres-pool.ts";
 
 // A client that throws on any use once its transaction has ended, so a callback that leaks it
 // (a stray promise, a closure kept for later) fails loudly instead of running outside it.
@@ -22,15 +27,19 @@ const clientGuard = (
 
 /** What `postgresTransactionRun` takes. */
 export type PostgresTransactionRunOptions<T, E> = {
+	/** The pool to check one client out of. */
 	pgPool: PostgresPool;
 	/** How long the transaction may run before Postgres ends it. Default 5 s. */
 	timeoutMs?: number | null;
+	/** Runs on the transaction's client; an ok Result commits, an err Result rolls back. */
 	work: (pgClient: PostgresClient) => Promise<Result<T, E>>;
 };
 
 /**
  * Runs `work` in one transaction on one checked-out client: COMMIT on ok, ROLLBACK on err or a
  * throw. transaction_timeout (Postgres 17+) ends a transaction that runs longer than timeoutMs.
+ * Throws a TypeError at the call on a `timeoutMs` that is not a positive integer or is over
+ * 2147483647.
  */
 export const postgresTransactionRun = async <T, E>({
 	pgPool,
@@ -38,9 +47,9 @@ export const postgresTransactionRun = async <T, E>({
 	work,
 }: PostgresTransactionRunOptions<T, E>): Promise<Result<T, E>> => {
 	const timeoutMs = timeoutMsGiven ?? 5_000;
-	if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+	if (!postgresDurationIs(timeoutMs)) {
 		throw new TypeError(
-			"postgresTransactionRun: timeoutMs must be a positive integer",
+			`postgresTransactionRun: timeoutMs must be ${postgresDurationMessage}, found ${timeoutMs}`,
 		);
 	}
 	const pgClient = await pgPool.connect();

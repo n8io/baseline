@@ -20,6 +20,21 @@ const item = pgTable("item", {
 });
 
 describe("postgresKeysetCreate", () => {
+	it("refuses a kind that is none of the four", () => {
+		expect(() =>
+			postgresKeysetCreate({
+				descending: false,
+				idColumn: item.id,
+				kind: "Text" as "text",
+				sortColumn: item.score,
+			}),
+		).toThrow(
+			new TypeError(
+				'postgresKeysetCreate: kind must be "date", "integer", "number" or "text", found "Text"',
+			),
+		);
+	});
+
 	it("gives only the order on the first page", () => {
 		const keyset = postgresKeysetCreate({
 			descending: false,

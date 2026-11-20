@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 // checked for every Package by test/package-testing.test.ts.
 const srcDir = new URL("./", import.meta.url);
 // `from "x"`, a bare `import "x"` and a dynamic `import("x")`.
+// Copied from packages/authn/src/index.test.ts; keep the two in step.
 const importPattern = /(?:\bfrom|\bimport)\s*\(?\s*"([^"]+)"/g;
 
 // Every specifier imported by index.ts and the files it reaches, keyed by file.

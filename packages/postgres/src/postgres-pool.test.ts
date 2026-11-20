@@ -100,10 +100,26 @@ describe("postgresPoolCreate", () => {
 					}),
 				).toThrow(
 					new TypeError(
-						`postgresPoolCreate: ${option} must be a positive integer${option === "queryTimeoutMs" ? " or null" : ""}`,
+						`postgresPoolCreate: ${option} must be a positive integer${option === "max" ? "" : ", 2147483647 at most"}${option === "queryTimeoutMs" ? " or null" : ""}, found ${value}`,
 					),
 				);
 			}
+		},
+	);
+
+	it.each(["connectTimeoutMs", "queryTimeoutMs"] as const)(
+		"refuses a %s over 2147483647, the most a timer holds",
+		(option) => {
+			expect(() =>
+				postgresPoolCreate({
+					databaseUrl: "postgres://localhost/db",
+					[option]: 2_147_483_648,
+				}),
+			).toThrow(
+				new TypeError(
+					`postgresPoolCreate: ${option} must be a positive integer, 2147483647 at most${option === "queryTimeoutMs" ? " or null" : ""}, found 2147483648`,
+				),
+			);
 		},
 	);
 

@@ -115,12 +115,16 @@ export type AuthnMiddlewareOptions = {
  * Sets `c.var.actor` and `c.var.authnExpiresAt`, or leaves them `undefined` when no token is
  * sent; it never rejects a missing token. A present but invalid token is never anonymous:
  * `"bearer"` throws `AuthnInvalidError` (401), `"cookie"` clears the cookies and redirects to
- * sign-in. A page GET with an expiring cookie token redirects to `/auth/refresh` first.
+ * sign-in. Any other `source` throws a `TypeError`. A page GET with an expiring cookie token redirects to `/auth/refresh` first.
  */
 export const authnMiddlewareCreate = (
 	authn: Authn,
 	options: AuthnMiddlewareOptions,
-): MiddlewareHandler =>
-	options.source === "bearer"
-		? bearerMiddleware(authnState(authn, "authnMiddlewareCreate"))
-		: cookieMiddleware(authnState(authn, "authnMiddlewareCreate"));
+): MiddlewareHandler => {
+	const state = authnState(authn, "authnMiddlewareCreate");
+	if (options.source === "bearer") return bearerMiddleware(state);
+	if (options.source === "cookie") return cookieMiddleware(state);
+	throw new TypeError(
+		`authnMiddlewareCreate: source must be "bearer" or "cookie", found "${String(options.source)}"`,
+	);
+};

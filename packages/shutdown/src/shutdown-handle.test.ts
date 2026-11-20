@@ -375,12 +375,13 @@ describe("shutdownHandleCreate", () => {
 	it.each([
 		[{ deadlineMs: 5000 }, "shutdownHandleCreate: deadlineMs"],
 		[{ deadlineMs: 10_000.5 }, "shutdownHandleCreate: deadlineMs"],
+		[{ deadlineMs: 2_147_483_648 }, "shutdownHandleCreate: deadlineMs"],
 		[{ deadlineMs: Number.NaN }, "shutdownHandleCreate: deadlineMs"],
 		[{ drainDelayMs: -1 }, "shutdownHandleCreate: drainDelayMs"],
 		[{ drainDelayMs: 0.5 }, "shutdownHandleCreate: drainDelayMs"],
 		[
 			{ deadlineMs: 8000 },
-			"shutdownHandleCreate: drainDelayMs must be under deadlineMs minus 5000 (3000), not 5000",
+			"shutdownHandleCreate: drainDelayMs must be under deadlineMs minus 5000 (3000), found 5000",
 		],
 	])(
 		"throws a TypeError on %o, before owning any signal",

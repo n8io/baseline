@@ -2,9 +2,9 @@
 export type LiveTestSseReader = {
 	/** Resolves with everything read so far once it contains `text`; throws when the stream ends first. */
 	until(text: string): Promise<string>;
-	/** Resolves with everything read once the server ends the response. */
+	/** Resolves with everything read once the Server ends the response. */
 	end(): Promise<string>;
-	/** Goes away like a page that closes: the server stops streaming. */
+	/** Goes away like a page that closes: the Server stops streaming. */
 	cancel(): Promise<void>;
 };
 

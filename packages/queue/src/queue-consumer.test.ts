@@ -93,9 +93,7 @@ describe("queueConsumerCreate", () => {
 			new Error("Event failed validation for audit.foo-created"),
 		);
 	});
-});
 
-describe("queueConsumerCreate", () => {
 	it("parses the event and passes the inbox through", async () => {
 		const fooCreated = z.object({ fooId: z.string() });
 		const run = vi.fn(async () => ok("done"));

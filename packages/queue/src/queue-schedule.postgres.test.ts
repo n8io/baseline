@@ -13,6 +13,9 @@ import {
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 
+// The tests are the caller here.
+const bossGet = (queue: Queue) => queueBossGet(queue, "test");
+
 let databaseUrl: string;
 let pgPool: pg.Pool;
 const queues: Queue[] = [];
@@ -35,7 +38,7 @@ const held = async (): Promise<Record<string, string>> => {
 };
 
 const working = (queue: Queue): string[] =>
-	queueBossGet(queue)
+	bossGet(queue)
 		.getWipData()
 		.map((wip) => wip.name);
 
@@ -67,11 +70,9 @@ describe("queueSchedulesSync", () => {
 
 		expect(await held()).toEqual({ "foo.stale-archive": "0 3 * * *" });
 		const queue = await worker();
-		const [row] = await queueBossGet(queue).getSchedules("foo.stale-archive");
+		const [row] = await bossGet(queue).getSchedules("foo.stale-archive");
 		expect(row?.options).toMatchObject({ missed: "once", tz: "UTC" });
-		expect(
-			await queueBossGet(queue).getQueue("foo.stale-archive"),
-		).toMatchObject({
+		expect(await bossGet(queue).getQueue("foo.stale-archive")).toMatchObject({
 			deadLetter: "foo.stale-archive.dead",
 			policy: "exclusive",
 			retryBackoff: true,

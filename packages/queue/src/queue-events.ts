@@ -139,7 +139,8 @@ export type QueueEventsPublisherMemoryOptions<M> = {
 
 /**
  * The memory twin of the `EventsPublisher` that `queueEventsCreate` hands out: it records each
- * publish in `published` and delivers nothing, so unit tests assert on the array.
+ * publish in `published` and delivers nothing, so unit tests assert on the array, and a `memory://`
+ * URL in development runs on it.
  * `queue-events-publisher.contract.ts` runs the same cases against both.
  */
 export const queueEventsPublisherMemoryCreate = <

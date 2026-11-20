@@ -9,6 +9,7 @@ export type PostgresTestInterleavePool = {
 export type PostgresTestInterleaveOptions<A, B> = {
 	/** Runs until it awaits `pause()`, typically right after it took a lock. */
 	first: (pause: () => Promise<void>) => Promise<A>;
+	/** The pool whose `pg_stat_activity` the helper polls for a lock wait. */
 	pgPool: PostgresTestInterleavePool;
 	/** Starts once `first` paused. */
 	second: () => Promise<B>;

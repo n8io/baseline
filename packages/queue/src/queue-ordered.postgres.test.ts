@@ -22,6 +22,9 @@ import {
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 
+// The tests are the caller here.
+const bossGet = (queue: Queue) => queueBossGet(queue, "test");
+
 type Moved = { key: string; seq: number };
 type Events = Record<string, Moved>;
 
@@ -124,7 +127,7 @@ const handledWait = (consumer: string, count: number): Promise<void> =>
 
 // Retries at once, so a test does not wait out the real delays.
 const retryFast = (consumer: string, retryLimit: number): Promise<void> =>
-	queueBossGet(publisher).updateQueue(`${consumer}.ordered`, {
+	bossGet(publisher).updateQueue(`${consumer}.ordered`, {
 		retryBackoff: false,
 		retryDelay: 0,
 		retryLimit,
@@ -447,7 +450,7 @@ describe("a blocked key", () => {
 		await handledWait(names.queueName, 4);
 		expect(await handled(names.queueName, "foo_fine")).toEqual([1, 2, 3]);
 		expect(await handled(names.queueName, "foo_poison")).toEqual([1]);
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		expect(await boss.findJobs("audit.foo-poisoned.dead")).toHaveLength(1);
 
 		// A key that is not blocked, or a Consumer that has no such key, releases nothing.
@@ -591,7 +594,7 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		const warn = vi.spyOn(logger, "warn");
 		const reported: unknown[] = [];
 		const listenStop = loggerErrorListen((err) => reported.push(err));
-		const boss = queueBossGet(publisher);
+		const boss = bossGet(publisher);
 		const consumer = "audit.foo-watched";
 		const name = `${consumer}.ordered`;
 		await boss.createQueue(name, { policy: "key_strict_fifo" });

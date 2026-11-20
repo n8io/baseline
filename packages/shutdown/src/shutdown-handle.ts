@@ -30,6 +30,8 @@ export type ShutdownHandle = { isShuttingDown(): boolean };
 
 // The last 5 s before the deadline belong to the resources.
 const resourceReserveMs = 5000;
+// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days).
+const timerMax = 2_147_483_647;
 const timedOut = Symbol("timedOut");
 
 const timeout = (ms: number): Promise<typeof timedOut> =>
@@ -56,7 +58,7 @@ const drainDelayMsDefault = 5000;
 /**
  * Owns SIGTERM, SIGINT, uncaughtException and unhandledRejection, and exits the process: 0 when
  * every step closed in time, 1 otherwise or after a crash. Throws a `TypeError` on a
- * `deadlineMs` that is not an integer over 5000, or a `drainDelayMs` that is not a whole number
+ * `deadlineMs` that is not an integer over 5000 and at most 2147483647, or a `drainDelayMs` that is not a whole number
  * under `deadlineMs` minus 5000.
  */
 export const shutdownHandleCreate = ({
@@ -69,19 +71,23 @@ export const shutdownHandleCreate = ({
 	const drainDelayMs = drainDelayMsGiven ?? drainDelayMsDefault;
 	// At or under the reserve, or with the drain reaching the cutoff, the intakes would get no
 	// time: every one would be cut at once.
-	if (!Number.isInteger(deadlineMs) || deadlineMs <= resourceReserveMs) {
+	if (
+		!Number.isInteger(deadlineMs) ||
+		deadlineMs <= resourceReserveMs ||
+		deadlineMs > timerMax
+	) {
 		throw new TypeError(
-			`shutdownHandleCreate: deadlineMs must be an integer over ${resourceReserveMs}, not ${deadlineMs}`,
+			`shutdownHandleCreate: deadlineMs must be an integer over ${resourceReserveMs}, ${timerMax} at most, found ${deadlineMs}`,
 		);
 	}
 	if (!Number.isInteger(drainDelayMs) || drainDelayMs < 0) {
 		throw new TypeError(
-			`shutdownHandleCreate: drainDelayMs must be a whole number, not ${drainDelayMs}`,
+			`shutdownHandleCreate: drainDelayMs must be a whole number, found ${drainDelayMs}`,
 		);
 	}
 	if (drainDelayMs >= deadlineMs - resourceReserveMs) {
 		throw new TypeError(
-			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), not ${drainDelayMs}`,
+			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), found ${drainDelayMs}`,
 		);
 	}
 	let shuttingDown = false;

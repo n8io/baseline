@@ -1,5 +1,6 @@
 export {
 	type Queue,
+	type QueueBlockedKey,
 	type QueueOptions,
 	type QueueVendorOptions,
 	queueCreate,

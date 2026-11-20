@@ -30,7 +30,7 @@ export type LiveStreamOptions = {
 
 /**
  * An SSE response that sends a `ready` event once subscribed, then `{ type, id }`
- * for each live update on (channel, id). It sends `ready` again, 1–5 s after the hub
+ * for each Live update on (channel, id). It sends `ready` again, 1–5 s after the hub
  * says updates may have been lost, so the page revalidates. It sends a comment every 20 s and closes after 5 minutes, or
  * at `expiresAt` (epoch ms) if sooner, and when `liveHub.close()` runs; each
  * close sends a `retry:` of 1–5 s first. The page revalidates on reconnect.

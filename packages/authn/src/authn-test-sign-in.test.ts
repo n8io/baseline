@@ -74,7 +74,9 @@ describe("authnTestSignIn", () => {
 				baseUrl: authnTestOrigin,
 				who: "dev-user",
 			}),
-		).rejects.toThrow("sign-in failed: 403");
+		).rejects.toThrow(
+			`authnTestSignIn: POST ${authnTestOrigin}/auth/sign-in answered 403`,
+		);
 	});
 
 	it("throws when the secret is not the server's", async () => {
@@ -86,6 +88,8 @@ describe("authnTestSignIn", () => {
 				baseUrl: authnTestOrigin,
 				who: "dev-user",
 			}),
-		).rejects.toThrow("the access cookie did not open with this secret");
+		).rejects.toThrow(
+			"authnTestSignIn: the access cookie did not open with secret",
+		);
 	});
 });

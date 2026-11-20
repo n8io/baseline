@@ -25,6 +25,9 @@ import {
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
 
+// The tests are the caller here.
+const bossGet = (queue: Queue) => queueBossGet(queue, "test");
+
 let pgPool: PostgresPool;
 let queue: Queue;
 
@@ -103,7 +106,7 @@ describe("consumersStart", () => {
 		await publish({ fooId: "foo_1" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBossGet(queue).findJobs(
+				const [job] = await bossGet(queue).findJobs(
 					"billing.foo-created.ordered",
 				);
 				expect(job?.state).toBe("completed");
@@ -111,9 +114,7 @@ describe("consumersStart", () => {
 			{ interval: 250, timeout: 45_000 },
 		);
 
-		const [job] = await queueBossGet(queue).findJobs(
-			"billing.foo-created.ordered",
-		);
+		const [job] = await bossGet(queue).findJobs("billing.foo-created.ordered");
 		expect(calls).toEqual([
 			{ consumer: "billing.foo-created", eventId: job?.id },
 			{ consumer: "billing.foo-created", eventId: job?.id },
@@ -156,7 +157,7 @@ describe("consumersStart", () => {
 				run: invoiceArchive,
 			}),
 		]);
-		const boss = queueBossGet(queue);
+		const boss = bossGet(queue);
 		// No retries, so each failure goes straight to the dead-letter queue.
 		await boss.updateQueue("billing.foo-archived.ordered", { retryLimit: 0 });
 		// The failed job is discarded, so its key moves on, and its dead-letter copy is redriven.
@@ -224,7 +225,7 @@ describe("consumersStart", () => {
 		await publish({ fooId: 42, secret: "hunter2" });
 		await vi.waitFor(
 			async () => {
-				const [job] = await queueBossGet(queue).findJobs(
+				const [job] = await bossGet(queue).findJobs(
 					"audit.foo-created.ordered",
 				);
 				expect(job?.state).toBe("retry");
@@ -232,9 +233,7 @@ describe("consumersStart", () => {
 			{ interval: 250, timeout: 15_000 },
 		);
 
-		const [job] = await queueBossGet(queue).findJobs(
-			"audit.foo-created.ordered",
-		);
+		const [job] = await bossGet(queue).findJobs("audit.foo-created.ordered");
 		expect(run).not.toHaveBeenCalled();
 		expect(JSON.stringify(job?.output)).toContain(
 			"Event failed validation for audit.foo-created",

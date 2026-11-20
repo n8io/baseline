@@ -30,8 +30,8 @@ export type AnalyticsMixpanelOptions = {
 
 /**
  * Sends each event to Mixpanel's /track, one request per event, with geolocation off and a 5 s
- * timeout per send. Throws a `TypeError` on an empty `token`, a `vendor` key other than `host`, or a `vendor.host`
- * that is not a bare host name.
+ * timeout per send. Throws a `TypeError` on an empty `token`, a `vendor` key other than `host`, or
+ * a `vendor.host` that is not a bare host name.
  */
 export const analyticsMixpanelCreate = ({
 	token,
@@ -54,7 +54,7 @@ export const analyticsMixpanelCreate = ({
 		new URL(`https://${host}`).host !== host
 	) {
 		throw new TypeError(
-			`analyticsMixpanelCreate: vendor.host must be a bare host name such as api-eu.mixpanel.com, not ${JSON.stringify(host)}`,
+			`analyticsMixpanelCreate: vendor.host must be a bare host name such as api-eu.mixpanel.com, found ${JSON.stringify(host)}`,
 		);
 	}
 	// ip=0: the server's IP is not the Actor's, so Mixpanel must not geolocate it. strict=1: a

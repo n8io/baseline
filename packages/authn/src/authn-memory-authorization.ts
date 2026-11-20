@@ -36,7 +36,7 @@ export const authnMemoryAuthorizationCreate = ({
 	const renewMs = renewMsOption ?? 60_000;
 	if (!Number.isFinite(renewMs) || renewMs < 0) {
 		throw new TypeError(
-			`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, got ${renewMsOption}`,
+			`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, found ${renewMsOption}`,
 		);
 	}
 	let held: { renewAt: number; token: AuthnMemoryToken } | null = null;

@@ -86,6 +86,12 @@ export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheKeyedOptions<T>,
 ): CacheKeyed<T>;
+/**
+ * A cache for one kind of value on any store, whose `set` takes an id and a value: key
+ * `<prefix>:<id>`, JSON, validated by the schema on read. An entry that fails it counts as a miss.
+ * So does a store that fails, unless `onStoreError` is "throw". Throws `TypeError` on a `ttlMs` that
+ * is not a positive integer, an empty `prefix` or an unknown `onStoreError`.
+ */
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T>,
@@ -115,7 +121,9 @@ const cacheByIdCreate = <T>(
 		throw new TypeError("cacheCreate: prefix must not be empty");
 	}
 	if (!Number.isInteger(ttlMs) || ttlMs <= 0) {
-		throw new TypeError("cacheCreate: ttlMs must be a positive integer");
+		throw new TypeError(
+			`cacheCreate: ttlMs must be a positive integer, found ${ttlMs}`,
+		);
 	}
 	if (onStoreError !== "miss" && onStoreError !== "throw") {
 		throw new TypeError(

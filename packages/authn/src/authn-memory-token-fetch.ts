@@ -54,7 +54,7 @@ export const authnMemoryTokenFetch = async ({
 	if (res.status === 404) {
 		await res.body?.cancel();
 		throw new Error(
-			`authnMemoryTokenFetch: POST ${origin}/auth/token answered 404: the app's authn issuerUrl is not memory:// (or its auth routes are not at /auth)`,
+			`authnMemoryTokenFetch: POST ${origin}/auth/token answered 404: the Project's authn issuerUrl is not memory:// (or its auth routes are not at /auth)`,
 		);
 	}
 	if (!res.ok) {

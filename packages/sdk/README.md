@@ -18,8 +18,8 @@ pnpm add @n8io/baseline-sdk
 | **The API's pace**                  | A `Retry-After` (seconds or a date), or a rate-limit reset header, sets the wait; otherwise it backs off from 0.3 s, doubling. When the wait would run past `totalTimeoutMs`, that response resolves at once instead.                                                 |
 | **No throw on a status**            | Every response, the last one after retries, resolves `{ status, data, headers }`: `data` is the parsed JSON when the content type names json, the text otherwise, or `undefined` for no body. A call rejects only when no whole response came.                        |
 | **One instance per SDK**            | `sdkFetchCreate` holds no module state, so two SDKs in one Project keep their own environments, token and timeouts.                                                                                                                                                   |
-| **Traced with no code**             | With `@n8io/baseline-telemetry` started, a call made inside a span carries `traceparent`; the SDK adds no header of its own (`src/sdk-traceparent.test.ts`).                                                                                                          |
-| **Node and browsers**               | No `node:` import and no Node global in what ships (`src/sdk-isomorphic.test.ts`).                                                                                                                                                                                    |
+| **Traced with no code**             | With `@n8io/baseline-telemetry` started, a call made inside a span carries `traceparent`; the SDK adds no header of its own (`src/sdk-fetch-traceparent.test.ts`).                                                                                                    |
+| **Node and browsers**               | No `node:` import and no Node global in what ships (`src/sdk-fetch-isomorphic.test.ts`).                                                                                                                                                                              |
 
 ## Example
 

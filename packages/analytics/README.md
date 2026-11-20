@@ -46,18 +46,20 @@ Tests pass `analyticsLoggerCreate()`, the Package's stand-in with no account (a 
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                                    | Does                                                                                                                                                                                                                                                                          |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Analytics`                                                               | `track({ name, actorId, properties })` and `close()`. `track` never throws: a failed send is logged at warn and dropped. `await using` calls `close()` when its block ends.                                                                                                   |
-| `AnalyticsEvent`                                                          | `name` (`foo.created`), `actorId` and `properties` (`boolean`, `number` or `string` values), which carry ids and counts only, never an Aggregate, an input or personal data.                                                                                                  |
-| `analyticsMixpanelCreate({ token, vendor? })`, `AnalyticsMixpanelOptions` | Posts each event to Mixpanel's ingestion API (`/track`) with `fetch`, with geolocation off and a 5 s timeout per send, so `close()` is bounded too. It does not use the `mixpanel` Node SDK: 0.24 throws on `init` whenever `HTTPS_PROXY` is set and sets no request timeout. |
-| `AnalyticsMixpanelVendorOptions`                                          | `vendor.host` picks Mixpanel's ingestion host for data residency (`api-eu.mixpanel.com`, `api-in.mixpanel.com`); it is named as the SDK's init config names it, and is outside the contract. Any other key throws a `TypeError`: it would do nothing.                         |
-| `analyticsLoggerCreate()`                                                 | Logs each event at debug instead, for development and tests.                                                                                                                                                                                                                  |
+| Export                                                                    | Does                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Analytics`                                                               | `track({ name, actorId, properties? })` and `close()`. `track` never throws: a failed send is logged at warn and dropped. `await using` calls `close()` when its block ends.                                                                                                                                                                                                                                   |
+| `AnalyticsEvent`                                                          | `name` (`foo.created`), `actorId` and `properties` (`boolean`, `number` or `string` values), which carry ids and counts only, never an Aggregate, an input or personal data.                                                                                                                                                                                                                                   |
+| `analyticsMixpanelCreate({ token, vendor? })`, `AnalyticsMixpanelOptions` | Posts each event to Mixpanel's ingestion API (`/track`) with `fetch`, with geolocation off and a 5 s timeout per send, so `close()` is bounded too. An empty `token` throws a `TypeError`, as does a `vendor` key other than `host` or a `vendor.host` that is not a bare host name. It does not use the `mixpanel` Node SDK: 0.24 throws on `init` whenever `HTTPS_PROXY` is set and sets no request timeout. |
+| `AnalyticsMixpanelVendorOptions`                                          | `vendor.host` picks Mixpanel's ingestion host for data residency (`api-eu.mixpanel.com`, `api-in.mixpanel.com`); it is named as the SDK's init config names it, and is outside the contract. Any other key throws a `TypeError`: it would do nothing.                                                                                                                                                          |
+| `analyticsLoggerCreate()`                                                 | Logs each event at debug instead, for development and tests.                                                                                                                                                                                                                                                                                                                                                   |
+
 </details>
 
 <details><summary><b>In the Template</b></summary>
 
 `src/analytics-open.ts` picks the adapter as in the Example and, with a token, adds a shutdown step named `analytics`. `MIXPANEL_TOKEN` is optional: without it, events go to the debug log and are not sent. `pnpm piece-remove analytics` deletes the piece.
+
 </details>
 
 <details><summary><b>Moving to the mixpanel SDK</b></summary>
@@ -69,6 +71,7 @@ Tests pass `analyticsLoggerCreate()`, the Package's stand-in with no account (a 
 3. Update `src/analytics-mixpanel.test.ts` to stand in for the SDK instead of `fetch`.
 
 Nothing else changes: `Analytics` and `analyticsMixpanelCreate({ token, vendor })` keep their shape, and `vendor` widens to the SDK's init config, so Projects and the Template need no edits, and the change is a minor release.
+
 </details>
 
 **Needs** a project token (the Template reads `MIXPANEL_TOKEN`). Runs on Mixpanel.

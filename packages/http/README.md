@@ -78,6 +78,7 @@ Test a route with Hono's `app.request()`: the problem body comes back as JSON, w
 | `httpSecureHeaders`                                            | Hono's secure headers plus an enforced CSP (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`) whose `script-src` takes a fresh nonce per request: `c.get("secureHeadersNonce")`.                                                                    |
 | `httpServerClose(server)`                                      | Stops accepting connections, closes idle keep-alive sockets every 100 ms, and resolves once every open request finishes. It never cuts a running request off.                                                                                                                             |
 | `httpServerKeepAlive(server)`                                  | Keeps idle connections open for 65 s (headers timeout 66 s), so a load balancer with the usual 60 s idle timeout never reuses a connection the server has closed (a 502). Keep the balancer's idle timeout under 65 s.                                                                    |
+
 </details>
 
 <details><summary><b>A whole route</b></summary>
@@ -123,6 +124,7 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 		return c.json(fooResponse(result.value), 200);
 	});
 ```
+
 </details>
 
 <details><summary><b>A validation failure</b></summary>
@@ -143,6 +145,7 @@ export const fooRoutesCreate = (u: FooUseCases) =>
 ```
 
 Each `pointer` is an RFC 6901 JSON Pointer into the request part that failed. Zod's "Unrecognized keys" message would repeat the caller's key names, so it reads `Unrecognized key`.
+
 </details>
 
 **Needs** `hono`, `@hono/zod-openapi`, `zod` and `@opentelemetry/api` as peers. No env.

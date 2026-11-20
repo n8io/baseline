@@ -55,6 +55,8 @@ describe("postgresIdColumnCreate", () => {
 
 		await expect(async () => {
 			await db.insert(fooTable).values({ id: barId, name: "two" });
-		}).rejects.toThrow(new TypeError("Expected a foo id"));
+		}).rejects.toThrow(
+			new TypeError("postgresIdColumnCreate: value must be a foo id"),
+		);
 	});
 });

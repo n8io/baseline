@@ -65,7 +65,7 @@ describe("authnMemoryTokenFetch", () => {
 
 		await expect(
 			authnMemoryTokenFetch({ clientId: "feed", baseUrl: authnTestOrigin }),
-		).rejects.toThrow("the app's authn issuerUrl is not memory://");
+		).rejects.toThrow("the Project's authn issuerUrl is not memory://");
 	});
 
 	it("passes on the issuer's refusal", async () => {

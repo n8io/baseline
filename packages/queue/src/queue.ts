@@ -10,6 +10,14 @@ import {
 } from "./queue-ordered.ts";
 import type { QueueSql } from "./queue-sql.ts";
 
+/** The key an Event failed on for good, as `Queue.blockedKeyRetry` and `blockedKeyGiveUp` take it. */
+export type QueueBlockedKey = {
+	/** The Consumer's queueName. */
+	consumer: string;
+	/** The Event key held back. */
+	key: string;
+};
+
 /** The queue a composition root opens with `queueCreate`; close it with `close()`. */
 export type Queue = {
 	/**
@@ -22,24 +30,19 @@ export type Queue = {
 	/**
 	 * The keys held back by an Event that failed for good, per Consumer (its queueName), since when,
 	 * and from when (deleteAt) the queue's next sweep deletes that Event unless it is released first,
-	 * so the key moves on without it. Empty when nothing is blocked. README, "A blocked key", says when to release one and how.
+	 * so the key moves on without it. Empty when nothing is blocked. README, "Runbook: a blocked key", says when to release one and how.
 	 */
-	blockedKeys(): Promise<
-		{ consumer: string; deleteAt: Date; key: string; since: Date }[]
-	>;
+	blockedKeys(): Promise<(QueueBlockedKey & { deleteAt: Date; since: Date })[]>;
 	/**
 	 * Releases a blocked key by running its failed Event again, before the Events waiting behind
 	 * it. true when it released the key; false when that Consumer has no blocked Event for the key.
 	 */
-	blockedKeyRetry(blocked: { consumer: string; key: string }): Promise<boolean>;
+	blockedKeyRetry(blocked: QueueBlockedKey): Promise<boolean>;
 	/**
 	 * Releases a blocked key by deleting its failed Event, so the key moves on without it; the copy
 	 * in `<queueName>.dead` stays. true when it released the key; false as for blockedKeyRetry.
 	 */
-	blockedKeyGiveUp(blocked: {
-		consumer: string;
-		key: string;
-	}): Promise<boolean>;
+	blockedKeyGiveUp(blocked: QueueBlockedKey): Promise<boolean>;
 	/**
 	 * Stops the Consumers and the cron pass and waits up to 15 s for running jobs. It leaves the
 	 * pool open: the composition root closes it after.
@@ -72,7 +75,7 @@ export const queueConcurrencyGet = (queue: Queue): number =>
  * The pg-boss instance behind a Queue, for the other modules of this Package only. `caller` is the
  * public function that was given the Queue, named in the error for one that queueCreate did not make.
  */
-export const queueBossGet = (queue: Queue, caller = "queueBossGet"): PgBoss => {
+export const queueBossGet = (queue: Queue, caller: string): PgBoss => {
 	const boss = queueBosses.get(queue);
 	if (boss === undefined) {
 		throw new TypeError(`${caller}: queue must come from queueCreate`);
@@ -158,7 +161,12 @@ export type QueueOptions = {
 	 * the pool's size.
 	 */
 	concurrency?: number | null;
+	/** The pool every query of the queue runs on; the composition root closes it after the queue. */
 	pgPool: QueueSql;
+	/**
+	 * `"publisher"` (the Server) only sends: it runs no Consumers, no maintenance, no cron pass and
+	 * no Inbox pruning, and `isAlive()` is always true. `"worker"` runs all of them.
+	 */
 	role: "publisher" | "worker";
 	/** Settings only pg-boss has, such as `monitorIntervalSeconds`. */
 	vendor?: QueueVendorOptions | null;
@@ -167,13 +175,24 @@ export type QueueOptions = {
 /**
  * Starts pg-boss on the shared pool. A publisher (the Server) only sends: it runs no workers, no
  * maintenance and no cron pass. A Worker runs maintenance, cron and the Package's Inbox pruning.
+ * Throws a TypeError at the call on a `role` that is neither, a `concurrency` that is not a positive
+ * integer, or a `vendor` key the queue sets itself or that sits on `pgPool`. It rejects with an
+ * Error, "the queue schema is missing in this database: run queueMigrate (pnpm migrate)", when
+ * queueMigrate has not run against the database.
  */
 export const queueCreate = async (options: QueueOptions): Promise<Queue> => {
 	const { pgPool, role } = options;
+	if (role !== "publisher" && role !== "worker") {
+		throw new TypeError(
+			`queueCreate: role must be "publisher" or "worker", found ${JSON.stringify(role)}`,
+		);
+	}
 	const concurrency = options.concurrency ?? queueConcurrencyDefault;
 	const vendor = options.vendor ?? {};
 	if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-		throw new TypeError("queueCreate: concurrency must be a positive integer");
+		throw new TypeError(
+			`queueCreate: concurrency must be a positive integer, found ${concurrency}`,
+		);
 	}
 	for (const [key, reason] of Object.entries(queueOwnedKeys)) {
 		if (key in vendor) {
