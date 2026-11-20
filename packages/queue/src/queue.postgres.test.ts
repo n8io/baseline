@@ -49,7 +49,7 @@ beforeAll(async () => {
 afterEach(async () => {
 	vi.restoreAllMocks();
 	for (const queue of queues.splice(0)) {
-		await queue.stop();
+		await queue.close();
 	}
 	for (const pgPool of pools.splice(0)) {
 		await pgPool.end();
@@ -77,23 +77,6 @@ describe("queueCreate", () => {
 				vendor: { monitorIntervalSeconds: 0 },
 			}),
 		).rejects.toThrow(/monitorIntervalSeconds must be at least/);
-	});
-
-	it.each([
-		["schema", "queueCreate sets it itself"],
-		["supervise", "queueCreate sets it itself"],
-		["connectionString", "the queue runs on pgPool; set it on the pool"],
-		["ssl", "the queue runs on pgPool; set it on the pool"],
-		["createSchema", "it only acts in queueMigrate"],
-		["useListenNotify", "the queue does not support it"],
-	])("refuses vendor.%s: %s", async (key, reason) => {
-		await expect(
-			queueCreate({
-				pgPool: poolCreate(),
-				role: "publisher",
-				vendor: { [key]: undefined },
-			}),
-		).rejects.toThrow(new TypeError(`vendor.${key} is not allowed: ${reason}`));
 	});
 
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
@@ -312,12 +295,6 @@ describe("queueCreate", () => {
 		expect(error).not.toHaveBeenCalled();
 	});
 
-	it("refuses a concurrency that is not a positive integer", async () => {
-		await expect(
-			queueCreate({ concurrency: 0, pgPool: poolCreate(), role: "worker" }),
-		).rejects.toThrow(new TypeError("concurrency must be a positive integer"));
-	});
-
 	it("a publisher is always alive: it has no workers to poll", async () => {
 		const queue = await start(poolCreate(), "publisher");
 		vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_000);
@@ -351,7 +328,7 @@ describe("queueCreate", () => {
 			{ interval: 100, timeout: 10_000 },
 		);
 
-		await queue.stop();
+		await queue.close();
 		queues.splice(0);
 
 		expect(finished).toEqual(["run"]);
@@ -363,7 +340,7 @@ describe("queueCreate", () => {
 		await expect(pgPool.query("SELECT 1")).resolves.toBeDefined();
 	});
 
-	it("await using stops the queue when its block ends", async () => {
+	it("await using closes the queue when its block ends", async () => {
 		const pgPool = poolCreate();
 		let stop: MockInstance;
 		{

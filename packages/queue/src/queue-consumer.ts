@@ -12,13 +12,14 @@ import { type Queue, queueBossGet, queueConcurrencyGet } from "./queue.ts";
 import type { Inbox } from "./queue-inbox.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
-import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 import { type QueueSlots, queueSlotsGet } from "./queue-slots.ts";
+import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 
+/** An Event handler on the queue, made by `queueConsumerCreate`. */
 export type Consumer = {
 	readonly queueName: string;
 	readonly eventName: string;
-	// Parses and runs one job's data; a parse failure throws, which fails the job.
+	/** Parses and runs one job's data; a parse failure throws, which fails the job. */
 	readonly run: (
 		data: unknown,
 		inbox: Inbox,
@@ -33,23 +34,30 @@ const issuePath = (issue: StandardSchemaV1.Issue): string =>
 		)
 		.join(".");
 
-// queueName is `<consumer domain>.<event entity>-<event verb>` (billing.order-placed); it is also the
-// inbox `consumer` key. The schema is any Standard Schema (https://standardschema.dev): a Zod,
-// Valibot or ArkType schema as it is.
-export const queueConsumerCreate = <S extends StandardSchemaV1>({
-	eventName,
-	queueName,
-	run,
-	schema,
-}: {
+/** What `queueConsumerCreate` takes. */
+export type QueueConsumerOptions<S extends StandardSchemaV1> = {
+	/** The Event it handles, as published (order.placed). */
 	eventName: string;
+	/**
+	 * `<handling context>.<event entity>-<event verb>` (billing.order-placed); also the Inbox
+	 * `consumer` key.
+	 */
 	queueName: string;
 	run: (
 		event: StandardSchemaV1.InferOutput<S>,
 		inbox: Inbox,
 	) => Promise<Result<unknown, { type: string }>>;
+	/** Any Standard Schema (https://standardschema.dev): a Zod, Valibot or ArkType schema as it is. */
 	schema: S;
-}): Consumer => ({
+};
+
+/** An Event handler that validates each Event with `schema`, then calls `run` with its output. */
+export const queueConsumerCreate = <S extends StandardSchemaV1>({
+	eventName,
+	queueName,
+	run,
+	schema,
+}: QueueConsumerOptions<S>): Consumer => ({
 	eventName,
 	queueName,
 	run: async (data, inbox) => {
@@ -75,8 +83,10 @@ const queueConsumerExpireSeconds = 300;
 // The most jobs taken per fetch (each of another key).
 const queueConsumerBatchSize = 10;
 
-// A publish copies an Event only into queues already subscribed to it, so every instance that may
-// publish subscribes at boot. Safe to repeat on any number of instances.
+/**
+ * A publish copies an Event only into queues already subscribed to it, so every instance that may
+ * publish subscribes at boot. Safe to repeat on any number of instances.
+ */
 export const queueConsumersSubscribe = async (
 	queue: Queue,
 	consumers: Consumer[],
@@ -203,7 +213,7 @@ const consumerWork = async ({
 	);
 };
 
-// Subscribes, then starts a worker per consumer (worker process only).
+/** Subscribes, then starts a worker per consumer (worker process only). */
 export const queueConsumersStart = async (
 	queue: Queue,
 	consumers: Consumer[],
@@ -226,18 +236,5 @@ export const queueConsumersStart = async (
 			},
 			slots,
 		});
-		// A Project that ran a release before 8 still has the unordered queue `<queueName>`. Processes
-		// of that release publish to it until the rollout ends, so it is drained here, one job at a
-		// time as before, until queueMigrate removes it.
-		if (await boss.getQueue(consumer.queueName)) {
-			await consumerWork({
-				boss,
-				consumer,
-				lanes,
-				name: consumer.queueName,
-				options: { batchSize: 1, pollingIntervalSeconds: 30 },
-				slots,
-			});
-		}
 	}
 };

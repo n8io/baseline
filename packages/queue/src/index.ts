@@ -1,17 +1,31 @@
-export { type Queue, type QueueVendorOptions, queueCreate } from "./queue.ts";
-export { type Consumer, queueConsumerCreate } from "./queue-consumer.ts";
+export {
+	type Queue,
+	type QueueOptions,
+	type QueueVendorOptions,
+	queueCreate,
+} from "./queue.ts";
+export {
+	type Consumer,
+	type QueueConsumerOptions,
+	queueConsumerCreate,
+} from "./queue-consumer.ts";
 export {
 	type Events,
 	type EventsPublisher,
+	type QueueEventsPublisherMemoryOptions,
 	queueEventsCreate,
-	queueEventsMemoryCreate,
+	queueEventsPublisherMemoryCreate,
 } from "./queue-events.ts";
 export { type Inbox, queueInboxInsert } from "./queue-inbox.ts";
 export {
+	type QueueMigrateOptions,
 	type QueueMigrateVendorOptions,
 	queueMigrate,
 } from "./queue-migrate.ts";
 export {
+	type QueueScheduleOptions,
+	type QueueSchedulesStartOptions,
+	type QueueSchedulesSyncOptions,
 	queueScheduleCreate,
 	queueSchedulesStart,
 	queueSchedulesSync,

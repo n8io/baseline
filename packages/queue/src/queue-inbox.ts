@@ -1,17 +1,22 @@
 import { ok } from "@n8io/baseline-result";
 import type { PgBoss } from "pg-boss";
 import { queueJobRun } from "./queue-job-run.ts";
-import { queueWithDeadLetterCreate } from "./queue-retry.ts";
 import type { QueueSql } from "./queue-sql.ts";
+import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 
-// Which consumer handled which event. The use case's transaction port inserts it beside its rows.
+/**
+ * Which Consumer handled which Event. The Use case's transaction port inserts it beside its rows.
+ */
 export type Inbox = { consumer: string; eventId: string };
 
+/** The Inbox table, which queueMigrate creates. */
 export const queueInboxTableCreate =
 	"CREATE TABLE IF NOT EXISTS queue.inbox (consumer text NOT NULL, event_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (consumer, event_id))";
 
-// Records the event as handled in the caller's transaction. false = already handled: skip the work,
-// commit nothing else and return ok.
+/**
+ * Records the event as handled in the caller's transaction. false = already handled: skip the work,
+ * commit nothing else and return ok.
+ */
 export const queueInboxInsert = async (
 	transaction: QueueSql,
 	inbox: Inbox,
@@ -23,10 +28,12 @@ export const queueInboxInsert = async (
 	return result.rowCount === 1;
 };
 
-// The package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
+/**
+ * The package's own schedule; queueSchedulesSync never removes names in the `queue.` namespace.
+ */
 export const queueInboxPruneName = "queue.inbox-prune";
 
-// Daily, in the worker: deletes inbox rows older than 30 days.
+/** Daily, in the worker: deletes inbox rows older than 30 days. */
 export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
 	await queueWithDeadLetterCreate({
 		boss,

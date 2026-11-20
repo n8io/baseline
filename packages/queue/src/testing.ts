@@ -1,1 +1,4 @@
-export { queueTestConsumerRun } from "./queue-test-consumer.ts";
+export {
+	type QueueTestConsumerRunOptions,
+	queueTestConsumerRun,
+} from "./queue-test-consumer.ts";

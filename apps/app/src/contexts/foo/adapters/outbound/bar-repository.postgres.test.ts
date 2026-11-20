@@ -24,7 +24,7 @@ afterAll(async () => {
 barRepositoryContract(async () => {
 	// piece-start: queue
 	const queue = await queueCreate({ pgPool, role: "publisher" });
-	closes.push(() => queue.stop());
+	closes.push(() => queue.close());
 	// piece-end: queue
 	return {
 		barReadRepository: barRepositoryPostgresCreate(drizzle({ client: pgPool })),

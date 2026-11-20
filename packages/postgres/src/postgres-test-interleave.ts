@@ -5,6 +5,7 @@ export type PostgresTestInterleavePool = {
 	query(text: string): Promise<{ rows: unknown[] }>;
 };
 
+/** What `postgresTestInterleave` takes. */
 export type PostgresTestInterleaveOptions<A, B> = {
 	/** Runs until it awaits `pause()`, typically right after it took a lock. */
 	first: (pause: () => Promise<void>) => Promise<A>;
@@ -32,10 +33,12 @@ const lockWaitersRead = async (
 	);
 };
 
-// Forces the interleaving a race test needs: `first` runs to `pause()`, `second` starts, and
-// `first` resumes only once `second` waits on a lock or has finished. `secondWaited` says which.
-// A backend that waited on a lock before `second` started does not count; any other one in the
-// same database does, so keep other work off the test's database while it runs.
+/**
+ * Forces the interleaving a race test needs: `first` runs to `pause()`, `second` starts, and
+ * `first` resumes only once `second` waits on a lock or has finished. `secondWaited` says which.
+ * A backend that waited on a lock before `second` started does not count; any other one in the
+ * same database does, so keep other work off the test's database while it runs.
+ */
 export const postgresTestInterleave = async <A, B>({
 	first,
 	pgPool,

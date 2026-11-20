@@ -8,7 +8,7 @@ import {
 	postgresVendorAssert,
 } from "./postgres-vendor-assert.ts";
 
-// A fixed 64-bit advisory lock key: the first 8 bytes of SHA-256("baseline:migrate").
+/** A fixed 64-bit advisory lock key: the first 8 bytes of SHA-256("baseline:migrate"). */
 export const postgresMigrateLockKey: string = createHash("sha256")
 	.update("baseline:migrate")
 	.digest()
@@ -27,25 +27,35 @@ export type PostgresMigrateVendorOptions = Omit<
 // Postgres's error code for a statement that gave up waiting for a lock.
 const lockNotAvailable = "55P03";
 
-// Applies pending Drizzle migrations under an advisory lock, so concurrent runs (several
-// containers starting at once) apply each migration once: a second run waits, then finds nothing.
-// The lock belongs to the session, so the connection must reach Postgres itself, not a pooler.
-export const postgresMigrate = async (options: {
+/** What `postgresMigrate` takes. */
+export type PostgresMigrateOptions = {
 	databaseUrl: string;
 	/** How long to wait for another run to release the lock. Default 60 s. */
 	lockWaitMs?: number | null;
 	migrationsFolder: string;
 	/** Settings only pg has, such as `ssl`: the same ones the pool takes. */
-	vendor?: PostgresMigrateVendorOptions;
-}): Promise<void> => {
-	postgresUrlAssert(options.databaseUrl);
+	vendor?: PostgresMigrateVendorOptions | null;
+};
+
+/**
+ * Applies pending Drizzle migrations under an advisory lock, so concurrent runs (several
+ * containers starting at once) apply each migration once: a second run waits, then finds nothing.
+ * The lock belongs to the session, so the connection must reach Postgres itself, not a pooler.
+ */
+export const postgresMigrate = async (
+	options: PostgresMigrateOptions,
+): Promise<void> => {
+	postgresUrlAssert(options.databaseUrl, "postgresMigrate");
 	postgresVendorAssert({
-		vendor: options.vendor ?? {},
+		caller: "postgresMigrate",
 		databaseUrl: options.databaseUrl,
+		vendor: options.vendor ?? {},
 	});
 	const lockWaitMs = options.lockWaitMs ?? 60_000;
 	if (!Number.isSafeInteger(lockWaitMs) || lockWaitMs <= 0) {
-		throw new TypeError("lockWaitMs must be a positive integer");
+		throw new TypeError(
+			"postgresMigrate: lockWaitMs must be a positive integer",
+		);
 	}
 	// @types/pg leaves out processID: the backend pid the server named at connect.
 	const pgClient: pg.Client & { processID?: number | null } = new pg.Client({

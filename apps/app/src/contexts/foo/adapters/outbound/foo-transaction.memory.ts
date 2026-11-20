@@ -1,6 +1,6 @@
 import type { Id } from "@n8io/baseline-id";
 import type { Inbox } from "@n8io/baseline-queue";
-import { queueEventsMemoryCreate } from "@n8io/baseline-queue";
+import { queueEventsPublisherMemoryCreate } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
 import { transactionPortsGuard } from "../../../../transaction-ports-guard.ts";
 import type {
@@ -72,7 +72,7 @@ export const fooTransactionMemoryCreate = (
 				),
 				// piece-start: queue
 				fooEvents: transactionPortsGuard(
-					queueEventsMemoryCreate({ published: pending }),
+					queueEventsPublisherMemoryCreate({ published: pending }),
 					() => open,
 				),
 				// piece-end: queue
