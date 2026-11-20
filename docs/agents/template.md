@@ -40,8 +40,8 @@ Here, unlike in a Project, you edit the shared `apps/app/CONTEXT.md` and the Tem
 
 A new piece (each Package wired into the Template comes as one) is named by hand in:
 
-- `apps/app/scripts/piece-remove.ts` (`pieceRemovals`: its files, lines and packages) and its test, and `piece-check.test.ts`;
-- `apps/app/scripts/aggregate-create.ts` (`pieces`) and its test;
+- `apps/app/scripts/pieces.ts` (`pieceNames` and `pieces`, then `pieceRemovals`: its files, lines and packages; type-checking asks for the rest) and its test, and `piece-check.test.ts`;
+- `apps/app/scripts/aggregate-create.ts` (`piecesTemplate`) and its test;
 - `test/render/api-only.ts`;
 - the **Piece** entry in `apps/app/CONTEXT.md`, the pieces sentence in `apps/app/README.md`, the root README's pieces table and `scripts/readme-svg/root-pieces.ts`;
 - its own section in `apps/app/docs/agents/pieces.md`, and a `(<piece>)` reason in `apps/app/dependencies-allowed.json` for each runtime dependency only it uses.

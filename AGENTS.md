@@ -25,7 +25,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 
 ## Naming
 
-Packages, scripts and tests follow the Template's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app/src`.
+Packages, scripts and tests follow the Template's naming rule in [apps/app/AGENTS.md](apps/app/AGENTS.md#where-new-work-goes): generic to specific, so `postgresPoolCreate`, never `createPostgresPool`. `test/naming.test.ts` runs its check (A23) outside `apps/app`.
 
 ## Function inputs
 
