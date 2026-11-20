@@ -160,12 +160,50 @@ describe("cliCreate", () => {
 		});
 	});
 
-	it("exits 1 without a base URL or a required path field", async () => {
-		const noUrl = await cliRun(["foo", "get", "--id", "1"]);
-		expect(noUrl).toMatchObject({
+	it("picks the URL from --url, else --env, else ACME_APP_URL, else ACME_APP_ENV", async () => {
+		const baseUrlOf = async (args: string[], env: Record<string, string>) =>
+			JSON.parse(
+				(await cliRun(["foo", "get", "--id", "1", ...args], env)).stdout,
+			).args[1].baseUrl;
+		const production = "https://api.acme.example";
+		expect(await baseUrlOf([], { ACME_APP_ENV: "production" })).toBe(
+			production,
+		);
+		expect(
+			await baseUrlOf([], { ACME_APP_ENV: "production", ACME_APP_URL: url }),
+		).toBe(url);
+		expect(
+			await baseUrlOf(["--env", "production"], { ACME_APP_URL: url }),
+		).toBe(production);
+		expect(
+			await baseUrlOf(["--env", "production", "--url", `${url}/`], {}),
+		).toBe(url);
+	});
+
+	it("exits 1 naming the environments without one, or with an unknown one", async () => {
+		const none = await cliRun(["foo", "get", "--id", "1"]);
+		expect(none).toMatchObject({
 			code: 1,
-			stderr: "Set the API's URL with --url or ACME_APP_URL.\n",
+			stderr:
+				"Pick an environment with --env or ACME_APP_ENV (development, production), or set a URL with --url or ACME_APP_URL.\n",
 		});
+		const unknown = await cliRun(["foo", "get", "--id", "1", "--env", "dev"], {
+			ACME_APP_URL: url,
+		});
+		expect(unknown).toMatchObject({
+			code: 1,
+			stderr: "No environment dev: pick one of development, production.\n",
+		});
+		const unlisted = await cliRun(["foo", "get", "--id", "1"], {
+			ACME_APP_ENV: "development",
+			CLI_TEST_SERVERS: "[]",
+		});
+		expect(unlisted.stderr).toBe(
+			"No environment development: pick one of none listed.\n",
+		);
+	});
+
+	it("exits 1 without a required path field", async () => {
 		const noId = await cliRun(["foo", "get"], { ACME_APP_URL: url });
 		expect(noId.code).toBe(1);
 		expect(noId.stderr).toContain("'--id <value>' not specified");
@@ -177,6 +215,9 @@ describe("cliCreate", () => {
 		expect(root.stdout).toMatch(/foo\s+Foos and their names/);
 		expect(root.stdout).toMatch(/invoice-line\s+customer-assign/);
 		expect(root.stdout).toMatch(/login/);
+		expect(root.stdout.replace(/\s+/g, " ")).toContain(
+			"the environment (default ACME_APP_ENV): development, production",
+		);
 		const foo = await cliRun(["foo", "--help"]);
 		expect(foo.stdout).toMatch(/create \[options\]\s+Create a foo/);
 		expect(foo.stdout).toMatch(/get \[options\]\s+Read a foo/);
@@ -274,8 +315,7 @@ describe("login", () => {
 		const file = join(config, "acme-app", "login.json");
 		expect((await stat(file)).mode & 0o777).toBe(0o600);
 		expect(JSON.parse(await readFile(file, "utf8"))).toMatchObject({
-			token: "stored",
-			url: base,
+			[base]: { token: "stored" },
 		});
 
 		const get = await cliRun(["foo", "get", "--id", "1"], {
@@ -335,7 +375,9 @@ describe("login", () => {
 		await mkdir(join(file, ".."), { recursive: true });
 		await writeFile(
 			file,
-			JSON.stringify({ expiresAt: "2020-01-01T00:00:00Z", token: "old", url }),
+			JSON.stringify({
+				[url]: { expiresAt: "2020-01-01T00:00:00Z", token: "old" },
+			}),
 		);
 		const get = await cliRun(["foo", "get", "--id", "1"], {
 			ACME_APP_URL: url,
@@ -349,6 +391,47 @@ describe("login", () => {
 			code: 1,
 			stderr:
 				"login failed: http://example.com is not https, so the client secret would travel in the clear\n",
+		});
+	});
+
+	it("keeps a login per environment, and drops an older file's single login", async () => {
+		const home = join(config, "environments");
+		const file = join(home, "acme-app", "login.json");
+		await mkdir(join(file, ".."), { recursive: true });
+		const expiresAt = new Date(Date.now() + 60_000).toISOString();
+		await writeFile(file, JSON.stringify({ expiresAt, token: "old", url }));
+		// One server under two names, so two environments with two URLs.
+		const local = base.replace("127.0.0.1", "localhost");
+		const env = {
+			CLI_TEST_SERVERS: JSON.stringify([
+				{ description: "development", url: base },
+				{ description: "staging", url: `${local}/` },
+			]),
+			XDG_CONFIG_HOME: home,
+		};
+		const old = await cliRun(["foo", "get", "--id", "1"], {
+			...env,
+			ACME_APP_URL: url,
+		});
+		expect(JSON.parse(old.stdout).args[1]).toEqual({ baseUrl: url });
+		for (const name of ["development", "staging"]) {
+			const login = await cliRun(
+				["login", "--env", name, "--client-id", "ci"],
+				env,
+			);
+			expect(login.code).toBe(0);
+		}
+		expect(requests.at(-1)?.origin).toBe(local);
+		expect(
+			Object.keys(JSON.parse(await readFile(file, "utf8"))).sort(),
+		).toEqual([base, local]);
+		const staging = await cliRun(
+			["foo", "get", "--id", "1", "--env", "staging"],
+			env,
+		);
+		expect(JSON.parse(staging.stdout).args[1]).toEqual({
+			baseUrl: local,
+			token: "stored",
 		});
 	});
 

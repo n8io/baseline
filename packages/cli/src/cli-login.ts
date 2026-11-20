@@ -1,5 +1,6 @@
 // The stored login: a token from the app's client-credentials grant, kept in the OS config
-// directory with mode 600 and sent only to the URL it came from.
+// directory with mode 600, one per URL (so one per environment), and sent only to the URL it
+// came from.
 
 import { fstatSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -8,7 +9,15 @@ import { join } from "node:path";
 import { text } from "node:stream/consumers";
 import { sdkFetchCreate } from "@n8io/baseline-sdk";
 
-type CliLogin = { expiresAt: string; token: string; url: string };
+type CliLogin = { expiresAt: string; token: string };
+
+// The stored file: a login per URL. Anything else in it (an older file's shape) is dropped.
+const loginsRead = async (name: string): Promise<Record<string, CliLogin>> =>
+	Object.fromEntries(
+		Object.entries(
+			await readFile(cliLoginPath(name), "utf8").then(JSON.parse, () => ({})),
+		).filter(([, login]) => typeof login === "object" && login !== null),
+	) as Record<string, CliLogin>;
 
 // The SDK's fetch, so the token request has the same timeouts; a POST is never retried.
 const { sdkFetch } = sdkFetchCreate();
@@ -44,12 +53,8 @@ export const cliLoginTokenRead = async ({
 	name: string;
 	url: string;
 }): Promise<string | undefined> => {
-	const stored: Partial<CliLogin> = await readFile(
-		cliLoginPath(name),
-		"utf8",
-	).then(JSON.parse, () => ({}));
-	return stored.url === url &&
-		typeof stored.token === "string" &&
+	const stored: Partial<CliLogin> = (await loginsRead(name))[url] ?? {};
+	return typeof stored.token === "string" &&
 		Date.parse(stored.expiresAt ?? "") > Date.now()
 		? stored.token
 		: undefined;
@@ -128,16 +133,18 @@ export const cliLoginRun = async ({
 				`login failed: POST ${url}/auth/token answered ${sent.status} ${typeof body.error === "string" ? body.error : ""}`.trimEnd(),
 		};
 	}
-	const login: CliLogin = {
-		expiresAt: new Date(Date.now() + body.expires_in * 1000).toISOString(),
-		token: body.access_token,
-		url,
+	const logins = {
+		...(await loginsRead(name)),
+		[url]: {
+			expiresAt: new Date(Date.now() + body.expires_in * 1000).toISOString(),
+			token: body.access_token,
+		},
 	};
 	const path = cliLoginPath(name);
 	await mkdir(join(path, ".."), { mode: 0o700, recursive: true });
 	// A new file with mode 600, renamed over the old one, so the token is never in a file others
 	// can read.
-	await writeFile(`${path}.${process.pid}`, JSON.stringify(login), {
+	await writeFile(`${path}.${process.pid}`, JSON.stringify(logins), {
 		mode: 0o600,
 	});
 	await rename(`${path}.${process.pid}`, path);

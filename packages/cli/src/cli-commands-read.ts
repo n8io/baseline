@@ -7,6 +7,12 @@ export type CliDocument = {
 		readonly [key: string]: unknown;
 	};
 	readonly paths?: Readonly<Record<string, unknown>>;
+	/** The API's environments: `description` is the environment's name, `url` its base URL. */
+	readonly servers?: readonly {
+		readonly description?: string;
+		readonly url: string;
+		readonly [key: string]: unknown;
+	}[];
 	readonly tags?: readonly {
 		readonly description?: string;
 		readonly name: string;
@@ -50,7 +56,7 @@ type Node = Readonly<Record<string, unknown>>;
 const methods = ["delete", "get", "head", "options", "patch", "post", "put"];
 
 // Flags the CLI keeps for itself, on every command.
-const reservedFlags = new Set(["data", "help", "token", "url"]);
+const reservedFlags = new Set(["data", "env", "help", "token", "url"]);
 
 // Top-level commands the CLI keeps for itself.
 const reservedCommands = new Set(["help", "login"]);
@@ -290,7 +296,7 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 				);
 				if (clash !== undefined) {
 					throw new Error(
-						`cliCreate: ${operationId} has two fields that are both --${clash}, or one that the CLI keeps for itself (--data, --help, --token, --url); rename one`,
+						`cliCreate: ${operationId} has two fields that are both --${clash}, or one that the CLI keeps for itself (--data, --env, --help, --token, --url); rename one`,
 					);
 				}
 				const summary = textRead(operation.summary);
