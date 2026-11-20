@@ -15,16 +15,16 @@ Never return the vendor's client from a neutral handle. Why it is these two ways
 
 One rule for each thing that drifted between Packages. Function inputs follow the root [AGENTS.md](../../AGENTS.md#function-inputs).
 
-- **Options type.** A factory that takes an options object exports its type as `<Subject>Options` (`PostgresPoolOptions`, `SdkFetchOptions`, `ShutdownOptions`), and its `vendor` key's type as `<Subject>VendorOptions`.
+- **Options type.** A factory that takes an options object exports its type as `<Subject>Options`, the subject being the factory's name without `Create` (`PostgresPoolOptions`, `SdkFetchOptions`), and its `vendor` key's type as `<Subject>VendorOptions`. A test helper's options type follows the same rule (`QueueTestConsumerRunOptions`). `ShutdownOptions` keeps its published name: its subject is the shutdown handle.
 - **Optional fields** are `?: T | null`, and `null` means the default, as leaving it out does. The one exception says so in its JSDoc: `PostgresPoolOptions.queryTimeoutMs: null` turns the limit off.
 - **Durations** are milliseconds, and the name ends in `Ms` (`timeoutMs`, `deadlineMs`, `renewMs`).
 - **URLs.** The Project's own origin is `baseUrl`. A connection string is `url` for a client of one service (`redisClientCreate({ url })`), and `databaseUrl` where Packages share one store read from `DATABASE_URL` (postgres, queue).
-- **Bad options** throw `TypeError` when the factory is called, with a message that starts with the function and the option: `postgresMigrate: lockWaitMs must be a positive integer`. An error that can only happen later, at runtime, is documented on the export that throws it.
-- **Closing.** A handle the Package defines closes with `close()`, and its `[Symbol.asyncDispose]` calls `close()`. A vendor's own type keeps its own name (`PostgresPool.end()`, `RedisClient.close()`). In a Package test, open a handle inside the test body with `await using`; the rule and its traps are in [apps/app/docs/agents/using.md](../../apps/app/docs/agents/using.md).
+- **Bad options** throw `TypeError` when the factory is called, with a message that starts with the function and the option: `postgresMigrate: lockWaitMs must be a positive integer`. A factory checks every numeric, enumerated or URL option it is given, so a mistake fails at boot and not as a later outage. A handle from the wrong factory fails the same way: `liveStreamCreate: liveHub must come from liveHubRedisCreate or liveHubMemoryCreate`. An error that can only happen later, at runtime, is documented on the export that throws it.
+- **Closing.** A handle the Package defines closes with `close()`, and its `[Symbol.asyncDispose]` calls `close()`. A vendor's own type keeps its own name (`PostgresPool.end()`, `RedisClient.close()`). Telemetry has no handle: its step is `telemetryShutdown()`. In a Package test, open a handle inside the test body with `await using`; the rule and its traps are in [apps/app/docs/agents/using.md](../../apps/app/docs/agents/using.md).
 - **Predicates.** An exported function ends in `Is`, `Has` or `Can` (`postgresUniqueViolationIs`). A method or an option callback keeps the JavaScript form (`isAlive()`, `isShuttingDown`).
 - **Doc comments.** Every exported function and type has a `/** */` JSDoc: it ships in the `.d.ts`, so an editor shows it to the caller. A `//` comment does not ship.
-- **Files.** A file is named after its main export in kebab case, without `Create` (`sdk-fetch.ts` holds `sdkFetchCreate`, `live-hub-memory.ts` holds `liveHubMemoryCreate`), and its test after the file (`sdk-fetch.test.ts`). `src/index.ts` only re-exports.
-- **Copied helpers.** A helper of about 20 lines that two Packages need is copied, not shared, so no Package depends on another for it. Above each copy: `// Copied from <path>; keep the two in step.`
+- **Files.** A file is named after its main export in kebab case, without `Create` (`sdk-fetch.ts` holds `sdkFetchCreate`, `live-hub-memory.ts` holds `liveHubMemoryCreate`), or after the subject its exports share (`authn-cookie.ts`); A23 checks it. Its test is named after the file (`sdk-fetch.test.ts`), or after the file and one aspect when one file's tests split (`authn-routes-oidc.test.ts`). A private helper is tested through the exported function that calls it. `src/index.ts` only re-exports. A new subpath entry is `src/<subpath>.ts` (`testing.ts`, `client.ts`).
+- **Copied helpers.** A helper of about 20 lines that two Packages need is copied, not shared, so no Package depends on another for it. Above each copy: `// Copied from <path>; keep the two in step.`, and above the original: `// Copied to <path>; keep the two in step.`
 
 ## Schemas
 
@@ -55,15 +55,17 @@ A **test helper**, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. L
 
 Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24). Tests use `it`, not `test`. A Package's own tests may use Vitest's spies, stubs and fake timers to reach a timer or a global; a README's testing note never asks a Project to, because the Template's tests may not (the Template's `structure.test.ts` checks it) and a Project copies them. It shows the memory stand-in instead.
 
-## Spans
+## Spans and metrics
 
 Only `@n8io/baseline-telemetry` starts spans. Other Packages set attributes on the active span through `@opentelemetry/api` (a peer), not through `@n8io/baseline-telemetry/span`, so no Package depends on telemetry; `/span` is for a Project's Use cases. The Project's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
+
+A Package that counts or times something gets its meter from `metrics.getMeter("@n8io/baseline-<package>")` and names each instrument `baseline.<package>.<snake_name>` (`baseline.queue.dead_letters`), with a UCUM unit where it has one (`ms`, `s`, `{event}`) and a description in glossary terms with no full stop. An attribute that names the queue or Consumer is `messaging.destination.name`.
 
 ## New Package
 
 Copy the closest Package's folder and change, in one pull request:
 
-1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them, in this order: `license`, `type`, `engines`, `repository.directory`, `exports` to `src/`, `files`, `publishConfig.exports` to `dist/`, the `build`, `check`, `prepack`, `test` and `test:unit` scripts, then the dependency maps. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`. `test/package-metadata.test.ts` checks the key order, the full stop and the `LICENSE` copy.
+1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them, in this order: `license`, `type`, `engines`, `repository.directory`, `exports` to `src/`, `files`, `publishConfig.exports` to `dist/`, the `build`, `check`, `prepack`, `test` and `test:unit` scripts (`test:unit` runs the tests that need no Docker: `vitest run` where none do, else the `unit` Vitest project), then the dependency maps. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`. `test/package-metadata.test.ts` checks the key order, the scripts, the full stop and the `LICENSE` copy.
 2. `tsdown.config.ts`: one entry per subpath; `platform: "neutral"` for code that also runs in browsers (sdk, the `client` entries), else `"node"`.
 3. `vitest.config.ts`, and a `turbo.json` when its tests use a shared service setup under `test/` (cache's is the model).
 4. `LICENSE`: a copy of the root one.

@@ -8,13 +8,18 @@ export type LiveTestSseReader = {
 	cancel(): Promise<void>;
 };
 
+/** What `liveTestSseRead` takes. */
+export type LiveTestSseReadOptions = {
+	/** The stream's response, from `liveStreamCreate` or from `fetch`. */
+	response: Response;
+};
+
 /** Reads a live stream's response in a test, from liveStreamCreate or from fetch. */
 export const liveTestSseRead = ({
 	response,
-}: {
-	response: Response;
-}): LiveTestSseReader => {
-	if (response.body === null) throw new TypeError("No body");
+}: LiveTestSseReadOptions): LiveTestSseReader => {
+	if (response.body === null)
+		throw new TypeError("liveTestSseRead: response has no body");
 	const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
 	let text = "";
 	let done = false;

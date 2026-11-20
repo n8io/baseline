@@ -30,13 +30,16 @@ export type AnalyticsMixpanelOptions = {
 
 /**
  * Sends each event to Mixpanel's /track, one request per event, with geolocation off and a 5 s
- * timeout per send. Throws a `TypeError` on a `vendor` key other than `host`, or a `vendor.host`
+ * timeout per send. Throws a `TypeError` on an empty `token`, a `vendor` key other than `host`, or a `vendor.host`
  * that is not a bare host name.
  */
 export const analyticsMixpanelCreate = ({
 	token,
 	vendor,
 }: AnalyticsMixpanelOptions): Analytics => {
+	if (token === "") {
+		throw new TypeError("analyticsMixpanelCreate: token must not be empty");
+	}
 	for (const key of Object.keys(vendor ?? {})) {
 		if (!vendorKeys.has(key)) {
 			throw new TypeError(

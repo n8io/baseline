@@ -54,6 +54,22 @@ export type RedisClientOptions = {
 	vendor?: RedisClientVendorOptions | null;
 };
 
+// Throws on a url that is not a Redis URL. The message names the scheme but never the URL, which
+// may hold a password.
+const redisUrlAssert = (url: string): void => {
+	let protocol: string;
+	try {
+		protocol = new URL(url).protocol;
+	} catch {
+		throw new TypeError("redisClientCreate: url is not a valid URL");
+	}
+	if (protocol !== "redis:" && protocol !== "rediss:") {
+		throw new TypeError(
+			`redisClientCreate: url must start with redis:// or rediss://, found "${protocol.slice(0, -1)}"`,
+		);
+	}
+};
+
 // Throws on a vendor setting that the URL or this Package already decides.
 const redisVendorAssert = ({
 	url,
@@ -95,6 +111,7 @@ export const redisClientCreate = async ({
 	vendor,
 }: RedisClientOptions): Promise<RedisClient> => {
 	const settings = vendor ?? {};
+	redisUrlAssert(url);
 	redisVendorAssert({ url, vendor: settings });
 	let connected = false;
 	const redisClient = createClient({

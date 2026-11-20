@@ -371,7 +371,7 @@ describe("order at publish", () => {
 	it("refuses an empty key", async () => {
 		await expect(
 			publish(names.eventName, [{ key: "", seq: 1 }]),
-		).rejects.toThrow("Event foo.renamed needs a key");
+		).rejects.toThrow("publish: key must not be empty (Event foo.renamed)");
 	});
 });
 

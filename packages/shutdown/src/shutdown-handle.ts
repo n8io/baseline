@@ -29,12 +29,12 @@ export type ShutdownOptions = {
 export type ShutdownHandle = { isShuttingDown(): boolean };
 
 // The last 5 s before the deadline belong to the resources.
-const RESOURCE_RESERVE_MS = 5000;
-const TIMED_OUT = Symbol("timedOut");
+const resourceReserveMs = 5000;
+const timedOut = Symbol("timedOut");
 
-const timeout = (ms: number): Promise<typeof TIMED_OUT> =>
+const timeout = (ms: number): Promise<typeof timedOut> =>
 	new Promise((resolve) => {
-		setTimeout(() => resolve(TIMED_OUT), Math.max(0, ms));
+		setTimeout(() => resolve(timedOut), Math.max(0, ms));
 	});
 
 const stepClose = async (
@@ -69,9 +69,9 @@ export const shutdownHandleCreate = ({
 	const drainDelayMs = drainDelayMsGiven ?? drainDelayMsDefault;
 	// At or under the reserve, or with the drain reaching the cutoff, the intakes would get no
 	// time: every one would be cut at once.
-	if (!Number.isInteger(deadlineMs) || deadlineMs <= RESOURCE_RESERVE_MS) {
+	if (!Number.isInteger(deadlineMs) || deadlineMs <= resourceReserveMs) {
 		throw new TypeError(
-			`shutdownHandleCreate: deadlineMs must be an integer over ${RESOURCE_RESERVE_MS}, not ${deadlineMs}`,
+			`shutdownHandleCreate: deadlineMs must be an integer over ${resourceReserveMs}, not ${deadlineMs}`,
 		);
 	}
 	if (!Number.isInteger(drainDelayMs) || drainDelayMs < 0) {
@@ -79,9 +79,9 @@ export const shutdownHandleCreate = ({
 			`shutdownHandleCreate: drainDelayMs must be a whole number, not ${drainDelayMs}`,
 		);
 	}
-	if (drainDelayMs >= deadlineMs - RESOURCE_RESERVE_MS) {
+	if (drainDelayMs >= deadlineMs - resourceReserveMs) {
 		throw new TypeError(
-			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${RESOURCE_RESERVE_MS} (${deadlineMs - RESOURCE_RESERVE_MS}), not ${drainDelayMs}`,
+			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), not ${drainDelayMs}`,
 		);
 	}
 	let shuttingDown = false;
@@ -91,7 +91,7 @@ export const shutdownHandleCreate = ({
 	// Resolves true when every step closed in time.
 	const shutdownRun = async (drainMs: number): Promise<boolean> => {
 		let clean = true;
-		const cutoff = timeout(deadlineMs - RESOURCE_RESERVE_MS);
+		const cutoff = timeout(deadlineMs - resourceReserveMs);
 		const deadline = timeout(deadlineMs);
 
 		// Readiness already answers 503; keep serving while load balancers notice.
@@ -106,7 +106,7 @@ export const shutdownHandleCreate = ({
 			}),
 		);
 		const intakeResult = await Promise.race([intakesDone, cutoff]);
-		if (intakeResult === TIMED_OUT) {
+		if (intakeResult === timedOut) {
 			clean = false;
 			for (const intake of open) {
 				logger.warn(`Intake ${intake.name} still open at the cutoff`);
@@ -120,7 +120,7 @@ export const shutdownHandleCreate = ({
 				stepClose("Resource", resource),
 				deadline,
 			]);
-			if (closed === TIMED_OUT) {
+			if (closed === timedOut) {
 				clean = false;
 				for (const left of resources.slice(index)) {
 					logger.error(`Resource ${left.name} still open at the deadline`);

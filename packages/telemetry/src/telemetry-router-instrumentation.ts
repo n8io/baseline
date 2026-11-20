@@ -1,4 +1,5 @@
 import { SpanKind, trace } from "@opentelemetry/api";
+import { telemetryScope } from "./telemetry-scope.ts";
 import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 // The parts of React Router's ServerInstrumentation this file uses, written out
@@ -34,7 +35,7 @@ export type TelemetryRouterInstrumentation = {
 	}): void;
 };
 
-const tracer = () => trace.getTracer("@n8io/baseline-telemetry");
+const tracer = () => trace.getTracer(telemetryScope);
 
 // React Router's pattern has no leading slash (`foos/:fooId`, "" for the index); http.route
 // starts with one.

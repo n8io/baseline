@@ -130,7 +130,7 @@ describe("liveStreamCreate", () => {
 
 	it("a client that goes away stops listening and no longer holds close()", async () => {
 		const liveHub = liveHubMemoryCreate();
-		const streams = liveHubStreams(liveHub);
+		const streams = liveHubStreams(liveHub, "liveStreamCreate");
 		const listen = streams.listen;
 		let unlistened = 0;
 		vi.spyOn(streams, "listen").mockImplementation(async (...args) => {
@@ -172,7 +172,10 @@ describe("liveStreamCreate", () => {
 
 	it("a request aborted before the stream starts never subscribes", async () => {
 		await using liveHub = liveHubMemoryCreate();
-		const listen = vi.spyOn(liveHubStreams(liveHub), "listen");
+		const listen = vi.spyOn(
+			liveHubStreams(liveHub, "liveStreamCreate"),
+			"listen",
+		);
 		const sse = liveTestSseRead({
 			response: liveStreamCreate({
 				channel: "foo",
@@ -210,9 +213,10 @@ describe("liveStreamCreate", () => {
 		const liveHub = liveHubMemoryCreate();
 		const late = vi.fn();
 		const listening = Promise.withResolvers<() => void>();
-		vi.spyOn(liveHubStreams(liveHub), "listen").mockReturnValue(
-			listening.promise,
-		);
+		vi.spyOn(
+			liveHubStreams(liveHub, "liveStreamCreate"),
+			"listen",
+		).mockReturnValue(listening.promise);
 		const sse = liveTestSseRead({
 			response: await liveTestAppCreate(liveHub).request("/live/foo/foo_1"),
 		});
@@ -226,15 +230,32 @@ describe("liveStreamCreate", () => {
 		});
 	});
 
+	it("refuses an expiresAt that is not a number", async () => {
+		await using liveHub = liveHubMemoryCreate();
+		const call = (expiresAt: number) => () =>
+			liveStreamCreate({ channel: "foo", expiresAt, id: "foo_1", liveHub });
+
+		expect(call(Number.NaN)).toThrow(TypeError);
+		expect(call(Number.NaN)).toThrow(
+			"liveStreamCreate: expiresAt must be a number",
+		);
+		expect(call("soon" as unknown as number)).toThrow(
+			"liveStreamCreate: expiresAt must be a number",
+		);
+	});
+
 	it("refuses a hub it did not make", () => {
 		expect(() =>
-			liveHubStreams({
-				close: async () => {},
-				[Symbol.asyncDispose]: async () => {},
-				send: async () => {},
-			}),
+			liveHubStreams(
+				{
+					close: async () => {},
+					[Symbol.asyncDispose]: async () => {},
+					send: async () => {},
+				},
+				"liveStreamCreate",
+			),
 		).toThrow(
-			"liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
+			"liveStreamCreate: liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
 		);
 	});
 });

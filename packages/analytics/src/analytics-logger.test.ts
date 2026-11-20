@@ -22,4 +22,20 @@ describe("analyticsLoggerCreate", () => {
 			"Analytics event",
 		);
 	});
+
+	it("leaves properties out of the log when they are null", async () => {
+		const debug = vi.spyOn(logger, "debug").mockImplementation(() => undefined);
+		await using analytics = analyticsLoggerCreate();
+
+		analytics.track({
+			actorId: "user-1",
+			name: "foo.created",
+			properties: null,
+		});
+
+		expect(debug).toHaveBeenCalledWith(
+			{ event: "foo.created" },
+			"Analytics event",
+		);
+	});
 });

@@ -14,15 +14,15 @@ const idPattern = new RegExp(`^(.+)_(${suffixPattern})$`);
 const uuidPattern =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const prefixAssert = (prefix: string): void => {
+const idPrefixAssert = (prefix: string, caller: string): void => {
 	if (!prefixPattern.test(prefix)) {
 		throw new TypeError(
-			`Invalid id prefix "${prefix}": use snake_case, matching ${prefixPattern}`,
+			`${caller}: prefix "${prefix}" must be snake_case, matching ${prefixPattern}`,
 		);
 	}
 };
 
-const suffixFromHex = (hex: string): string => {
+const idSuffixFromHex = (hex: string): string => {
 	let value = BigInt(`0x${hex}`);
 	let suffix = "";
 	for (let index = 0; index < 26; index++) {
@@ -32,7 +32,7 @@ const suffixFromHex = (hex: string): string => {
 	return suffix;
 };
 
-const hexFromSuffix = (suffix: string): string => {
+const idHexFromSuffix = (suffix: string): string => {
 	let value = 0n;
 	for (const char of suffix) {
 		value = (value << 5n) | BigInt(alphabet.indexOf(char));
@@ -41,7 +41,7 @@ const hexFromSuffix = (suffix: string): string => {
 };
 
 // RFC 9562 UUIDv7: 48 bits of Unix time in milliseconds, version 7, 74 random bits, variant 10.
-const uuidV7Hex = (): string => {
+const idUuidV7Hex = (): string => {
 	const bytes = getRandomValues(new Uint8Array(16));
 	let time = Date.now();
 	for (let index = 5; index >= 0; index--) {
@@ -55,8 +55,8 @@ const uuidV7Hex = (): string => {
 
 /** A new id with prefix `prefix` and a UUIDv7 of the current time inside. Throws `TypeError` on a prefix that is not snake_case. */
 export const idCreate = <P extends string>(prefix: P): Id<P> => {
-	prefixAssert(prefix);
-	return `${prefix}_${suffixFromHex(uuidV7Hex())}`;
+	idPrefixAssert(prefix, "idCreate");
+	return `${prefix}_${idSuffixFromHex(idUuidV7Hex())}`;
 };
 
 /**
@@ -64,7 +64,7 @@ export const idCreate = <P extends string>(prefix: P): Id<P> => {
  * your validator's string pattern check to build an id schema.
  */
 export const idPatternCreate = (prefix: string): RegExp => {
-	prefixAssert(prefix);
+	idPrefixAssert(prefix, "idPatternCreate");
 	return new RegExp(`^${prefix}_${suffixPattern}$`);
 };
 
@@ -72,9 +72,9 @@ export const idPatternCreate = (prefix: string): RegExp => {
 export const idToUuid = (id: Id<string>): string => {
 	const match = idPattern.exec(id);
 	if (!match?.[1] || !match[2] || !prefixPattern.test(match[1])) {
-		throw new TypeError("Invalid id");
+		throw new TypeError("idToUuid: id is not a valid id");
 	}
-	const hex = hexFromSuffix(match[2]);
+	const hex = idHexFromSuffix(match[2]);
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
@@ -83,9 +83,9 @@ export const idFromUuid = <P extends string>(
 	prefix: P,
 	uuid: string,
 ): Id<P> => {
-	prefixAssert(prefix);
+	idPrefixAssert(prefix, "idFromUuid");
 	if (!uuidPattern.test(uuid)) {
-		throw new TypeError("Invalid UUID");
+		throw new TypeError("idFromUuid: uuid is not a UUID");
 	}
-	return `${prefix}_${suffixFromHex(uuid.replaceAll("-", ""))}`;
+	return `${prefix}_${idSuffixFromHex(uuid.replaceAll("-", ""))}`;
 };

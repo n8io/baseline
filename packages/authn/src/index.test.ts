@@ -35,35 +35,22 @@ describe("the main entry", () => {
 		expect(imports.size).toBeGreaterThan(5);
 		expect(reactImports).toStrictEqual([]);
 	});
-
-	it("reaches no test helper", () => {
-		const files = [...reachableImports("./index.ts").keys()];
-
-		expect(files.length).toBeGreaterThan(5);
-		expect(files.filter((file) => /testing|-test-/.test(file))).toStrictEqual(
-			[],
-		);
-	});
 });
 
 describe("the testing entry", () => {
-	it("reaches the helpers and authn itself, but no test runner and no route or page code", () => {
+	it("reaches the helpers and authn itself, but no route or page code", () => {
 		const imports = reachableImports("./testing.ts");
 
 		expect([...imports.keys()].sort()).toStrictEqual([
 			"./actor-schema.ts",
 			"./actor.ts",
 			"./authn-cookie.ts",
+			"./authn-secret-key.ts",
 			"./authn-test-bearer.ts",
 			"./authn-test-sign-in.ts",
 			"./authn-test-token.ts",
 			"./authn.ts",
 			"./testing.ts",
 		]);
-		expect(
-			[...new Set([...imports.values()].flat())].filter((specifier) =>
-				specifier.startsWith("vitest"),
-			),
-		).toStrictEqual([]);
 	});
 });

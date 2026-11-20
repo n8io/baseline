@@ -5,7 +5,7 @@ import {
 	redirectDocument,
 } from "react-router";
 import type { Actor } from "./actor.ts";
-import { authnPagePath } from "./authn-return-to.ts";
+import { authnRequestUrlPagePath } from "./authn-request-url.ts";
 
 /** The signed-in actor for a page request, or `undefined` when nobody is signed in. */
 export const actorContext: RouterContext<Actor | undefined> = createContext<
@@ -26,7 +26,7 @@ export const authnPageActorRequire = (args: {
 }): Actor => {
 	const actor = args.context.get(actorContext);
 	if (actor !== undefined) return actor;
-	const returnTo = authnPagePath(new URL(args.request.url));
+	const returnTo = authnRequestUrlPagePath(new URL(args.request.url));
 	throw redirectDocument(
 		`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
 	);

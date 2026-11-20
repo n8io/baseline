@@ -29,6 +29,15 @@ export type HealthServerOptions = {
 export const healthServerCreate = (
 	options: HealthServerOptions,
 ): HealthServer => {
+	if (
+		!Number.isInteger(options.port) ||
+		options.port < 0 ||
+		options.port > 65_535
+	) {
+		throw new TypeError(
+			"healthServerCreate: port must be an integer from 0 to 65535",
+		);
+	}
 	let isReady = false;
 
 	const server = createServer((request, response) => {

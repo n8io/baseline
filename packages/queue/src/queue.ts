@@ -68,11 +68,14 @@ const queueConcurrencies = new WeakMap<Queue, number>();
 export const queueConcurrencyGet = (queue: Queue): number =>
 	queueConcurrencies.get(queue) ?? queueConcurrencyDefault;
 
-/** The pg-boss instance behind a Queue, for the other modules of this package only. */
-export const queueBossGet = (queue: Queue): PgBoss => {
+/**
+ * The pg-boss instance behind a Queue, for the other modules of this package only. `caller` is the
+ * public function that was given the Queue, named in the error for one that queueCreate did not make.
+ */
+export const queueBossGet = (queue: Queue, caller = "queueBossGet"): PgBoss => {
 	const boss = queueBosses.get(queue);
 	if (boss === undefined) {
-		throw new TypeError("Expected a Queue from queueCreate");
+		throw new TypeError(`${caller}: queue must come from queueCreate`);
 	}
 	return boss;
 };

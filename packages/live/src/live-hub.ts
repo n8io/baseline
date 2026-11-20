@@ -67,11 +67,14 @@ const liveSendsFailedCounter = (): Counter => {
 const liveHubStreamsByHub = new WeakMap<LiveHub, LiveHubStreams>();
 
 /** The streams side of a hub; throws a TypeError for a hub this Package did not make. */
-export const liveHubStreams = (liveHub: LiveHub): LiveHubStreams => {
+export const liveHubStreams = (
+	liveHub: LiveHub,
+	caller: string,
+): LiveHubStreams => {
 	const streams = liveHubStreamsByHub.get(liveHub);
 	if (streams === undefined) {
 		throw new TypeError(
-			"liveHub must come from liveHubRedisCreate or liveHubMemoryCreate",
+			`${caller}: liveHub must come from liveHubRedisCreate or liveHubMemoryCreate`,
 		);
 	}
 	return streams;

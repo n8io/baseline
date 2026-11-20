@@ -5,7 +5,7 @@
 export type AnalyticsEvent = {
 	name: string;
 	actorId: string;
-	properties?: Record<string, boolean | number | string>;
+	properties?: Record<string, boolean | number | string> | null;
 };
 
 /** Sends Analytics events to product analytics after the change commits. */

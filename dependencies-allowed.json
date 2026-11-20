@@ -1,6 +1,6 @@
 {
 	"@hono/zod-openapi": "Hono routes with OpenAPI from Zod schemas (http)",
-	"@opentelemetry/api": "the tracing API Packages set span attributes through (authn, cache, error-tracking, http, live, queue, telemetry)",
+	"@opentelemetry/api": "the tracing and metrics API: span attributes and context (authn, error-tracking, http, queue, telemetry) and counters (cache, live, queue, telemetry)",
 	"@opentelemetry/core": "W3C trace context propagation for Events; pinned exactly, as OpenTelemetry's packages must match each other (queue)",
 	"@opentelemetry/exporter-logs-otlp-proto": "exports logs over OTLP; pinned exactly, as OpenTelemetry's packages must match each other (telemetry)",
 	"@opentelemetry/exporter-metrics-otlp-proto": "exports metrics over OTLP; pinned exactly, as OpenTelemetry's packages must match each other (telemetry)",

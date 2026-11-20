@@ -9,7 +9,10 @@ import {
 } from "./authn.ts";
 import { authnCookieClear, authnCookieGet } from "./authn-cookie.ts";
 import { AuthnInvalidError } from "./authn-errors.ts";
-import { authnDataRequestIs, authnPagePath } from "./authn-return-to.ts";
+import {
+	authnRequestUrlDataIs,
+	authnRequestUrlPagePath,
+} from "./authn-request-url.ts";
 
 declare module "hono" {
 	interface ContextVariableMap {
@@ -28,16 +31,17 @@ const refreshWindowMs = 10_000;
  * Redirects a page request. React Router's client-side data requests (`/foos.data`) cannot follow
  * a cross-site redirect, so they get its 204 redirect headers and load the target as a document.
  */
-const pageRedirect = (c: Context, path: string): Response => {
-	const target = `${path}?returnTo=${encodeURIComponent(authnPagePath(new URL(c.req.url)))}`;
-	if (!authnDataRequestIs(new URL(c.req.url))) return c.redirect(target, 302);
+const authnPageRedirect = (c: Context, path: string): Response => {
+	const target = `${path}?returnTo=${encodeURIComponent(authnRequestUrlPagePath(new URL(c.req.url)))}`;
+	if (!authnRequestUrlDataIs(new URL(c.req.url)))
+		return c.redirect(target, 302);
 	return c.body(null, 204, {
 		"X-Remix-Redirect": target,
 		"X-Remix-Reload-Document": "true",
 	});
 };
 
-const signedIn = (
+const authnSignedIn = (
 	c: Context,
 	verified: Extract<AuthnVerified, { status: "valid" }>,
 ): void => {
@@ -58,7 +62,7 @@ const bearerMiddleware =
 			? await authn.verify(match[1])
 			: ({ status: "invalid" } as const);
 		if (verified.status !== "valid") throw new AuthnInvalidError();
-		signedIn(c, verified);
+		authnSignedIn(c, verified);
 		return next();
 	};
 
@@ -84,22 +88,28 @@ const cookieMiddleware =
 		if (verified.status === "invalid") {
 			authnCookieClear(c, "access");
 			authnCookieClear(c, "refresh");
-			return pageRedirect(c, "/auth/sign-in");
+			return authnPageRedirect(c, "/auth/sign-in");
 		}
 		const expiring =
 			verified.status === "expired" ||
 			verified.expiresAt - Date.now() < refreshWindowMs;
 		if (expiring) {
 			if (c.req.method === "GET" || c.req.method === "HEAD") {
-				return pageRedirect(c, "/auth/refresh");
+				return authnPageRedirect(c, "/auth/refresh");
 			}
 			// A form post without JavaScript cannot be replayed after a refresh (accepted).
 			authnCookieClear(c, "access");
-			return pageRedirect(c, "/auth/sign-in");
+			return authnPageRedirect(c, "/auth/sign-in");
 		}
-		signedIn(c, verified);
+		authnSignedIn(c, verified);
 		return next();
 	};
+
+/** What `authnMiddlewareCreate` takes as its second argument. */
+export type AuthnMiddlewareOptions = {
+	/** Where the token comes from: the `Authorization` header or the cookies. */
+	source: "bearer" | "cookie";
+};
 
 /**
  * Sets `c.var.actor` and `c.var.authnExpiresAt`, or leaves them `undefined` when no token is
@@ -109,8 +119,8 @@ const cookieMiddleware =
  */
 export const authnMiddlewareCreate = (
 	authn: Authn,
-	options: { source: "bearer" | "cookie" },
+	options: AuthnMiddlewareOptions,
 ): MiddlewareHandler =>
 	options.source === "bearer"
-		? bearerMiddleware(authnState(authn))
-		: cookieMiddleware(authnState(authn));
+		? bearerMiddleware(authnState(authn, "authnMiddlewareCreate"))
+		: cookieMiddleware(authnState(authn, "authnMiddlewareCreate"));

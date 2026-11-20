@@ -66,6 +66,23 @@ describe("Package metadata", () => {
 		expect(wrong).toEqual([]);
 	});
 
+	// Root `pnpm test:unit` runs through turbo, which skips a Package without the script: a
+	// Package missing it would pass with none of its tests run.
+	it("has the build, check, prepack, test and test:unit scripts in every Package", () => {
+		const scriptsRequired = ["build", "check", "prepack", "test", "test:unit"];
+		const wrong = packageDirs.flatMap((dir) => {
+			const { scripts = {} } = JSON.parse(
+				textRead(`packages/${dir}/package.json`),
+			) as { scripts?: Record<string, string> };
+			const missing = scriptsRequired.filter((name) => !(name in scripts));
+			return missing.length > 0 ? [`${dir}: add ${missing.join(", ")}`] : [];
+		});
+		expect(
+			wrong,
+			'test:unit runs the tests that need no Docker: "vitest run" where none do (docs/agents/packages.md)',
+		).toEqual([]);
+	});
+
 	it("ends every description with a full stop", () => {
 		const wrong = packageDirs.filter((dir) => {
 			const { description } = JSON.parse(

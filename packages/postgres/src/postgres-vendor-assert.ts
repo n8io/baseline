@@ -13,6 +13,7 @@ const postgresVendorOwnedKeys = {
 /** The pg settings no `vendor` option may carry. */
 export type PostgresVendorOwnedKey = keyof typeof postgresVendorOwnedKeys;
 
+// Copied to packages/queue/src/queue-connection-assert.ts; keep the two in step.
 const postgresUrlSslParams = [
 	"ssl",
 	"sslcert",
@@ -21,6 +22,7 @@ const postgresUrlSslParams = [
 	"sslrootcert",
 ];
 
+// Copied to packages/queue/src/queue-connection-assert.ts; keep the two in step.
 // Node's own error would carry the whole URL, password included.
 const postgresUrlParamsRead = (
 	databaseUrl: string,

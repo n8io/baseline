@@ -45,7 +45,12 @@ export const liveStreamCreate = ({
 	liveHub,
 	signal,
 }: LiveStreamOptions): Response => {
-	const streams = liveHubStreams(liveHub);
+	if (typeof expiresAt !== "number" || Number.isNaN(expiresAt)) {
+		throw new TypeError(
+			`liveStreamCreate: expiresAt must be a number of epoch ms, got ${expiresAt}`,
+		);
+	}
+	const streams = liveHubStreams(liveHub, "liveStreamCreate");
 	const encoder = new TextEncoder();
 	const stop = Promise.withResolvers<void>();
 	// True once the page is gone: nothing more can be written.

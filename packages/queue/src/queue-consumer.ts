@@ -91,7 +91,7 @@ export const queueConsumersSubscribe = async (
 	queue: Queue,
 	consumers: Consumer[],
 ): Promise<void> => {
-	const boss = queueBossGet(queue);
+	const boss = queueBossGet(queue, "queueConsumersSubscribe");
 	for (const consumer of consumers) {
 		const name = queueOrderedName(consumer.queueName);
 		await queueWithDeadLetterCreate({
@@ -219,7 +219,7 @@ export const queueConsumersStart = async (
 	consumers: Consumer[],
 ): Promise<void> => {
 	await queueConsumersSubscribe(queue, consumers);
-	const boss = queueBossGet(queue);
+	const boss = queueBossGet(queue, "queueConsumersStart");
 	const lanes = queueConcurrencyGet(queue);
 	const slots = queueSlotsGet(queue);
 	for (const consumer of consumers) {

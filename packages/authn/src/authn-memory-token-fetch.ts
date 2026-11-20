@@ -8,6 +8,16 @@ export type AuthnMemoryToken = {
 	token: string;
 };
 
+/** What `authnMemoryTokenFetch` takes. */
+export type AuthnMemoryTokenFetchOptions = {
+	/** The served app's origin. */
+	baseUrl: string;
+	/** One of the app's `memoryClients`. */
+	clientId: string;
+	/** The scopes to ask for. `null` means all of the client's. */
+	scopes?: string[] | null;
+};
+
 const tokenResponseRead = (
 	body: unknown,
 ): { access_token: string; expires_in: number } => {
@@ -29,11 +39,7 @@ export const authnMemoryTokenFetch = async ({
 	baseUrl,
 	clientId,
 	scopes,
-}: {
-	baseUrl: string;
-	clientId: string;
-	scopes?: string[] | null;
-}): Promise<AuthnMemoryToken> => {
+}: AuthnMemoryTokenFetchOptions): Promise<AuthnMemoryToken> => {
 	const origin = new URL(baseUrl).origin;
 	const res = await fetch(`${origin}/auth/token`, {
 		body: new URLSearchParams({

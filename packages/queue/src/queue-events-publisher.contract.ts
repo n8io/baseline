@@ -60,7 +60,9 @@ export const queueEventsPublisherContract = (
 						name: "foo.created",
 					}),
 				),
-			).rejects.toThrow(new TypeError("Event foo.created needs a key"));
+			).rejects.toThrow(
+				new TypeError("publish: key must not be empty (Event foo.created)"),
+			);
 		});
 	});
 };

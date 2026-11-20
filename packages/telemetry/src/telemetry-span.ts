@@ -1,10 +1,9 @@
 import { trace } from "@opentelemetry/api";
+import { telemetryScope } from "./telemetry-scope.ts";
 import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 /** Facts about the work on a span: an id, a count, which branch ran. */
 export type TelemetryAttributes = Record<string, boolean | number | string>;
-
-const scope = "@n8io/baseline-telemetry";
 
 /** Sets attributes on the span that is active now. Does nothing when none is. */
 export const telemetrySpanAttributesSet = (
@@ -21,7 +20,7 @@ export const telemetrySpanRun = <T>(
 	name: string,
 	work: () => Promise<T> | T,
 ): Promise<T> =>
-	trace.getTracer(scope).startActiveSpan(name, async (span) => {
+	trace.getTracer(telemetryScope).startActiveSpan(name, async (span) => {
 		try {
 			return await work();
 		} catch (error) {

@@ -14,6 +14,7 @@ const verify = async (
 ) => {
 	const authn = authnState(
 		await authnCreate({ ...authnTestMemoryOptions, ...options }),
+		"authnTest",
 	);
 	if (authn.issuer.kind !== "memory") throw new Error("memory issuer expected");
 	const { accessToken } = await authn.issuer.tokensCreate(actor);
@@ -23,7 +24,7 @@ const verify = async (
 describe("authnCreate", () => {
 	it("makes the only Authn the other functions accept", () => {
 		expect(() => authnRoutesCreate({} as Authn)).toThrow(
-			"Expected an Authn from authnCreate",
+			"authnRoutesCreate: authn must come from authnCreate",
 		);
 	});
 
@@ -46,7 +47,10 @@ describe("authnCreate", () => {
 	});
 
 	it("accepts a 32-byte base64url secret", async () => {
-		const authn = authnState(await authnCreate(authnTestMemoryOptions));
+		const authn = authnState(
+			await authnCreate(authnTestMemoryOptions),
+			"authnTest",
+		);
 
 		expect(authn.issuer.kind).toBe("memory");
 	});
@@ -86,9 +90,13 @@ describe("the verifier", () => {
 	});
 
 	it("checks the audience", async () => {
-		const authn = authnState(await authnCreate(authnTestMemoryOptions));
+		const authn = authnState(
+			await authnCreate(authnTestMemoryOptions),
+			"authnTest",
+		);
 		const other = authnState(
 			await authnCreate({ ...authnTestMemoryOptions, audience: "other" }),
+			"authnTest",
 		);
 		if (other.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
@@ -135,7 +143,10 @@ describe("the verifier", () => {
 	});
 
 	it("never accepts a memory refresh token as an access token", async () => {
-		const authn = authnState(await authnCreate(authnTestMemoryOptions));
+		const authn = authnState(
+			await authnCreate(authnTestMemoryOptions),
+			"authnTest",
+		);
 		if (authn.issuer.kind !== "memory")
 			throw new Error("memory issuer expected");
 		const { refreshToken } = await authn.issuer.tokensCreate({
