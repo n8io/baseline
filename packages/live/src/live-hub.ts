@@ -1,21 +1,29 @@
 import { logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
 
-// What changed, never model data: the page reruns its loader to read it.
+/** What changed, never the data itself: the page reruns its loaders to read it. */
 export type LiveUpdate = { type: string; id: string };
 
+/**
+ * Sends Live updates to every open stream for their (channel, id), on this instance and every
+ * other one its transport reaches. Made by `liveHubRedisCreate` or `liveHubMemoryCreate`.
+ */
 export type LiveHub = {
-	// Best effort: resolves once the update is handed over, and also when it could not be (the
-	// failure is logged and counted). It never rejects, so call it after commit with no catch.
+	/**
+	 * Best effort: resolves once the update is handed over, and also when it could not be (the
+	 * failure is logged and counted). It never rejects, so call it after commit with no catch.
+	 */
 	send(channel: string, update: LiveUpdate): Promise<void>;
+	/** Ends every open stream (each asks its page to reconnect), then closes the transport. */
 	close(): Promise<void>;
 	/** Calls close(), so `await using` closes the hub when its block ends. */
 	[Symbol.asyncDispose](): Promise<void>;
 };
 
+/** Called with each Live update for one (channel, id). */
 export type LiveListener = (update: LiveUpdate) => void;
 
-// What liveStreamCreate needs from a hub beyond its public send and close.
+/** What `liveStreamCreate` needs from a hub beyond its public send and close. */
 export type LiveHubStreams = {
 	isClosed(): boolean;
 	// Resolves once updates for (channel, id) reach `listener`; returns the unlisten. From
@@ -30,7 +38,7 @@ export type LiveHubStreams = {
 	track(end: () => Promise<void>): () => void;
 };
 
-// How a hub moves JSON messages between instances (Redis pub/sub, or in process).
+/** How a hub moves JSON messages between instances (Redis pub/sub, or in process). */
 export type LiveTransport = {
 	publish(channel: string, message: string): Promise<void>;
 	// Delivers every message later published to `channel`. Called once per channel.
@@ -58,6 +66,7 @@ const liveSendsFailedCounter = (): Counter => {
 
 const liveHubStreamsByHub = new WeakMap<LiveHub, LiveHubStreams>();
 
+/** The streams side of a hub; throws a TypeError for a hub this Package did not make. */
 export const liveHubStreams = (liveHub: LiveHub): LiveHubStreams => {
 	const streams = liveHubStreamsByHub.get(liveHub);
 	if (streams === undefined) {
@@ -82,8 +91,10 @@ const liveUpdateParse = (message: string): LiveUpdate | undefined => {
 	}
 };
 
-// One hub per instance: sends through the transport and fans each received
-// update out to this instance's streams for its (channel, id).
+/**
+ * One hub per instance: sends through the transport and fans each received
+ * update out to this instance's streams for its (channel, id).
+ */
 export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 	const listeners = new Map<string, Set<LiveListener>>();
 	const subscriptions = new Map<string, Promise<void>>();
@@ -98,6 +109,7 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 	});
 
 	// Counts every failure and warns once per 30 s, so an outage is not one line per send.
+	// The same throttle as `storeFailed` in packages/cache/src/cache.ts; keep the two in step.
 	const sendFailed = (channel: string, err: unknown): void => {
 		liveSendsFailedCounter().add(1, { "baseline.live.channel": channel });
 		if (Date.now() - warnedAt < liveWarnIntervalMs) {

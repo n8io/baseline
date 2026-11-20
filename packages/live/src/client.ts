@@ -12,12 +12,14 @@ type BrowserGlobal = {
 const eventSourceCreate: LiveEventSourceCreate = (url) =>
 	new (globalThis as unknown as BrowserGlobal).EventSource(url);
 
+/** What `useLiveUpdates` takes. */
 export type LiveUpdatesOptions = {
+	/** The channel the server sends on, such as `invoice`. */
 	channel: string;
 	/** `null` opens no stream, for a page that has no id to follow yet. */
 	id: string | null;
 	/** Where the server mounts the streams. Defaults to `/live`. */
-	pathPrefix?: string;
+	pathPrefix?: string | null;
 };
 
 /**
@@ -27,7 +29,7 @@ export type LiveUpdatesOptions = {
 export const useLiveUpdates = ({
 	channel,
 	id,
-	pathPrefix = "/live",
+	pathPrefix = null,
 }: LiveUpdatesOptions): void => {
 	const { revalidate } = useRevalidator();
 	useEffect(

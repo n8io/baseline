@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { cacheContract } from "./cache.contract.ts";
+import { cacheStoreContract } from "./cache-store.contract.ts";
 import { cacheCreate, cacheStoreMemoryCreate } from "./index.ts";
 
 beforeEach(() => {
@@ -13,14 +13,14 @@ afterEach(() => {
 
 const store = cacheStoreMemoryCreate();
 
-cacheContract(
+cacheStoreContract(
 	() => store,
 	async (ms) => {
 		vi.advanceTimersByTime(ms);
 	},
 );
 
-test("entries expire after 60 s by default", async () => {
+it("entries expire after 60 s by default", async () => {
 	const cache = cacheCreate(cacheStoreMemoryCreate(), {
 		prefix: "foo",
 		schema: z.string(),

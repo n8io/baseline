@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+// The main entry must load in a service that installs neither react nor react-router. Test helpers
+// and test runners are checked for every Package by test/package-testing.test.ts.
 const srcDir = new URL("./", import.meta.url);
 // `from "x"`, a bare `import "x"` and a dynamic `import("x")`.
 const importPattern = /(?:\bfrom|\bimport)\s*\(?\s*"([^"]+)"/g;
@@ -34,28 +36,5 @@ describe("the main entry", () => {
 
 		expect(imports.size).toBeGreaterThan(3);
 		expect(reactImports).toStrictEqual([]);
-	});
-
-	it("reaches no test helper", () => {
-		const files = [...reachableImports("./index.ts").keys()];
-
-		expect(files.length).toBeGreaterThan(3);
-		expect(files.filter((file) => /testing|-test-/.test(file))).toStrictEqual(
-			[],
-		);
-	});
-});
-
-describe("the testing entry", () => {
-	it("imports no package, so no test runner and no server", () => {
-		const imports = reachableImports("./testing.ts");
-		const packageImports = [...imports].flatMap(([file, specifiers]) =>
-			specifiers
-				.filter((specifier) => !specifier.startsWith("./"))
-				.map((specifier) => `${file} imports ${specifier}`),
-		);
-
-		expect(imports.size).toBe(2);
-		expect(packageImports).toStrictEqual([]);
 	});
 });
