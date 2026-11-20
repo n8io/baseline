@@ -151,3 +151,7 @@ _Avoid_: job runner, background process
 **Seed**:
 An inbound adapter that creates example data for local development by calling its bounded context's own Use cases.
 _Avoid_: fixture, sample data
+
+**Environment**:
+A named place a Project's API runs, such as development or production, with one API URL, listed in `clients/environments.json`. A caller of the SDK or the command line tool picks one by name instead of passing a URL.
+_Avoid_: stage, target, deployment
