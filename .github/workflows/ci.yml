@@ -171,7 +171,7 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      - name: Render, upgrade and add the domains
+      - name: Render, upgrade and add the contexts
         run: |
           git config --global user.name "render-and-test"
           git config --global user.email "render-and-test@users.noreply.github.com"

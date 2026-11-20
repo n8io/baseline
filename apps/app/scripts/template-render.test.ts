@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { contextsPairsFill } from "./aggregate-create.ts";
 import {
 	clientManifestPin,
-	domainsPairsFind,
+	contextsPairsFind,
 	filesRead,
 	fooBlocksFind,
 	fooLineIs,
@@ -663,19 +663,21 @@ describe.runIf(template)("the template's own files", () => {
 	});
 
 	it("empty every contexts-start/contexts-end pair, which contextsPairsFill fills back exactly", () => {
-		const paired = files.filter((f) => domainsPairsFind(f.text, f.path).length);
+		const paired = files.filter(
+			(f) => contextsPairsFind(f.text, f.path).length,
+		);
 
 		expect(paired.map((f) => f.path)).toEqual([
+			"src/contexts.ts",
 			"src/seed.ts",
 			"src/server.ts",
 			"src/ui/context.ts",
 			"src/ui/routes.ts",
-			"src/use-cases.ts",
 			"src/worker.ts",
 		]);
 		for (const { path, text } of paired) {
 			const rendered = templateFileRender({ path, text }, answers)?.text ?? "";
-			const pairs = domainsPairsFind(rendered, path);
+			const pairs = contextsPairsFind(rendered, path);
 
 			expect(pairs.every(([start, end]) => end === start + 1)).toBe(true);
 			expect(

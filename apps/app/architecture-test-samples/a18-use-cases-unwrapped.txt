@@ -1,6 +1,6 @@
-// A18: src/use-cases.ts builds every context; a context's index.ts wraps its use cases in telemetryUseCasesTrace
+// A18: src/contexts.ts builds every context; a context's index.ts wraps its use cases in telemetryUseCasesTrace
 // expect: src/contexts/bar/index.ts: wrap barUseCasesCreate(...) in telemetryUseCasesTrace(...)
-// @file src/use-cases.ts
+// @file src/contexts.ts
 import { barContextCreate } from "#contexts/bar/index.ts";
 
 export const contextsCreate = () => {

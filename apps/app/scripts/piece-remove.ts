@@ -355,7 +355,6 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 			"@types/react-dom",
 			"class-variance-authority",
 			"cn",
-			"lucide-react",
 			"radix-ui",
 			"react",
 			"react-dom",

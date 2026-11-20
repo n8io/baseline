@@ -574,7 +574,7 @@
 			},
 			"get": {
 				"operationId": "barList",
-				"summary": "List one foo's bars, one page at a time",
+				"summary": "List one foo's bars, oldest first",
 				"tags": ["bar"],
 				"parameters": [
 					{

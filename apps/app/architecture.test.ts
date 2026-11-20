@@ -159,7 +159,7 @@ describe("architecture", () => {
 
 	it("A6 lets only tests and test helpers in a context build contexts or open connections", async () => {
 		const source =
-			'import { connectionsOpen } from "../../../../connections.ts";\nimport { contextsCreate } from "../../../../use-cases.ts";\n';
+			'import { connectionsOpen } from "../../../../connections.ts";\nimport { contextsCreate } from "../../../../contexts.ts";\n';
 		const at = (path: string) => architectureFileCreate(path, source);
 		const outbound = "src/contexts/bar/adapters/outbound";
 		expect(
@@ -208,19 +208,19 @@ describe("architecture", () => {
 			"src/contexts/shipping/adapters/outbound/parcel-table.ts",
 			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("shipping").table("parcel", { invoiceId: text("invoice_id") });\n',
 		);
-		const models = await Promise.all(
+		const aggregates = await Promise.all(
 			[
 				"src/contexts/billing/domain/invoice.ts",
 				"src/contexts/billing/domain/invoice-line.ts",
 			].map((path) => architectureFileCreate(path, "")),
 		);
-		expect(architectureRules.A14?.([own, invoice, ...models])).toEqual([]);
+		expect(architectureRules.A14?.([own, invoice, ...aggregates])).toEqual([]);
 		expect(
-			architectureRules.A14?.([own, invoice, shipping, ...models]),
+			architectureRules.A14?.([own, invoice, shipping, ...aggregates]),
 		).toEqual([
 			'src/contexts/shipping/adapters/outbound/parcel-table.ts: a column holding a invoice id needs src/contexts/shipping/adapters/inbound/shipping-invoice-deleted-handler.ts handling "invoice.deleted", so rows never point at a deleted invoice',
 		]);
-		// A table with no model of its name is a projection, not an Aggregate.
+		// A table with no domain/ file of its name is a projection, not an Aggregate.
 		expect(architectureRules.A14?.([own, invoice, shipping])).toEqual([]);
 	});
 
@@ -246,7 +246,7 @@ describe("architecture", () => {
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
 			"",
 		);
-		const model = await architectureFileCreate(
+		const aggregate = await architectureFileCreate(
 			"src/contexts/billing/domain/invoice-line.ts",
 			"",
 		);
@@ -254,7 +254,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-get.ts",
 			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
 		);
-		expect(architectureRules.A16?.([table, model, useCase])).toEqual([
+		expect(architectureRules.A16?.([table, aggregate, useCase])).toEqual([
 			expect.stringContaining("span attribute baseline.note.id"),
 		]);
 	});
@@ -293,7 +293,7 @@ describe("architecture", () => {
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
 			"",
 		);
-		const model = await architectureFileCreate(
+		const aggregate = await architectureFileCreate(
 			"src/contexts/billing/domain/invoice-line.ts",
 			"",
 		);
@@ -301,7 +301,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-create.ts",
 			"export const invoiceLineCreate = () => 1;\nexport const noteCreate = () => 1;\n",
 		);
-		expect(architectureRules.A23?.([table, model, useCase])).toEqual([
+		expect(architectureRules.A23?.([table, aggregate, useCase])).toEqual([
 			expect.stringContaining("noteCreate is exported from billing"),
 		]);
 	});
@@ -326,7 +326,7 @@ describe("architecture", () => {
 		expect(architectureRules.A14?.(files)[0]).toContain("a work-order id");
 	});
 
-	it("A25 lets adapters/inbound/ build its own schema from a model's shape", async () => {
+	it("A25 lets adapters/inbound/ build its own schema from an Aggregate schema's shape", async () => {
 		const route = await architectureFileCreate(
 			"src/contexts/bar/adapters/inbound/bar-routes.ts",
 			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../../domain/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',

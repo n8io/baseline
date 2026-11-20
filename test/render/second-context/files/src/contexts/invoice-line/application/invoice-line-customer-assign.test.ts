@@ -3,7 +3,7 @@ import { idCreate } from "@n8io/baseline-id";
 import { err } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import {
 	InvoiceLineForbiddenError,
 	InvoiceLineNotFoundError,

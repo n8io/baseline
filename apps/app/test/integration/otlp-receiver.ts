@@ -123,7 +123,9 @@ export const otlpReceiverStart = async (): Promise<OtlpReceiver> => {
 };
 
 /** OTLP export settings for a child process, with short batch delays. A shell's OTEL_SDK_DISABLED must not switch the SDK off. */
-export const otlpEnv = (receiver: OtlpReceiver): Record<string, string> => ({
+export const otlpReceiverEnvCreate = (
+	receiver: OtlpReceiver,
+): Record<string, string> => ({
 	OTEL_BLRP_SCHEDULE_DELAY: "100",
 	OTEL_BSP_SCHEDULE_DELAY: "100",
 	OTEL_EXPORTER_OTLP_ENDPOINT: receiver.endpoint,
@@ -135,7 +137,7 @@ export const otlpEnv = (receiver: OtlpReceiver): Record<string, string> => ({
 });
 
 /** The ancestors of `span` in `spans`, nearest first. */
-export const spanAncestors = (
+export const otlpReceiverSpanAncestors = (
 	span: OtlpSpan,
 	spans: OtlpSpan[],
 ): OtlpSpan[] => {
@@ -152,7 +154,7 @@ export const spanAncestors = (
 	return ancestors;
 };
 
-export const spanAttribute = (
+export const otlpReceiverSpanAttribute = (
 	span: OtlpSpan,
 	key: string,
 ): string | undefined => {
@@ -160,11 +162,11 @@ export const spanAttribute = (
 	return value?.stringValue ?? value?.intValue?.toString();
 };
 
-export const spanKindServer = 2;
-export const spanKindClient = 3;
+export const otlpReceiverSpanKindServer = 2;
+export const otlpReceiverSpanKindClient = 3;
 
 // Personal data a user might type: an email, a test card number and a health term.
-export const canaries = {
+export const otlpReceiverCanaries = {
 	card: "4111111111111111",
 	email: "canary.person@example.com",
 	health: "hypertension",
@@ -175,7 +177,7 @@ const bodiesText = (bodies: Buffer[] = []): string =>
 	bodies.map((body) => body.toString("latin1")).join("\n");
 
 /** Everything a server sent out of the process: stdout, stderr and each OTLP signal. */
-export const telemetrySignals = (
+export const otlpReceiverSignals = (
 	app: AppProcess,
 	receiver: OtlpReceiver,
 ): Record<string, string> => ({
@@ -187,7 +189,7 @@ export const telemetrySignals = (
 });
 
 /** The names of the signals whose text contains `value`. */
-export const signalsLeaking = (
+export const otlpReceiverSignalsLeaking = (
 	signals: Record<string, string>,
 	value: string,
 ): string[] =>

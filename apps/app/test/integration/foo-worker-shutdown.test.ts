@@ -5,15 +5,15 @@ import { describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type OtlpSpan,
-	otlpEnv,
+	otlpReceiverEnvCreate,
+	otlpReceiverSpanAncestors,
+	otlpReceiverSpanAttribute,
 	otlpReceiverStart,
-	spanAncestors,
-	spanAttribute,
 } from "./otlp-receiver.ts";
 import {
+	productionServerShutdownStarted,
 	productionServerWaitFor,
-	shutdownStarted,
-	workerStart,
+	productionServerWorkerStart,
 } from "./production-server.ts";
 
 // A connection that `await using` ends; declared after the database, it ends before the drop.
@@ -64,9 +64,9 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 			`INSERT INTO foo.foo (id, name, created_by, created_at, updated_at)
 			 VALUES (gen_random_uuid(), 'Stale', 'dev-admin', now() - interval '40 days', now() - interval '40 days')`,
 		);
-		await using worker = await workerStart({
+		await using worker = await productionServerWorkerStart({
 			databaseUrl,
-			env: otlpEnv(receiver),
+			env: otlpReceiverEnvCreate(receiver),
 		});
 
 		// A lock that blocks the archive's UPDATE keeps the job running until the test lets go.
@@ -86,7 +86,7 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 		});
 
 		worker.child.kill("SIGTERM");
-		await shutdownStarted(worker);
+		await productionServerShutdownStarted(worker);
 		expect(worker.child.exitCode).toBeNull();
 		await locker.query("COMMIT");
 
@@ -107,8 +107,8 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 		expect(
 			spans.some(
 				(span) =>
-					spanAttribute(span, "db.system.name") === "postgresql" &&
-					spanAncestors(span, spans).includes(useCase as OtlpSpan),
+					otlpReceiverSpanAttribute(span, "db.system.name") === "postgresql" &&
+					otlpReceiverSpanAncestors(span, spans).includes(useCase as OtlpSpan),
 			),
 		).toBe(true);
 		// Queue polls, boot and maintenance run outside any trace and make no span. Redis still
@@ -118,7 +118,7 @@ describe("worker shutdown on SIGTERM", { timeout: 60_000 }, () => {
 				.filter(
 					(span) =>
 						!span.parentSpanId &&
-						spanAttribute(span, "db.system.name") !== undefined,
+						otlpReceiverSpanAttribute(span, "db.system.name") !== undefined,
 				)
 				.map((span) => span.name)
 				.filter((name) => name !== "redis-connect"),

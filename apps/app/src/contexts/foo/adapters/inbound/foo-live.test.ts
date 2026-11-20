@@ -5,7 +5,7 @@ import { liveHubMemoryCreate } from "@n8io/baseline-live";
 import { liveTestSseRead } from "@n8io/baseline-live/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 
 const owner: Actor = { id: "user-1", kind: "user", scopes: [] };
 

@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import { FooListInput } from "../domain/foo.ts";
 
 const actor: Actor = { id: "u1", kind: "user", scopes: [] };

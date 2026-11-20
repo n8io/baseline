@@ -86,14 +86,14 @@ const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = (actor: Actor | null = owner) => {
 	const useCases = contextsCreate(connections).bazContext.useCases;
-	const context = routerContextCreate(actor ?? undefined, [
+	const context = routerTestContextCreate(actor ?? undefined, [
 		[bazUseCasesContext, useCases],
 	]);
 	return { context, useCases };
 };
 ```
 
-- `routerContextCreate` and `routeArgs` in `router-test-context.ts` build the context and the request. Pass one `[context key, Use cases]` entry per bounded context the page reads.
+- `routerTestContextCreate` and `routerTestArgsCreate` in `router-test-context.ts` build the context and the request. Pass one `[context key, Use cases]` entry per bounded context the page reads.
 - Check what a thrown `data(...)` carries with `toMatchObject({ data: { type }, init: { status } })`.
 
 ## Removing a page

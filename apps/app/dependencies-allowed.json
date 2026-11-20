@@ -8,7 +8,6 @@
 	"drizzle-orm": "SQL queries and table schemas on Postgres",
 	"hono": "the HTTP framework",
 	"import-in-the-middle": "lets OpenTelemetry patch ES modules (src/preload.ts)",
-	"lucide-react": "icons (ui)",
 	"pg": "the Postgres driver, peer of @n8io/baseline-postgres",
 	"radix-ui": "accessible primitives under shadcn/ui (ui)",
 	"react": "renders the UI (ui)",

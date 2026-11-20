@@ -16,6 +16,6 @@
 		"types": ["node"],
 		"verbatimModuleSyntax": true
 	},
-	"exclude": ["test/render/second-domain"],
+	"exclude": ["test/render/second-context"],
 	"include": ["*.ts", "scripts", "test"]
 }

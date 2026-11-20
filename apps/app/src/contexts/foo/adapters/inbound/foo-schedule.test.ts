@@ -3,7 +3,7 @@ import { ok } from "@n8io/baseline-result";
 import { describe, expect, it } from "vitest";
 import { clockMemoryCreate } from "../../../../clock.ts";
 import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 import { fooSchedules } from "../../index.ts";
 import { fooSchedule } from "./foo-schedule.ts";
 

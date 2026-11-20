@@ -10,7 +10,7 @@ import {
 	RouterContextProvider,
 } from "react-router";
 import type { FooUseCases } from "#contexts/foo/index.ts";
-import type { Contexts } from "../use-cases.ts";
+import type { Contexts } from "../contexts.ts";
 
 // The request's CSP nonce, for every inline script the server renders.
 export const cspNonceContext: RouterContext<string | undefined> = createContext<

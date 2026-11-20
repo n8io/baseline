@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import type { Id } from "@n8io/baseline-id";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 const handler: Actor = {

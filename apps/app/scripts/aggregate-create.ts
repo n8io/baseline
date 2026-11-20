@@ -14,8 +14,7 @@ import { dirname, join, relative } from "node:path";
 import { parseArgs } from "node:util";
 import {
 	camelFromKebab,
-	type DomainNames,
-	domainsPairsFind,
+	contextsPairsFind,
 	filesRead,
 	fooBlocksFind,
 	fooLineIs,
@@ -24,6 +23,7 @@ import {
 	linesBlocksFind,
 	linesRemove,
 	monorepoAppIs,
+	type NameForms,
 	pascalFromKebab,
 	run,
 	type TemplateFile,
@@ -84,8 +84,8 @@ export const contextAggregateRename = ({
 	path,
 	text,
 }: {
-	aggregate: DomainNames;
-	context: DomainNames;
+	aggregate: NameForms;
+	context: NameForms;
 	path: string;
 	text: string;
 }): string =>
@@ -102,8 +102,8 @@ export const contextAggregatePathRename = ({
 	context,
 	path,
 }: {
-	aggregate: DomainNames;
-	context: DomainNames;
+	aggregate: NameForms;
+	context: NameForms;
 	path: string;
 }): string =>
 	fooPathRename(
@@ -461,8 +461,8 @@ const pairsMatch = ({
 	const source = linesRemove(template, fooBlocksFind(template, path)).split(
 		"\n",
 	);
-	const pairs = domainsPairsFind(project, path);
-	const sourcePairs = domainsPairsFind(source.join("\n"), path);
+	const pairs = contextsPairsFind(project, path);
+	const sourcePairs = contextsPairsFind(source.join("\n"), path);
 	if (pairs.length !== sourcePairs.length) {
 		throw new Error(
 			`${path}: has ${pairs.length} contexts-start/contexts-end pairs, the template ${sourcePairs.length}`,
@@ -556,7 +556,7 @@ const importsMissingAdd = ({
 				})
 				.map((name) => `import ${type}{ ${name} } from ${from};`),
 		);
-	// A file whose imports all went (src/use-cases.ts) gets them back above a blank line.
+	// A file whose imports all went (src/contexts.ts) gets them back above a blank line.
 	const noImports = importEnd(lines) === -1 && missing.length > 0;
 	lines.splice(importEnd(lines) + 1, 0, ...missing, ...(noImports ? [""] : []));
 	return lines.join("\n");
@@ -704,7 +704,7 @@ export const readsRefusal = ({
 	reads,
 }: {
 	appDirectory: string;
-	names: DomainNames;
+	names: NameForms;
 	reads: string[];
 }): string | undefined => {
 	for (const kebab of reads) {
@@ -895,7 +895,7 @@ describe("foo${t.pascal}AclCreate", () => {
 
 const upstreamTest = (targets: Target[]): string =>
 	`import { connectionsOpen } from "../../../../connections.ts";
-import { contextsCreate } from "../../../../use-cases.ts";
+import { contextsCreate } from "../../../../contexts.ts";
 import type { FooUpstream } from "./index.ts";
 
 // The contexts this context reads, built for real on memory adapters, for tests: no fake
@@ -911,7 +911,7 @@ export const fooTestUpstreamCreate = async (): Promise<FooUpstream> => {
 };
 `;
 
-// Foo's files, and src/use-cases.ts, as a foo that reads each target would have them: still in
+// Foo's files, and src/contexts.ts, as a foo that reads each target would have them: still in
 // foo's names, so the rename that follows spells them for the new context.
 export const readsApply = ({
 	files,
@@ -974,7 +974,7 @@ export const readsApply = ({
 					anchor:
 						"// Picks each port's adapter from the connections the composition root opened: a real one, or",
 					lines: [
-						"// The contexts this context reads, built before it in src/use-cases.ts: each fills its ACL.",
+						"// The contexts this context reads, built before it in src/contexts.ts: each fills its ACL.",
 						`export type FooUpstream = { ${targets.map((t) => `${t.camel}: Foo${t.pascal}Upstream`).join("; ")} };`,
 						"",
 					],
@@ -1025,7 +1025,7 @@ export const readsApply = ({
 				const upstreamTaken = text
 					.replace(
 						"({\n\tconnections,\n}: {\n\tconnections: Connections;\n})",
-						"({\n\tconnections,\n\tupstream,\n}: {\n\tconnections: Connections;\n\t// The contexts it reads, built before it: src/use-cases.ts passes them.\n\tupstream: FooUpstream;\n})",
+						"({\n\tconnections,\n\tupstream,\n}: {\n\tconnections: Connections;\n\t// The contexts it reads, built before it: src/contexts.ts passes them.\n\tupstream: FooUpstream;\n})",
 					)
 					.replace(
 						"fooPortsCreate(connections)",
@@ -1047,7 +1047,7 @@ export const readsApply = ({
 				}
 				return { path, text: imported };
 			}
-			case "src/use-cases.ts": {
+			case "src/contexts.ts": {
 				const wired = text.replace(
 					"fooContextCreate({ connections })",
 					`fooContextCreate({\n\tconnections,\n\tupstream: { ${targets
@@ -1128,7 +1128,7 @@ export const aggregateRefusal = ({
 	appDirectory,
 	context,
 }: {
-	aggregate: DomainNames;
+	aggregate: NameForms;
 	appDirectory: string;
 	context: string;
 }): string | undefined => {
@@ -1150,8 +1150,9 @@ export const aggregateRefusal = ({
 	// context's: no other context may hold it, nor be named after it.
 	const contexts = join(appDirectory, "src/contexts");
 	for (const other of existsSync(contexts) ? readdirSync(contexts) : []) {
-		const model = `src/contexts/${other}/domain/${aggregate.kebab}.ts`;
-		if (existsSync(join(appDirectory, model))) return `${model} already exists`;
+		const aggregateFile = `src/contexts/${other}/domain/${aggregate.kebab}.ts`;
+		if (existsSync(join(appDirectory, aggregateFile)))
+			return `${aggregateFile} already exists`;
 	}
 	if (
 		aggregate.kebab !== context &&
@@ -1225,7 +1226,7 @@ export const aggregateFilesCreate = ({
 	parts = null,
 	templateFull,
 }: {
-	aggregate: DomainNames;
+	aggregate: NameForms;
 	appDirectory: string;
 	context: string;
 	parts?: AggregatePart[] | null;
@@ -1245,7 +1246,7 @@ export const aggregateFilesCreate = ({
 	const homeAdded =
 		!partsLeftOut.includes("pages") &&
 		existsSync(routes) &&
-		domainsPairsFind(readFileSync(routes, "utf8"), "src/ui/routes.ts").some(
+		contextsPairsFind(readFileSync(routes, "utf8"), "src/ui/routes.ts").some(
 			([start, end]) => end === start + 1,
 		);
 	// foo's CONTEXT.md is the context's own language, which context-create writes.
@@ -1413,7 +1414,7 @@ export const nextStepsText = ({
 	migrated,
 	parts,
 }: {
-	aggregate: DomainNames;
+	aggregate: NameForms;
 	context: string;
 	// Whether a migration already creates the Aggregate's table.
 	migrated: boolean;
@@ -1455,7 +1456,7 @@ const aggregateMigrationHas = ({
 	appDirectory,
 	context,
 }: {
-	aggregate: DomainNames;
+	aggregate: NameForms;
 	appDirectory: string;
 	context: string;
 }): boolean => {
@@ -1576,7 +1577,7 @@ const main = () => {
 		);
 	}
 	const parts = values.bare ? named : null;
-	const aggregate: DomainNames = {
+	const aggregate: NameForms = {
 		kebab,
 		plural: values.plural ?? `${kebab}s`,
 	};

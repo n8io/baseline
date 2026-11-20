@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { scriptsNonce } from "./csp-nonce.ts";
+import { cspNonce } from "./csp-nonce.ts";
 import { integrationDatabaseCreate } from "./integration-database.ts";
 import {
 	type ProductionServer,
@@ -109,7 +109,7 @@ describe("pods of two UI versions during a rolling deploy", {
 
 	it("renders the script that reloads the page once when its own files fail to load", async () => {
 		const { html, res } = await page(old);
-		const nonce = scriptsNonce(res, html);
+		const nonce = cspNonce(res, html);
 
 		// In <head> before the stylesheet, so it is listening when that fails to load.
 		const script = html.indexOf(`<script nonce="${nonce}">(() => {`);

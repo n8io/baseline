@@ -5,6 +5,9 @@ import { z } from "zod";
 import { idSchemaCreate } from "../../../id-schema.ts";
 import { FooForbiddenError } from "./errors.ts";
 
+// Schema casing: an Aggregate's schema and its input schemas are PascalCase and double as their
+// type. Every other schema is camelCase beside a PascalCase type: a Domain event is the Aggregate
+// and a past-tense verb (`invoiceCreated`), a cached copy ends in `Cached`.
 export const Foo = z.object({
 	id: idSchemaCreate("foo"),
 	name: z.string().trim().min(1).max(100),

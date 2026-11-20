@@ -1,4 +1,4 @@
-import type { Id } from "@n8io/baseline-id";
+import { type Id, idToUuid } from "@n8io/baseline-id";
 import type { Bar } from "../../domain/bar.ts";
 import type { BarRepository } from "../../domain/repositories.ts";
 
@@ -24,6 +24,11 @@ export const barRepositoryMemoryCreate = (state: {
 	listByFooId: async (fooId) =>
 		[...state.bars.values()]
 			.filter((bar) => bar.fooId === fooId)
-			.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+			// Ties go by id as Postgres compares the uuid, so both adapters list in one order.
+			.sort(
+				(a, b) =>
+					a.createdAt.getTime() - b.createdAt.getTime() ||
+					(idToUuid(a.id) < idToUuid(b.id) ? -1 : 1),
+			)
 			.map((bar) => structuredClone(bar)),
 });

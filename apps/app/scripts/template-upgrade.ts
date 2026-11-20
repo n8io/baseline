@@ -371,7 +371,7 @@ export const templateUpgradeRun = async ({
 		return 1;
 	}
 	log(
-		`Template changes up to ${to} (apply foo changes to your domains by hand):\n\n${result.changelog || "(no changelog entries)"}\n`,
+		`Template changes up to ${to} (apply foo changes to your contexts by hand):\n\n${result.changelog || "(no changelog entries)"}\n`,
 	);
 	if (result.conflicts.length > 0) {
 		// The format step below never runs, so give .template.json Biome's layout now; the files

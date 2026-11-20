@@ -11,7 +11,7 @@ export const errorTrackingOpen = ({
 	environment,
 	steps,
 }: {
-	dsn: string | undefined;
+	dsn?: string | null;
 	environment: string;
 	steps: ShutdownStep[];
 }): void => {

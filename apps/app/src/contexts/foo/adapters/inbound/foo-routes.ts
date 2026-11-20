@@ -15,7 +15,7 @@ import { fooErrorStatus } from "../../foo-error-status.ts";
 // The route table is the API's view of the context's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;
 
-// The API's own schemas: models carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
+// The API's own schemas: Aggregate schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const FooResponse = z
 	.object({
 		id: Foo.shape.id,

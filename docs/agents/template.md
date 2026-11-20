@@ -22,15 +22,15 @@ Each one is a test; raise a limit only on purpose, in the same pull request, and
 `pnpm exec turbo run check test build` is only CI's `packages` job. A Template change fails in the others, so also run:
 
 - `pnpm -C apps/app run ci`: check, unit tests, integration tests and `piece-check`, most of what a Project's CI runs. It needs `pnpm dev` running in `apps/app`, and `piece-check` reads `HEAD`, so commit first. The `integration` job also fails when `clients/sdk` is stale: after a route change, run the `sdk-generate` script in `apps/app` and commit `clients/sdk/`.
-- `node test/render/render-and-test.ts <new folder>` (a path that does not exist yet): the `render` job. It renders the latest `app@` release as `app-create` does (it needs the network), upgrades it to this checkout's `HEAD` with `template-upgrade`, adds contexts with every part and applies the second-domain fixture. It reads `HEAD`, so commit first (a work-in-progress commit is fine). About a minute, no Docker. `pnpm run ci` inside that folder then runs most of what the `render-and-test` job runs.
+- `node test/render/render-and-test.ts <new folder>` (a path that does not exist yet): the `render` job. It renders the latest `app@` release as `app-create` does (it needs the network), upgrades it to this checkout's `HEAD` with `template-upgrade`, adds contexts with every part and applies the second-context fixture. It reads `HEAD`, so commit first (a work-in-progress commit is fine). About a minute, no Docker. `pnpm run ci` inside that folder then runs most of what the `render-and-test` job runs.
 - `node test/render/api-only.ts <new folder>`: the `api-only` job, which removes each piece alone and all together, then reverts.
 
 ## The render fixture
 
-`test/render/second-domain/` (`files/` and `wiring.patch`) adds an Event handler between two rendered contexts. The patch holds a copy of the generated `src/env.d.ts` and hunks against files rendered from foo, so a new `.env.schema` line, or a foo change next to a hunk, breaks the `render` job. To regenerate it:
+`test/render/second-context/` (`files/` and `wiring.patch`) adds an Event handler between two rendered contexts. The patch holds a copy of the generated `src/env.d.ts` and hunks against files rendered from foo, so a new `.env.schema` line, or a foo change next to a hunk, breaks the `render` job. To regenerate it:
 
 1. Commit, then `RENDER_AND_TEST_STOP=fixture node test/render/render-and-test.ts <folder>`.
-2. In that folder copy `test/render/second-domain/files` in and `git apply` the old patch (`--exclude` the hunks you will redo, or `--reject` and apply the rejects by hand).
+2. In that folder copy `test/render/second-context/files` in and `git apply` the old patch (`--exclude` the hunks you will redo, or `--reject` and apply the rejects by hand).
 3. Make the change, then `pnpm exec biome check --write .` and `pnpm exec varlock codegen`.
 4. Copy new untracked `src` files to `files/`, and save `git diff` as `wiring.patch`. A route change also needs the `sdk-generate` script.
 

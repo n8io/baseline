@@ -447,18 +447,18 @@ describe("pieceFilesRemove", () => {
 		const directory = folder.path;
 		pieceFilesRemove(directory, "queue");
 		expect(existsSync(join(directory, "src/worker.ts"))).toBe(false);
-		const domain = join(directory, "src/contexts/invoice");
+		const context = join(directory, "src/contexts/invoice");
 		expect(
-			existsSync(join(domain, "adapters/inbound/invoice-schedule.ts")),
+			existsSync(join(context, "adapters/inbound/invoice-schedule.ts")),
 		).toBe(false);
 		expect(
 			existsSync(
-				join(domain, "adapters/outbound/invoice-transaction.postgres.test.ts"),
+				join(context, "adapters/outbound/invoice-transaction.postgres.test.ts"),
 			),
 		).toBe(false);
 		expect(
 			existsSync(
-				join(domain, "adapters/outbound/invoice-transaction.postgres.ts"),
+				join(context, "adapters/outbound/invoice-transaction.postgres.ts"),
 			),
 		).toBe(true);
 		expect(read(directory, ".env.schema")).not.toContain("SCHEDULE_");

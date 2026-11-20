@@ -2,7 +2,7 @@ import type { AnalyticsEvent } from "@n8io/baseline-analytics";
 import type { Actor } from "@n8io/baseline-authn";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../connections.ts";
-import { contextsCreate } from "../../../use-cases.ts";
+import { contextsCreate } from "../../../contexts.ts";
 
 // The analytics events the use cases track after commit; the analytics piece owns this file.
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };

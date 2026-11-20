@@ -194,7 +194,8 @@ const appProcessStart = async ({
 			app,
 			entry,
 			waitingFor: "/readyz answered 200",
-			check: async () => (await httpStatus(app.healthPort, "/readyz")) === 200,
+			check: async () =>
+				(await productionServerHttpStatus(app.healthPort, "/readyz")) === 200,
 		});
 	} catch (error) {
 		await app.stop();
@@ -203,7 +204,7 @@ const appProcessStart = async ({
 	return app;
 };
 
-export const httpStatus = async (
+export const productionServerHttpStatus = async (
 	port: number,
 	path: string,
 ): Promise<number | undefined> => {
@@ -215,14 +216,18 @@ export const httpStatus = async (
 };
 
 /** Waits for /readyz 503 (shutdown started); throws if the process exits first. */
-export const shutdownStarted = (app: AppProcess): Promise<void> =>
+export const productionServerShutdownStarted = (
+	app: AppProcess,
+): Promise<void> =>
 	productionServerWaitFor({
 		what: "/readyz 503",
 		check: async () => {
 			if (hasExited(app.child)) {
 				throw new Error("exited before /readyz answered 503");
 			}
-			return (await httpStatus(app.healthPort, "/readyz")) === 503;
+			return (
+				(await productionServerHttpStatus(app.healthPort, "/readyz")) === 503
+			);
 		},
 	});
 
@@ -255,7 +260,7 @@ type SlowRequest = Disposable & {
  * Starts a POST whose body arrives in two parts. Expect: 100-continue makes the server say when
  * it has the request, so this resolves once the request is in flight, with five bytes sent.
  */
-export const slowRequestStart = async (
+export const productionServerSlowRequestStart = async (
 	port: number,
 	{
 		body,
@@ -365,7 +370,8 @@ export const productionServerStart = async (
 			app,
 			entry: serverEntry,
 			waitingFor: "PORT answered 200",
-			check: async () => (await httpStatus(port, "/auth/sign-in")) === 200,
+			check: async () =>
+				(await productionServerHttpStatus(port, "/auth/sign-in")) === 200,
 		});
 	} catch (error) {
 		await app.stop();
@@ -376,10 +382,14 @@ export const productionServerStart = async (
 
 // piece-start: queue
 /** Boots `src/worker.ts` as native TS with the same preloads; resolves once /readyz is 200. */
-export const workerStart = (options: AppProcessOptions): Promise<AppProcess> =>
+export const productionServerWorkerStart = (
+	options: AppProcessOptions,
+): Promise<AppProcess> =>
 	appProcessStart({ entry: "src/worker.ts", options, extraEnv: {} });
 
 /** Starts the worker without waiting for readiness, for boots that are meant to fail. */
-export const workerSpawn = (options: AppProcessOptions): Promise<AppProcess> =>
+export const productionServerWorkerSpawn = (
+	options: AppProcessOptions,
+): Promise<AppProcess> =>
 	appProcessSpawn({ entry: "src/worker.ts", options, extraEnv: {} });
 // piece-end: queue

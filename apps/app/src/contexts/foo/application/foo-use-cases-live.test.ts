@@ -4,8 +4,8 @@ import type { LiveHub } from "@n8io/baseline-live";
 import type { RedisClient } from "@n8io/baseline-redis";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen } from "../../../connections.ts";
+import { contextsCreate } from "../../../contexts.ts";
 import { liveHubOpen } from "../../../live-hub-open.ts";
-import { contextsCreate } from "../../../use-cases.ts";
 
 // The live updates each use case sends after commit; the live piece owns this file.
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };

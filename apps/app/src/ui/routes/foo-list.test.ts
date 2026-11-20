@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { fooUseCasesContext } from "#ui/context.ts";
 import { action, loader } from "#ui/routes/foo-list.tsx";
 import { connectionsOpen } from "../../connections.ts";
-import { contextsCreate } from "../../use-cases.ts";
-import { routeArgs, routerContextCreate } from "./router-test-context.ts";
+import { contextsCreate } from "../../contexts.ts";
+import {
+	routerTestArgsCreate,
+	routerTestContextCreate,
+} from "./router-test-context.ts";
 
 const owner: Actor = { id: "owner", kind: "user", scopes: [] };
 
@@ -12,7 +15,7 @@ const connections = await connectionsOpen({ role: "publisher" });
 
 const setup = (actor: Actor | null = owner) => {
 	const useCases = contextsCreate(connections).fooContext.useCases;
-	const context = routerContextCreate(actor ?? undefined, [
+	const context = routerTestContextCreate(actor ?? undefined, [
 		[fooUseCasesContext, useCases],
 	]);
 	return { context, useCases };
@@ -21,11 +24,14 @@ const setup = (actor: Actor | null = owner) => {
 const listArgs = (
 	context: ReturnType<typeof setup>["context"],
 	url = "/foos",
-) => routeArgs({ context, url });
+) => routerTestArgsCreate({ context, url });
 const postArgs = (
 	context: ReturnType<typeof setup>["context"],
 	form: Record<string, string>,
-) => routeArgs({ context, form, url: "/foos" }) as Parameters<typeof action>[0];
+) =>
+	routerTestArgsCreate({ context, form, url: "/foos" }) as Parameters<
+		typeof action
+	>[0];
 
 const thrown = async (run: () => unknown): Promise<unknown> => {
 	try {

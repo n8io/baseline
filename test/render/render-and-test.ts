@@ -1,12 +1,12 @@
 // node test/render/render-and-test.ts <directory>: builds the project CI's render-and-test job
 // hands to app-ci.yml. origin/main is the previous release rendered as app-create renders it,
-// with no domain yet; HEAD upgrades it to this checkout's apps/app with template-upgrade and
+// with no context yet; HEAD upgrades it to this checkout's apps/app with template-upgrade and
 // checks, tests and builds it with no context, as app-create leaves a new Project. Then it adds
 // contexts with this checkout's context-create, each with an Aggregate of its own name from
 // aggregate-create: customer with --bare first, invoice-line with --bare and --reads customer, one
 // --bare context per part, so each part passes app-ci alone and fills the wiring the first context
 // left empty, and vendor with every part, which then gets a second Aggregate, vendor-contact, with
-// every part too. Then the second-domain fixture: a customer_id column on invoice lines and the
+// every part too. Then the second-context fixture: a customer_id column on invoice lines and the
 // Event handler that clears it when a customer is deleted. HEAD installs this checkout's packages/*.
 import {
 	cpSync,
@@ -53,7 +53,7 @@ import {
 } from "./checkout.ts";
 import { contextMapDefine, contextTermAdd } from "./glossary.ts";
 
-const fixture = join(import.meta.dirname, "second-domain");
+const fixture = join(import.meta.dirname, "second-context");
 
 const answers = {
 	description: "Invoices for render-and-test.",
@@ -63,7 +63,7 @@ const answers = {
 // customer first: invoice-line reads it through an anti-corruption layer. `parts` null is an aggregate-create
 // without --bare. `context` names an existing context to add the Aggregate to; without it,
 // context-create makes a context of the Aggregate's name first.
-const domains: {
+const contexts: {
 	context?: string;
 	definition: string;
 	kebab: string;
@@ -132,7 +132,7 @@ const main = async () => {
 	// Its own label: between releases the checkout's version equals the previous release's.
 	const version = `${(JSON.parse(manifest) as { version: string }).version}-checkout`;
 
-	console.log(`origin/main: app@${previous} with no domain`);
+	console.log(`origin/main: app@${previous} with no context`);
 	await appRender({ directory, files: previousFiles, answers });
 	answersWrite({ directory, answers: { ...answers, release: previous } });
 	// The template's lockfile drops our own packages, so this install adds them, resolved first so
@@ -200,7 +200,7 @@ const main = async () => {
 		);
 	}
 
-	for (const { context, definition, kebab, parts, plural, reads } of domains) {
+	for (const { context, definition, kebab, parts, plural, reads } of contexts) {
 		const created: string[] = [];
 		if (context === undefined) {
 			contextMapDefine({ context: kebab, directory });
@@ -249,8 +249,8 @@ const main = async () => {
 		});
 	}
 	if (process.env.RENDER_AND_TEST_STOP === "fixture") {
-		// To change the fixture: edit this tree, then copy its new files to second-domain/files
-		// and save `git diff` as second-domain/wiring.patch.
+		// To change the fixture: edit this tree, then copy its new files to second-context/files
+		// and save `git diff` as second-context/wiring.patch.
 		gitCommitAll(directory, "Add the contexts");
 		return;
 	}
