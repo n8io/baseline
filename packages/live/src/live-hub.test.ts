@@ -1,7 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type LiveTransport, liveHubCreate } from "./live-hub.ts";
-import { liveAppCreate } from "./live-test-app.ts";
+import { liveTestAppCreate } from "./live-test-app.ts";
 import { liveTestSseRead } from "./live-test-sse.ts";
 
 const transportDown: LiveTransport = {
@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe("liveHubCreate", () => {
-	test("send resolves when the transport fails, and warns", async () => {
+	it("send resolves when the transport fails, and warns", async () => {
 		const warn = vi.spyOn(logger, "warn").mockReturnValue();
 		await using liveHub = liveHubCreate(transportDown);
 
@@ -31,7 +31,7 @@ describe("liveHubCreate", () => {
 		);
 	});
 
-	test("warns once per 30 s, with how many failures went unlogged", async () => {
+	it("warns once per 30 s, with how many failures went unlogged", async () => {
 		vi.useFakeTimers();
 		const warn = vi.spyOn(logger, "warn").mockReturnValue();
 		await using liveHub = liveHubCreate(transportDown);
@@ -50,7 +50,7 @@ describe("liveHubCreate", () => {
 		);
 	});
 
-	test("when the transport may have lost updates, each open stream gets ready again within 5 s", async () => {
+	it("when the transport may have lost updates, each open stream gets ready again within 5 s", async () => {
 		vi.useFakeTimers({
 			toFake: ["clearTimeout", "Date", "setInterval", "setTimeout"],
 		});
@@ -63,7 +63,7 @@ describe("liveHubCreate", () => {
 			},
 			subscribe: async () => {},
 		});
-		const app = liveAppCreate(liveHub);
+		const app = liveTestAppCreate(liveHub);
 		const first = liveTestSseRead({
 			response: await app.request("/live/foo/foo_1"),
 		});

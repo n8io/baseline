@@ -47,18 +47,50 @@ import { useLiveUpdates } from "@n8io/baseline-live/client";
 useLiveUpdates({ channel: "foo", id: foo.id });
 ```
 
-Test with the memory hub, `liveHubMemoryCreate()`, and read a stream with `liveTestSseRead` from `@n8io/baseline-live/testing` (see Testing below).
+Test with the memory hub, `liveHubMemoryCreate()`, and read a stream with `liveTestSseRead` from `@n8io/baseline-live/testing` (see Testing below). The Package's own `pnpm test` needs Docker for Redis; `pnpm test:unit` runs the tests that need no Redis.
 
 ## Reference
 
 <details><summary><b>Exports</b></summary>
 
-- `LiveHub`: `send(channel, { type, id })` and `close()`. An update says what changed, never the data. `send` is best effort and never rejects: see When Redis is down. `await using` calls `close()` when its block ends.
-- `liveHubRedisCreate({ redisClient })`: a hub on Redis pub/sub, for more than one instance. It takes any connected node-redis client, such as one from `redisClientCreate` in `@n8io/baseline-redis`.
-- `liveHubMemoryCreate()`: a hub in one process, for unit tests and `memory://`.
-- `liveStreamCreate({ liveHub, channel, id, expiresAt, signal })`: the SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It sends `ready` once subscribed, and again when the hub may have lost updates. It sends a comment every 20 s to keep the connection open. It closes after 5 minutes, at `expiresAt` if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s.
-- `@n8io/baseline-live/testing`: `liveTestSseRead({ response })`, which reads a live stream in a test. See Testing.
-- `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix })`, a React hook that revalidates the page on each update, on every reconnect and on every `ready`. It opens `<pathPrefix>/<channel>/<id>`; an `id` of `null` opens no stream, so a page can follow an id it does not have yet; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.
+| Export                                                                       | Does                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LiveHub`                                                                    | `send(channel, update)` and `close()`. `send` is best effort and never rejects: see When Redis is down. `close()` ends every open stream, each asking its page to reconnect. `await using` calls `close()` when its block ends.                                                                                                                                                                               |
+| `LiveUpdate`                                                                 | What `send` takes, `{ type, id }`: what changed, never the data.                                                                                                                                                                                                                                                                                                                                              |
+| `liveHubRedisCreate({ redisClient })`                                        | A hub on Redis pub/sub, for more than one instance. It takes any connected node-redis client, such as one from `redisClientCreate` in `@n8io/baseline-redis`.                                                                                                                                                                                                                                                 |
+| `LiveHubRedisOptions`                                                        | What `liveHubRedisCreate` takes.                                                                                                                                                                                                                                                                                                                                                                              |
+| `liveHubMemoryCreate()`                                                      | A hub in one process, for unit tests and `memory://`.                                                                                                                                                                                                                                                                                                                                                         |
+| `liveStreamCreate({ liveHub, channel, id, expiresAt, signal? })`             | The SSE `Response` for one (channel, id), for any server that answers with a web `Response`. Pass the request's `signal`. It sends `ready` once subscribed, and again when the hub may have lost updates. It sends a comment every 20 s to keep the connection open. It closes after 5 minutes, at `expiresAt` (epoch ms) if sooner, or on `liveHub.close()`, and asks the page to reconnect within 1 to 5 s. |
+| `LiveStreamOptions`                                                          | What `liveStreamCreate` takes.                                                                                                                                                                                                                                                                                                                                                                                |
+| `@n8io/baseline-live/client`: `useLiveUpdates({ channel, id, pathPrefix? })` | A React hook that revalidates the page on each update, on every reconnect and on every `ready`. It opens `<pathPrefix>/<channel>/<id>`; an `id` of `null` opens no stream, so a page can follow an id it does not have yet; `pathPrefix` defaults to `/live`, so pass it when the server mounts the streams elsewhere.                                                                                        |
+| `@n8io/baseline-live/client`: `LiveUpdatesOptions`                           | What `useLiveUpdates` takes.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `@n8io/baseline-live/testing`: `liveTestSseRead({ response })`               | Reads a live stream in a test, as a `LiveTestSseReader`. See Testing.                                                                                                                                                                                                                                                                                                                                         |
+| `@n8io/baseline-live/testing`: `LiveTestSseReader`                           | What `liveTestSseRead` returns: `until(text)`, `end()` and `cancel()`.                                                                                                                                                                                                                                                                                                                                        |
+
+</details>
+
+<details><summary><b>Picking the hub in one place</b></summary>
+
+Pick the hub in one place, and name no backend anywhere else:
+
+```ts
+// src/live-hub-open.ts: the only file that knows the backend
+import {
+	type LiveHub,
+	liveHubMemoryCreate,
+	liveHubRedisCreate,
+} from "@n8io/baseline-live";
+import type { RedisClient } from "@n8io/baseline-redis";
+
+export const liveHubOpen = ({
+	redis,
+}: {
+	redis: RedisClient | "memory";
+}): LiveHub =>
+	redis === "memory"
+		? liveHubMemoryCreate()
+		: liveHubRedisCreate({ redisClient: redis });
+```
 
 </details>
 
@@ -102,12 +134,6 @@ await liveHub.close();
 - `cancel()` goes away like a page that closes.
 
 `response` is any SSE `Response`: the one `liveStreamCreate` returns, your app's `app.request(...)`, or a `fetch` of a running server.
-
-</details>
-
-<details><summary><b>This Package's own tests</b></summary>
-
-`pnpm test` needs Docker: it starts a Redis container.
 
 </details>
 

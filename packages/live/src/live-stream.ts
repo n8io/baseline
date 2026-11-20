@@ -1,7 +1,9 @@
 import { logger } from "@n8io/baseline-logger";
 import { type LiveHub, liveHubStreams } from "./live-hub.ts";
 
+/** How often a stream sends a comment to keep the connection open. */
 export const liveHeartbeatMs: number = 20_000;
+/** The longest a stream stays open before it asks the page to reconnect. */
 export const liveStreamMaxMs: number = 5 * 60_000;
 
 // Spread reconnects over 1–5 s so a restart or a token expiry wave does not
@@ -11,6 +13,20 @@ const liveRetryMs = (): number => 1000 + Math.floor(Math.random() * 4001);
 // A page that stops reading is dropped once this much is waiting for it; it reconnects and
 // revalidates. So is a page sent more than this in one tick, which costs it only a reconnect.
 const liveStreamBufferBytes = 64 * 1024;
+
+/** What `liveStreamCreate` takes. */
+export type LiveStreamOptions = {
+	/** The channel the updates are sent on, such as `invoice`. */
+	channel: string;
+	/** When the stream closes at the latest, in epoch ms, such as the session's expiry. */
+	expiresAt: number;
+	/** The id within the channel whose updates the stream carries. */
+	id: string;
+	/** The hub from `liveHubRedisCreate` or `liveHubMemoryCreate`. */
+	liveHub: LiveHub;
+	/** The request's signal, so the stream ends when the request is aborted. */
+	signal?: AbortSignal | null;
+};
 
 /**
  * An SSE response that sends a `ready` event once subscribed, then `{ type, id }`
@@ -28,13 +44,7 @@ export const liveStreamCreate = ({
 	id,
 	liveHub,
 	signal,
-}: {
-	liveHub: LiveHub;
-	channel: string;
-	id: string;
-	expiresAt: number;
-	signal?: AbortSignal;
-}): Response => {
+}: LiveStreamOptions): Response => {
 	const streams = liveHubStreams(liveHub);
 	const encoder = new TextEncoder();
 	const stop = Promise.withResolvers<void>();

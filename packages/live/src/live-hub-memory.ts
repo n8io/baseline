@@ -1,6 +1,6 @@
 import { type LiveHub, liveHubCreate } from "./live-hub.ts";
 
-// A hub for one process (development, tests): updates reach only its own streams.
+/** A hub for one process (development, tests): updates reach only its own streams. */
 export const liveHubMemoryCreate = (): LiveHub => {
 	const delivers = new Map<string, (message: string) => void>();
 	return liveHubCreate({

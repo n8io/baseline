@@ -8,11 +8,11 @@ import {
 	describe,
 	expect,
 	inject,
+	it,
 	onTestFinished,
-	test,
 } from "vitest";
 import { z } from "zod";
-import { cacheContract } from "./cache.contract.ts";
+import { cacheStoreContract } from "./cache-store.contract.ts";
 import { type Cache, cacheCreate, cacheStoreRedisCreate } from "./index.ts";
 
 describe("cacheStoreRedisCreate on Redis", () => {
@@ -30,7 +30,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		await redisClient.close();
 	});
 
-	cacheContract(() => cacheStoreRedisCreate({ redisClient }), sleep);
+	cacheStoreContract(() => cacheStoreRedisCreate({ redisClient }), sleep);
 
 	// Stops Redis answering for 3 s, or until the test ends.
 	const redisPause = async (): Promise<void> => {
@@ -46,7 +46,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		await pauser.clientPause(3000);
 	};
 
-	test("writes <prefix>:<id> with a 60 s TTL by default", async () => {
+	it("writes <prefix>:<id> with a 60 s TTL by default", async () => {
 		const prefix = `test-${crypto.randomUUID()}`;
 		await cacheCreate(cacheStoreRedisCreate({ redisClient }), {
 			prefix,
@@ -61,7 +61,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 	// A Redis that takes a command and does not answer: each call gives up
 	// within 1 s (node-redis's own timeout stops once a command is sent) and
 	// the cache carries on without it.
-	test.each([
+	it.each([
 		["get", (cache: Cache<string>) => cache.get("foo_1")],
 		["set", (cache: Cache<string>) => cache.set("foo_1", "First")],
 		["delete", (cache: Cache<string>) => cache.delete("foo_1")],
@@ -78,7 +78,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		expect(elapsed).toBeLessThan(1500);
 	});
 
-	test('with onStoreError "throw" a call fails within 1 s when Redis does not answer', async () => {
+	it('with onStoreError "throw" a call fails within 1 s when Redis does not answer', async () => {
 		const cache = cacheCreate(cacheStoreRedisCreate({ redisClient }), {
 			onStoreError: "throw",
 			prefix: "pause",
@@ -95,7 +95,7 @@ describe("cacheStoreRedisCreate on Redis", () => {
 		expect(Date.now() - started).toBeLessThan(1500);
 	});
 
-	test("a Redis that is gone is a miss on get, and set and delete resolve", async () => {
+	it("a Redis that is gone is a miss on get, and set and delete resolve", async () => {
 		const gone = createClient({ url: inject("redisUrl") }).on(
 			"error",
 			() => undefined,

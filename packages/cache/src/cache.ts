@@ -2,40 +2,51 @@ import { logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
-// A typed cache for one kind of value, keyed by id. Unless it was made with
-// `onStoreError: "throw"`, no call rejects because the store failed.
+/**
+ * A typed cache for one kind of value, keyed by id. Unless it was made with
+ * `onStoreError: "throw"`, no call rejects because the store failed.
+ */
 export type Cache<T> = {
 	delete(id: string): Promise<void>;
 	get(id: string): Promise<T | undefined>;
 	set(id: string, value: T): Promise<void>;
 };
 
-// A cache that knows each value's id: `set` takes the value alone.
+/** A cache that knows each value's id: `set` takes the value alone. */
 export type CacheKeyed<T> = Omit<Cache<T>, "set"> & {
 	set(value: T): Promise<void>;
 };
 
-// Where entries live: raw JSON strings by key, each with a TTL. A composition root picks one
-// (cacheStoreRedisCreate, cacheStoreMemoryCreate) and every cache is built on it.
+/**
+ * Where entries live: raw JSON strings by key, each with a TTL. A composition root picks one
+ * (`cacheStoreRedisCreate`, `cacheStoreMemoryCreate`) and every cache is built on it.
+ */
 export type CacheStore = {
 	delete(key: string): Promise<void>;
 	get(key: string): Promise<string | undefined>;
 	set(entry: { json: string; key: string; ttlMs: number }): Promise<void>;
 };
 
+/** What `cacheCreate` takes for a cache whose `set` takes an id and a value. */
 export type CacheOptions<T> = {
-	// What a store error or timeout does. "miss" (the default) keeps the caller serving: a failed
-	// get is a miss, and a failed set or delete is logged and counted. "throw" rejects the call.
+	/** Never set here: `CacheKeyedOptions` has it, and its absence picks this overload. */
 	keyOf?: undefined;
-	onStoreError?: "miss" | "throw";
+	/**
+	 * What a store error or timeout does. "miss" (the default) keeps the caller serving: a failed
+	 * get is a miss, and a failed set or delete is logged and counted. "throw" rejects the call.
+	 */
+	onStoreError?: "miss" | "throw" | null;
+	/** Keys are `<prefix>:<id>`, so caches on one store stay apart. */
 	prefix: string;
-	// Any Standard Schema (https://standardschema.dev): a Zod, Valibot or ArkType schema as it is.
+	/** Any Standard Schema (https://standardschema.dev): a Zod, Valibot or ArkType schema as it is. */
 	schema: StandardSchemaV1<unknown, T>;
-	ttlMs?: number;
+	/** How long an entry lives, in ms. Defaults to 60 000. */
+	ttlMs?: number | null;
 };
 
+/** What `cacheCreate` takes for a cache whose values carry their own id. */
 export type CacheKeyedOptions<T> = Omit<CacheOptions<T>, "keyOf"> & {
-	// The id a value is stored under, for caches whose values carry their own id.
+	/** The id a value is stored under. */
 	keyOf: (value: T) => string;
 };
 
@@ -64,9 +75,11 @@ const cacheJsonParse = (json: string): unknown => {
 	}
 };
 
-// A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
-// validated by the schema on read. An entry that fails it (an older deploy may have
-// written it) counts as a miss. So does a store that fails, unless `onStoreError` is "throw".
+/**
+ * A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
+ * validated by the schema on read. An entry that fails it (an older deploy may have
+ * written it) counts as a miss. So does a store that fails, unless `onStoreError` is "throw".
+ */
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheKeyedOptions<T>,
@@ -91,13 +104,11 @@ export function cacheCreate<T>(
 
 const cacheByIdCreate = <T>(
 	store: CacheStore,
-	{
-		onStoreError = "miss",
-		prefix,
-		schema,
-		ttlMs = cacheTtlMsDefault,
-	}: Omit<CacheOptions<T>, "keyOf">,
+	options: Omit<CacheOptions<T>, "keyOf">,
 ): Cache<T> => {
+	const { prefix, schema } = options;
+	const onStoreError = options.onStoreError ?? "miss";
+	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
 	const key = (id: string): string => `${prefix}:${id}`;
 	// Ids whose set or delete failed, with when the entry the store may still hold has expired.
 	// Until then this process reads them as misses, so it never serves a value it tried to replace.
@@ -106,6 +117,7 @@ const cacheByIdCreate = <T>(
 	let unlogged = 0;
 
 	// Counts every failure and warns once per 30 s, so an outage is not one line per call.
+	// Copied from packages/live/src/live-hub.ts (`sendFailed`); keep the two in step.
 	const storeFailed = (operation: string, err: unknown): void => {
 		if (onStoreError === "throw") throw err;
 		cacheStoreErrorsCounter().add(1, {

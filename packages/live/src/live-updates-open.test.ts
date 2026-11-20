@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { liveUpdatesOpen } from "./live-updates-open.ts";
 
 const eventSourceFake = () => {
@@ -19,7 +19,7 @@ const eventSourceFake = () => {
 };
 
 describe("liveUpdatesOpen", () => {
-	test("opens /live/<channel>/<id>, encoding both", () => {
+	it("opens /live/<channel>/<id>, encoding both", () => {
 		const { create, source } = eventSourceFake();
 		liveUpdatesOpen({
 			channel: "foo",
@@ -31,7 +31,20 @@ describe("liveUpdatesOpen", () => {
 		expect(source.url).toBe("/live/foo/foo_1%2Fx");
 	});
 
-	test("opens no stream for a null id, and its close does nothing", () => {
+	it("opens under /live for a null pathPrefix", () => {
+		const { create, source } = eventSourceFake();
+		liveUpdatesOpen({
+			channel: "foo",
+			eventSourceCreate: create,
+			id: "foo_1",
+			onChange: () => {},
+			pathPrefix: null,
+		});
+
+		expect(source.url).toBe("/live/foo/foo_1");
+	});
+
+	it("opens no stream for a null id, and its close does nothing", () => {
 		const create = vi.fn();
 		const close = liveUpdatesOpen({
 			channel: "foo",
@@ -44,7 +57,7 @@ describe("liveUpdatesOpen", () => {
 		expect(close()).toBeUndefined();
 	});
 
-	test("opens the stream under a given path prefix", () => {
+	it("opens the stream under a given path prefix", () => {
 		const { create, source } = eventSourceFake();
 		liveUpdatesOpen({
 			channel: "invoice",
@@ -57,7 +70,7 @@ describe("liveUpdatesOpen", () => {
 		expect(source.url).toBe("/api/live/invoice/invoice_1");
 	});
 
-	test("calls onChange on each (re)connect and each live update", () => {
+	it("calls onChange on each (re)connect and each live update", () => {
 		const { create, source } = eventSourceFake();
 		const onChange = vi.fn();
 		liveUpdatesOpen({
@@ -75,7 +88,7 @@ describe("liveUpdatesOpen", () => {
 		expect(onChange).toHaveBeenCalledTimes(3);
 	});
 
-	test("returns the close", () => {
+	it("returns the close", () => {
 		const { create, source } = eventSourceFake();
 		const close = liveUpdatesOpen({
 			channel: "foo",
