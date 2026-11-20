@@ -482,9 +482,8 @@ describe("workspaceRender", () => {
 
 describe("hostPortsCreate and the files it renders into", () => {
 	const schema =
-		"HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nREDIS_HOST_PORT=6379\nSERVER_HOST_PORT=3000\nHEALTH_HOST_PORT=9000\n";
-	const compose =
-		"name: app\nservices:\n  # varlock run -- docker compose -p app up\n";
+		"HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=5432\nREDIS_HOST_PORT=6379\nSERVER_HOST_PORT=3000\nHEALTH_HOST_PORT=9000\nCOMPOSE_PROJECT_NAME=app\n";
+	const compose = "name: app\nservices:\n";
 
 	it("gives each name seven ports in a row in 20000 to 29999, the same ones every time", () => {
 		const ports = hostPortsCreate("invoicing");
@@ -504,13 +503,13 @@ describe("hostPortsCreate and the files it renders into", () => {
 		expect(alpha.filter((port) => beta.includes(port))).toEqual([]);
 	});
 
-	it("writes a Project's ports, compose project and -p into its files, keeping production's PORT and HEALTH_PORT", () => {
+	it("writes a Project's ports and compose project into its files, keeping production's PORT and HEALTH_PORT", () => {
 		const ports = hostPortsCreate("invoicing");
 		const render = (path: string, text: string) =>
 			templateFileRender({ path, text }, answers)?.text;
 
 		expect(render(".env.schema", schema)).toBe(
-			`HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nREDIS_HOST_PORT=${ports.REDIS_HOST_PORT}\nSERVER_HOST_PORT=${ports.SERVER_HOST_PORT}\nHEALTH_HOST_PORT=${ports.HEALTH_HOST_PORT}\n`,
+			`HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nREDIS_HOST_PORT=${ports.REDIS_HOST_PORT}\nSERVER_HOST_PORT=${ports.SERVER_HOST_PORT}\nHEALTH_HOST_PORT=${ports.HEALTH_HOST_PORT}\nCOMPOSE_PROJECT_NAME=invoicing\n`,
 		);
 		expect(
 			render(
@@ -521,17 +520,7 @@ describe("hostPortsCreate and the files it renders into", () => {
 			`SHUTDOWN_DRAIN_DELAY_MS=0\nPORT=${ports.PORT}\nHEALTH_PORT=${ports.HEALTH_PORT}\n`,
 		);
 		expect(render("compose.yaml", compose)).toBe(
-			"name: invoicing\nservices:\n  # varlock run -- docker compose -p invoicing up\n",
-		);
-		expect(
-			JSON.parse(
-				render(
-					"package.json",
-					'{"name":"app","scripts":{"dev":"varlock run -- docker compose -p app up && (HEALTH_PORT=9001 node src/worker.ts & vite)"}}',
-				) ?? "",
-			).scripts.dev,
-		).toBe(
-			`varlock run -- docker compose -p invoicing up && (HEALTH_PORT=${ports.WORKER_HEALTH_PORT} node src/worker.ts & vite)`,
+			"name: invoicing\nservices:\n",
 		);
 	});
 
@@ -540,8 +529,8 @@ describe("hostPortsCreate and the files it renders into", () => {
 
 		expect(read(".env.schema")).toContain("POSTGRES_HOST_PORT=5432\n");
 		expect(read(".env.development")).toContain("PORT=3000\nHEALTH_PORT=9000\n");
-		expect(read("package.json")).toContain("(HEALTH_PORT=9001 node --watch");
 		expect(read("compose.yaml")).toContain("name: app\n");
+		expect(read(".env.schema")).toContain("COMPOSE_PROJECT_NAME=app\n");
 	});
 });
 

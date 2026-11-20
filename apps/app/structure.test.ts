@@ -708,8 +708,9 @@ describe("agent docs commands", () => {
 	});
 });
 
-// Every `docker compose` command names its project with `-p`, so two Projects on one machine never
-// replace each other's containers, and runs under `varlock run` so it sees the Project's host ports.
+// No `docker compose` command names its project with `-p`: varlock sets COMPOSE_PROJECT_NAME, the
+// Project's name or a linked worktree's dev instance, so two Projects or two worktrees on one machine
+// never replace each other's containers, and it sees the instance's host ports.
 describe("docker compose commands", () => {
 	const manifest = JSON.parse(
 		readFileSync(new URL("package.json", appRoot), "utf8"),
@@ -717,7 +718,7 @@ describe("docker compose commands", () => {
 	const composeCommands = (text: string): string[] =>
 		[...text.matchAll(/docker compose [^&|)`"\n]*/g)].map((m) => m[0]);
 
-	it("hold in package.json scripts, docs/agents/deploy.md and compose.yaml", () => {
+	it("never pass -p in package.json scripts, docs/agents/deploy.md and compose.yaml", () => {
 		const texts = [
 			...Object.values(manifest.scripts),
 			readFileSync(new URL("docs/agents/deploy.md", appRoot), "utf8"),
@@ -725,22 +726,29 @@ describe("docker compose commands", () => {
 		];
 		const bad = texts
 			.flatMap(composeCommands)
-			.filter((command) => !/^docker compose -p \S+/.test(command));
+			.filter((command) =>
+				/^docker compose (-p|--project-name)\b/.test(command),
+			);
 		expect(bad).toEqual([]);
 	});
 
-	it("run under varlock in package.json scripts", () => {
+	it("run under varlock after dev-instance in package.json scripts", () => {
 		const bad = Object.entries(manifest.scripts).filter(
 			([, script]) =>
 				script.includes("docker compose") &&
-				!script.includes("varlock run -- docker compose"),
+				!script.startsWith(
+					"node scripts/dev-instance.ts && varlock run -- docker compose",
+				),
 		);
 		expect(bad).toEqual([]);
 	});
 
-	it("name the same project in compose.yaml", () => {
-		const compose = readFileSync(new URL("compose.yaml", appRoot), "utf8");
-		expect(/^name: (.+)$/m.exec(compose)?.[1]).toBe(manifest.name);
+	it("name the same project in compose.yaml and .env.schema", () => {
+		const read = (name: string) => readFileSync(new URL(name, appRoot), "utf8");
+		expect(/^name: (.+)$/m.exec(read("compose.yaml"))?.[1]).toBe(manifest.name);
+		expect(/^COMPOSE_PROJECT_NAME=(.+)$/m.exec(read(".env.schema"))?.[1]).toBe(
+			manifest.name,
+		);
 	});
 });
 
