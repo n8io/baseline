@@ -4,10 +4,10 @@ Read when changing anything under `apps/app` in baseline. `apps/app/AGENTS.md` h
 
 ## What the render does
 
-`app-create` renders `apps/app` with `apps/app/scripts/template-render.ts`. The `foo` context never renders, and in every file except `CONTEXT.md` and `README.md` a line that names `foo`, `Foo` or `FOO` is dropped, along with the statement around it in code.
+`app-create` renders `apps/app` with `apps/app/scripts/template-render.ts`. The `foo` context never renders and `CHANGELOG.md` is not copied. `scripts/` and `pnpm-lock.yaml` are copied as they are. In every other file except `CONTEXT.md` and `README.md`, a line that names `foo`, `Foo` or `FOO` is dropped, along with the statement around it in code.
 
 - **Docs.** Write examples in an agent doc with an `invoice` context, or the line disappears from the Project's copy. The pages `test/agent-docs-quotes.test.ts` checks against the Template's code (it lists them) quote foo's files as `baz`, because `bar` is the Template's real second Aggregate.
-- **Markers.** Never start a doc line or a changeset line with a `piece-start:`, `wiring:` or `aggregate-create-start:` marker: `piece-remove` cuts from it and `aggregate-create` treats the file as wiring. Name a marker inside a sentence. `test/changelog-markers.test.ts` guards the changesets.
+- **Markers.** Never start a doc line or a changeset line with a marker comment (`piece-start:`, `piece-end:`, `wiring:`, `aggregate-create-start:`, `aggregate-create-end:`, after `//` or `#`): `piece-remove` cuts from it and `aggregate-create` treats the file as wiring. Name a marker inside a sentence. `test/changelog-markers.test.ts` guards the changesets.
 - **README.** `apps/app/README.md` keeps a `# app` title, one bold description line and a `<sub>` line about the Template; the render throws without them.
 
 ## Budgets
@@ -21,9 +21,9 @@ Each one is a test; raise a limit only on purpose, in the same pull request, and
 
 `pnpm exec turbo run check test build` is only CI's `packages` job. A Template change fails in the others, so also run:
 
-- `pnpm -C apps/app run ci`: check, unit tests, integration tests (needs `pnpm dev` running in `apps/app`) and `piece-check`, the `integration` job and most of what a Project's CI runs.
-- `node test/render/render-and-test.ts <empty folder>`: the `render` job. It renders `origin/main` as `app-create` does, upgrades it to this checkout's `HEAD` with `template-upgrade`, adds contexts with every part and applies the second-domain fixture. It reads `HEAD`, so commit first (a work-in-progress commit is fine). About a minute, no Docker. `pnpm run ci` inside that folder then runs most of what `render-and-test` runs.
-- `node test/render/api-only.ts <empty folder>`: the `api-only` job, which removes each piece alone and all together, then reverts.
+- `pnpm -C apps/app run ci`: check, unit tests, integration tests and `piece-check`, most of what a Project's CI runs. It needs `pnpm dev` running in `apps/app`, and `piece-check` reads `HEAD`, so commit first. The `integration` job also fails when `clients/sdk` is stale: after a route change, run the `sdk-generate` script in `apps/app` and commit `clients/sdk/`.
+- `node test/render/render-and-test.ts <new folder>` (a path that does not exist yet): the `render` job. It renders the latest `app@` release as `app-create` does (it needs the network), upgrades it to this checkout's `HEAD` with `template-upgrade`, adds contexts with every part and applies the second-domain fixture. It reads `HEAD`, so commit first (a work-in-progress commit is fine). About a minute, no Docker. `pnpm run ci` inside that folder then runs most of what the `render-and-test` job runs.
+- `node test/render/api-only.ts <new folder>`: the `api-only` job, which removes each piece alone and all together, then reverts.
 
 ## The render fixture
 
@@ -44,4 +44,4 @@ A Template change that should ship needs an `app` changeset, beside one for each
 
 1. `node scripts/semgrep-rules-write.ts <semgrep-rules commit>` rewrites `rules.txt` from today's packs at that commit.
 2. Run `sh .github/semgrep/rules.sh .github/semgrep/rules.txt <folder>` and `semgrep scan --no-rewrite-rule-ids --config <folder>` on baseline's `packages scripts test`, a rendered Template and each known Project, before and after.
-3. Commit the new `rules.txt` with a changeset. A bump that adds a finding is a new failing check: it ships with its fixes in the same release, or waits for the next major.
+3. Commit the new `rules.txt` with a changeset. A new pin that adds a finding is a new failing check: it ships with its fixes in the same release, or waits for the next major.

@@ -3,7 +3,7 @@
 // files of those rules at one commit of github.com/semgrep/semgrep-rules, so a scan never asks
 // semgrep.dev for rules. The Semgrep Rules License forbids redistributing the rules, so the
 // snapshot is a list of paths and each scan fetches them itself (.github/semgrep/rules.sh).
-// Moving the pin: apps/app/docs/agents/dependency-updates.md. test/semgrep-pin.test.ts checks it.
+// Moving the pin: docs/agents/template.md. test/semgrep-pin.test.ts checks it.
 // Usage: node scripts/semgrep-rules-write.ts <semgrep-rules commit>
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";

@@ -19,7 +19,7 @@ One rule for each thing that drifted between Packages. Function inputs follow th
 - **Optional fields** are `?: T | null`, and `null` means the default, as leaving it out does. The one exception says so in its JSDoc: `PostgresPoolOptions.queryTimeoutMs: null` turns the limit off.
 - **Durations** are milliseconds, and the name ends in `Ms` (`timeoutMs`, `deadlineMs`, `renewMs`).
 - **URLs.** The Project's own origin is `baseUrl`. A connection string is `url` for a client of one service (`redisClientCreate({ url })`), and `databaseUrl` where Packages share one store read from `DATABASE_URL` (postgres, queue).
-- **Bad options** throw `TypeError` when the factory is called, with a message that starts with the function and the option: `postgresPoolCreate: queryTimeoutMs must be a positive integer or null`. An error that can only happen later, at runtime, is documented on the export that throws it.
+- **Bad options** throw `TypeError` when the factory is called, with a message that starts with the function and the option: `postgresMigrate: lockWaitMs must be a positive integer`. An error that can only happen later, at runtime, is documented on the export that throws it.
 - **Closing.** A handle the Package defines closes with `close()`, and its `[Symbol.asyncDispose]` calls `close()`. A vendor's own type keeps its own name (`PostgresPool.end()`, `RedisClient.close()`). In a Package test, open a handle inside the test body with `await using`; the rule and its traps are in [apps/app/docs/agents/using.md](../../apps/app/docs/agents/using.md).
 - **Predicates.** An exported function ends in `Is`, `Has` or `Can` (`postgresUniqueViolationIs`). A method or an option callback keeps the JavaScript form (`isAlive()`, `isShuttingDown`).
 - **Doc comments.** Every exported function and type has a `/** */` JSDoc: it ships in the `.d.ts`, so an editor shows it to the caller. A `//` comment does not ship.
@@ -36,7 +36,7 @@ Every runtime dependency of a Package (`dependencies`, `peerDependencies`, `opti
 
 - **Ranges** are caret (`^1.2.3`). Pin an exact version only with its reason written in that dependency's `dependencies-allowed.json` line, such as OpenTelemetry's packages, which must match each other.
 - **Peers** are only what the code imports, types included. An optional peer nothing imports goes, with its Needs line.
-- **Not in package.json on purpose:** telemetry's callers install `import-in-the-middle` beside it, because Node's loader hook and the instrumentations must share one copy. Its README says so in the install line and Needs; do not make it a peer.
+- **One runtime dependency is left out of package.json on purpose.** Telemetry's callers install `import-in-the-middle` beside it, because Node's loader hook and the instrumentations must share one copy. Its README says so in the install line and Needs; do not make it a peer.
 
 ## Test exports
 
@@ -51,9 +51,9 @@ A **memory stand-in**, in the main entry, in one of four shapes. Copy the one cl
 | Memory mode     | authn                                 | The factory itself runs in memory (`issuerUrl: "memory://"`), so no second export exists.                                                                                                                                                                                                                                                                         |
 | None            | error-tracking                        | The Project skips opening it when `SENTRY_DSN` is unset.                                                                                                                                                                                                                                                                                                          |
 
-A **test helper**, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. Like every test file it is exempt from the function-inputs rule (Biome's `useMaxParams` is off for `*-test-*.ts` and `*.test.ts`), so it may take more than two positional inputs. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
+A **test helper**, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. Like every test file it is exempt from the function-inputs rule (Biome's `useMaxParams` is off for `*-test-*.ts` and `*.test.ts`), but an options object still reads better past two inputs. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
 
-Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24). Tests use `it`, not `test`. A Package's own tests may use Vitest's spies, stubs and fake timers to reach a timer or a global; a README's testing note never asks a Project to, because a Project's tests may not (`test/no-mocks.test.ts`). It shows the memory stand-in instead.
+Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24). Tests use `it`, not `test`. A Package's own tests may use Vitest's spies, stubs and fake timers to reach a timer or a global; a README's testing note never asks a Project to, because the Template's tests may not (`test/no-mocks.test.ts`) and a Project copies them. It shows the memory stand-in instead.
 
 ## Spans
 

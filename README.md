@@ -136,7 +136,7 @@ docs/               agents/ (rules and walkthroughs), adr/ (decisions), readme/ 
 ```sh
 fnm use && pnpm install
 pnpm exec turbo run check test build   # CI's packages job
-pnpm -C apps/app run ci                # a Template change: also docs/agents/template.md
+pnpm -C apps/app run ci                # a Template change, after a commit and with pnpm dev running
 ```
 
 Docker must be running: the root tests and the `cache`, `live`, `postgres`, `queue` and `redis` tests start their own containers.

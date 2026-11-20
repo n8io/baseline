@@ -20,7 +20,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test in a Package: `pnpm test` runs every test; in cache, live, postgres, queue and redis it needs Docker, which only the files named `*.redis.test.ts` or `*.postgres.test.ts` use
 - unit tests with no Docker: `pnpm test:unit` (root runs it in every Package that has it, or run it inside one)
 - glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
-- CI's `packages` job: `pnpm exec turbo run check test build`; a Template change must also pass the `integration` and `render` jobs ([docs/agents/template.md](docs/agents/template.md))
+- CI's `packages` job: `pnpm exec turbo run check test build`; a Template change must also pass the other jobs ([docs/agents/template.md](docs/agents/template.md))
 - a change that should ship: `pnpm exec changeset`, for each Package it touches, plus `app` for a Template change
 
 ## Naming
@@ -46,7 +46,7 @@ These docs load only when the task needs them. Read the one that matches before 
 - Working in `packages/` (a factory, an option, a schema, a dependency, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
 - Writing a README or a README diagram: [docs/agents/readmes.md](docs/agents/readmes.md)
 - Changing anything under `apps/app` in baseline: [docs/agents/template.md](docs/agents/template.md)
-- Proposing a new library, pattern or name: the decisions in [docs/adr/](docs/adr/) first
+- Proposing a new library, pattern or name: read the decisions in [docs/adr/](docs/adr/) first
 
 ## Walkthroughs
 
