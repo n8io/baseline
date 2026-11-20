@@ -37,6 +37,9 @@ export type SdkFetchOptions<E extends string> = {
 };
 
 // A bad retry or timeout throws a TypeError naming the function and the option, as every Package does.
+// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days).
+const timerMax = 2_147_483_647;
+
 // `prefix` is what the message starts with, such as "sdkFetch: " or "sdkFetchCreate: defaults.".
 const optionsCheck = (prefix: string, options: SdkOptions): void => {
 	const { retry, timeoutMs, totalTimeoutMs } = options;
@@ -44,8 +47,13 @@ const optionsCheck = (prefix: string, options: SdkOptions): void => {
 		throw new TypeError(`${prefix}retry must be a whole number, 0 or more`);
 	}
 	for (const [option, value] of Object.entries({ timeoutMs, totalTimeoutMs })) {
-		if (value != null && !(Number.isSafeInteger(value) && value > 0)) {
-			throw new TypeError(`${prefix}${option} must be a positive integer`);
+		if (
+			value != null &&
+			!(Number.isSafeInteger(value) && value > 0 && value <= timerMax)
+		) {
+			throw new TypeError(
+				`${prefix}${option} must be a positive integer, ${timerMax} at most`,
+			);
 		}
 	}
 };

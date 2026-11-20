@@ -493,13 +493,51 @@ describe("sdkFetchCreate options", () => {
 		);
 		const { sdkConfigure, sdkFetch } = overrideCreate();
 		expect(() => sdkConfigure({ timeoutMs: 0 })).toThrow(
-			new TypeError("sdkConfigure: timeoutMs must be a positive integer"),
+			new TypeError(
+				"sdkConfigure: timeoutMs must be a positive integer, 2147483647 at most",
+			),
 		);
 		await expect(
 			sdkFetch("/a", { method: "GET", totalTimeoutMs: Number.NaN }),
 		).rejects.toThrow(
-			new TypeError("sdkFetch: totalTimeoutMs must be a positive integer"),
+			new TypeError(
+				"sdkFetch: totalTimeoutMs must be a positive integer, 2147483647 at most",
+			),
 		);
+	});
+
+	it.each([
+		["retry", 1.5],
+		["timeoutMs", 0.5],
+		["timeoutMs", 2 ** 31],
+		["totalTimeoutMs", 2 ** 31],
+	])("refuses %s %d, which no timer or count takes", (option, value) => {
+		expect(() => overrideCreate({ [option]: value })).toThrow(
+			`sdkFetchCreate: defaults.${option} must be`,
+		);
+	});
+
+	it("reads a null timeout or baseUrl as the configured one", async () => {
+		await using api = await apiStart(silent);
+		const { sdkFetch } = overrideCreate({
+			baseUrl: api.baseUrl,
+			retry: 0,
+			timeoutMs: 100,
+			totalTimeoutMs: 200,
+		});
+		const started = performance.now();
+
+		const timedOut = await sdkFetch("/a", {
+			baseUrl: null,
+			environment: null,
+			method: "GET",
+			timeoutMs: null,
+			totalTimeoutMs: null,
+		}).catch((caught: unknown) => caught);
+
+		expect(timedOut).toHaveProperty("name", "TimeoutError");
+		expect(api.requests).toHaveLength(1);
+		expect(performance.now() - started).toBeLessThan(1000);
 	});
 
 	it("reads null as the configured value, and a configured null as the default", async () => {

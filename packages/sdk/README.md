@@ -31,6 +31,7 @@ export type SdkOptions = Options<keyof typeof environments>;
 
 const sdk = sdkFetchCreate({ environments });
 
+// Typed in full: the published SDK's declarations are written without type checking.
 export const sdkConfigure: (options: SdkOptions) => void = sdk.sdkConfigure;
 
 // An arrow function, not sdk.sdkFetch itself: orval reads the mutator's parameters from its source.
@@ -40,7 +41,7 @@ export const sdkFetch = <T>(
 ): Promise<T> => sdk.sdkFetch<T>(url, options);
 ```
 
-This is the Template's file as it is. orval reads the mutator's source, not its type, and exits 0 when it cannot, so keep `sdkFetch` an arrow function with its parameters written out. `clients/environments.json` maps each environment's name to its API origin, such as `{ "development": "http://localhost:3000", "production": "https://api.example.com" }`.
+This is the Template's file, less its header comment. orval reads the mutator's source, not its type, and exits 0 when it cannot, so keep `sdkFetch` an arrow function with its parameters written out. `clients/environments.json` maps each environment's name to its API origin, such as `{ "development": "http://localhost:3000", "production": "https://api.example.com" }`.
 
 ```ts
 sdkConfigure({ environment: "production", token });
@@ -86,7 +87,7 @@ Every option may be `null`, which means the same as leaving it out: a call's `nu
 - A timeout, of an attempt after the last retry or of the whole call: a `DOMException` named `TimeoutError`, as `AbortSignal.timeout` gives.
 - A network failure after the last retry: the error `fetch` gave (a `TypeError`). A connection that drops while the body is read rejects at once, without a retry.
 - A JSON content type with a body that is not JSON: the `SyntaxError` from parsing it.
-- A `retry` that is not a whole number of 0 or more, or a `timeoutMs` or `totalTimeoutMs` that is not a positive integer: a `TypeError` whose message starts with the function and the option (`sdkFetchCreate: defaults.retry`, `sdkConfigure: timeoutMs`, `sdkFetch: totalTimeoutMs`). `sdkFetchCreate` and `sdkConfigure` throw it; `sdkFetch` rejects with it.
+- A `retry` that is not a whole number of 0 or more, or a `timeoutMs` or `totalTimeoutMs` that is not a positive integer of at most 2147483647 (a timer's limit): a `TypeError` whose message starts with the function and the option (`sdkFetchCreate: defaults.retry`, `sdkConfigure: timeoutMs`, `sdkFetch: totalTimeoutMs`). `sdkFetchCreate` and `sdkConfigure` throw it; `sdkFetch` rejects with it.
 - No environment and no `baseUrl`: an `Error` that lists the environments and names `sdkConfigure`, or, from an instance that lists none, one that asks for a `baseUrl`. An environment that is not listed (a JavaScript caller the types do not stop): an `Error` that lists them.
 
 </details>

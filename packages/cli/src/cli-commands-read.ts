@@ -25,6 +25,7 @@ export type CliDocument = {
 /** How a flag's text becomes a value. */
 export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 
+/** One flag of a command: a path, query or body field. */
 export type CliField = {
 	/** The values the schema allows (its `enum`), as text; for an array, its items' values. */
 	choices?: string[];
@@ -41,6 +42,7 @@ export type CliField = {
 	required: boolean;
 };
 
+/** One command, read from one operation. */
 export type CliCommand = {
 	body: boolean;
 	description: string;
