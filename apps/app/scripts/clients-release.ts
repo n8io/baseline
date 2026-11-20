@@ -107,9 +107,11 @@ export const jsonImportsTyped = (declarations: string): string =>
 		'$1 with { type: "json" };',
 	);
 
-const npm = (args: string[], cwd?: string) =>
+// Status and output are the answer (a 404 means not published), so this runs through spawnSync,
+// not processRun.
+const npm = (args: string[], cwd?: string | null) =>
 	spawnSync("npm", [...args, "--registry", registry], {
-		cwd,
+		cwd: cwd ?? undefined,
 		encoding: "utf8",
 	});
 

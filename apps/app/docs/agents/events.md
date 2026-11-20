@@ -12,7 +12,7 @@ import { orderPlaced } from "#contexts/order/index.ts"; // an Event handler may 
 const billingOrderPlacedHandlerActor: Actor = {
 	id: "billing-order-placed-handler",
 	kind: "client",
-	scopes: ["billing:invoice-create"],
+	scopes: ["invoice:create"],
 };
 export const billingOrderPlacedHandlerCreate = (u: BillingUseCases) =>
 	queueConsumerCreate({
@@ -32,6 +32,7 @@ export const billingOrderPlacedHandlerCreate = (u: BillingUseCases) =>
 - The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
 - Such a Use case returns `Result<void, E>`.
 - Publish an Event only inside the Use case's transaction, through its Aggregate's `<aggregate>Events` port, and after the write it is about.
+- A new Event needs three edits: its schema in `domain/<aggregate>.ts`, its name in `<Aggregate>EventMap` in the same file (which types the Events port), and its export at the `// wiring: events` marker in the context's `index.ts`.
 - A context whose ids other contexts hold publishes `<entity>.deleted`. Each context holding that id handles it: see [Holding another context's id](#holding-another-contexts-id).
 
 ## Order and the Event key
@@ -50,22 +51,22 @@ await transaction.orderEvents.publish({
 });
 ```
 
-- Each Event handler gets the Events of one Event key one at a time, in the order their transactions committed, however many workers run. Events with different Event keys run beside each other, so never rely on order across entities.
+- Each Event handler gets the Events of one Event key one at a time, in the order their transactions committed, however many Workers run. Events with different Event keys run beside each other, so never rely on order across entities.
 - The port types `key` as its Aggregate's own id (`Id<"order">`), so a publish without one, or with another Aggregate's id, does not compile.
 - While an Event waits for a retry, the later Events of its Event key wait behind it. Keep an Event handler's Use case short, and let it return `err` for an outcome you expect: only a throw is retried.
-- An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on with an error log. The worker logs it at error level (error tracking hears it, and again each day), `queue.blockedKeys()` lists it, `queue.blockedKeyRetry({ consumer, key })` or `queue.blockedKeyGiveUp({ consumer, key })` releases it, and in a pod `node src/blocked-keys.ts` does both. The runbook is "A blocked key" in the `@n8io/baseline-queue` README.
+- An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on with an error log. The Worker logs it at error level (error tracking hears it, and again each day), `queue.blockedKeys()` lists it, `queue.blockedKeyRetry({ consumer, key })` or `queue.blockedKeyGiveUp({ consumer, key })` releases it, and in a pod `node src/blocked-keys.ts` does both. The runbook is "Runbook: a blocked key" in the `@n8io/baseline-queue` README.
 
 ### Where order stops
 
 Order holds per Event key and per Event handler. Plan for the three places it does not reach:
 
 - **Across Event keys.** `order.placed` (key: the order) can reach an Event handler before `customer.created` (key: the customer) has been handled by another. When an Event handler needs a row another key's Event creates, create it on demand: upsert the row it needs (`INSERT ... ON CONFLICT DO NOTHING`, then read it), and let the later Event fill in the rest. Never wait or retry until the other Event lands: a throw holds this key back through five attempts, then blocks it until someone releases it. Do not return `err` for the missing row either: `err` completes the Event and it never runs again.
-- **A redriven Event.** Releasing a blocked key by giving its Event up (`blockedKeyGiveUp`), then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it (runbook: "A blocked key" in the `@n8io/baseline-queue` README). Retrying it in place (`blockedKeyRetry`) keeps its turn.
+- **A redriven Event.** Releasing a blocked key by giving its Event up (`blockedKeyGiveUp`), then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it ("Runbook: a blocked key" in the `@n8io/baseline-queue` README). Retrying it in place (`blockedKeyRetry`) keeps its turn.
 - **A stale Event.** Where a late or repeated Event must not undo a newer state, put a version or sequence on the Event (one the publisher keeps on its row, or the source feed's sequence number) and keep the last one applied on the row. The Use case compares it inside its transaction, skips an Event whose version is not newer and returns `ok`. The inbox already skips an exact repeat; the guard covers a redriven or out-of-band one.
 
 ## Event handlers that write a shared Aggregate
 
-Two Events with different Event keys run at once, on one worker or several. When both change the same Aggregate (two `payment.received` Events, keyed by payment, both add to one invoice's paid total), both read it, and the second save overwrites the first: money lost under load, with no error.
+Two Events with different Event keys run at once, on one Worker or several. When both change the same Aggregate (two `payment.received` Events, keyed by payment, both add to one invoice's paid total), both read it, and the second save overwrites the first: money lost under load, with no error.
 
 Lock the root before reading it (`findByIdForUpdate`), or make the write one atomic statement, and prove it with a race test: the rules, id-order locking and the test are in [data.md](data.md#locking-and-limits). One transaction writes one Aggregate unless one invariant spans several (the **Aggregate** glossary entry, A28); across contexts, publish an Event and let the other context react. Lock on every path that touches the rows, Use cases and Schedules too.
 
@@ -90,7 +91,7 @@ With an inbox the transaction returns `Result<void, E>`, so a value the Use case
 
 ## Testing an Event handler
 
-Run the Event handler as the worker does, through the context's interface on memory connections ([tests.md](tests.md)), with `queueTestConsumerRun` from `@n8io/baseline-queue/testing`:
+Run the Event handler as the Worker does, through the context's interface on memory connections ([tests.md](tests.md)), with `queueTestConsumerRun` from `@n8io/baseline-queue/testing`:
 
 ```ts
 // src/contexts/billing/adapters/inbound/billing-order-placed-handler.test.ts
@@ -108,22 +109,22 @@ expect(await useCases.invoiceList(actor, { orderId })).toMatchObject({
 });
 ```
 
-- It validates `data` as the worker does, so pass the whole Event as the publisher sends it; a missing field rejects ("Event failed validation for ...").
+- It validates `data` as the Worker does, so pass the whole Event as the publisher sends it; a missing field rejects ("Event failed validation for ...").
 - Pass the same `eventId` twice to check a repeat changes nothing.
 - Assert on what a later read returns, not on memory state. No `vi.mock`, `vi.fn` or `vi.spyOn` ([tests.md](tests.md)).
 
 ## Changing an Event's shape
 
-During a rollout, workers of the old release and the new one run side by side for minutes, and an Event published by one may reach the other. An Event also keeps its shape for as long as it waits: through its retries, then up to 7 days as a blocked key. A worker that rejects the shape retries it five times and then blocks its Event key, and every later Event of that entity waits behind it.
+During a rollout, Workers of the old release and the new one run side by side for minutes, and an Event published by one may reach the other. An Event also keeps its shape for as long as it waits: through its retries, then up to 7 days as a blocked key. A Worker that rejects the shape retries it five times and then blocks its Event key, and every later Event of that entity waits behind it.
 
-Event handlers validate with the definition the publishing context exports (`#contexts/<publisher>/index.ts`), so widening is one edit there. The Template defines Events with Zod `z.object`, which drops keys it does not know. Never use `.strict()` or `z.strictObject` for an Event: an old worker would then reject every new field.
+Event handlers validate with the definition the publishing context exports (`#contexts/<publisher>/index.ts`), so widening is one edit there. The Template defines Events with Zod `z.object`, which drops keys it does not know. Never use `.strict()` or `z.strictObject` for an Event: an old Worker would then reject every new field.
 
-**One release** is enough to add an optional field that an old worker may ignore. An old worker drops it; a new worker reads it as absent on Events published before the release.
+**One release** is enough to add an optional field that an old Worker may ignore. An old Worker drops it; a new Worker reads it as absent on Events published before the release.
 
 **Three releases** for a required field, a rename, a type change or a removal, the way `data.md` changes a table:
 
 1. **Widen.** Release Event handlers that accept both shapes: the new field is optional, or the old one is still read. Publish the old shape still.
-2. **Switch.** In the next release, publish the new shape. Every worker already accepts it.
+2. **Switch.** In the next release, publish the new shape. Every Worker already accepts it.
 3. **Narrow.** One release later, stop accepting the old shape, but only when no Event of the old shape is left:
    - no blocked keys (`queue.blockedKeys()` is empty);
    - nothing waiting in any Event handler's queue of the Event (`SELECT count(*) FROM queue.job WHERE name = 'billing.order-placed.ordered' AND state IN ('created', 'retry', 'active')` is 0 for each);

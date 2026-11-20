@@ -34,7 +34,7 @@ A business value defined only by what it holds, with no identity of its own, def
 
 **Invariant**:
 A condition an Aggregate always holds. Its Transitions keep it.
-_Avoid_: Rule
+_Avoid_: business Rule
 
 **Transition**:
 A pure function in an Aggregate's `domain/` file that makes the Aggregate or changes it, keeping its invariants: `invoiceNew(input)` returns the Aggregate, or a `Result` when something can refuse it; a change (`invoiceLineAdd(invoice, input)`) returns `Result`. A Use case changes an Aggregate only through one: architecture rule A29 refuses a Use case that builds or copies one itself.
@@ -56,7 +56,7 @@ Anything with an interface and an implementation, at any scale: a function, a fi
 
 **Interface**:
 Everything a caller must know to use a module correctly: its types, and also its invariants, ordering, errors and required configuration. A bounded context's interface is its `index.ts`: `<context>ContextCreate(...)` and its Published language. Outside code imports nothing else from a context, and Use case tests go through it.
-_Avoid_: signature
+_Avoid_: function signature
 
 **Seam**:
 A place where behaviour can change without editing that place: where a module's interface lives.

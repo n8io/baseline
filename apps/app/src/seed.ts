@@ -33,7 +33,7 @@ if (import.meta.main) {
 		);
 	}
 	if (ENV.DATABASE_URL === "memory://") {
-		logger.info("memory database: the server seeds itself at start");
+		logger.info("memory database: the Server seeds itself at start");
 		process.exit(0);
 	}
 	const connections = await connectionsOpen({ role: "publisher" });

@@ -45,7 +45,7 @@ These docs load only when the task needs them. Read the one that matches before 
 
 - Working in `packages/` (a new Package, a factory, an option, a schema, a dependency, a handle to close, a test, a span): [docs/agents/packages.md](docs/agents/packages.md)
 - Writing a README or a README diagram: [docs/agents/readmes.md](docs/agents/readmes.md)
-- Changing anything under `apps/app` in baseline: [docs/agents/template.md](docs/agents/template.md)
+- Changing anything under `apps/app` or `.github/workflows/` in baseline: [docs/agents/template.md](docs/agents/template.md)
 - Proposing a new library, pattern or name, or recording a decision: read [docs/adr/](docs/adr/README.md) first
 
 ## Walkthroughs

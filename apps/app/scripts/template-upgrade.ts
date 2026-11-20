@@ -49,7 +49,7 @@ const renderCommit = ({
 }: {
 	files: TemplateFile[];
 	message: string;
-	parent?: string;
+	parent?: string | null;
 	// The Pieces the Project removed; the render drops them too.
 	removed: Piece[];
 	repository: string;
@@ -85,7 +85,7 @@ const renderCommit = ({
 		treeId,
 		"-m",
 		message,
-		...(parent === undefined ? [] : ["-p", parent]),
+		...(parent === undefined || parent === null ? [] : ["-p", parent]),
 	]);
 };
 

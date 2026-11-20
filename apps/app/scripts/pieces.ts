@@ -481,13 +481,13 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 	const kept = template.piecesKept ?? [];
 	if (!Array.isArray(kept) || kept.some((p) => typeof p !== "string")) {
 		throw new Error(
-			`piecesKept in .template.json must be a list of piece names; pieces are ${names}`,
+			`piecesKept in .template.json must be a list of Piece names; Pieces are ${names}`,
 		);
 	}
 	const keptUnknown = kept.filter((p) => !pieceIs(p));
 	if (keptUnknown.length > 0) {
 		throw new Error(
-			`piecesKept in .template.json names ${keptUnknown.join(", ")}, which is no piece; pieces are ${names}`,
+			`piecesKept in .template.json names ${keptUnknown.join(", ")}, which is no Piece; Pieces are ${names}`,
 		);
 	}
 	const files = template.pieceFiles ?? {};
@@ -499,7 +499,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 	for (const [piece, paths] of Object.entries(files)) {
 		if (!pieceIs(piece)) {
 			throw new Error(
-				`pieceFiles in .template.json names ${piece}, which is no piece; pieces are ${names}`,
+				`pieceFiles in .template.json names ${piece}, which is no Piece; Pieces are ${names}`,
 			);
 		}
 		if (!Array.isArray(paths) || paths.some((p) => typeof p !== "string")) {
@@ -522,7 +522,9 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 	return { files: files as Record<string, string[]>, kept };
 };
 
-export const pieceUsage = `Usage: pnpm piece-remove <${pieceNames.join("|")}>`;
+export const pieceUsage = `Usage: pnpm piece-remove <${pieceNames.join("|")}>
+
+  -h, --help  this help`;
 
 // Why the Piece cannot be removed from this Project now, or undefined when it can.
 export const pieceRemoveRefusal = (

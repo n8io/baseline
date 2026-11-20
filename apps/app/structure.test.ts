@@ -105,7 +105,7 @@ const structureViolations = (
 			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
 			if (!allowed.has(file) && !inFolder) {
 				problems.push(
-					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the Aggregates, errors and repository ports in domain/, use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
+					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the Aggregates, errors and repository ports in domain/, Use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
 				);
 			}
 		}
@@ -147,12 +147,13 @@ const diskReadsUndeclared = (
 				`${path}: declare the files it reads or runs with import.meta.glob([...], { query: "?raw" }), or say "// Reads and runs no file of the app"`,
 		);
 
-// A test sits beside the file it covers (<name>.test.ts or <name>-<aspect>.test.ts) in src/ or
+// A test sits beside the file it covers (<name>.test.ts(x) or <name>-<aspect>.test.ts(x)) in src/ or
 // scripts/, at the app root when it checks the whole app, or in test/integration/.
 const testPlacementViolations = (paths: string[]): string[] => {
 	const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
 	const nameOf = (path: string) => path.slice(folderOf(path).length);
-	const sources = paths.filter((path) => !path.endsWith(".test.ts"));
+	const testIs = (path: string) => /\.test\.tsx?$/.test(path);
+	const sources = paths.filter((path) => !testIs(path));
 	// An Aggregate's test of a context file (billing-use-cases.ts) is named with the Aggregate in
 	// the context's place (invoice-line-use-cases-cache.test.ts), so two Aggregates' tests differ.
 	const aggregatesOf = (path: string): string[] => {
@@ -162,11 +163,11 @@ const testPlacementViolations = (paths: string[]): string[] => {
 			: architectureAggregatesFind(sources, context);
 	};
 	return paths
-		.filter((path) => path.endsWith(".test.ts"))
+		.filter(testIs)
 		.filter((path) => {
 			if (!path.includes("/") || path.startsWith("test/integration/"))
 				return false;
-			const name = nameOf(path).slice(0, -".test.ts".length);
+			const name = nameOf(path).replace(/\.test\.tsx?$/, "");
 			const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1] ?? "";
 			const names = [
 				name,
@@ -406,6 +407,8 @@ describe("test placement", () => {
 				"src/contexts/bar/adapters/outbound/bar-note-transaction.postgres.test.ts",
 				"scripts/glossary-check.ts",
 				"scripts/glossary-check.test.ts",
+				"src/ui/routes/home.tsx",
+				"src/ui/routes/home.test.tsx",
 				"structure.test.ts",
 				"test/integration/ssr.test.ts",
 			]),
@@ -419,6 +422,10 @@ describe("test placement", () => {
 			["src/server.ts", "src/serverless.test.ts"],
 		],
 		["a test in test/unit/", ["src/seed.ts", "test/unit/seed.test.ts"]],
+		[
+			"a .tsx test with no source beside it",
+			["src/ui/a.tsx", "src/ui/b.test.tsx"],
+		],
 		["a test in another folder", ["docs/a.ts", "docs/a.test.ts"]],
 		[
 			"a context file's test named after no Aggregate",

@@ -14,7 +14,7 @@ export const fooHttpErrorAnswer = <T extends FooError["type"]>(
 	return c.json(httpErrorBodyCreate(error, status), status, httpProblemHeaders);
 };
 
-// A JSON response or body in a route's OpenAPI definition.
+// A JSON response in a route's OpenAPI definition.
 export const fooHttpJsonCreate = <S extends z.ZodType>(
 	schema: S,
 	description: string,

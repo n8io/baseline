@@ -11,7 +11,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { argsParse, argsUsageFail } from "./args.ts";
+import { argsFail, argsParse, argsUsageFail } from "./args.ts";
 import {
 	type Piece,
 	pieceBlocksRemove,
@@ -556,14 +556,14 @@ const blockPresentIs = ({
 // at a marker of a part left out (its import stays for the unused-imports pass to drop).
 export const wiringInsert = ({
 	blockIs,
-	partsLeftOut = [],
+	partsLeftOut,
 	path,
 	project,
 	rename,
 	template,
 }: {
 	blockIs: (line: string) => boolean;
-	partsLeftOut?: AggregatePart[];
+	partsLeftOut?: AggregatePart[] | null;
 	path: string;
 	project: string;
 	rename: (text: string) => string;
@@ -602,7 +602,7 @@ export const wiringInsert = ({
 			);
 		}
 		const part = wiringPartOf({ path, marker });
-		if (part !== undefined && partsLeftOut.includes(part)) continue;
+		if (part !== undefined && partsLeftOut?.includes(part)) continue;
 		const at = lines.findIndex((line) => line.trim() === marker.trim());
 		if (at === -1) {
 			throw new Error(
@@ -1371,7 +1371,7 @@ export const aggregatePartsRefusal = ({
 };
 
 // What to do after an aggregate-create, for the parts used.
-export const nextStepsText = ({
+export const aggregateNextStepsText = ({
 	aggregate,
 	context,
 	migrated,
@@ -1499,12 +1499,6 @@ const options = {
 	seed: { type: "boolean" },
 } as const;
 
-// Says why the command stopped and sets the exit code; the caller returns.
-const fail = (message: string): void => {
-	console.error(`aggregate-create: ${message}`);
-	process.exitCode = 1;
-};
-
 const main = () => {
 	const parsed = argsParse({ allowPositionals: true, options, usage });
 	if (parsed === undefined) return;
@@ -1520,7 +1514,8 @@ const main = () => {
 	}
 	const named = aggregateParts.filter((part) => values[part] === true);
 	if (!values.bare && named.length > 0) {
-		fail(
+		argsFail(
+			"aggregate-create",
 			`--${named.join(", --")} picks parts for --bare; without --bare every part is copied`,
 		);
 		return;
@@ -1535,7 +1530,7 @@ const main = () => {
 		aggregateRefusal({ aggregate, appDirectory, context }) ??
 		aggregatePartsRefusal({ appDirectory, parts: named });
 	if (refusal !== undefined) {
-		fail(refusal);
+		argsFail("aggregate-create", refusal);
 		return;
 	}
 	let files: TemplateFile[] = [];
@@ -1548,7 +1543,7 @@ const main = () => {
 			templateFull: templateOf(appDirectory),
 		});
 	} catch (error) {
-		fail((error as Error).message);
+		argsFail("aggregate-create", (error as Error).message);
 		return;
 	}
 	const wired = filesWriteAll({ appDirectory, files });
@@ -1566,7 +1561,7 @@ const main = () => {
 		return;
 	}
 	console.log(
-		`Created ${aggregate.kebab}; pnpm check and pnpm test pass.\n${nextStepsText(
+		`Created ${aggregate.kebab}; pnpm check and pnpm test pass.\n${aggregateNextStepsText(
 			{
 				aggregate,
 				context,

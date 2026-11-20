@@ -14,20 +14,20 @@ type Parsed<Options extends ParseArgsOptionsConfig> = {
 // parseArgs refuses prints the error and the usage to stderr, sets process.exitCode to 1 and
 // returns undefined. A command that gets undefined has already said everything and returns.
 export const argsParse = <const Options extends ParseArgsOptionsConfig>({
-	allowPositionals = false,
-	args = process.argv.slice(2),
+	allowPositionals,
+	args,
 	options,
 	usage,
 }: {
-	allowPositionals?: boolean;
-	args?: string[];
+	allowPositionals?: boolean | null;
+	args?: string[] | null;
 	options: Options;
 	usage: string;
 }): Parsed<Options> | undefined => {
 	try {
 		const parsed = parseArgs({
-			allowPositionals,
-			args,
+			allowPositionals: allowPositionals ?? false,
+			args: args ?? process.argv.slice(2),
 			options: { ...options, help: { short: "h", type: "boolean" } },
 			strict: true,
 		});
@@ -43,6 +43,13 @@ export const argsParse = <const Options extends ParseArgsOptionsConfig>({
 		process.exitCode = 1;
 		return undefined;
 	}
+};
+
+// Says why a command stopped, as "<command>: <message>" on stderr, and sets exit code 1; the
+// caller returns.
+export const argsFail = (command: string, message: string): void => {
+	console.error(`${command}: ${message}`);
+	process.exitCode = 1;
 };
 
 // Says the arguments do not fit the command: the usage text on stderr, exit code 1.

@@ -10,7 +10,7 @@ const integration: TestProjectConfiguration = {
 		env: { APP_ENV: "test" },
 		include: [
 			"src/**/*.{postgres,redis}.test.ts",
-			"test/integration/**/*.test.ts",
+			"test/integration/**/*.test.{ts,tsx}",
 		],
 		globalSetup: ["test/integration/global-setup.ts"],
 		// A guard, not the fix: DROP DATABASE forces a Postgres checkpoint, and one took 8.4 s on a
@@ -57,11 +57,15 @@ export default defineConfig({
 					env: unitEnv,
 					exclude: [
 						"src/**/*.{postgres,redis}.test.ts",
-						"src/contexts/**/*.test.ts",
+						"src/contexts/**/*.test.{ts,tsx}",
 					],
 					// The same slow import in a beforeAll: it took over 10 s on a busy CI runner.
 					hookTimeout: 20_000,
-					include: ["*.test.ts", "scripts/*.test.ts", "src/**/*.test.ts"],
+					include: [
+						"*.test.{ts,tsx}",
+						"scripts/*.test.ts",
+						"src/**/*.test.{ts,tsx}",
+					],
 					name: "unit",
 					// Loads .env.schema and .env.test into process.env in every worker.
 					setupFiles: ["varlock/auto-load"],
@@ -75,7 +79,7 @@ export default defineConfig({
 					env: unitEnv,
 					exclude: ["src/**/*.{postgres,redis}.test.ts"],
 					hookTimeout: 20_000,
-					include: ["src/contexts/**/*.test.ts"],
+					include: ["src/contexts/**/*.test.{ts,tsx}"],
 					// Context tests run on memory adapters and share no module state, so one module graph
 					// per worker is safe. Isolating each file cost ~96 s on a CI runner (six bounded contexts),
 					// past the unit job's 2 min budget; without it they take a few seconds.

@@ -349,7 +349,7 @@ const main = async () => {
 	const unknown = parsed.positionals.filter((p) => !pieceIs(p));
 	if (unknown.length > 0) {
 		console.error(
-			`piece-check: unknown piece ${unknown.join(", ")}; pieces are ${pieceNames.join(", ")}`,
+			`piece-check: unknown Piece ${unknown.join(", ")}; Pieces are ${pieceNames.join(", ")}`,
 		);
 		process.exitCode = 1;
 		return;
@@ -435,7 +435,7 @@ const main = async () => {
 	}
 	if (failures.size > 0) {
 		console.error(
-			`piece-check: ${inOrder(failures).join(", ")} can no longer be removed. Wrap the code that uses it in piece markers (docs/agents/pieces.md), or list the piece in piecesKept in .template.json if this Project keeps it.`,
+			`piece-check: ${inOrder(failures).join(", ")} can no longer be removed. Wrap the code that uses it in piece markers (docs/agents/pieces.md), or list the Piece in piecesKept in .template.json if this Project keeps it.`,
 		);
 	}
 	if (unchecked.size > 0) {

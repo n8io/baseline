@@ -1,11 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { parseEnv } from "node:util";
 import { argsParse } from "./args.ts";
 import { devInstanceFile, devInstanceNameCreate } from "./dev-instance.ts";
-import { gitRun } from "./process-run.ts";
+import { gitRun, processRun } from "./process-run.ts";
 
 // `pnpm dev:prune [--dry-run]` removes the containers and volumes of this Project's dev instances
 // (scripts/dev-instance.ts) whose linked worktree is gone. Compose labels each container with the
@@ -72,13 +71,10 @@ const main = () => {
 	// start has neither label.
 	const label = "com.docker.compose.project";
 	const format = `{{.Label "${label}"}}\t{{.Label "${label}.working_dir"}}`;
-	const containers = execFileSync(
-		"docker",
-		["ps", "--all", "--format", format],
-		{
-			encoding: "utf8",
-		},
-	)
+	const containers = processRun({
+		command: "docker",
+		args: ["ps", "--all", "--format", format],
+	})
 		.split("\n")
 		.map((line) => line.split("\t"))
 		.map(([name = "", directory = ""]) => ({ directory, name }));
@@ -90,10 +86,14 @@ const main = () => {
 		// From the temp folder compose loads no project file and finds the project's containers,
 		// volumes and network by label; COMPOSE_PROJECT_NAME names it, as varlock does for `pnpm dev`.
 		if (!dryRun) {
-			execFileSync("docker", ["compose", "down", "--volumes"], {
-				cwd: tmpdir(),
-				env: { ...process.env, COMPOSE_PROJECT_NAME: name },
-				stdio: "inherit",
+			processRun({
+				command: "docker",
+				args: ["compose", "down", "--volumes"],
+				options: {
+					cwd: tmpdir(),
+					env: { ...process.env, COMPOSE_PROJECT_NAME: name },
+					inherit: true,
+				},
 			});
 		}
 	}

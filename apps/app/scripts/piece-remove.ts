@@ -64,7 +64,7 @@ const main = () => {
 			`Removed ${piece}; pnpm check passes. Next:`,
 			"  pnpm test && pnpm build",
 			`  git add -A && git commit -m "Remove ${piece}"`,
-			"Commit it alone, so git revert can bring the piece back.",
+			"Commit it alone, so git revert can bring the Piece back.",
 		].join("\n"),
 	);
 };

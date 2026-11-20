@@ -1,6 +1,6 @@
 # Pieces of the stack
 
-Read when a Project should remove a piece of the stack it does not use, or take one back. Remove one with `pnpm piece-remove <piece>`.
+Read when a Project should remove a piece of the stack it does not use, or take one back, or when writing code that uses a piece. Remove one with `pnpm piece-remove <piece>`.
 
 A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Aggregate's piece behaviour is tested in a file of its own (`application/<aggregate>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<aggregate>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm aggregate-create` see that a piece's package is gone and leave the piece out of every new context and Aggregate.
 

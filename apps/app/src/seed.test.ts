@@ -55,6 +55,6 @@ describe("src/seed.ts", () => {
 			LOG_LEVEL: "info",
 		});
 		expect(code).toBe(0);
-		expect(output).toContain("memory database: the server seeds itself");
+		expect(output).toContain("memory database: the Server seeds itself");
 	});
 });

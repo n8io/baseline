@@ -29,7 +29,7 @@ describe("connectionsOpen", () => {
 
 	it("refuses a memory database for the Worker", async () => {
 		await expect(connectionsOpen({ role: "worker" })).rejects.toThrow(
-			"The worker needs a real database",
+			"The Worker needs a real database",
 		);
 	});
 

@@ -182,7 +182,7 @@ const manifestWrite = (
 describe("pieceRemoveRefusal", () => {
 	it("lists every Piece in the usage and knows each by name", () => {
 		expect(pieceUsage).toBe(
-			`Usage: pnpm piece-remove <${pieceNames.join("|")}>`,
+			`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n\n  -h, --help  this help`,
 		);
 		expect(pieceNames.every(pieceIs)).toBe(true);
 		expect(pieceIs("pages")).toBe(false);
@@ -193,7 +193,7 @@ describe("pieceRemoveRefusal", () => {
 			".template.json": JSON.stringify({ pieceFiles: { pages: ["test/ui"] } }),
 		});
 		expect(pieceRemoveRefusal(folder.path, "ui")).toBe(
-			`pieceFiles in .template.json names pages, which is no piece; pieces are ${pieceNames.join(", ")}`,
+			`pieceFiles in .template.json names pages, which is no Piece; Pieces are ${pieceNames.join(", ")}`,
 		);
 	});
 
@@ -257,13 +257,13 @@ describe("pieceSettingsRead", () => {
 
 	it("fails on an unknown piece", () => {
 		expect(() => settings({ piecesKept: ["pages"] })).toThrow(
-			/piecesKept in \.template\.json names pages, which is no piece/,
+			/piecesKept in \.template\.json names pages, which is no Piece/,
 		);
 		expect(() => settings({ pieceFiles: { pages: [] } })).toThrow(
-			/pieceFiles in \.template\.json names pages, which is no piece/,
+			/pieceFiles in \.template\.json names pages, which is no Piece/,
 		);
 		expect(() => settings({ pieceFiles: { constructor: [] } })).toThrow(
-			/names constructor, which is no piece/,
+			/names constructor, which is no Piece/,
 		);
 	});
 
@@ -283,7 +283,7 @@ describe("pieceSettingsRead", () => {
 			"pieceFiles.ui in .template.json must be a list of paths",
 		);
 		expect(() => settings({ piecesKept: "live" })).toThrow(
-			/must be a list of piece names/,
+			/must be a list of Piece names/,
 		);
 		expect(() => settings("{ release: 1 }")).toThrow(
 			/^\.template\.json is not valid JSON: /,

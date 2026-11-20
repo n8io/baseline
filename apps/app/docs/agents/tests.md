@@ -20,7 +20,7 @@ const { useCases } = contextsCreate(connections).invoiceContext;
 - To see what leaves the context, spread a recording double into the connection it leaves through: an `analytics` that keeps what `track` gets, a `liveHub` that keeps what `send` gets, a `cacheStore` that counts hits. A failing double (a `cacheStore` that throws) tests that the change still goes through.
 - Domain events need a real queue: test them in `*-transaction.postgres.test.ts` through `contextsCreate` on `connectionsOpen({ role: "publisher", urls: { cache: "memory://", database } })`, after subscribing stand-in Event handlers.
 - A test that reads an app file declares it (`import.meta.glob([...], { query: "?raw" })`) or says `// Reads and runs no file of the app`; `structure.test.ts` fails one that does neither, and any test outside `src/`, `scripts/`, `test/` or the app root.
-- Context test files share one import graph (`isolate: false`): keep shared modules free of state a test changes.
+- Context test files share one import graph (`isolate: false`): keep the modules they share free of state a test changes.
 
 ## Past the interface
 

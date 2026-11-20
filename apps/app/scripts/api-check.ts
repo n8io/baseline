@@ -5,7 +5,9 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { processRun } from "./process-run.ts";
+import { setTimeout } from "node:timers/promises";
+import { argsParse } from "./args.ts";
+import { gitRun, processRun } from "./process-run.ts";
 
 const installLine =
 	"oasdiff is not on PATH. Install it with `brew install oasdiff`, or download v1.35.0 from https://github.com/oasdiff/oasdiff/releases.";
@@ -47,12 +49,12 @@ export const documentSave = async ({
 	directory,
 	file,
 	port,
-	prepare = (document) => document,
+	prepare,
 }: {
 	directory: string;
 	file: string;
 	port: number;
-	prepare?: (document: unknown) => unknown;
+	prepare?: ((document: unknown) => unknown) | null;
 }) => {
 	processRun({
 		command: "pnpm",
@@ -83,13 +85,16 @@ export const documentSave = async ({
 				);
 				if (response.ok) {
 					const document: unknown = await response.json();
-					writeFileSync(file, JSON.stringify(prepare(document)));
+					writeFileSync(
+						file,
+						JSON.stringify(prepare ? prepare(document) : document),
+					);
 					return;
 				}
 			} catch {
 				// Not listening yet.
 			}
-			await new Promise((resolve) => setTimeout(resolve, 1000));
+			await setTimeout(1000);
 		}
 		throw new Error(
 			`The server on port ${port} never served its OpenAPI document`,
@@ -99,7 +104,15 @@ export const documentSave = async ({
 	}
 };
 
+const usage = `Usage: pnpm api-check
+
+Fails when this change breaks the API a client of origin/main already uses.
+
+  -h, --help  this help`;
+
 const main = async () => {
+	if (argsParse({ options: {}, usage }) === undefined) return;
+	// A probe: its exit status is the answer, so it runs through spawnSync, not processRun.
 	if (spawnSync("oasdiff", ["--version"]).status !== 0) {
 		console.error(installLine);
 		process.exitCode = 1;
@@ -124,9 +137,7 @@ const main = async () => {
 			options: { cwd: base, inherit: true },
 		});
 		// Inside a monorepo the app is a subfolder of the worktree.
-		const prefix = spawnSync("git", ["rev-parse", "--show-prefix"], {
-			encoding: "utf8",
-		}).stdout.trim();
+		const prefix = gitRun(".", ["rev-parse", "--show-prefix"]).trim();
 		await documentSave({
 			directory: join(base, prefix),
 			file: baseFile,
@@ -147,6 +158,7 @@ const main = async () => {
 			options: { cwd: ".", inherit: true },
 		});
 	} finally {
+		// Cleanup that may find no worktree (the add failed): its status is ignored.
 		spawnSync("git", ["worktree", "remove", "--force", base]);
 	}
 };

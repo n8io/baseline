@@ -22,7 +22,9 @@ describe("piece-remove", () => {
 	it("prints the usage to stdout for --help and exits 0", () => {
 		const { status, stderr, stdout } = commandRun(["--help"]);
 
-		expect(stdout).toBe(`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n`);
+		expect(stdout).toBe(
+			`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n\n  -h, --help  this help\n`,
+		);
 		expect(stderr).toBe("");
 		expect(status).toBe(0);
 	});
@@ -32,7 +34,7 @@ describe("piece-remove", () => {
 			const { status, stderr } = commandRun(args);
 
 			expect(stderr).toBe(
-				`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n`,
+				`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n\n  -h, --help  this help\n`,
 			);
 			expect(status).toBe(1);
 		}

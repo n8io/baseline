@@ -25,7 +25,7 @@ import {
 	templateWithoutPieces,
 	wiringInsert,
 } from "./aggregate-create.ts";
-import { argsParse, argsUsageFail } from "./args.ts";
+import { argsFail, argsParse, argsUsageFail } from "./args.ts";
 import { contextMapRead } from "./glossary-check.ts";
 import { piecesRemovedFind } from "./pieces.ts";
 import {
@@ -93,14 +93,15 @@ What the ${context.replaceAll("-", " ")} context does and the Aggregates it hold
 export const contextFilesCreate = ({
 	appDirectory,
 	context,
-	reads = [],
+	reads: readsGiven,
 	templateFull,
 }: {
 	appDirectory: string;
 	context: string;
-	reads?: string[];
+	reads?: string[] | null;
 	templateFull: TemplateFile[];
 }): TemplateFile[] => {
+	const reads = readsGiven ?? [];
 	const names = { kebab: context, plural: `${context}s` };
 	const template = barRemove(
 		templateWithoutPieces(templateFull, piecesRemovedFind(appDirectory)),
@@ -228,12 +229,6 @@ const options = {
 	reads: { multiple: true, type: "string" },
 } as const;
 
-// Says why the command stopped and sets the exit code; the caller returns.
-const fail = (message: string): void => {
-	console.error(`context-create: ${message}`);
-	process.exitCode = 1;
-};
-
 const main = () => {
 	const parsed = argsParse({ allowPositionals: true, options, usage });
 	if (parsed === undefined) return;
@@ -253,7 +248,7 @@ const main = () => {
 			reads,
 		});
 	if (refusal !== undefined) {
-		fail(refusal);
+		argsFail("context-create", refusal);
 		return;
 	}
 	let files: TemplateFile[] = [];
@@ -265,7 +260,7 @@ const main = () => {
 			templateFull: templateOf(appDirectory),
 		});
 	} catch (error) {
-		fail((error as Error).message);
+		argsFail("context-create", (error as Error).message);
 		return;
 	}
 	const wired = filesWriteAll({ appDirectory, files });
