@@ -3,6 +3,18 @@ import {
 	authnMemoryTokenFetch,
 } from "./authn-memory-token-fetch.ts";
 
+/** What `authnMemoryAuthorizationCreate` takes. */
+export type AuthnMemoryAuthorizationOptions = {
+	/** The served app's origin. */
+	baseUrl: string;
+	/** One of the app's `memoryClients`. */
+	clientId: string;
+	/** How long before expiry a new token is fetched, in ms; at most half the token's lifetime. `null` means 60,000. */
+	renewMs?: number | null;
+	/** The scopes to ask for. `null` means all of the client's. */
+	scopes?: string[] | null;
+};
+
 /** Returns the current `Authorization` value; `{ renew: true }` fetches a new token first, as after a 401. */
 export type AuthnMemoryAuthorization = (options?: {
 	renew?: boolean | null;
@@ -13,19 +25,14 @@ export type AuthnMemoryAuthorization = (options?: {
  * longer than a token lives. Each call returns the held `Authorization` value and fetches a new
  * token when the held one expires within `renewMs` (default 60,000, at most half its lifetime);
  * callers that ask while a fetch runs share it. When that early fetch fails, callers keep the
- * held token until it expires. Takes what `authnMemoryTokenFetch` takes.
+ * held token until it expires. Takes `AuthnMemoryAuthorizationOptions`.
  */
 export const authnMemoryAuthorizationCreate = ({
 	baseUrl,
 	clientId,
 	renewMs: renewMsOption,
 	scopes,
-}: {
-	baseUrl: string;
-	clientId: string;
-	renewMs?: number | null;
-	scopes?: string[] | null;
-}): AuthnMemoryAuthorization => {
+}: AuthnMemoryAuthorizationOptions): AuthnMemoryAuthorization => {
 	const renewMs = renewMsOption ?? 60_000;
 	if (!Number.isFinite(renewMs) || renewMs < 0) {
 		throw new TypeError(

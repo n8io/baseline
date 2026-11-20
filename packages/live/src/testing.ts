@@ -1,1 +1,5 @@
-export { type LiveTestSseReader, liveTestSseRead } from "./live-test-sse.ts";
+export {
+	type LiveTestSseReader,
+	type LiveTestSseReadOptions,
+	liveTestSseRead,
+} from "./live-test-sse.ts";

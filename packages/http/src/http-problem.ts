@@ -36,7 +36,11 @@ const httpTraceIdActive = (): string | undefined => {
 		: undefined;
 };
 
-/** The problem body for `status` with `code`, carrying the active trace id when there is one. */
+/**
+ * The problem body for `status` with `code`, carrying the active trace id when there is one. Use it
+ * for an answer that is not a business error (validation, CSRF, not found); for an error with a
+ * `type` tag use `httpErrorBodyCreate`, which takes the arguments the other way round.
+ */
 export const httpProblemCreate = (
 	status: number,
 	code: string,
@@ -50,7 +54,11 @@ export const httpProblemCreate = (
 	};
 };
 
-/** The problem body for a business error: `code` is the error's `type` tag. */
+/**
+ * The problem body for a business error: `code` is the error's `type` tag. Use it in a handler that
+ * maps a bounded context's error to its status; for a bare `code` use `httpProblemCreate`. The
+ * arguments come in the other order: `(error, status)` here, `(status, code)` there.
+ */
 export const httpErrorBodyCreate = (
 	error: { type: string },
 	status: ContentfulStatusCode,

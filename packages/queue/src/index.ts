@@ -26,6 +26,7 @@ export {
 	type QueueScheduleOptions,
 	type QueueSchedulesStartOptions,
 	type QueueSchedulesSyncOptions,
+	type QueueSchedulesSyncVendorOptions,
 	queueScheduleCreate,
 	queueSchedulesStart,
 	queueSchedulesSync,

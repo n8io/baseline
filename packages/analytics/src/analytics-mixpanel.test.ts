@@ -31,9 +31,9 @@ afterEach(() => {
 });
 
 describe("analyticsMixpanelCreate", () => {
-	it("posts the event to /track with the token and the Actor's id as distinct_id", () => {
+	it("posts the event to /track with the token and the Actor's id as distinct_id", async () => {
 		const requests = requestsCatch();
-		const analytics = analyticsMixpanelCreate({ token: "token" });
+		await using analytics = analyticsMixpanelCreate({ token: "token" });
 
 		analytics.track({
 			actorId: "user-1",
@@ -52,11 +52,12 @@ describe("analyticsMixpanelCreate", () => {
 			},
 		]);
 		expect(requests[0]?.init.signal).toBeInstanceOf(AbortSignal);
+		requests[0]?.answer(new Response("{}"));
 	});
 
-	it("posts to vendor.host when one is given", () => {
+	it("posts to vendor.host when one is given", async () => {
 		const requests = requestsCatch();
-		const analytics = analyticsMixpanelCreate({
+		await using analytics = analyticsMixpanelCreate({
 			token: "token",
 			vendor: { host: "api-eu.mixpanel.com" },
 		});
@@ -66,6 +67,7 @@ describe("analyticsMixpanelCreate", () => {
 		expect(requests.map((r) => r.url)).toEqual([
 			"https://api-eu.mixpanel.com/track?ip=0&strict=1",
 		]);
+		requests[0]?.answer(new Response("{}"));
 	});
 
 	it.each([
@@ -97,6 +99,32 @@ describe("analyticsMixpanelCreate", () => {
 			"https://api.mixpanel.com/track?ip=0&strict=1",
 			"https://api.mixpanel.com/track?ip=0&strict=1",
 		]);
+	});
+
+	it("refuses an empty token", () => {
+		const create = () => analyticsMixpanelCreate({ token: "" });
+
+		expect(create).toThrow(TypeError);
+		expect(create).toThrow("analyticsMixpanelCreate: token must not be empty");
+	});
+
+	it("sends an event whose properties are null like one without", async () => {
+		const requests = requestsCatch();
+		await using analytics = analyticsMixpanelCreate({ token: "token" });
+
+		analytics.track({
+			actorId: "user-1",
+			name: "foo.created",
+			properties: null,
+		});
+
+		expect(JSON.parse(String(requests[0]?.init.body))).toEqual([
+			{
+				event: "foo.created",
+				properties: { distinct_id: "user-1", token: "token" },
+			},
+		]);
+		requests[0]?.answer(new Response("{}"));
 	});
 
 	it("refuses a vendor key other than host, since it would do nothing", () => {

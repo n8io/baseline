@@ -127,3 +127,49 @@ describe("cacheCreate on a failing store", () => {
 		expect(warn).not.toHaveBeenCalled();
 	});
 });
+
+describe("cacheCreate options", () => {
+	it.each([0, -1, 1.5, Number.NaN])(
+		"throws a TypeError for ttlMs %s",
+		(ttlMs) => {
+			expect(() =>
+				cacheCreate(cacheStoreMemoryCreate(), {
+					prefix: "foo",
+					schema: z.string(),
+					ttlMs,
+				}),
+			).toThrow(new TypeError("cacheCreate: ttlMs must be a positive integer"));
+		},
+	);
+
+	it("throws a TypeError for an empty prefix", () => {
+		expect(() =>
+			cacheCreate(cacheStoreMemoryCreate(), { prefix: "", schema: z.string() }),
+		).toThrow(new TypeError("cacheCreate: prefix must not be empty"));
+	});
+
+	it("throws a TypeError for an unknown onStoreError", () => {
+		expect(() =>
+			cacheCreate(cacheStoreMemoryCreate(), {
+				onStoreError: "ignore" as "miss",
+				prefix: "foo",
+				schema: z.string(),
+			}),
+		).toThrow(
+			new TypeError(
+				'cacheCreate: onStoreError must be "miss" or "throw", found "ignore"',
+			),
+		);
+	});
+
+	it("accepts null for ttlMs and onStoreError", () => {
+		expect(() =>
+			cacheCreate(cacheStoreMemoryCreate(), {
+				onStoreError: null,
+				prefix: "foo",
+				schema: z.string(),
+				ttlMs: null,
+			}),
+		).not.toThrow();
+	});
+});

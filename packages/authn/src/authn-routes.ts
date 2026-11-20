@@ -31,7 +31,8 @@ import {
 	authnCookieGet,
 	authnCookieSet,
 } from "./authn-cookie.ts";
-import { authnPublicUrl, authnReturnToSafe } from "./authn-return-to.ts";
+import { authnRequestUrlPublic } from "./authn-request-url.ts";
+import { authnReturnToSafe } from "./authn-return-to.ts";
 import {
 	authnSignInPageFailed,
 	authnSignInPageMemoryForm,
@@ -63,7 +64,7 @@ const returnToQuery = (c: Context): string =>
  * provider may already have rotated it, so it must survive a verify that throws (an outage).
  * No refresh token clears the old one, so a new sign-in never inherits another's.
  */
-const tokensStore = async ({
+const authnTokensStore = async ({
 	authn,
 	c,
 	tokens,
@@ -151,7 +152,7 @@ const signInStart = async ({
 		code_challenge: await calculatePKCECodeChallenge(codeVerifier),
 		code_challenge_method: "S256",
 		nonce,
-		redirect_uri: authnPublicUrl(c.req.raw, callbackPath).href,
+		redirect_uri: authnRequestUrlPublic(c.req.raw, callbackPath).href,
 		state,
 	});
 	return c.redirect(url.href, 302);
@@ -177,7 +178,7 @@ const callback = async ({
 			? undefined
 			: FlowState.safeParse(JSON.parse(flowCookie)).data;
 	if (flow === undefined) return c.html(authnSignInPageFailed("/"), 400);
-	const currentUrl = authnPublicUrl(c.req.raw, callbackPath);
+	const currentUrl = authnRequestUrlPublic(c.req.raw, callbackPath);
 	currentUrl.search = new URL(c.req.url).search;
 	try {
 		const tokens = await authorizationCodeGrant(config, currentUrl, {
@@ -186,7 +187,7 @@ const callback = async ({
 			idTokenExpected: true,
 			pkceCodeVerifier: flow.codeVerifier,
 		});
-		const stored = await tokensStore({
+		const stored = await authnTokensStore({
 			c,
 			authn,
 			tokens: {
@@ -245,7 +246,9 @@ const refreshRun = async (
 	if (refreshToken === undefined || refreshToken === "invalid")
 		return undefined;
 	const tokens = await tokensRefresh(authn, refreshToken);
-	return tokens === undefined ? undefined : tokensStore({ c, authn, tokens });
+	return tokens === undefined
+		? undefined
+		: authnTokensStore({ c, authn, tokens });
 };
 
 /**
@@ -308,7 +311,7 @@ const signOut = async (c: Context, authn: AuthnState): Promise<Response> => {
 	}
 	const endSession = buildEndSessionUrl(config, {
 		client_id: authn.clientId,
-		post_logout_redirect_uri: authnPublicUrl(c.req.raw, "/").href,
+		post_logout_redirect_uri: authnRequestUrlPublic(c.req.raw, "/").href,
 	});
 	return c.redirect(endSession.href, 302);
 };
@@ -336,7 +339,7 @@ const memorySignIn = async ({
 		kind: "user",
 		scopes: user.scopes,
 	});
-	if ((await tokensStore({ c, authn, tokens })) === undefined) {
+	if ((await authnTokensStore({ c, authn, tokens })) === undefined) {
 		throw new TypeError(
 			"authn: actorFromClaims rejected a memory issuer token",
 		);
@@ -407,7 +410,7 @@ const memoryToken = async ({
  */
 export const authnRoutesCreate = (authn: Authn): Hono => {
 	const routes = new Hono();
-	const state = authnState(authn);
+	const state = authnState(authn, "authnRoutesCreate");
 	const { issuer } = state;
 	routes.use("*", async (c, next) => {
 		await next();

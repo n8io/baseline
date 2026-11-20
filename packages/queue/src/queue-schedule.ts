@@ -47,6 +47,9 @@ const scheduleOverride = (env: object, name: string): string | undefined => {
 	return typeof value === "string" ? value : undefined;
 };
 
+/** Settings only pg-boss's own connection has: the same ones `queueMigrate` takes. */
+export type QueueSchedulesSyncVendorOptions = QueueMigrateVendorOptions;
+
 /** What `queueSchedulesSync` takes. */
 export type QueueSchedulesSyncOptions = {
 	databaseUrl: string;
@@ -54,7 +57,7 @@ export type QueueSchedulesSyncOptions = {
 	env: object;
 	schedules: Pick<Schedule, "cron" | "name">[];
 	/** Settings only pg-boss's own connection has, such as `ssl`: the same ones queueMigrate takes. */
-	vendor?: QueueMigrateVendorOptions | null;
+	vendor?: QueueSchedulesSyncVendorOptions | null;
 };
 
 /**
@@ -140,7 +143,7 @@ export const queueSchedulesStart = async ({
 	queue,
 	schedules,
 }: QueueSchedulesStartOptions): Promise<void> => {
-	const boss = queueBossGet(queue);
+	const boss = queueBossGet(queue, "queueSchedulesStart");
 	const slots = queueSlotsGet(queue);
 	for (const schedule of schedules) {
 		if (scheduleOverride(env, schedule.name) === "off") {

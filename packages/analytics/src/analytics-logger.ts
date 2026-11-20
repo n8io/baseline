@@ -9,6 +9,9 @@ export const analyticsLoggerCreate = (): Analytics => ({
 	close: async () => {},
 	[Symbol.asyncDispose]: async () => {},
 	track: ({ name, properties }) => {
-		logger.debug({ event: name, properties }, "Analytics event");
+		logger.debug(
+			properties == null ? { event: name } : { event: name, properties },
+			"Analytics event",
+		);
 	},
 });

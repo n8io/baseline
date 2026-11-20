@@ -9,7 +9,8 @@ import {
 import { type Configuration, discovery } from "openid-client";
 import type { Actor } from "./actor.ts";
 import { actorSchema } from "./actor-schema.ts";
-import { authnCookieKey, authnSecretKeyDerive } from "./authn-cookie.ts";
+import { authnCookieKey } from "./authn-cookie.ts";
+import { authnSecretKeyDerive } from "./authn-secret-key.ts";
 
 /** The claims of a verified access token, as the provider sent them. */
 export type AuthnClaims = Record<string, unknown>;
@@ -91,10 +92,10 @@ export type AuthnState = {
 const authnStates = new WeakMap<Authn, AuthnState>();
 
 /** The state behind an `Authn`; throws a `TypeError` for anything `authnCreate` did not return. */
-export const authnState = (authn: Authn): AuthnState => {
+export const authnState = (authn: Authn, caller: string): AuthnState => {
 	const state = authnStates.get(authn);
 	if (state === undefined) {
-		throw new TypeError("Expected an Authn from authnCreate");
+		throw new TypeError(`${caller}: authn must come from authnCreate`);
 	}
 	return state;
 };
@@ -142,7 +143,7 @@ const authnTokenErrorIs = (error: unknown): boolean =>
 	tokenErrors.some((tokenError) => error instanceof tokenError);
 
 // `actorFromClaims` is the app's pure mapping; a throw means the claims are not an actor.
-const actorFrom = (
+const authnActorFrom = (
 	options: AuthnOptions,
 	payload: JWTPayload,
 ): Actor | undefined => {
@@ -187,7 +188,7 @@ const authnVerifyCreate =
 		) {
 			return { status: "invalid" };
 		}
-		const actor = actorFrom(options, payload);
+		const actor = authnActorFrom(options, payload);
 		if (actor === undefined) return { status: "invalid" };
 		return {
 			actor,
@@ -198,7 +199,10 @@ const authnVerifyCreate =
 
 // The claims a provider would issue for this actor, in the shape the Template's default
 // `actorFromClaims` reads (`sub`, space-separated `scope`, `gty` for machine tokens).
-const memoryClaims = (options: AuthnOptions, actor: Actor): JWTPayload => ({
+const authnMemoryClaims = (
+	options: AuthnOptions,
+	actor: Actor,
+): JWTPayload => ({
 	client_id: options.clientId,
 	scope: actor.scopes.join(" "),
 	...(actor.kind === "client" ? { gty: "client-credentials" } : {}),
@@ -208,7 +212,7 @@ const memoryUsersDefault: AuthnMemoryUser[] = [
 	{ id: "dev-user", name: "Dev user", scopes: [] },
 ];
 
-const idsUniqueCheck = (
+const authnIdsUniqueCheck = (
 	field: "memoryClients" | "memoryUsers",
 	entries: { id: string }[],
 ): void => {
@@ -231,8 +235,8 @@ const authnMemoryIssuerCreate = (
 			? memoryUsersDefault
 			: options.memoryUsers;
 	const clients = options.memoryClients ?? [];
-	idsUniqueCheck("memoryUsers", users);
-	idsUniqueCheck("memoryClients", clients);
+	authnIdsUniqueCheck("memoryUsers", users);
+	authnIdsUniqueCheck("memoryClients", clients);
 	const key = authnSecretKeyDerive({
 		info: "baseline-authn-memory-issuer",
 		secret: options.secret,
@@ -281,7 +285,7 @@ const authnMemoryIssuerCreate = (
 			clients,
 			kind: "memory",
 			tokensCreate: (actor) =>
-				tokensFromClaims(memoryClaims(options, actor), actor.id),
+				tokensFromClaims(authnMemoryClaims(options, actor), actor.id),
 			tokensRefresh: async (refreshToken) => {
 				try {
 					const { payload } = await jwtVerify(refreshToken, key, {
@@ -294,7 +298,7 @@ const authnMemoryIssuerCreate = (
 					return user === undefined
 						? undefined
 						: await tokensFromClaims(
-								memoryClaims(options, {
+								authnMemoryClaims(options, {
 									id: user.id,
 									kind: "user",
 									scopes: user.scopes,

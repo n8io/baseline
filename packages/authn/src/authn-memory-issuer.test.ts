@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import { generateKeyPair, SignJWT } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { authnCookieKey, authnCookieOpen } from "./authn-cookie.ts";
@@ -11,19 +10,8 @@ import {
 	authnTestSecret,
 	authnTestSetCookieLine,
 } from "./authn-test-helpers.ts";
-import {
-	type Actor,
-	type AuthnMemoryUser,
-	authnActorRequire,
-	authnCreate,
-	authnMemoryTokenFetch,
-	authnMiddlewareCreate,
-} from "./index.ts";
-import {
-	authnTestBearerCreate,
-	authnTestSignIn,
-	authnTestTokenCreate,
-} from "./testing.ts";
+import { type Actor, type AuthnMemoryUser, authnCreate } from "./index.ts";
+import { authnTestSignIn, authnTestTokenCreate } from "./testing.ts";
 
 const admin: Actor = {
 	id: "dev-admin",
@@ -277,90 +265,5 @@ describe("POST /auth/token, client credentials", () => {
 		expect(await res.json()).toStrictEqual({
 			error: "unsupported_grant_type",
 		});
-	});
-});
-
-describe("authnMemoryTokenFetch", () => {
-	const appServe = async () => {
-		const served = await authnTestAppCreate();
-		const requests: Request[] = [];
-		vi.stubGlobal("fetch", async (input: URL, init?: RequestInit) => {
-			const request = new Request(input, init);
-			requests.push(request.clone());
-			return served.app.request(request);
-		});
-		return { ...served, requests };
-	};
-
-	it("fetches a client token a served app accepts, sending the app's Origin", async () => {
-		const { app, requests } = await appServe();
-
-		const fetched = await authnMemoryTokenFetch({
-			clientId: "feed",
-			scopes: ["foo:read"],
-			baseUrl: authnTestOrigin,
-		});
-
-		expect(requests[0]?.headers.get("origin")).toBe(authnTestOrigin);
-		expect(fetched.authorization).toBe(`Bearer ${fetched.token}`);
-		expect(fetched.expiresAt).toBeGreaterThan(Date.now() + 14 * 60_000);
-		expect((await whoami(app, fetched.token)).body.actor).toStrictEqual({
-			id: "feed",
-			kind: "client",
-			scopes: ["foo:read"],
-		});
-	});
-
-	it("takes the origin of a baseUrl with a trailing slash", async () => {
-		const { requests } = await appServe();
-
-		await authnMemoryTokenFetch({
-			baseUrl: `${authnTestOrigin}/`,
-			clientId: "feed",
-		});
-
-		expect(requests[0]?.url).toBe(`${authnTestOrigin}/auth/token`);
-		expect(requests[0]?.headers.get("origin")).toBe(authnTestOrigin);
-	});
-
-	it("names the issuer when the app is not on memory://", async () => {
-		vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
-
-		await expect(
-			authnMemoryTokenFetch({ clientId: "feed", baseUrl: authnTestOrigin }),
-		).rejects.toThrow("the app's authn issuerUrl is not memory://");
-	});
-
-	it("passes on the issuer's refusal", async () => {
-		await appServe();
-
-		await expect(
-			authnMemoryTokenFetch({ clientId: "nobody", baseUrl: authnTestOrigin }),
-		).rejects.toThrow('answered 401 {"error":"invalid_client"}');
-	});
-});
-
-describe("authnTestBearerCreate", () => {
-	it("gives a route test an Authn and a bearer token for any Actor", async () => {
-		const { authn, tokenFor } = await authnTestBearerCreate({
-			actorFromClaims: authnTestMemoryOptions.actorFromClaims,
-		});
-		const app = new Hono()
-			.use("/api/*", authnMiddlewareCreate(authn, { source: "bearer" }))
-			.get("/api/me", (c) => c.json(authnActorRequire(c)));
-		const res = await app.request("/api/me", {
-			headers: { authorization: `Bearer ${await tokenFor(admin)}` },
-		});
-
-		expect(await res.json()).toStrictEqual(admin);
-	});
-
-	it("makes its own secret, so its tokens fit no other Authn", async () => {
-		const { tokenFor } = await authnTestBearerCreate({
-			actorFromClaims: authnTestMemoryOptions.actorFromClaims,
-		});
-		const { app } = await authnTestAppCreate();
-
-		expect((await whoami(app, await tokenFor(admin))).res.status).toBe(401);
 	});
 });

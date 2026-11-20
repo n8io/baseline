@@ -10,7 +10,7 @@ import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 export type Inbox = { consumer: string; eventId: string };
 
 /** The Inbox table, which queueMigrate creates. */
-export const queueInboxTableCreate =
+export const queueInboxTableSql =
 	"CREATE TABLE IF NOT EXISTS queue.inbox (consumer text NOT NULL, event_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (consumer, event_id))";
 
 /**

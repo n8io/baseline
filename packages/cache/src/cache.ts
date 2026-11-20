@@ -79,6 +79,8 @@ const cacheJsonParse = (json: string): unknown => {
  * A cache for one kind of value on any store: key `<prefix>:<id>`, JSON,
  * validated by the schema on read. An entry that fails it (an older deploy may have
  * written it) counts as a miss. So does a store that fails, unless `onStoreError` is "throw".
+ * Throws `TypeError` on a `ttlMs` that is not a positive integer, an empty `prefix` or an unknown
+ * `onStoreError`.
  */
 export function cacheCreate<T>(
 	store: CacheStore,
@@ -109,6 +111,17 @@ const cacheByIdCreate = <T>(
 	const { prefix, schema } = options;
 	const onStoreError = options.onStoreError ?? "miss";
 	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
+	if (prefix === "") {
+		throw new TypeError("cacheCreate: prefix must not be empty");
+	}
+	if (!Number.isInteger(ttlMs) || ttlMs <= 0) {
+		throw new TypeError("cacheCreate: ttlMs must be a positive integer");
+	}
+	if (onStoreError !== "miss" && onStoreError !== "throw") {
+		throw new TypeError(
+			`cacheCreate: onStoreError must be "miss" or "throw", found ${JSON.stringify(onStoreError)}`,
+		);
+	}
 	const key = (id: string): string => `${prefix}:${id}`;
 	// Ids whose set or delete failed, with when the entry the store may still hold has expired.
 	// Until then this process reads them as misses, so it never serves a value it tried to replace.

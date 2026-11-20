@@ -54,6 +54,22 @@ export type RedisClientOptions = {
 	vendor?: RedisClientVendorOptions | null;
 };
 
+// Throws on a url that is not a Redis URL. The message names the scheme but never the URL, which
+// may hold a password.
+const redisUrlAssert = (url: string): void => {
+	let protocol: string;
+	try {
+		protocol = new URL(url).protocol;
+	} catch {
+		throw new TypeError("redisClientCreate: url is not a valid URL");
+	}
+	if (protocol !== "redis:" && protocol !== "rediss:") {
+		throw new TypeError(
+			`redisClientCreate: url must start with redis:// or rediss://, found "${protocol.slice(0, -1)}"`,
+		);
+	}
+};
+
 // Throws on a vendor setting that the URL or this Package already decides.
 const redisVendorAssert = ({
 	url,
@@ -88,13 +104,15 @@ const redisVendorAssert = ({
  * unreachable Redis stops startup within the 3 s connect timeout instead of retrying. After that a
  * dropped connection reconnects every min(retries × 100 ms, 2 s), for as long as it takes. One URL
  * fits a highly available Redis whose endpoint follows the primary (a managed one, or a proxy in
- * front of Sentinel); Sentinel or Cluster addressed directly is not supported.
+ * front of Sentinel); Sentinel or Cluster addressed directly is not supported. Rejects with
+ * `TypeError` on a `url` that is not `redis://` or `rediss://`.
  */
 export const redisClientCreate = async ({
 	url,
 	vendor,
 }: RedisClientOptions): Promise<RedisClient> => {
 	const settings = vendor ?? {};
+	redisUrlAssert(url);
 	redisVendorAssert({ url, vendor: settings });
 	let connected = false;
 	const redisClient = createClient({

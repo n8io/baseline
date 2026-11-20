@@ -108,9 +108,9 @@ const batchOptions = (prefix: "BLRP" | "BSP"): BatchOptions => {
 // the retry timers keep a script alive that long after telemetryShutdown. So an exporter times
 // out after 1 s unless OTEL_EXPORTER_OTLP_TIMEOUT (or the signal's own), in milliseconds, says
 // otherwise. A value that is not a positive number counts as unset.
-const exportTimeoutDefaultMillis = 1_000;
+const exportTimeoutDefaultMs = 1_000;
 
-const exportTimeoutMillis = (signal: "LOGS" | "METRICS" | "TRACES"): number => {
+const exportTimeoutMs = (signal: "LOGS" | "METRICS" | "TRACES"): number => {
 	for (const name of [
 		`OTEL_EXPORTER_OTLP_${signal}_TIMEOUT`,
 		"OTEL_EXPORTER_OTLP_TIMEOUT",
@@ -120,13 +120,13 @@ const exportTimeoutMillis = (signal: "LOGS" | "METRICS" | "TRACES"): number => {
 			return value;
 		}
 	}
-	return exportTimeoutDefaultMillis;
+	return exportTimeoutDefaultMs;
 };
 
 const exportTimeout = (
 	signal: "LOGS" | "METRICS" | "TRACES",
 ): { timeoutMillis: number } => ({
-	timeoutMillis: exportTimeoutMillis(signal),
+	timeoutMillis: exportTimeoutMs(signal),
 });
 
 // ExportResultCode.SUCCESS in @opentelemetry/core.

@@ -41,7 +41,11 @@ describe("idCreate", () => {
 	it.each(["", "Foo", "foo-bar", "_foo", "foo_", "foo1", "a".repeat(64)])(
 		"rejects the prefix %j",
 		(prefix) => {
-			expect(() => idCreate(prefix)).toThrow(TypeError);
+			expect(() => idCreate(prefix)).toThrow(
+				new TypeError(
+					`idCreate: prefix "${prefix}" must be snake_case, matching /^[a-z]([a-z_]{0,61}[a-z])?$/`,
+				),
+			);
 		},
 	);
 
@@ -76,7 +80,9 @@ describe("idToUuid and idFromUuid", () => {
 		"_foo_00000000000000000000000000",
 		"foo00000000000000000000000000",
 	])("idToUuid rejects %s", (id) => {
-		expect(() => idToUuid(id as Id<string>)).toThrow(TypeError);
+		expect(() => idToUuid(id as Id<string>)).toThrow(
+			new TypeError("idToUuid: id is not a valid id"),
+		);
 	});
 
 	it.each([
@@ -85,13 +91,15 @@ describe("idToUuid and idFromUuid", () => {
 		"00000000000000000000000000000000",
 		"00000000-0000-0000-0000-00000000000g",
 	])("idFromUuid rejects %j", (uuid) => {
-		expect(() => idFromUuid("foo", uuid)).toThrow(TypeError);
+		expect(() => idFromUuid("foo", uuid)).toThrow(
+			new TypeError("idFromUuid: uuid is not a UUID"),
+		);
 	});
 
 	it("idFromUuid rejects a bad prefix", () => {
 		expect(() =>
 			idFromUuid("Foo", "00000000-0000-0000-0000-000000000000"),
-		).toThrow(TypeError);
+		).toThrow(/^idFromUuid: prefix "Foo" must be snake_case/);
 	});
 });
 
@@ -111,6 +119,8 @@ describe("idPatternCreate", () => {
 	});
 
 	it("rejects a bad prefix", () => {
-		expect(() => idPatternCreate("foo-bar")).toThrow(TypeError);
+		expect(() => idPatternCreate("foo-bar")).toThrow(
+			/^idPatternCreate: prefix "foo-bar" must be snake_case/,
+		);
 	});
 });

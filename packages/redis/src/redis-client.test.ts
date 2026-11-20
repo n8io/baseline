@@ -4,6 +4,22 @@ import { describe, expect, it } from "vitest";
 import { redisClientCreate } from "./index.ts";
 
 describe("redisClientCreate", () => {
+	it("rejects a url that does not parse", async () => {
+		await expect(redisClientCreate({ url: "not a url" })).rejects.toThrow(
+			new TypeError("redisClientCreate: url is not a valid URL"),
+		);
+	});
+
+	it("rejects a url with another scheme, without echoing the url", async () => {
+		await expect(
+			redisClientCreate({ url: "http://user:secret@127.0.0.1:1" }),
+		).rejects.toThrow(
+			new TypeError(
+				'redisClientCreate: url must start with redis:// or rediss://, found "http"',
+			),
+		);
+	});
+
 	it.each([
 		[
 			{ url: "redis://other" },

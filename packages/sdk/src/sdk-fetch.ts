@@ -63,8 +63,7 @@ const methodsRetried = ["get", "head", "delete"];
 const statusesRetried = [408, 429, 500, 502, 503, 504];
 
 // ky's backoff, set here so the wait below matches it: 0.3 s, then doubling.
-const backoffMillis = (retryCount: number): number =>
-	300 * 2 ** (retryCount - 1);
+const backoffMs = (retryCount: number): number => 300 * 2 ** (retryCount - 1);
 
 // The headers ky waits by, in its order: seconds, a Unix time (the reset ones), or an HTTP date.
 const timingHeaders = [
@@ -76,17 +75,17 @@ const timingHeaders = [
 ];
 
 // How long ky will wait before sending again after this response.
-const waitMillis = (headers: Headers, retryCount: number): number => {
+const waitMs = (headers: Headers, retryCount: number): number => {
 	const value = timingHeaders
 		.map((name) => headers.get(name))
 		.find((found) => found !== null);
-	if (value == null) return backoffMillis(retryCount);
+	if (value == null) return backoffMs(retryCount);
 	if (/^\d+$/.test(value)) {
 		const seconds = Number(value);
 		return seconds >= 1e9 ? seconds * 1000 - Date.now() : seconds * 1000;
 	}
 	const date = Date.parse(value);
-	return Number.isNaN(date) ? backoffMillis(retryCount) : date - Date.now();
+	return Number.isNaN(date) ? backoffMs(retryCount) : date - Date.now();
 };
 
 const dataRead = (text: string, headers: Headers): unknown => {
@@ -179,7 +178,7 @@ export const sdkFetchCreate = <E extends string = never>(
 				parseJson: (text) => text,
 				retry: {
 					afterStatusCodes: statusesRetried,
-					delay: backoffMillis,
+					delay: backoffMs,
 					// 0 for POST and PATCH, so ky does not copy a body it will never send again.
 					limit: methodsRetried.includes(method) ? retry : 0,
 					methods: methodsRetried,
@@ -187,8 +186,7 @@ export const sdkFetchCreate = <E extends string = never>(
 					// A response whose wait runs past the deadline resolves now instead of timing out.
 					shouldRetry: ({ error, retryCount }) =>
 						isHTTPError(error) &&
-						Date.now() + waitMillis(error.response.headers, retryCount) >=
-							deadline
+						Date.now() + waitMs(error.response.headers, retryCount) >= deadline
 							? false
 							: undefined,
 					statusCodes: statusesRetried,

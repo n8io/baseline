@@ -36,7 +36,8 @@ export type LiveStreamOptions = {
  * close sends a `retry:` of 1–5 s first. The page revalidates on reconnect.
  * Pass the request's `signal` so the stream also ends when the request is aborted. The response
  * carries only its own headers: answer through your framework (`c.newResponse(live.body, live)`
- * in Hono) to keep the ones earlier middleware set.
+ * in Hono) to keep the ones earlier middleware set. Throws `TypeError` on an `expiresAt` that is
+ * not a number, or a `liveHub` from another factory.
  */
 export const liveStreamCreate = ({
 	channel,
@@ -45,7 +46,12 @@ export const liveStreamCreate = ({
 	liveHub,
 	signal,
 }: LiveStreamOptions): Response => {
-	const streams = liveHubStreams(liveHub);
+	if (typeof expiresAt !== "number" || Number.isNaN(expiresAt)) {
+		throw new TypeError(
+			`liveStreamCreate: expiresAt must be a number of epoch ms, found ${String(expiresAt)}`,
+		);
+	}
+	const streams = liveHubStreams(liveHub, "liveStreamCreate");
 	const encoder = new TextEncoder();
 	const stop = Promise.withResolvers<void>();
 	// True once the page is gone: nothing more can be written.

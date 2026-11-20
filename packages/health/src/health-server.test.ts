@@ -1,7 +1,7 @@
 import { once } from "node:events";
 import { connect, createServer } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
-import { type HealthServer, healthServerCreate } from "./health-server.ts";
+import { describe, expect, it } from "vitest";
+import { healthServerCreate } from "./health-server.ts";
 
 const portFree = (): Promise<number> =>
 	new Promise((resolve, reject) => {
@@ -31,12 +31,6 @@ const probeGet = async (port: number, path: string): Promise<Probe> => {
 	}
 };
 
-const servers: HealthServer[] = [];
-
-afterEach(async () => {
-	await Promise.all(servers.splice(0).map((server) => server.close()));
-});
-
 const serverStart = async (state: {
 	alive: boolean;
 	shuttingDown: boolean;
@@ -47,8 +41,7 @@ const serverStart = async (state: {
 		isShuttingDown: () => state.shuttingDown,
 		port,
 	});
-	servers.push(server);
-	return { port, server };
+	return Object.assign(server, { port });
 };
 
 const ok: Probe = { body: "ok", status: 200 };
@@ -56,99 +49,108 @@ const unavailable: Probe = { body: "unavailable", status: 503 };
 
 describe("healthServerCreate", () => {
 	it("answers /readyz 503 until ready() is called", async () => {
-		const { port, server } = await serverStart({
+		await using server = await serverStart({
 			alive: true,
 			shuttingDown: false,
 		});
 
-		expect(await probeGet(port, "/readyz")).toEqual(unavailable);
+		expect(await probeGet(server.port, "/readyz")).toEqual(unavailable);
 		server.ready();
-		expect(await probeGet(port, "/readyz")).toEqual(ok);
+		expect(await probeGet(server.port, "/readyz")).toEqual(ok);
 	});
 
 	it("answers /readyz 503 again once shutdown starts", async () => {
 		const state = { alive: true, shuttingDown: false };
-		const { port, server } = await serverStart(state);
+		await using server = await serverStart(state);
 		server.ready();
 
-		expect(await probeGet(port, "/readyz")).toEqual(ok);
+		expect(await probeGet(server.port, "/readyz")).toEqual(ok);
 		state.shuttingDown = true;
-		expect(await probeGet(port, "/readyz")).toEqual(unavailable);
+		expect(await probeGet(server.port, "/readyz")).toEqual(unavailable);
 	});
 
 	it("answers /readyz 503 when shutdown starts before ready()", async () => {
-		const { port, server } = await serverStart({
+		await using server = await serverStart({
 			alive: true,
 			shuttingDown: true,
 		});
 		server.ready();
 
-		expect(await probeGet(port, "/readyz")).toEqual(unavailable);
+		expect(await probeGet(server.port, "/readyz")).toEqual(unavailable);
 	});
 
 	it("answers /livez from isAlive(), whatever readiness is", async () => {
 		const state = { alive: true, shuttingDown: true };
-		const { port } = await serverStart(state);
+		await using server = await serverStart(state);
 
-		expect(await probeGet(port, "/livez")).toEqual(ok);
+		expect(await probeGet(server.port, "/livez")).toEqual(ok);
 		state.alive = false;
-		expect(await probeGet(port, "/livez")).toEqual(unavailable);
+		expect(await probeGet(server.port, "/livez")).toEqual(unavailable);
 	});
 
 	it("ignores a query string on the probe paths", async () => {
-		const { port } = await serverStart({ alive: true, shuttingDown: false });
+		await using server = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
 
-		expect(await probeGet(port, "/livez?verbose")).toEqual(ok);
+		expect(await probeGet(server.port, "/livez?verbose")).toEqual(ok);
 	});
 
 	it("answers 404 on any other path", async () => {
-		const { port } = await serverStart({ alive: true, shuttingDown: false });
+		await using server = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
 
-		expect((await probeGet(port, "/")).status).toBe(404);
-		expect((await probeGet(port, "/healthz")).status).toBe(404);
+		expect((await probeGet(server.port, "/")).status).toBe(404);
+		expect((await probeGet(server.port, "/healthz")).status).toBe(404);
 	});
 
 	it("keeps an idle probe connection open for 65 s", async () => {
-		const { port } = await serverStart({ alive: true, shuttingDown: false });
-		await probeGet(port, "/livez");
+		await using server = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
+		await probeGet(server.port, "/livez");
 
-		const response = await fetch(`http://127.0.0.1:${port}/livez`);
+		const response = await fetch(`http://127.0.0.1:${server.port}/livez`);
 		await response.text();
 
 		expect(response.headers.get("keep-alive")).toBe("timeout=65");
 	});
 
 	it("close() does not wait for a connection that is open but not idle", async () => {
-		const { port, server } = await serverStart({
+		const server = await serverStart({
 			alive: true,
 			shuttingDown: false,
 		});
-		await probeGet(port, "/livez");
+		await probeGet(server.port, "/livez");
 		// Half a request: the connection is busy until the headers time out.
-		const socket = connect(port, "127.0.0.1");
+		const socket = connect(server.port, "127.0.0.1");
 		await once(socket, "connect");
 		socket.write("GET /livez HTTP/1.1\r\n");
-		await probeGet(port, "/livez");
+		await probeGet(server.port, "/livez");
 
 		const started = performance.now();
 		await server.close();
-		servers.splice(servers.indexOf(server), 1);
 		socket.destroy();
 
 		expect(performance.now() - started).toBeLessThan(1_000);
 	});
 
 	it("stops accepting connections after close()", async () => {
-		const { port, server } = await serverStart({
+		const server = await serverStart({
 			alive: true,
 			shuttingDown: false,
 		});
-		expect(await probeGet(port, "/livez")).toEqual(ok);
+		expect(await probeGet(server.port, "/livez")).toEqual(ok);
 
 		await server.close();
-		servers.splice(servers.indexOf(server), 1);
 
-		await expect(fetch(`http://127.0.0.1:${port}/livez`)).rejects.toThrow();
+		await expect(
+			fetch(`http://127.0.0.1:${server.port}/livez`),
+		).rejects.toThrow();
 	});
 
 	it("await using stops accepting connections when its block ends", async () => {
@@ -164,4 +166,21 @@ describe("healthServerCreate", () => {
 
 		await expect(fetch(`http://127.0.0.1:${port}/livez`)).rejects.toThrow();
 	});
+
+	it.each([-1, 65_536, 1.5, Number.NaN])(
+		"throws a TypeError for port %s",
+		(port) => {
+			expect(() =>
+				healthServerCreate({
+					isAlive: () => true,
+					isShuttingDown: () => false,
+					port,
+				}),
+			).toThrow(
+				new TypeError(
+					"healthServerCreate: port must be an integer from 0 to 65535",
+				),
+			);
+		},
+	);
 });

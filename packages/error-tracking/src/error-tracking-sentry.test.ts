@@ -51,14 +51,15 @@ afterEach(() => {
 describe("errorTrackingSentryCreate", () => {
 	it("posts the report to the DSN's project with the class names, stacks and causes", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-		});
-
 		const error = new Error("boom", { cause: new TypeError("inner") });
-		errorTracking.report(error);
-		await errorTracking.close();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+
+			errorTracking.report(error);
+		}
 
 		expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
 			"/api/1/envelope/",
@@ -77,22 +78,23 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("never sends message text, even in a name or a frame-shaped message line", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-		});
-		const named = new Error(`failed for ${canary}`);
-		named.name = `Name ${canary}`;
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+			const named = new Error(`failed for ${canary}`);
+			named.name = `Name ${canary}`;
 
-		errorTracking.report(named);
-		errorTracking.report(new Error(`one\n    at fake (${canary}.js:1:1)`));
-		errorTracking.report(
-			new Error("outer", { cause: new TypeError(`bad input ${canary}`) }),
-		);
-		errorTracking.report(`thrown ${canary}`);
-		errorTracking.report({ email: canary });
-		errorTracking.report(new AggregateError([new Error(canary)], canary));
-		await errorTracking.close();
+			errorTracking.report(named);
+			errorTracking.report(new Error(`one\n    at fake (${canary}.js:1:1)`));
+			errorTracking.report(
+				new Error("outer", { cause: new TypeError(`bad input ${canary}`) }),
+			);
+			errorTracking.report(`thrown ${canary}`);
+			errorTracking.report({ email: canary });
+			errorTracking.report(new AggregateError([new Error(canary)], canary));
+		}
 
 		expect(requests).toHaveLength(6);
 		expect(JSON.stringify(requests)).not.toContain(canary);
@@ -111,18 +113,19 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("tags the error's code and constraint", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-		});
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
 
-		errorTracking.report(
-			Object.assign(new Error("duplicate key"), {
-				code: "23505",
-				constraint: "foo_name_key",
-			}),
-		);
-		await errorTracking.close();
+			errorTracking.report(
+				Object.assign(new Error("duplicate key"), {
+					code: "23505",
+					constraint: "foo_name_key",
+				}),
+			);
+		}
 
 		expect(requests[0]?.event.tags).toMatchObject({
 			"error.code": "23505",
@@ -132,21 +135,22 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("links the report to the active trace", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-		});
 		const spanContext = {
 			spanId: "b7ad6b7169203331",
 			traceFlags: TraceFlags.SAMPLED,
 			traceId: "0af7651916cd43dd8448eb211c80319c",
 		};
 
-		context.with(
-			trace.setSpan(context.active(), trace.wrapSpanContext(spanContext)),
-			() => errorTracking.report(new Error("boom")),
-		);
-		await errorTracking.close();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+			context.with(
+				trace.setSpan(context.active(), trace.wrapSpanContext(spanContext)),
+				() => errorTracking.report(new Error("boom")),
+			);
+		}
 
 		expect(requests[0]?.event.contexts?.trace).toMatchObject({
 			span_id: spanContext.spanId,
@@ -158,14 +162,15 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("passes vendor.release through", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-			vendor: { release: "app@1.2.3" },
-		});
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				vendor: { release: "app@1.2.3" },
+			});
 
-		errorTracking.report(new Error("boom"));
-		await errorTracking.close();
+			errorTracking.report(new Error("boom"));
+		}
 
 		expect(requests[0]?.event.release).toBe("app@1.2.3");
 	});
@@ -173,13 +178,14 @@ describe("errorTrackingSentryCreate", () => {
 	it("warns when Sentry refuses a report", async () => {
 		requestsCatch(429);
 		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-		});
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
 
-		errorTracking.report(new Error("boom"));
-		await errorTracking.close();
+			errorTracking.report(new Error("boom"));
+		}
 
 		expect(warn).toHaveBeenCalledWith(
 			{ status: 429 },
@@ -260,14 +266,15 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("takes a null vendor as left out", async () => {
 		const requests = requestsCatch();
-		const errorTracking = errorTrackingSentryCreate({
-			dsn,
-			environment: "test",
-			vendor: null,
-		});
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				vendor: null,
+			});
 
-		errorTracking.report(new Error("boom"));
-		await errorTracking.close();
+			errorTracking.report(new Error("boom"));
+		}
 
 		expect(requests).toHaveLength(1);
 	});

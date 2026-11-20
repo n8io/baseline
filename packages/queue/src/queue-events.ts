@@ -51,7 +51,7 @@ export type Events = {
 // Every Event names its key; an empty one would put unrelated Events in one line.
 const queueEventKeyAssert = (name: string, key: string): void => {
 	if (key === "") {
-		throw new TypeError(`Event ${name} needs a key`);
+		throw new TypeError(`publish: key must not be empty (Event ${name})`);
 	}
 };
 
@@ -85,7 +85,7 @@ const queueJobsStamp = `
  * deadlock with one that writes first, and Postgres then ends one of them.
  */
 export const queueEventsCreate = (queue: Queue): Events => {
-	const boss = queueBossGet(queue);
+	const boss = queueBossGet(queue, "queueEventsCreate");
 	return {
 		consumersStart: (consumers) => queueConsumersStart(queue, consumers),
 		consumersSubscribe: (consumers) =>

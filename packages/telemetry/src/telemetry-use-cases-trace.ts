@@ -1,10 +1,9 @@
 import type { Result } from "@n8io/baseline-result";
 import { type Attributes, metrics, SpanKind, trace } from "@opentelemetry/api";
+import { telemetryScope } from "./telemetry-scope.ts";
 import { telemetrySpanErrorSet } from "./telemetry-span-error.ts";
 
 type UseCase = (...args: never[]) => Promise<Result<unknown, { type: string }>>;
-
-const scope = "@n8io/baseline-telemetry";
 
 // The semconv duration buckets, in seconds.
 const durationBuckets = [
@@ -20,12 +19,12 @@ const durationBuckets = [
 export const telemetryUseCasesTrace = <U extends Record<string, UseCase>>(
 	useCases: U,
 ): U => {
-	const tracer = trace.getTracer(scope);
+	const tracer = trace.getTracer(telemetryScope);
 	const duration = metrics
-		.getMeter(scope)
+		.getMeter(telemetryScope)
 		.createHistogram("baseline.use_case.duration", {
 			advice: { explicitBucketBoundaries: durationBuckets },
-			description: "Duration of use case calls.",
+			description: "Duration of Use case calls",
 			unit: "s",
 		});
 	const wrapped = Object.entries(useCases).map(([name, useCase]) => {

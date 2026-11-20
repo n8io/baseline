@@ -11,15 +11,19 @@ export type AuthnTestBearer = {
 	tokenFor: (actor: Actor) => Promise<string>;
 };
 
+/** What `authnTestBearerCreate` takes. */
+export type AuthnTestBearerOptions = {
+	/** The app's own mapping from claims to an Actor. */
+	actorFromClaims: (claims: AuthnClaims) => Actor;
+};
+
 /**
  * A memory issuer `Authn` with its own random secret, and bearer tokens for any Actor, for route
  * tests that build their own app. `actorFromClaims` is the app's own mapping.
  */
 export const authnTestBearerCreate = async ({
 	actorFromClaims,
-}: {
-	actorFromClaims: (claims: AuthnClaims) => Actor;
-}): Promise<AuthnTestBearer> => {
+}: AuthnTestBearerOptions): Promise<AuthnTestBearer> => {
 	const authn = await authnCreate({
 		actorFromClaims,
 		audience: "test",

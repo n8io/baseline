@@ -3,7 +3,7 @@ import { logger } from "@n8io/baseline-logger";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueSchema } from "./queue.ts";
 import { queueConnectionAssert } from "./queue-connection-assert.ts";
-import { queueInboxTableCreate } from "./queue-inbox.ts";
+import { queueInboxTableSql } from "./queue-inbox.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
 
 // Waits for pg-boss's background index builds (bam) to finish. A build that failed, in this run or
@@ -84,10 +84,12 @@ export const queueMigrate = async (
 		await queueMigrateIndexesWait(boss);
 		for (const name of options.queuesRemoved ?? []) {
 			await boss.deleteQueue(queueOrderedName(name));
+			// A Schedule's queue has the plain name, and pg-boss refuses to delete `.dead` while
+			// a queue still points at it, so the plain one goes first.
 			await boss.deleteQueue(name);
 			await boss.deleteQueue(`${name}.dead`);
 		}
-		await boss.getDb().executeSql(queueInboxTableCreate);
+		await boss.getDb().executeSql(queueInboxTableSql);
 	} finally {
 		await boss.stop({ graceful: true, timeout: 15_000 });
 	}

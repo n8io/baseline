@@ -16,6 +16,16 @@ export type AuthnTestSignedIn = {
 	token: string;
 };
 
+/** What `authnTestSignIn` takes. */
+export type AuthnTestSignInOptions = {
+	/** The served app's origin. */
+	baseUrl: string;
+	/** The server's `secret`, which opens the access cookie. */
+	secret: string;
+	/** The id of the `memoryUsers` entry to sign in as. */
+	who: string;
+};
+
 /**
  * Signs in at the served app at `baseUrl` through the memory issuer's form (`issuerUrl` `memory://`) as the
  * `memoryUsers` entry whose id is `who`. `secret` is the server's `secret`, which opens the access
@@ -25,11 +35,7 @@ export const authnTestSignIn = async ({
 	baseUrl,
 	secret,
 	who,
-}: {
-	baseUrl: string;
-	secret: string;
-	who: string;
-}): Promise<AuthnTestSignedIn> => {
+}: AuthnTestSignInOptions): Promise<AuthnTestSignedIn> => {
 	const origin = new URL(baseUrl).origin;
 	const res = await fetch(`${origin}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),
