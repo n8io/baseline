@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Every Package's tarball carries the MIT notice, and every package.json reads the same way, so
-// npm shows seventeen Packages in one voice and a diff of one manifest never reorders it.
+// Every Package commits the MIT notice, and every package.json reads the same way, so npm shows
+// every Package in one voice and a diff of one manifest never reorders it.
 const keyOrder = [
 	"name",
 	"version",
@@ -20,6 +20,9 @@ const keyOrder = [
 	"peerDependencies",
 	"peerDependenciesMeta",
 ];
+
+// docs/agents/packages.md: Packages carry none of these.
+const keysBanned = ["keywords", "homepage", "bugs"];
 
 const textRead = (path: string): string =>
 	readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -45,6 +48,11 @@ describe("Package metadata", () => {
 			const keys = Object.keys(
 				JSON.parse(textRead(`packages/${dir}/package.json`)) as object,
 			);
+			const banned = keys.filter((key) => keysBanned.includes(key));
+			if (banned.length > 0)
+				return [
+					`${dir}: remove ${banned.join(", ")}: Packages carry no keywords, homepage or bugs (docs/agents/packages.md)`,
+				];
 			const unknown = keys.filter((key) => !keyOrder.includes(key));
 			if (unknown.length > 0)
 				return [
@@ -65,6 +73,6 @@ describe("Package metadata", () => {
 			) as { description?: string };
 			return !description?.endsWith(".");
 		});
-		expect(wrong).toEqual([]);
+		expect(wrong, "end the description with a full stop").toEqual([]);
 	});
 });
