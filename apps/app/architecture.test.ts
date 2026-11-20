@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
 	type ArchitectureFile,
 	architectureFileCreate,
+	architectureFileNamesCheck,
 	architectureRules,
 	architectureSrcRead,
-	fileNamesCheck,
 } from "./architecture-test-rules.ts";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
@@ -349,10 +349,30 @@ describe("architecture", () => {
 			"src/contexts/billing/domain/errors.ts",
 			"export class InvoiceNotFoundError {}",
 		],
+		[
+			"only React Router's names",
+			"src/ui/routes/invoice-list.tsx",
+			"export const meta = () => [];\nexport const headers = () => ({});\nexport const shouldRevalidate = () => true;",
+		],
+		[
+			"its subject, before .server",
+			"src/ui/invoice-session.server.ts",
+			"export const invoiceSessionRead = () => 1;",
+		],
 	])("A23 passes a file named after %s", async (_name, path, source) => {
 		expect(
-			fileNamesCheck([await architectureFileCreate(path, source)]),
+			architectureFileNamesCheck([await architectureFileCreate(path, source)]),
 		).toEqual([]);
+	});
+
+	it("A23 keeps a Use case's verb in the file it suggests", async () => {
+		const file = await architectureFileCreate(
+			"src/contexts/billing/application/invoice.ts",
+			"export const noteCreate = () => 1;\n",
+		);
+		expect(architectureFileNamesCheck([file])).toEqual([
+			expect.stringContaining("(note-create.ts)"),
+		]);
 	});
 
 	it("A23 fails a file named after none of its exports", async () => {
@@ -361,7 +381,7 @@ describe("architecture", () => {
 			"export const telemetryStart = () => 1;\nexport const telemetryShutdown = () => 1;\n",
 		);
 		expect(architectureRules.A23?.([file])).toEqual([
-			"packages/telemetry/src/telemetry-sdk.ts: named after none of its exports (telemetryStart, telemetryShutdown); name the file after its primary export without Create (telemetry-start.ts), or start its exports with telemetrySdk",
+			"packages/telemetry/src/telemetry-sdk.ts: named after none of its exports (telemetryStart, telemetryShutdown); name the file after its primary export (telemetry-start.ts), or start its exports with telemetrySdk",
 		]);
 	});
 

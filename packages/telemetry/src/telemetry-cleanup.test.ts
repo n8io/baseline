@@ -8,7 +8,7 @@ import {
 
 const canary = "jane@example.com";
 
-// A stack whose message telemetryTestSpans two lines, as drizzle's DrizzleQueryError does.
+// A stack whose message spans two lines, as drizzle's DrizzleQueryError does.
 const stack = [
 	`DrizzleQueryError: Failed query: insert into foo values ($1)`,
 	`params: ${canary}`,

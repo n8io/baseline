@@ -221,11 +221,18 @@ const leadingVerbs =
 	"add|build|calculate|can|check|clear|close|compute|connect|convert|create|delete|fetch|find|format|get|handle|has|init|is|list|load|make|open|parse|read|register|remove|render|reset|run|save|send|set|should|sign|start|stop|update|validate|wait|write";
 const frameworkNames = new Set([
 	"action",
+	"clientAction",
+	"clientLoader",
 	"clientMiddleware",
+	"handle",
 	"handleError",
+	"headers",
 	"instrumentations",
 	"links",
 	"loader",
+	"meta",
+	"middleware",
+	"shouldRevalidate",
 	"streamTimeout",
 ]);
 const unscopedNames = new Set(["err", "ok"]);
@@ -248,14 +255,15 @@ const exportedUntypedFunction =
 const thingWords =
 	/(Acl|Body|Cache|Column|Consumer|Handle|Handler|Hub|Memory|Middleware|Options|PgBoss|Pool|Ports|Postgres|Reader|Redis|Repository|Responses|Routes|Schedule|Schema|Transaction)$/;
 // A23's file names: a file is named after its primary export, or after the subject its exports
-// share. One exported function or value, without a trailing Create, is the file's name in
+// share. One exported function or value, with or without a trailing Create, is the file's name in
 // camelCase or starts with it; an outbound adapter's dot is a word break
-// (invoice-repository.postgres.ts exports invoiceRepositoryPostgresCreate), and a test helper file
-// (<package>-test-<thing>.ts) is named after <package>Test. Not checked: tests, index.ts, a
-// Package's subpath entries (named after the subpath, so without the package's name), commands in
-// scripts/ (named after their pnpm script), the composition roots, an <aggregate>-table.ts (the
-// Aggregate's Drizzle table) and files exporting only types, classes, components, hooks and
-// framework names.
+// (invoice-repository.postgres.ts exports invoiceRepositoryPostgresCreate), React Router's
+// .server/.client suffix is left out, and a test helper or rules file (<area>-test-<thing>.ts)
+// is named after its area. Not checked: tests, index.ts, a Package's subpath entries (named after
+// the subpath, so without the package's name), the repository's and the Template's scripts/
+// (commands named after their pnpm script, and their helpers), the composition roots, an <aggregate>-table.ts (the Aggregate's Drizzle
+// table), the generated SDK and files exporting only types, classes, components, hooks and
+// framework names. It reads `export const|let|function` lines, not `export { … }` lists.
 const exportedValue = /^export (?:const|let|(?:async )?function\*?) (\w+)/gm;
 const fileNameRoots = new Set([
 	...roots,
@@ -275,13 +283,16 @@ const fileNameChecked = (p: string): boolean => {
 		p.endsWith(".d.ts") ||
 		base === "index" ||
 		(pkg !== undefined && !base.startsWith(pkg)) ||
-		/(^|\/)scripts\//.test(p) ||
+		/^(apps\/app\/)?scripts\//.test(p) ||
+		/(^|\/)clients\/sdk\/sdk\.ts$/.test(p) ||
 		fileNameRoots.has(p) ||
 		base.endsWith("-table") ||
 		Object.hasOwn(fileNamesAllowed, p)
 	);
 };
-export const fileNamesCheck = (files: ArchitectureFile[]): string[] =>
+export const architectureFileNamesCheck = (
+	files: ArchitectureFile[],
+): string[] =>
 	files
 		.filter((f) => fileNameChecked(f.path))
 		.flatMap((f) => {
@@ -289,26 +300,30 @@ export const fileNamesCheck = (files: ArchitectureFile[]): string[] =>
 				.map((m) => m[1] ?? "")
 				.filter((name) => !exemptIs(name) && !unscopedNames.has(name));
 			if (names.length === 0) return [];
-			const base = /([^/]+)\.tsx?$/.exec(f.path)?.[1] ?? "";
+			const [, base = "", extension = ".ts"] =
+				/([^/]+?)(?:\.server|\.client)?(\.tsx?)$/.exec(f.path) ?? [];
+			// A test helper or rules file (<area>-test-<thing>.ts) is named after its area.
 			const stem = camel(
-				base.replace(/^(.+?-test)-.+$/, "$1").replaceAll(".", "-"),
+				base.replace(/^(.+?)-test-.+$/, "$1").replaceAll(".", "-"),
 			);
-			const named = names.some((name) => {
-				const bare = name.replace(/Create$/, "");
-				return (
-					bare === stem ||
-					new RegExp(`^${stem}(?:[A-Z0-9]|$)`).test(bare) ||
-					name === stem
-				);
-			});
-			const first = (names[0] ?? "").replace(/Create$/, "");
-			const kebab = first
+			const startsWithStem = (name: string) =>
+				name.startsWith(stem) && /^([A-Z0-9]|$)/.test(name.slice(stem.length));
+			const named = names.some(
+				(name) =>
+					startsWithStem(name) || startsWithStem(name.replace(/Create$/, "")),
+			);
+			const first = names[0] ?? "";
+			// A Use case keeps its verb (invoice-create.ts); a factory drops Create.
+			const primary = /\/application\//.test(f.path)
+				? first
+				: first.replace(/Create$/, "");
+			const kebab = primary
 				.replaceAll(/([a-z0-9])([A-Z])/g, "$1-$2")
 				.toLowerCase();
 			return named
 				? []
 				: [
-						`${f.path}: named after none of its exports (${names.join(", ")}); name the file after its primary export without Create (${kebab}.ts), or start its exports with ${stem}`,
+						`${f.path}: named after none of its exports (${names.join(", ")}); name the file after its primary export (${kebab}${extension}), or start its exports with ${stem}`,
 					];
 		});
 
@@ -973,7 +988,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 	],
 
 	A23: (files) => [
-		...fileNamesCheck(files),
+		...architectureFileNamesCheck(files),
 		...textCheck({
 			files,
 			fileIs: () => true,

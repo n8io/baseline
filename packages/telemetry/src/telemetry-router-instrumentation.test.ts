@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 describe("telemetryRouterInstrumentation", () => {
-	it("names loader and action telemetryTestSpans after their route, and sets http.route with a leading slash", async () => {
+	it("names loader and action spans after their route, and sets http.route with a leading slash", async () => {
 		const { action, loader } = routeInstruments();
 		const root = routeInstruments("root");
 		let activeInLoader: unknown;
