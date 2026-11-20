@@ -541,7 +541,8 @@ export const readmeRender = ({
 // worktree's dev instance gets its own from its instance name (scripts/dev-instance.ts). The
 // Template keeps 5432, 6379, 3000, 9000 and 9001. Two names can land on the same block (one in a
 // thousand): change the four *_HOST_PORT values in .env.schema and PORT and HEALTH_PORT in
-// .env.development then (in .env.development.local for a worktree).
+// .env.development then (in .env.development.local for a worktree). WORKER_HEALTH_PORT names the
+// block's seventh port, HEALTH_PORT + 1; nothing writes it.
 export const hostPortsCreate = (name: string): Record<string, number> => {
 	const block =
 		createHash("sha256").update(name).digest().readUInt32BE(0) % 1000;

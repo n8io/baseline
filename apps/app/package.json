@@ -35,7 +35,7 @@
 		"seed": "node --import ./src/preload.ts src/seed.ts",
 		"template-upgrade": "node --import ./scripts/node-version-require.ts scripts/template-upgrade.ts",
 		"test": "vitest run --project unit --project unit-contexts",
-		"test:integration": "pnpm build && vitest run --project integration"
+		"test:integration": "node scripts/dev-instance.ts && pnpm build && vitest run --project integration"
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",

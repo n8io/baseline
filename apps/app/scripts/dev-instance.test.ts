@@ -66,6 +66,12 @@ describe("devInstanceLinkedIs", () => {
 		expect(devInstanceLinkedIs(original)).toBe(false);
 		expect(devInstanceLinkedIs(linked)).toBe(true);
 	});
+
+	it("takes a folder outside git for the original checkout", () => {
+		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
+
+		expect(devInstanceLinkedIs(root.path)).toBe(false);
+	});
 });
 
 describe("devInstanceWrite", () => {
@@ -86,6 +92,16 @@ describe("devInstanceWrite", () => {
 		expect(readFileSync(join(linked, devInstanceFile), "utf8")).toBe(
 			`# This worktree's dev instance (scripts/dev-instance.ts). The Worker serves on HEALTH_PORT + 1.\nCOMPOSE_PROJECT_NAME=invoicing-fix-login-bug\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nPORT=${ports.PORT}\nHEALTH_PORT=${ports.HEALTH_PORT}\n`,
 		);
+	});
+
+	it("refuses a worktree folder that would name the original checkout's instance", () => {
+		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
+		const { original } = checkoutsCreate(root.path);
+		const linked = join(root.path, "___");
+		git(original, "worktree", "add", "-q", linked);
+
+		expect(() => devInstanceWrite(linked)).toThrow(/letter or digit/);
+		expect(existsSync(join(linked, devInstanceFile))).toBe(false);
 	});
 
 	it("adds to a file without a compose project and never changes one that has it", () => {

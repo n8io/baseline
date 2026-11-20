@@ -44,5 +44,9 @@ export default defineConfig({
 		// One copy of each, even when a linked package resolves its own.
 		dedupe: ["hono", "react", "react-dom", "react-router"],
 	},
-	server: { port: Number(process.env.PORT), strictPort: true },
+	// src/preload.ts (varlock) sets PORT for `pnpm dev`; `pnpm build` has none and serves nothing.
+	server: {
+		strictPort: true,
+		...(process.env.PORT && { port: Number(process.env.PORT) }),
+	},
 });

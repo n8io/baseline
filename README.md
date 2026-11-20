@@ -98,7 +98,7 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Lint, format check and typecheck                      | `pnpm check`                                                                   |
 | Unit tests (memory adapters)                          | `pnpm test`                                                                    |
-| Integration tests (needs `docker compose up -d`)      | `pnpm test:integration`                                                        |
+| Integration tests (`pnpm dev` first)                  | `pnpm test:integration`                                                        |
 | Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`                                                                  |
 | Add a context, then an Aggregate                      | `pnpm context-create <context>`, `pnpm aggregate-create <context> <aggregate>` |
 | Remove a piece                                        | `pnpm piece-remove <piece>`                                                    |

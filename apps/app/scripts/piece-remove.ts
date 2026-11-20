@@ -182,7 +182,7 @@ const uiEdit = (directory: string) => {
 	manifestEdit(directory, (manifest) => {
 		manifest.scripts.build = "vite build";
 		manifest.scripts.dev = manifest.scripts.dev?.replace(
-			"node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev",
+			pieceDevUi,
 			"node --watch --import ./src/preload.ts src/server.ts",
 		);
 		delete manifest.imports?.["#ui/*"];
@@ -201,7 +201,10 @@ const scheduleLines =
 // REDIS_HOST_PORT, its decorator, and the unit tests' CACHE_URL.
 const redisHostPortLines =
 	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;
-const workerDev =
+// The parts of the `dev` script the ui and queue removals edit (structure.test.ts holds them to it).
+export const pieceDevUi =
+	"node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev";
+export const pieceDevWorker =
 	/\(varlock run -- sh -c 'HEALTH_PORT=\$\(\(HEALTH_PORT \+ 1\)\) exec node --watch --import \.\/src\/preload\.ts src\/worker\.ts' & ([^)]*)\)/;
 
 export const pieceRemovals: Record<string, PieceRemoval> = {
@@ -259,7 +262,10 @@ export const pieceRemovals: Record<string, PieceRemoval> = {
 				edit: (text) => text.replace(scheduleLines, ""),
 			});
 			manifestEdit(directory, (manifest) => {
-				manifest.scripts.dev = manifest.scripts.dev?.replace(workerDev, "$1");
+				manifest.scripts.dev = manifest.scripts.dev?.replace(
+					pieceDevWorker,
+					"$1",
+				);
 				delete manifest.scripts["blocked-keys"];
 			});
 		},

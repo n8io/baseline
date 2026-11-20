@@ -5,7 +5,11 @@ import {
 	agentDocsViolations,
 	agentDocsViolationsRead,
 } from "./agent-docs-test-rules.ts";
-import { pieceMarkersProblems } from "./scripts/piece-remove.ts";
+import {
+	pieceDevUi,
+	pieceDevWorker,
+	pieceMarkersProblems,
+} from "./scripts/piece-remove.ts";
 
 // The files this test reads or runs from disk, so `pnpm test --changed` runs it when one changes.
 import.meta.glob(
@@ -726,9 +730,7 @@ describe("docker compose commands", () => {
 		];
 		const bad = texts
 			.flatMap(composeCommands)
-			.filter((command) =>
-				/^docker compose (-p|--project-name)\b/.test(command),
-			);
+			.filter((command) => /\s(-p|--project-name)[\s=]/.test(command));
 		expect(bad).toEqual([]);
 	});
 
@@ -741,6 +743,11 @@ describe("docker compose commands", () => {
 				),
 		);
 		expect(bad).toEqual([]);
+	});
+
+	it("keep the dev script parts piece-remove edits", () => {
+		expect(manifest.scripts.dev).toContain(pieceDevUi);
+		expect(manifest.scripts.dev).toMatch(pieceDevWorker);
 	});
 
 	it("name the same project in compose.yaml and .env.schema", () => {
