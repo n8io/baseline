@@ -365,6 +365,58 @@ describe("login", () => {
 	});
 });
 
+describe("login without an answer", () => {
+	// Takes each request and never answers it.
+	const silent = createServer(() => {});
+	let base: string;
+
+	beforeAll(async () => {
+		await new Promise<void>((resolve) =>
+			silent.listen(0, "127.0.0.1", resolve),
+		);
+		const address = silent.address();
+		base = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+	});
+
+	afterAll(async () => {
+		silent.closeAllConnections();
+		await new Promise((resolve) => silent.close(resolve));
+	});
+
+	it("exits 1 with the reason when nothing listens at the URL", async () => {
+		const closed = createServer();
+		await new Promise<void>((resolve) =>
+			closed.listen(0, "127.0.0.1", resolve),
+		);
+		const address = closed.address();
+		const port = typeof address === "object" && address ? address.port : 0;
+		await new Promise((resolve) => closed.close(resolve));
+		const { code, stderr } = await cliRun(["login", "--client-id", "ci"], {
+			ACME_APP_URL: `http://127.0.0.1:${port}`,
+		});
+		expect(code).toBe(1);
+		expect(stderr).toMatch(
+			`login failed: POST http://127.0.0.1:${port}/auth/token got no answer:`,
+		);
+		expect(stderr).toMatch("ECONNREFUSED");
+	});
+
+	it("gives up after the SDK's 10 s timeout and sends the token request once", async () => {
+		let received = 0;
+		silent.on("request", () => {
+			received += 1;
+		});
+		const { code, stderr } = await cliRun(["login", "--client-id", "ci"], {
+			ACME_APP_URL: base,
+		});
+		expect(code).toBe(1);
+		expect(stderr).toBe(
+			`login failed: POST ${base}/auth/token got no answer: The SDK call timed out\n`,
+		);
+		expect(received).toBe(1);
+	}, 20_000);
+});
+
 describe("the published types", () => {
 	it("name no commander type", async () => {
 		const outDir = await mkdtemp(join(tmpdir(), "cli-dts-"));

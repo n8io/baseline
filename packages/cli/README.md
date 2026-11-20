@@ -84,7 +84,7 @@ The function resolves to `{ status, data }`. A status of 400 or more is a failur
 
 - The base URL is `--url`, else `<NAME>_URL`. Without one, a command exits 1 and says so.
 - The token is `--token`, else `<NAME>_TOKEN`, else the stored login for that base URL.
-- `<name> login --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`.
+- `<name> login --client-id <id> [--scope <scopes...>]` posts `grant_type=client_credentials` to `<url>/auth/token`, with the app's `Origin` for its CSRF check. The client secret is `<NAME>_CLIENT_SECRET`, else stdin when it is a shell pipe or a file (`echo "$SECRET" | acme login …`, `acme login … < secret.txt`), else none: the Template's development issuer needs none. The URL must be `https://`, or `http://` to `localhost`, `127.0.0.1` or `[::1]`. The request goes through `@n8io/baseline-sdk`, so it has the SDK's timeouts (10 s for the response, 30 s for the whole call) and is sent once, never retried.
 - The login is stored at `$XDG_CONFIG_HOME/<name>/login.json`, else `~/Library/Application Support/<name>/login.json` on macOS, `%APPDATA%\<name>\login.json` on Windows and `~/.config/<name>/login.json` elsewhere: the folder is mode 700 and the file 600, written to a new file and renamed into place.
 
 </details>

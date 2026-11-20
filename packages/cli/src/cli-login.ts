@@ -6,8 +6,12 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { text } from "node:stream/consumers";
+import { sdkFetchCreate } from "@n8io/baseline-sdk";
 
 type CliLogin = { expiresAt: string; token: string; url: string };
+
+// The SDK's fetch, so the token request has the same timeouts; a POST is never retried.
+const { sdkFetch } = sdkFetchCreate();
 
 /** `fantasy-golf` becomes `FANTASY_GOLF`, the prefix of the CLI's env vars. */
 export const cliEnvPrefix = (name: string): string =>
@@ -87,26 +91,41 @@ export const cliLoginRun = async ({
 		};
 	}
 	const secret = await clientSecretRead(name);
-	const res = await fetch(`${url}/auth/token`, {
-		body: new URLSearchParams({
-			client_id: clientId,
-			grant_type: "client_credentials",
-			...(secret === undefined ? {} : { client_secret: secret }),
-			...(scopes == null ? {} : { scope: scopes.join(" ") }),
-		}),
-		// The app's CSRF check refuses a form post without its Origin.
-		headers: { origin: new URL(url).origin },
-		method: "POST",
-	});
-	const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+	const sent = await sdkFetch<{ data: unknown; status: number }>(
+		"/auth/token",
+		{
+			baseUrl: url,
+			body: new URLSearchParams({
+				client_id: clientId,
+				grant_type: "client_credentials",
+				...(secret === undefined ? {} : { client_secret: secret }),
+				...(scopes == null ? {} : { scope: scopes.join(" ") }),
+			}),
+			// The app's CSRF check refuses a form post without its Origin.
+			headers: { origin: new URL(url).origin },
+			method: "POST",
+		},
+	).catch((error: unknown) => ({ error }));
+	if ("error" in sent) {
+		const { error } = sent;
+		const reason =
+			error instanceof SyntaxError
+				? "answered with a body that is not JSON"
+				: `got no answer: ${error instanceof Error ? error.message : String(error)}${error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : ""}`;
+		return { error: `login failed: POST ${url}/auth/token ${reason}` };
+	}
+	const body = (
+		typeof sent.data === "object" && sent.data !== null ? sent.data : {}
+	) as Record<string, unknown>;
 	if (
-		!res.ok ||
+		sent.status < 200 ||
+		sent.status > 299 ||
 		typeof body.access_token !== "string" ||
 		typeof body.expires_in !== "number"
 	) {
 		return {
 			error:
-				`login failed: POST ${url}/auth/token answered ${res.status} ${typeof body.error === "string" ? body.error : ""}`.trimEnd(),
+				`login failed: POST ${url}/auth/token answered ${sent.status} ${typeof body.error === "string" ? body.error : ""}`.trimEnd(),
 		};
 	}
 	const login: CliLogin = {

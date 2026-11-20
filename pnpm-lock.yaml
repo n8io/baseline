@@ -419,6 +419,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@n8io/baseline-sdk':
+        specifier: workspace:^
+        version: link:../sdk
       commander:
         specifier: ^15.1.0
         version: 15.1.0
