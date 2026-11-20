@@ -24,6 +24,7 @@ beforeAll(async () => {
 		url: server.url,
 	});
 	token = authorization.replace(/^Bearer /, "");
+	// The random port's URL is the override environments leave for tests.
 	sdkConfigure({ baseUrl: server.url, token });
 }, 30_000);
 
@@ -71,5 +72,16 @@ describe("the SDK on the production build", { timeout: 30_000 }, () => {
 			baseUrl: `${server.url}/nowhere`,
 		});
 		expect(missing.status).toBe(404);
+	});
+
+	it("sends a call to the environment it names, with its own retry and timeout", async () => {
+		// development is http://localhost:3000 (clients/environments.json); nothing listens there here.
+		await expect(
+			fooList(undefined, {
+				environment: "development",
+				retry: 0,
+				timeout: 2000,
+			}),
+		).rejects.toMatchObject({ cause: { code: "ECONNREFUSED", port: 3000 } });
 	});
 });

@@ -1,45 +1,20 @@
-// The fetch every generated function in sdk.ts calls. A caller sets the API's URL and a bearer
-// token once with sdkConfigure, and may override either for one call through the function's last
+// The fetch every generated function in sdk.ts calls, made once for this SDK from the Project's
+// environments (clients/environments.json). A caller picks one with sdkConfigure({ environment })
+// and may override it, the token, timeouts or retries for one call through the function's last
 // argument. A function resolves to `{ status, data, headers }` for every status the document
-// declares, typed by status: it never throws on an HTTP error, only when the request fails.
+// declares, typed by status: it never throws on an HTTP error, only when no response came.
+import { type SdkOptions as Options, sdkFetchCreate } from "@n8io/baseline-sdk";
+import environments from "../environments.json" with { type: "json" };
 
-export type SdkOptions = {
-	// The API's origin, such as https://api.example.com; operation paths start with /api/v1.
-	baseUrl?: string;
-	token?: string;
-};
+export type SdkOptions = Options<keyof typeof environments>;
 
-let configured: SdkOptions = {};
+const sdk = sdkFetchCreate({ environments });
 
-/** Sets the URL or token (or both) every later call uses unless the call passes its own. */
-export const sdkConfigure = (options: SdkOptions): void => {
-	configured = { ...configured, ...options };
-};
+// Typed in full: the published SDK's declarations are written without type checking.
+export const sdkConfigure: (options: SdkOptions) => void = sdk.sdkConfigure;
 
-export const sdkFetch = async <T>(
+// An arrow function, not sdk.sdkFetch itself: orval reads the mutator's parameters from its source.
+export const sdkFetch = <T>(
 	url: string,
 	options: RequestInit & SdkOptions,
-): Promise<T> => {
-	const {
-		baseUrl = configured.baseUrl,
-		token = configured.token,
-		...init
-	} = options;
-	if (baseUrl === undefined) {
-		throw new Error("No API URL: call sdkConfigure({ baseUrl }) first");
-	}
-	const headers = new Headers(init.headers);
-	if (token !== undefined) headers.set("authorization", `Bearer ${token}`);
-	const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${url}`, {
-		...init,
-		headers,
-	});
-	const text = await response.text();
-	const data =
-		text === ""
-			? undefined
-			: response.headers.get("content-type")?.includes("json")
-				? (JSON.parse(text) as unknown)
-				: text;
-	return { data, headers: response.headers, status: response.status } as T;
-};
+): Promise<T> => sdk.sdkFetch<T>(url, options);

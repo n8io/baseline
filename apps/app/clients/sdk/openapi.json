@@ -631,5 +631,6 @@
 			}
 		}
 	},
-	"webhooks": {}
+	"webhooks": {},
+	"servers": [{ "description": "development", "url": "http://localhost:3000" }]
 }

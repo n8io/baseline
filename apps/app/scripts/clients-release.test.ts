@@ -7,18 +7,21 @@ import {
 	clientsFilesRead,
 	clientsManifestPublish,
 	clientsVersionNext,
+	jsonImportsTyped,
 } from "./clients-release.ts";
 
 // Writes an sdk and a cli folder as clients/ holds them, or as a published version unpacks.
 const clientsWrite = ({
 	cliRange,
 	directory,
+	environments = '{"production":"https://api.shop.test"}',
 	fetch,
 	scope,
 	sdk,
 }: {
 	cliRange?: string;
 	directory: string;
+	environments?: string;
 	fetch: string;
 	scope: string;
 	sdk: string;
@@ -38,6 +41,9 @@ const clientsWrite = ({
 		"sdk/sdk-fetch.ts": fetch,
 		"sdk/sdk.ts": `export const shopGet = () => ${sdk};\n`,
 	};
+	// clients/environments.json is published inside the SDK.
+	files[scope === "" ? "environments.json" : "sdk/environments.json"] =
+		environments;
 	// A published version also holds the build, which never counts.
 	if (scope !== "") files["sdk/dist/sdk.js"] = "export const shopGet = 1;\n";
 	for (const [path, text] of Object.entries(files)) {
@@ -48,6 +54,7 @@ const clientsWrite = ({
 
 const versionNext = (change: {
 	cliRange?: string;
+	environments?: string;
 	fetch?: string;
 	sdk?: string;
 }): string | undefined => {
@@ -63,6 +70,7 @@ const versionNext = (change: {
 	clientsWrite({
 		cliRange: change.cliRange ?? "^1.0.0",
 		directory: current,
+		...(change.environments && { environments: change.environments }),
 		fetch: change.fetch ?? "fetch",
 		scope: "",
 		sdk: change.sdk ?? "{}",
@@ -81,6 +89,12 @@ describe("clientsVersionNext", () => {
 
 	it("publishes the next minor when the generated SDK changed", () => {
 		expect(versionNext({ sdk: '{"/shops":{}}' })).toBe("1.5.0");
+	});
+
+	it("publishes the next minor when an environment changed", () => {
+		expect(
+			versionNext({ environments: '{"production":"https://api2.shop.test"}' }),
+		).toBe("1.5.0");
 	});
 
 	it("publishes the next patch when only hand-written code changed", () => {
@@ -138,6 +152,18 @@ describe("clientsManifestPublish", () => {
 		// Conditions are read in order, so types must come first.
 		expect(JSON.stringify(manifest.exports)).toBe(
 			'{".":{"types":"./dist/index.d.ts","default":"./dist/index.js"},"./openapi.json":"./openapi.json"}',
+		);
+	});
+});
+
+describe("jsonImportsTyped", () => {
+	it("gives a declaration's JSON imports the attribute nodenext needs", () => {
+		expect(
+			jsonImportsTyped(
+				'import environments from "../environments.json";\nimport { a } from "./a.js";\n',
+			),
+		).toBe(
+			'import environments from "../environments.json" with { type: "json" };\nimport { a } from "./a.js";\n',
 		);
 	});
 });
