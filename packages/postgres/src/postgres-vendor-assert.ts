@@ -10,6 +10,7 @@ const postgresVendorOwnedKeys = {
 	user: "databaseUrl",
 } as const;
 
+/** The pg settings no `vendor` option may carry. */
 export type PostgresVendorOwnedKey = keyof typeof postgresVendorOwnedKeys;
 
 const postgresUrlSslParams = [
@@ -20,14 +21,19 @@ const postgresUrlSslParams = [
 	"sslrootcert",
 ];
 
-// Throws on a vendor setting that a named option or the URL already decides.
+/**
+ * Throws on a vendor setting that a named option or the URL already decides. `caller` is the
+ * public function that was handed `vendor`, which the message starts with.
+ */
 export const postgresVendorAssert = ({
+	caller,
 	databaseUrl,
-	owned = {},
+	owned,
 	vendor,
 }: {
+	caller: string;
 	databaseUrl: string;
-	owned?: Record<string, string>;
+	owned?: Record<string, string> | null;
 	vendor: object;
 }): void => {
 	for (const [key, option] of Object.entries({
@@ -36,7 +42,7 @@ export const postgresVendorAssert = ({
 	})) {
 		if (key in vendor) {
 			throw new TypeError(
-				`vendor.${key} is not allowed: set it with ${option} instead`,
+				`${caller}: vendor.${key} is not allowed: set it with ${option} instead`,
 			);
 		}
 	}
@@ -44,7 +50,7 @@ export const postgresVendorAssert = ({
 	const sslParam = postgresUrlSslParams.find((name) => urlParams.has(name));
 	if ("ssl" in vendor && sslParam !== undefined) {
 		throw new TypeError(
-			`vendor.ssl is not allowed with ${sslParam} in databaseUrl: pg lets the URL win; set TLS in one place`,
+			`${caller}: vendor.ssl is not allowed with ${sslParam} in databaseUrl: pg lets the URL win; set TLS in one place`,
 		);
 	}
 };

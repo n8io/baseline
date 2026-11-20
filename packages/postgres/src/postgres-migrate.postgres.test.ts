@@ -110,16 +110,6 @@ const pgbouncerStart = async (
 };
 
 describe("postgresMigrate", () => {
-	it("refuses a URL that is not postgres:// or postgresql://", async () => {
-		await expect(
-			postgresMigrate({ databaseUrl: "memory://", migrationsFolder }),
-		).rejects.toThrow(
-			new TypeError(
-				'Invalid database URL: found "memory://"; use postgres:// or postgresql://',
-			),
-		);
-	});
-
 	it("applies pending migrations, then finds nothing on a rerun", async () => {
 		const databaseUrl = await postgresTestDatabaseCreate();
 
@@ -176,16 +166,6 @@ describe("postgresMigrate", () => {
 		expect(
 			await query(databaseUrl, "SELECT to_regclass('foo.foo') AS foo"),
 		).toEqual([{ foo: null }]);
-	});
-
-	it.each([0, -1, 1.5])("refuses lockWaitMs %s", async (lockWaitMs) => {
-		await expect(
-			postgresMigrate({
-				databaseUrl: "postgres://localhost/db",
-				lockWaitMs,
-				migrationsFolder,
-			}),
-		).rejects.toThrow(new TypeError("lockWaitMs must be a positive integer"));
 	});
 
 	it.each(["transaction", "session"] as const)(

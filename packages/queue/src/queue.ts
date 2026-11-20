@@ -10,6 +10,7 @@ import {
 } from "./queue-ordered.ts";
 import type { QueueSql } from "./queue-sql.ts";
 
+/** The queue a composition root opens with `queueCreate`; close it with `close()`. */
 export type Queue = {
 	// false only when this process's own poll loops are stuck, which a restart fixes. A poll that
 	// fails (Postgres is down or failing over) still counts as proof the loop runs, so an outage
@@ -31,14 +32,16 @@ export type Queue = {
 		consumer: string;
 		key: string;
 	}): Promise<boolean>;
-	// Stops consumers and the cron pass and waits up to 15 s for running jobs. It leaves the pool open:
-	// the composition root closes it after.
-	stop(): Promise<void>;
-	/** Calls stop(), so `await using` stops the queue when its block ends. */
+	/**
+	 * Stops the Consumers and the cron pass and waits up to 15 s for running jobs. It leaves the
+	 * pool open: the composition root closes it after.
+	 */
+	close(): Promise<void>;
+	/** Calls close(), so `await using` closes the queue when its block ends. */
 	[Symbol.asyncDispose](): Promise<void>;
 };
 
-// Every pg-boss table, function and queue lives in this Postgres schema, beside queue.inbox.
+/** Every pg-boss table, function and queue lives in this Postgres schema, beside queue.inbox. */
 export const queueSchema = "queue";
 
 // A worker none of whose polls has ended, in a fetch or in an error, for this long is reported
@@ -51,11 +54,13 @@ const queueConcurrencyDefault = 4;
 const queueBosses = new WeakMap<Queue, PgBoss>();
 const queueConcurrencies = new WeakMap<Queue, number>();
 
-// How many jobs the Queue's process may run at once, for the other modules of this package only.
+/**
+ * How many jobs the Queue's process may run at once, for the other modules of this package only.
+ */
 export const queueConcurrencyGet = (queue: Queue): number =>
 	queueConcurrencies.get(queue) ?? queueConcurrencyDefault;
 
-// The pg-boss instance behind a Queue, for the other modules of this package only.
+/** The pg-boss instance behind a Queue, for the other modules of this package only. */
 export const queueBossGet = (queue: Queue): PgBoss => {
 	const boss = queueBosses.get(queue);
 	if (boss === undefined) {
@@ -134,32 +139,36 @@ const queueOwnedKeys: Record<QueueOwnedKey, string> = {
  */
 export type QueueVendorOptions = Omit<ConstructorOptions, QueueOwnedKey>;
 
-// Starts pg-boss on the shared pool. A publisher (the server) only sends: it runs no workers, no
-// maintenance and no cron pass. A worker runs maintenance, cron and the package's inbox pruning.
-export const queueCreate = async (options: {
+/** What `queueCreate` takes. */
+export type QueueOptions = {
 	/**
 	 * How many Events and Schedule runs a worker has under way at once, across all its Consumers
 	 * and Schedules. Default 4. Each holds a connection of `pgPool` while it runs, so keep it below
 	 * the pool's size.
 	 */
-	concurrency?: number;
+	concurrency?: number | null;
 	pgPool: QueueSql;
 	role: "publisher" | "worker";
 	/** Settings only pg-boss has, such as `monitorIntervalSeconds`. */
-	vendor?: QueueVendorOptions;
-}): Promise<Queue> => {
-	const {
-		concurrency = queueConcurrencyDefault,
-		pgPool,
-		role,
-		vendor = {},
-	} = options;
+	vendor?: QueueVendorOptions | null;
+};
+
+/**
+ * Starts pg-boss on the shared pool. A publisher (the server) only sends: it runs no workers, no
+ * maintenance and no cron pass. A worker runs maintenance, cron and the Package's Inbox pruning.
+ */
+export const queueCreate = async (options: QueueOptions): Promise<Queue> => {
+	const { pgPool, role } = options;
+	const concurrency = options.concurrency ?? queueConcurrencyDefault;
+	const vendor = options.vendor ?? {};
 	if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-		throw new TypeError("concurrency must be a positive integer");
+		throw new TypeError("queueCreate: concurrency must be a positive integer");
 	}
 	for (const [key, reason] of Object.entries(queueOwnedKeys)) {
 		if (key in vendor) {
-			throw new TypeError(`vendor.${key} is not allowed: ${reason}`);
+			throw new TypeError(
+				`queueCreate: vendor.${key} is not allowed: ${reason}`,
+			);
 		}
 	}
 	const worker = role === "worker";
@@ -211,9 +220,11 @@ export const queueCreate = async (options: {
 // pg-boss's code for a poll of a queue that is no longer there.
 const queueGoneCode = "PGBOSS_QUEUE_NOT_FOUND";
 
-// pg-boss hands most background failures over as plain objects, which a logger and error tracking
-// print without a message or a stack: each becomes an Error with the same message, stack and
-// code, and what pg-boss sent as its cause.
+/**
+ * pg-boss hands most background failures over as plain objects, which a logger and error tracking
+ * print without a message or a stack: each becomes an Error with the same message, stack and
+ * code, and what pg-boss sent as its cause.
+ */
 export const queueErrorWrap = (error: unknown): Error => {
 	if (error instanceof Error) {
 		return error;
@@ -273,7 +284,7 @@ const queueErrorHandleCreate = (boss: PgBoss) => {
 const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 	const startedAt = Date.now();
 	let blockedKeysWatchStop = (): void => undefined;
-	const stop = (): Promise<void> => {
+	const close = (): Promise<void> => {
 		blockedKeysWatchStop();
 		return boss.stop({ graceful: true, timeout: 15_000 });
 	};
@@ -281,6 +292,7 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 		blockedKeyGiveUp: (blocked) => queueOrderedBlockedKeyGiveUp(boss, blocked),
 		blockedKeyRetry: (blocked) => queueOrderedBlockedKeyRetry(boss, blocked),
 		blockedKeys: () => queueOrderedBlockedKeysList(boss),
+		close,
 		isAlive: () => {
 			if (!worker) {
 				return true;
@@ -295,8 +307,7 @@ const queueStarted = async (boss: PgBoss, worker: boolean): Promise<Queue> => {
 			);
 			return Date.now() - heartbeat < queueHeartbeatLimitMs;
 		},
-		stop,
-		[Symbol.asyncDispose]: stop,
+		[Symbol.asyncDispose]: close,
 	};
 	queueBosses.set(queue, boss);
 	if (worker) {

@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	await queue.stop();
+	await queue.close();
 	await pgPool.end();
 });
 

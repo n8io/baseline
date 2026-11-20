@@ -1,8 +1,10 @@
 import { type Queue, queueConcurrencyGet } from "./queue.ts";
 
-// Lets a fixed number of jobs run at once in one worker process and makes the rest wait their
-// turn, first come first served. Every Consumer and Schedule of the process shares it, so their
-// jobs together never hold more pool connections than `concurrency` allows.
+/**
+ * Lets a fixed number of jobs run at once in one worker process and makes the rest wait their
+ * turn, first come first served. Every Consumer and Schedule of the process shares it, so their
+ * jobs together never hold more pool connections than `concurrency` allows.
+ */
 export type QueueSlots = {
 	// Runs `work` once a slot is free and resolves true. Resolves false without running it when
 	// `signal` aborts first (pg-boss has given the job up). A job whose signal aborts while it
@@ -68,7 +70,7 @@ const slotsCreate = (size: number): QueueSlots => {
 
 const queueSlots = new WeakMap<Queue, QueueSlots>();
 
-// The one set of slots of a Queue's process, sized by its `concurrency`.
+/** The one set of slots of a Queue's process, sized by its `concurrency`. */
 export const queueSlotsGet = (queue: Queue): QueueSlots => {
 	const slots =
 		queueSlots.get(queue) ?? slotsCreate(queueConcurrencyGet(queue));

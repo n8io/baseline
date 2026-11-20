@@ -1,3 +1,4 @@
+/** A unique violation as data: the constraint, and the key's columns and values as Postgres printed them. */
 export type PostgresUniqueViolation = {
 	/** The key's columns, or expressions for an expression index. Empty when Postgres sent no detail. */
 	columns: string[];
@@ -35,15 +36,17 @@ const violationFind = (
 	return undefined;
 };
 
-// True when `error` or any error in its `.cause` chain is a unique violation on `constraint`.
+/** True when `error` or any error in its `.cause` chain is a unique violation on `constraint`. */
 export const postgresUniqueViolationIs = (
 	error: unknown,
 	constraint: string,
 ): boolean => violationFind(error)?.constraint === constraint;
 
-// Postgres words the detail `Key (a, b)=(1, x) already exists.` and quotes nothing, so a value
-// that holds ", " in a key of two or more columns cannot be split: then both lists are empty
-// rather than misaligned.
+/**
+ * Postgres words the detail `Key (a, b)=(1, x) already exists.` and quotes nothing, so a value
+ * that holds ", " in a key of two or more columns cannot be split: then both lists are empty
+ * rather than misaligned.
+ */
 export const postgresUniqueViolationRead = (
 	error: unknown,
 ): PostgresUniqueViolation | undefined => {

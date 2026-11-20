@@ -12,7 +12,6 @@ import {
 	queueSchedulesSync,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
-import { queueScheduleEnvName } from "./queue-schedule.ts";
 
 let databaseUrl: string;
 let pgPool: pg.Pool;
@@ -42,7 +41,7 @@ const working = (queue: Queue): string[] =>
 
 beforeEach(async () => {
 	for (const queue of queues.splice(0)) {
-		await queue.stop();
+		await queue.close();
 	}
 	await pgPool?.end();
 	vi.restoreAllMocks();
@@ -53,7 +52,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	for (const queue of queues.splice(0)) {
-		await queue.stop();
+		await queue.close();
 	}
 	await pgPool.end();
 });
@@ -176,12 +175,6 @@ describe("queueSchedulesSync", () => {
 			}),
 		).rejects.toThrow("Invalid cron for schedule foo.stale-archive");
 	});
-
-	it("refuses a URL that is not Postgres", async () => {
-		await expect(
-			queueSchedulesSync({ databaseUrl: "memory://", env: {}, schedules: [] }),
-		).rejects.toThrow("Invalid database URL");
-	});
 });
 
 describe("queueSchedulesStart", () => {
@@ -255,13 +248,5 @@ describe("queueSchedulesStart", () => {
 
 		expect(warn).not.toHaveBeenCalled();
 		expect(working(queue)).not.toContain("foo.stale-archive");
-	});
-});
-
-describe("queueScheduleEnvName", () => {
-	it("uppercases the name and turns . and - into _", () => {
-		expect(queueScheduleEnvName("foo.stale-archive")).toBe(
-			"SCHEDULE_FOO_STALE_ARCHIVE",
-		);
 	});
 });

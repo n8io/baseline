@@ -45,7 +45,7 @@ afterAll(async () => {
 	for (const resource of closing.reverse()) {
 		await resource[Symbol.asyncDispose]();
 	}
-	await publisher.stop();
+	await publisher.close();
 	await pgPool.end();
 });
 

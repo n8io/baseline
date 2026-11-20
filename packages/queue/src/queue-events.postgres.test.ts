@@ -12,9 +12,9 @@ import {
 	queueConsumerCreate,
 	queueCreate,
 	queueEventsCreate,
-	queueEventsMemoryCreate,
 	queueMigrate,
 } from "./index.ts";
+import { queueEventsPublisherContract } from "./queue-events-publisher.contract.ts";
 
 type FooEvents = { "foo.created": { fooId: string } };
 
@@ -64,7 +64,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
 	process.off("warning", onWarning);
-	await queue.stop();
+	await queue.close();
 	await pgPool.end();
 });
 
@@ -164,43 +164,19 @@ describe("queueEventsCreate", () => {
 	});
 });
 
-describe("queueEventsMemoryCreate", () => {
-	it("records publishes and delivers nothing", async () => {
-		const published: {
-			name: keyof FooEvents;
-			data: unknown;
-			key: string;
-		}[] = [];
-		const events = queueEventsMemoryCreate<FooEvents>({ published });
-
-		await events.publish({
-			data: { fooId: "foo_1" },
-			key: "foo_1",
-			name: "foo.created",
+describe("queueEventsCreate publisher", () => {
+	queueEventsPublisherContract(async (work) => {
+		const events = queueEventsCreate(queue);
+		const publisher = await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				const inTransaction = events.publisherCreate<FooEvents>(pgClient);
+				await work(inTransaction);
+				return ok(inTransaction);
+			},
 		});
-
-		expect(published).toEqual([
-			{ data: { fooId: "foo_1" }, key: "foo_1", name: "foo.created" },
-		]);
-	});
-
-	it("works without options", async () => {
-		await expect(
-			queueEventsMemoryCreate<FooEvents>().publish({
-				data: { fooId: "foo_1" },
-				key: "foo_1",
-				name: "foo.created",
-			}),
-		).resolves.toBeUndefined();
-	});
-
-	it("refuses an empty key, as the queue does", async () => {
-		await expect(
-			queueEventsMemoryCreate<FooEvents>().publish({
-				data: { fooId: "foo_1" },
-				key: "",
-				name: "foo.created",
-			}),
-		).rejects.toThrow("Event foo.created needs a key");
+		if (publisher.ok) {
+			await publisher.value.committed();
+		}
 	});
 });

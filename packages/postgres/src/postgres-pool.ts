@@ -25,40 +25,56 @@ export type PostgresPoolVendorOptions = Omit<
 	PostgresVendorOwnedKey | "max" | "query_timeout"
 >;
 
+/** What `postgresPoolCreate` takes. */
 export type PostgresPoolOptions = {
 	databaseUrl: string;
 	/** How long a connect may take. Default 3 s. */
-	connectTimeoutMs?: number;
+	connectTimeoutMs?: number | null;
 	/** The most connections the pool opens. Default 10. */
-	max?: number;
+	max?: number | null;
 	/**
-	 * How long the caller waits for one query before it rejects. Default 15 s; `null` turns it off.
-	 * The pool closes that connection; the server may still finish the query.
+	 * How long the caller waits for one query before it rejects. Default 15 s. Unlike every other
+	 * option, `null` does not mean the default: it turns the limit off. The pool closes that
+	 * connection; the server may still finish the query.
 	 */
 	queryTimeoutMs?: number | null;
 	/** Settings only pg has, such as `ssl` or `idleTimeoutMillis`. */
-	vendor?: PostgresPoolVendorOptions;
+	vendor?: PostgresPoolVendorOptions | null;
 };
 
-// One pool per process. pg 8.23 ignores ?connect_timeout= in the URL, so settings live here.
-export const postgresPoolCreate = ({
-	connectTimeoutMs = 3_000,
-	databaseUrl,
-	max = 10,
-	queryTimeoutMs = 15_000,
-	vendor = {},
-}: PostgresPoolOptions): PostgresPool => {
-	postgresUrlAssert(databaseUrl);
+const postgresPositiveIntegerIs = (value: number): boolean =>
+	Number.isSafeInteger(value) && value > 0;
+
+/**
+ * The process's one Postgres pool. pg 8.23 ignores `?connect_timeout=` in the URL, so the
+ * settings live here.
+ */
+export const postgresPoolCreate = (
+	options: PostgresPoolOptions,
+): PostgresPool => {
+	const { databaseUrl, queryTimeoutMs = 15_000 } = options;
+	const connectTimeoutMs = options.connectTimeoutMs ?? 3_000;
+	const max = options.max ?? 10;
+	const vendor = options.vendor ?? {};
+	postgresUrlAssert(databaseUrl, "postgresPoolCreate");
 	postgresVendorAssert({
-		vendor,
+		caller: "postgresPoolCreate",
 		databaseUrl,
 		owned: { max: "max", query_timeout: "queryTimeoutMs" },
+		vendor,
 	});
-	if (
-		queryTimeoutMs !== null &&
-		(!Number.isSafeInteger(queryTimeoutMs) || queryTimeoutMs <= 0)
-	) {
-		throw new TypeError("queryTimeoutMs must be a positive integer or null");
+	if (!postgresPositiveIntegerIs(connectTimeoutMs)) {
+		throw new TypeError(
+			"postgresPoolCreate: connectTimeoutMs must be a positive integer",
+		);
+	}
+	if (!postgresPositiveIntegerIs(max)) {
+		throw new TypeError("postgresPoolCreate: max must be a positive integer");
+	}
+	if (queryTimeoutMs !== null && !postgresPositiveIntegerIs(queryTimeoutMs)) {
+		throw new TypeError(
+			"postgresPoolCreate: queryTimeoutMs must be a positive integer or null",
+		);
 	}
 	const pgPool = new pg.Pool({
 		// Probe an idle connection after 10 s, not the OS default of about 2 hours, so a dead peer shows.

@@ -57,7 +57,7 @@ await publisher.publish({
 await publisher.committed(); // after COMMIT; on a rollback, discard the publisher
 ```
 
-Test an Event handler the way the worker runs it, with no queue running: `queueTestConsumerRun` from `@n8io/baseline-queue/testing` validates the data with its schema and passes an Inbox. Unit-test code that publishes with `queueEventsMemoryCreate()`, an `EventsPublisher` that records each publish.
+Test an Event handler the way the worker runs it, with no queue running: `queueTestConsumerRun` from `@n8io/baseline-queue/testing` validates the data with its schema and passes an Inbox. Unit-test code that publishes with `queueEventsPublisherMemoryCreate()`, the memory twin of the queue's `EventsPublisher`: it records each publish and runs the same contract tests.
 
 ```ts
 import { queueTestConsumerRun } from "@n8io/baseline-queue/testing";
@@ -72,15 +72,15 @@ const result = await queueTestConsumerRun({
 
 <details><summary><b>Exports</b></summary>
 
-- `queueMigrate({ databaseUrl, queuesRemoved?, vendor? })` (`vendor`, typed `QueueMigrateVendorOptions`, takes `ssl`, `application_name` and `options` for the connection pg-boss opens to migrate): installs or upgrades the queue's tables in schema `queue` and creates `queue.inbox`. It also removes the queues an upgrade left behind (see Upgrading to 8, under Reference). Run it from the migrate entry.
-- `queueCreate({ pgPool, role, concurrency?, vendor? })`, `Queue`: starts the queue on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Event handlers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health, under Reference); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since, deleteAt }`, and `blockedKeyRetry({ consumer, key })` and `blockedKeyGiveUp({ consumer, key })` release one (see Runbook: a blocked key, under Reference); `stop()` waits up to 15 s for running jobs, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
+- `queueMigrate({ databaseUrl, queuesRemoved?, vendor? })` (`QueueMigrateOptions`): installs or upgrades the queue's tables in schema `queue` and creates `queue.inbox`. `queuesRemoved` lists the `queueName` of each Event handler an earlier release removed, and their queues are deleted. `vendor` (`QueueMigrateVendorOptions`) takes only `ssl`, `application_name` and `options` for the connection pg-boss opens; any other key, or `vendor.ssl` beside an `ssl…` parameter in `databaseUrl`, throws. Run it from the migrate entry
+- `queueCreate({ pgPool, role, concurrency?, vendor? })` (`QueueOptions`), `Queue`: starts the queue on the shared pool. A `"publisher"` (the server) only sends; a `"worker"` also runs maintenance, cron and Inbox pruning. `concurrency` is how many Events and Schedule runs a worker has under way at once, across all its Event handlers and Schedules (default 4); keep it below the pool's size, since each holds a connection while it runs. `isAlive()` feeds `/livez` (see Health, under Reference); `blockedKeys()` lists the Event keys an Event that failed for good holds back, as `{ consumer, key, since, deleteAt }`, and `blockedKeyRetry({ consumer, key })` and `blockedKeyGiveUp({ consumer, key })` release one (see Runbook: a blocked key, under Reference); `close()` waits up to 15 s for running jobs and leaves the pool open, and `await using` calls it when its block ends. `vendor` (typed `QueueVendorOptions`) takes pg-boss's own intervals, warnings and retention settings and passes them through. It throws on the keys `queueCreate` sets itself (`db`, `schema`, `migrate`, `schedule`, `supervise`, `openTelemetry`), on connection settings (the queue runs on your pool, so set them there), and on the ones that only act in `queueMigrate` or that the queue does not support. It is outside the contract: nothing in it is tested here, and moving off pg-boss deletes it.
 - `Events`: how Events travel, whatever carries them: `consumersSubscribe(consumers)` (every process that publishes calls it at boot), `consumersStart(consumers)` (worker only), `publisherCreate(transaction)` and `isAlive()`. A composition root opens one and nothing else names the transport.
 - `EventsPublisher`: one per transaction. `publish({ name, data, key })` inside it, then `committed()` once it has committed; on a rollback, discard it. `key` is the Event key: the id of the entity the Event is about, never empty (see Order, under Reference).
 - `queueEventsCreate(queue)`: `Events` on the queue. A publish writes on the transaction's client (an outbox), so `committed()` has nothing left to do.
-- `queueEventsMemoryCreate({ published? })`: an `EventsPublisher` that records each publish in the `published` array as `{ name, data, key }`, for unit tests. The argument is optional.
-- `queueConsumerCreate({ queueName, eventName, schema, run })`, `Consumer`: validates each Event with the schema and calls `run` with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
+- `queueEventsPublisherMemoryCreate({ published? })` (`QueueEventsPublisherMemoryOptions`): the memory twin of the queue's `EventsPublisher`, for unit tests. It records each publish in the `published` array as `{ name, data, key }` and delivers nothing; `queue-events-publisher.contract.ts` runs the same cases against it and the queue's. The argument is optional.
+- `queueConsumerCreate({ queueName, eventName, schema, run })` (`QueueConsumerOptions`), `Consumer`: validates each Event with the schema and calls `run` with its output. `schema` is any [Standard Schema](https://standardschema.dev): a Zod, Valibot or ArkType schema goes in as it is. An Event that fails throws, which fails the job; the error names the paths that failed (a record's keys included) and never the validator's message, which may repeat the Event's values.
 - `@n8io/baseline-queue/testing`: `queueTestConsumerRun({ consumer, data, eventId? })` runs one Event through an Event handler as the worker does (validated by its schema, with an Inbox of its `queueName` and the `eventId`, a new one by default) and returns the Event handler's result. Import it from test files only.
-- `queueScheduleCreate({ name, cron, run })`, `Schedule`: a UTC cron Schedule. `queueSchedulesSync({ databaseUrl, schedules, env, vendor? })` writes the Schedules to the database from the migrate entry, and `queueSchedulesStart({ queue, schedules, env })` runs them in the worker (see Schedules, under Reference). `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
+- `queueScheduleCreate({ name, cron, run })` (`QueueScheduleOptions`), `Schedule`: a UTC cron Schedule. `queueSchedulesSync({ databaseUrl, schedules, env, vendor? })` (`QueueSchedulesSyncOptions`, `vendor` as for `queueMigrate`) writes the Schedules to the database from the migrate entry, and `queueSchedulesStart({ queue, schedules, env })` (`QueueSchedulesStartOptions`) runs them in the worker (see Schedules, under Reference). `SCHEDULE_<NAME>` overrides a cron, or turns it `off`.
 - `queueInboxInsert(transaction, inbox)`, `Inbox`: records the Event as handled in the caller's transaction; `false` means it was already handled.
 - `QueueSql`: anything with `query(text, values?)` on the Project's Postgres, such as a node-postgres pool or a transaction's client. `queueCreate`, `publisherCreate` and `queueInboxInsert` take it, so the Package needs no `pg` types.
 
@@ -206,27 +206,24 @@ The `SCHEDULE_<NAME>` overrides act where the sync runs, so set them in the envi
 
 So a Postgres outage or failover never fails liveness, as long as a poll fails instead of hanging: give the pool a query timeout well under 60 s (`postgresPoolCreate` sets 15 s). Polls fail, the failures of each queue are logged as "Queue error" once per 30 s, and the worker stays up and carries on by itself when Postgres is back. A dependency being down belongs to the startup check: a process that cannot reach Postgres fails `queueCreate` and never reports ready. A publisher has no poll loop and is always alive.
 
-The queue reports a failed poll as a plain object; the Package logs it as an `Error` with the same message, stack and `code`, and that object as its `cause`. When `queueMigrate` removes a queue that a running worker still polls (an old unordered queue, or one in `queuesRemoved`), that worker logs one warning ("Queue was removed") and stops polling it.
+The queue reports a failed poll as a plain object; the Package logs it as an `Error` with the same message, stack and `code`, and that object as its `cause`. When `queueMigrate` removes a queue that a running worker still polls (one in `queuesRemoved`), that worker logs one warning ("Queue was removed") and stops polling it.
 
 </details>
 
-<details><summary><b>Upgrading to 8</b></summary>
+<details><summary><b>Upgrading to 9</b></summary>
 
-Upgrading across 8 also moves Schedules: `queueSchedulesRegister` is gone. Call `queueSchedulesSync` in the migrate entry and `queueSchedulesStart` in the worker. A worker of the release before 8 still rewrites the Schedules at boot, so one that restarts during this one rollout can undo the sync until migrate runs again; after the rollout no such worker is left.
-
-Releases before 8 kept an Event handler's jobs in an unordered queue named `<queueName>`, subscribed to `<eventName>`. From 8 they are in `<queueName>.ordered`, subscribed to `<eventName>.ordered`. Nothing is moved and no step is yours:
-
-1. During the rollout, processes of the old release keep publishing to the old queue and working it. Processes of the new release publish to the ordered queue and work both, so no Event is lost or waits for the rollout to end.
-2. Events left in the old queue run as they did before, without a key, so they have no order among themselves or against new Events. If that matters for an Event handler, let its queue empty before you roll out.
-3. A later `queueMigrate` removes the old queue, once the ordered queue is a week old, nothing in the old one is waiting or running and nothing has been published to it for a week.
-
-A rollback to the old release leaves the Events already in the ordered queues waiting until you roll forward again; the queue deletes a waiting Event after 14 days. Do not roll back to it once the old queues are gone: its publishes would find no queue and be lost.
+- `Queue.stop()` is now `close()`, the name every Package's own handle closes with. `await using` works as before.
+- `queueEventsMemoryCreate` is now `queueEventsPublisherMemoryCreate`, named for the port it fills (`EventsPublisher`).
+- `queueMigrate` and `queueSchedulesSync` throw on a `vendor` key other than `ssl`, `application_name` and `options`, and on `vendor.ssl` beside an `ssl…` parameter in `databaseUrl`. Their type already allowed only those three keys, so typed code is unaffected.
+- A bad option's `TypeError` message now starts with the function's name (`queueCreate: concurrency must be a positive integer`).
+- Each options object has an exported type (`QueueOptions`, `QueueMigrateOptions` and the rest under Exports), and an optional field also takes `null` for its default.
+- The path for releases before 8 is gone: a worker no longer drains an unordered `<queueName>` queue, and `queueMigrate` no longer deletes those queues. Coming from 7 or earlier, upgrade to 8 first and run it for a week, so its migrate removes them; then upgrade to 9.
 
 </details>
 
 <details><summary><b>This Package's own tests</b></summary>
 
-`pnpm test` needs Docker: it starts a Postgres container.
+`pnpm test` needs Docker: it starts a Postgres container. `pnpm test:unit` runs the option checks and the memory publisher's contract without it.
 
 </details>
 

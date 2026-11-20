@@ -9,6 +9,7 @@ export {
 	postgresKeysetCreate,
 } from "./postgres-keyset.ts";
 export {
+	type PostgresMigrateOptions,
 	type PostgresMigrateVendorOptions,
 	postgresMigrate,
 } from "./postgres-migrate.ts";
@@ -19,7 +20,10 @@ export {
 	type PostgresPoolVendorOptions,
 	postgresPoolCreate,
 } from "./postgres-pool.ts";
-export { postgresTransactionRun } from "./postgres-transaction-run.ts";
+export {
+	type PostgresTransactionRunOptions,
+	postgresTransactionRun,
+} from "./postgres-transaction-run.ts";
 export {
 	type PostgresUniqueViolation,
 	postgresUniqueViolationIs,

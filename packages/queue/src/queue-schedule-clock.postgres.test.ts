@@ -2,7 +2,7 @@ import { PgBoss, TestClock } from "pg-boss";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import { queueMigrate } from "./index.ts";
-import { queueWithDeadLetterCreate } from "./queue-retry.ts";
+import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 
 // pg-boss's TestClock needs a db adapter that runs session statements on every connection, which
 // the pgPool adapter does not; these proofs drive pg-boss directly with the settings

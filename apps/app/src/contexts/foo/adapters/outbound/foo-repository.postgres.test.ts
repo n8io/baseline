@@ -24,7 +24,7 @@ fooRepositoryContract(async () => {
 	drops.push(drop);
 	// piece-start: queue
 	const queue = await queueCreate({ pgPool, role: "publisher" });
-	closes.unshift(() => queue.stop());
+	closes.unshift(() => queue.close());
 	// piece-end: queue
 	return {
 		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),

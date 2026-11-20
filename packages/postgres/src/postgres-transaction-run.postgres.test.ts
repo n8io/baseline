@@ -199,7 +199,11 @@ describe("postgresTransactionRun", () => {
 				work: async () => ok(undefined),
 				timeoutMs: 0,
 			}),
-		).rejects.toThrow(new TypeError("timeoutMs must be a positive integer"));
+		).rejects.toThrow(
+			new TypeError(
+				"postgresTransactionRun: timeoutMs must be a positive integer",
+			),
+		);
 		await expect(
 			postgresTransactionRun({
 				pgPool,

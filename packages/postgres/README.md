@@ -32,8 +32,10 @@ export const fooTable = pgTable("foo", {
 ```
 
 ```ts
+class FooNotCreatedError extends Error {
+	readonly type = "FooNotCreated";
+}
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
-
 const result = await postgresTransactionRun({
 	pgPool,
 	work: async (pgClient) => {
@@ -41,12 +43,12 @@ const result = await postgresTransactionRun({
 			.insert(fooTable)
 			.values({ id: idCreate("foo"), name })
 			.returning();
-		return foo ? ok(foo) : err({ type: "FooNotCreated" as const });
+		return foo ? ok(foo) : err(new FooNotCreatedError());
 	},
 });
 ```
 
-Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` (see Race tests below). The Package's own tests need Docker: `pnpm test` starts a Postgres container and, for the migrate tests, a connection pooler.
+Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` (see Race tests below). The Package's own tests need Docker: `pnpm test` starts a Postgres container and, for the migrate tests, a connection pooler. `pnpm test:unit` runs the option checks without it.
 
 ## Reference
 
@@ -56,7 +58,7 @@ Test a race with `postgresTestInterleave` from `@n8io/baseline-postgres/testing`
 - `PostgresPool`, `PostgresClient`: the pool and a checked-out connection. `await using` calls the pool's `end()` when its block ends. Name these in your own signatures, not `pg`'s types. They are pg's own pool and client, because Drizzle's `drizzle({ client })` needs the real ones.
 - `postgresTransactionRun({ pgPool, work, timeoutMs? })`: runs `work(pgClient)` in one transaction; COMMIT on `ok`, ROLLBACK on `err` or a throw. It ends after `timeoutMs` (default 5 s).
 - `postgresMigrate({ databaseUrl, migrationsFolder, lockWaitMs?, vendor? })`: applies pending Drizzle migrations under an advisory lock, so concurrent starts apply each one once. A run waits up to `lockWaitMs` (default 60 s) for the lock, then fails with an error that names it. The lock belongs to the session, so `databaseUrl` must reach Postgres itself: through a connection pooler such as PgBouncer the run refuses before it changes anything. Queries here have no time limit. `vendor` takes pg's settings for its one connection, under the same rules as the pool's.
-- Types for the options and results above: `PostgresPoolOptions`, `PostgresPoolVendorOptions`, `PostgresMigrateVendorOptions`, `PostgresKeysetKind`, `PostgresKeysetOptions`, `PostgresUniqueViolation`, `PostgresExecutor`; from `/testing`, `PostgresTestInterleaveOptions` and `PostgresTestInterleavePool`.
+- Types for the options and results above: `PostgresPoolOptions`, `PostgresPoolVendorOptions`, `PostgresMigrateOptions`, `PostgresMigrateVendorOptions`, `PostgresTransactionRunOptions`, `PostgresKeysetKind`, `PostgresKeysetOptions`, `PostgresUniqueViolation`, `PostgresExecutor`; from `/testing`, `PostgresTestInterleaveOptions` and `PostgresTestInterleavePool`.
 - `@n8io/baseline-postgres/testing`: `postgresTestInterleave` for race tests (below). Import it from tests only.
 - `postgresIdColumnCreate(prefix)`: a Drizzle `uuid` column that reads and writes `Id<prefix>`.
 - `postgresUniqueViolationIs(error, constraint)`: true when a unique violation on that constraint is anywhere in the `cause` chain.

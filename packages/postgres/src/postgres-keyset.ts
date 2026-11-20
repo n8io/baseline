@@ -6,6 +6,7 @@ import { type AnyColumn, type SQL, sql } from "drizzle-orm";
  */
 export type PostgresKeysetKind = "date" | "integer" | "number" | "text";
 
+/** What `postgresKeysetCreate` takes. */
 export type PostgresKeysetOptions = {
 	/** The last row of the previous page; none for the first page. */
 	after?: { id: string; value: string | number } | null;
@@ -33,23 +34,23 @@ const isoInstantIs = (value: string): boolean => {
 	return new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day;
 };
 
-const INT4: readonly [number, number] = [-(2 ** 31), 2 ** 31 - 1];
-const INT2: readonly [number, number] = [-(2 ** 15), 2 ** 15 - 1];
+const int4Range: readonly [number, number] = [-(2 ** 31), 2 ** 31 - 1];
+const int2Range: readonly [number, number] = [-(2 ** 15), 2 ** 15 - 1];
 
 // The values an integer column holds, by Drizzle's SQL type; Postgres refuses any other number.
 // A serial is an integer with a sequence default, so it holds the same values.
 const integerRanges: Record<string, readonly [number, number]> = {
-	integer: INT4,
-	serial: INT4,
-	smallint: INT2,
-	smallserial: INT2,
+	integer: int4Range,
+	serial: int4Range,
+	smallint: int2Range,
+	smallserial: int2Range,
 };
 
 // `integer` is for an int4 column: on any other column a cursor that cursorDecode lets through
 // could still fail, so the mismatch throws on every page, the first included.
 const integerKindAssert = (sortColumn: AnyColumn): void => {
 	const type = sortColumn.getSQLType();
-	if (integerRanges[type] !== INT4) {
+	if (integerRanges[type] !== int4Range) {
 		throw new TypeError(
 			`An integer keyset needs an integer or serial column, got ${type}`,
 		);
@@ -80,13 +81,15 @@ const afterValueAssert = ({
 	}
 };
 
-// Keyset ("seek") paging on (sort, id): the rows after `after` in the order of `orderBy`. The sort
-// column must be NOT NULL (a NULL never compares), and a `date` column must hold no more than
-// milliseconds, the precision of the JS Date a cursor is written from. Decode and check the
-// cursor before calling; a value of the wrong type for `kind`, a number an integer or smallint
-// sort column cannot hold, or kind `integer` on another column type, throws a TypeError.
-// A number is bound untyped so Postgres reads it as the column's own type: a `::numeric` cast
-// would turn an integer column's index condition into a filter over the whole index.
+/**
+ * Keyset ("seek") paging on (sort, id): the rows after `after` in the order of `orderBy`. The sort
+ * column must be NOT NULL (a NULL never compares), and a `date` column must hold no more than
+ * milliseconds, the precision of the JS Date a cursor is written from. Decode and check the
+ * cursor before calling; a value of the wrong type for `kind`, a number an integer or smallint
+ * sort column cannot hold, or kind `integer` on another column type, throws a TypeError.
+ * A number is bound untyped so Postgres reads it as the column's own type: a `::numeric` cast
+ * would turn an integer column's index condition into a filter over the whole index.
+ */
 export const postgresKeysetCreate = ({
 	after,
 	descending,

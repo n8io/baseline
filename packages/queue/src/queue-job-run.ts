@@ -1,7 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
 import { type Counter, metrics, trace } from "@opentelemetry/api";
-import { queueRetryLimit } from "./queue-retry.ts";
+import { queueRetryLimit } from "./queue-with-dead-letter.ts";
 
 let deadLetters: Counter | undefined;
 
@@ -16,12 +16,14 @@ const deadLettersCounter = (): Counter => {
 	return deadLetters;
 };
 
-// Runs one job's work inside pg-boss's process span. ok and err both complete the job; err is an
-// expected business outcome, so it only marks the span. A throw fails the job, which pg-boss
-// retries and, after the last attempt, moves to the dead-letter queue. The counter sees only those
-// throws: jobs pg-boss fails itself (expired, or still active after the 15 s stop grace) skip it,
-// and pg-boss's pgboss.queue.jobs gauge shows every `<name>.dead` queue's size. A Consumer's job
-// carries its `key`: its last failure also leaves the job where it is, holding the key back.
+/**
+ * Runs one job's work inside pg-boss's process span. ok and err both complete the job; err is an
+ * expected business outcome, so it only marks the span. A throw fails the job, which pg-boss
+ * retries and, after the last attempt, moves to the dead-letter queue. The counter sees only those
+ * throws: jobs pg-boss fails itself (expired, or still active after the 15 s stop grace) skip it,
+ * and pg-boss's pgboss.queue.jobs gauge shows every `<name>.dead` queue's size. A Consumer's job
+ * carries its `key`: its last failure also leaves the job where it is, holding the key back.
+ */
 export const queueJobRun = async ({
 	job,
 	queueName,

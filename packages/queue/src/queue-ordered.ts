@@ -2,11 +2,10 @@ import { logger } from "@n8io/baseline-logger";
 import { type Counter, type Gauge, metrics } from "@opentelemetry/api";
 import type { PgBoss } from "pg-boss";
 
-// A Consumer's jobs wait in the queue `<queueName>.ordered`, which hands out the jobs of one key
-// strictly one after another, and that queue is subscribed to `<eventName>.ordered`. Releases
-// before 8 used the bare names for an unordered queue. The two never meet, so a process of such a
-// release that is still running in a rollout keeps publishing to its own queue, which this
-// release's workers drain too (queueConsumersStart).
+/**
+ * A Consumer's jobs wait in the queue `<queueName>.ordered`, which hands out the jobs of one key
+ * strictly one after another, and that queue is subscribed to `<eventName>.ordered`.
+ */
 export const queueOrderedName = (name: string): string => `${name}.ordered`;
 
 // The keys whose job failed for good, per Consumer. Such a job stays where it failed and holds back
@@ -80,8 +79,10 @@ const queueOrderedBlockedEventId = async (
 const queueOrderedAffected = (response: unknown): number =>
 	(response as { affected?: number }).affected ?? 0;
 
-// Releases a blocked key by running its failed Event again. The Event keeps its place, so it runs
-// before the Events waiting behind it. false when the Consumer has no blocked Event for that key.
+/**
+ * Releases a blocked key by running its failed Event again. The Event keeps its place, so it runs
+ * before the Events waiting behind it. false when the Consumer has no blocked Event for that key.
+ */
 export const queueOrderedBlockedKeyRetry = async (
 	boss: PgBoss,
 	blocked: { consumer: string; key: string },
@@ -94,10 +95,12 @@ export const queueOrderedBlockedKeyRetry = async (
 	return queueOrderedAffected(response) > 0;
 };
 
-// Releases a blocked key by deleting its failed Event, so the key moves on without it. The copy in
-// `<queueName>.dead` stays. false when the Consumer has no blocked Event for that key. One statement
-// that names the failed state, not a lookup then pg-boss's deleteJob: that deletes by id whatever
-// the state, so a retry between the two would lose an Event already running again.
+/**
+ * Releases a blocked key by deleting its failed Event, so the key moves on without it. The copy in
+ * `<queueName>.dead` stays. false when the Consumer has no blocked Event for that key. One statement
+ * that names the failed state, not a lookup then pg-boss's deleteJob: that deletes by id whatever
+ * the state, so a retry between the two would lose an Event already running again.
+ */
 export const queueOrderedBlockedKeyGiveUp = async (
 	boss: PgBoss,
 	{ consumer, key }: { consumer: string; key: string },
@@ -168,17 +171,19 @@ const queueOrderedInstrumentsGet = (): QueueOrderedInstruments => {
 
 const dayMs = 86_400_000;
 
-// Looks for blocked keys once a minute in a worker: an Event the queue fails by itself (a dead
-// worker or a fetch out of time, five times over) blocks its key with no log line of its own.
-// Every worker that sees a blocked key logs it at error level with an err, so it reaches error
-// tracking, and again each day it stays blocked. From a day before its deleteAt it also warns, and
-// once the queue has deleted its failed Event, it logs at error and counts it. A key released by
-// retry logs nothing more, and by give-up nothing either when before deleteAt; a give-up after it
-// looks the same as the queue's deletion. Times are the database's, so a Worker's clock never skews
-// them, and a check that is still running skips the next. Per Consumer, gauges carry
-// the count, the oldest one's age and the Events waiting behind them until they are back at 0. A
-// check that fails is skipped: the poll loops already report a database that is down. `remindMs`
-// (a day) is both the repeat and the warning's lead; tests shorten it. Returns what stops the checks.
+/**
+ * Looks for blocked keys once a minute in a worker: an Event the queue fails by itself (a dead
+ * worker or a fetch out of time, five times over) blocks its key with no log line of its own.
+ * Every worker that sees a blocked key logs it at error level with an err, so it reaches error
+ * tracking, and again each day it stays blocked. From a day before its deleteAt it also warns, and
+ * once the queue has deleted its failed Event, it logs at error and counts it. A key released by
+ * retry logs nothing more, and by give-up nothing either when before deleteAt; a give-up after it
+ * looks the same as the queue's deletion. Times are the database's, so a Worker's clock never skews
+ * them, and a check that is still running skips the next. Per Consumer, gauges carry
+ * the count, the oldest one's age and the Events waiting behind them until they are back at 0. A
+ * check that fails is skipped: the poll loops already report a database that is down. `remindMs`
+ * (a day) is both the repeat and the warning's lead; tests shorten it. Returns what stops the checks.
+ */
 export const queueOrderedBlockedKeysWatch = (
 	boss: PgBoss,
 	timing?: { checkMs?: number | null; remindMs?: number | null } | null,
