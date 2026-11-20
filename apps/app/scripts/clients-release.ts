@@ -1,9 +1,10 @@
-// node scripts/clients-release.ts [--dry-run]: publishes clients/sdk and clients/cli to npm as
-// <scope>/<project>-sdk and <scope>/<project>-cli, both at one version, the SDK first. The scope is
-// the CLIENTS_NPM_SCOPE variable; .github/workflows/clients-release.yml runs this on every push to
+// node scripts/clients-release.ts [--dry-run]: publishes clients/sdk and clients/cli to GitHub
+// Packages, the npm registry of the Project's own repository, never to public npm (the SDK carries
+// every environment's URL), as <scope>/<project>-sdk and <scope>/<project>-cli, both at one
+// version, the SDK first. The scope is the CLIENTS_NPM_SCOPE variable, the repository's owner; .github/workflows/clients-release.yml runs this on every push to
 // main (docs/agents/clients.md). The major is the API's (openapi.json `info.version`). Against the
-// newest version published in that major, a change to the generated SDK (openapi.json, sdk.ts)
-// publishes the next minor, any other change (hand-written code, a dependency) the next patch, and
+// newest version published in that major, a change to what the SDK can call (openapi.json, sdk.ts,
+// the environments) publishes the next minor, any other change (hand-written code, a dependency) the next patch, and
 // no change publishes nothing. With none published yet the version is <major>.0.0. --dry-run is
 // passed on to npm publish.
 import { spawnSync } from "node:child_process";
@@ -33,7 +34,12 @@ type Manifest = {
 
 // The order they publish in: the CLI depends on the SDK.
 const clients = ["sdk", "cli"] as const;
-const generated = new Set(["sdk/openapi.json", "sdk/sdk.ts"]);
+const callable = new Set([
+	"sdk/environments.json",
+	"sdk/openapi.json",
+	"sdk/sdk.ts",
+]);
+const registry = "https://npm.pkg.github.com";
 
 const manifestRead = (folder: string): Manifest =>
 	JSON.parse(readFileSync(join(folder, "package.json"), "utf8")) as Manifest;
@@ -42,6 +48,7 @@ const unscoped = (name: string): string => name.replace(/^@[^/]+\//, "");
 
 // The source files of each package in `directory` (clients/ or an unpacked release), and the
 // dependencies each installs. The CLI's dependency on the SDK is left out: it is the version itself.
+// clients/environments.json counts as the SDK's: it is published inside it.
 // Every file counts, so a file npm leaves out of a tarball (.npmrc, package-lock.json) must not
 // sit in clients/: it would differ on every run and publish a patch each time.
 export const clientsFilesRead = (directory: string): Files => {
@@ -63,6 +70,9 @@ export const clientsFilesRead = (directory: string): Files => {
 			manifestRead(folder).dependencies ?? {};
 		files[`${client}/package.json`] = JSON.stringify(dependencies);
 	}
+	const environments = join(directory, "environments.json");
+	if (existsSync(environments))
+		files["sdk/environments.json"] = readFileSync(environments, "utf8");
 	return files;
 };
 
@@ -84,13 +94,22 @@ export const clientsVersionNext = ({
 	const changed = [...paths].filter((p) => current[p] !== published.files[p]);
 	if (changed.length === 0) return undefined;
 	const [, minor = 0, patch = 0] = published.version.split(".").map(Number);
-	return changed.some((path) => generated.has(path))
+	return changed.some((path) => callable.has(path))
 		? `${major}.${minor + 1}.0`
 		: `${major}.${minor}.${patch + 1}`;
 };
 
+export const jsonImportsTyped = (declarations: string): string =>
+	declarations.replaceAll(
+		/^(import .* from "[^"]+\.json");$/gm,
+		'$1 with { type: "json" };',
+	);
+
 const npm = (args: string[], cwd?: string) =>
-	spawnSync("npm", args, { cwd, encoding: "utf8" });
+	spawnSync("npm", [...args, "--registry", registry], {
+		cwd,
+		encoding: "utf8",
+	});
 
 const npmMissingIs = ({ stderr, stdout }: { stderr: string; stdout: string }) =>
 	/E404|ETARGET/.test(`${stdout}${stderr}`);
@@ -161,7 +180,7 @@ const recordMap = <T>(
 		Object.entries(record).map(([key, value]) => [key, map(value, key)]),
 	);
 
-// The manifest npm gets: scoped, versioned and public, pointing at the built JavaScript, with the
+// The manifest npm gets: scoped and versioned, pointing at the built JavaScript, with the
 // SDK dependency as an npm alias of the SDK published beside it.
 export const clientsManifestPublish = ({
 	client,
@@ -197,7 +216,7 @@ export const clientsManifestPublish = ({
 		dependencies: recordMap(manifest.dependencies ?? {}, (range, name) =>
 			name === sdk ? `npm:${scope}/${sdk}@${version}` : range,
 		),
-		// Provenance needs it to name the repository the workflow ran in.
+		// GitHub Packages links the package to the repository it names, which grants its access.
 		...(repository && {
 			repository: {
 				directory: `clients/${client}`,
@@ -262,6 +281,12 @@ export const clientsRelease = ({
 			filter: (path) => !["dist", "node_modules"].includes(basename(path)),
 			recursive: true,
 		});
+		// sdk-fetch.ts imports ../environments.json, which is the package root from dist/.
+		if (client === "sdk")
+			cpSync(
+				join(source, "environments.json"),
+				join(stage, "environments.json"),
+			);
 		const manifest = clientsManifestPublish({
 			client,
 			manifest: manifestRead(stage),
@@ -292,19 +317,18 @@ export const clientsRelease = ({
 			],
 			directory,
 		);
+		// tsc drops a JSON import's `with { type: "json" }` from declarations, which nodenext needs.
+		for (const file of readdirSync(join(stage, "dist"))) {
+			const path = join(stage, "dist", file);
+			if (file.endsWith(".d.ts"))
+				writeFileSync(path, jsonImportsTyped(readFileSync(path, "utf8")));
+		}
 		console.log(`Publishing ${name}@${version}`);
-		const publish = npm(
-			["publish", "--access", "public", ...(dryRun ? ["--dry-run"] : [])],
-			stage,
-		);
+		const publish = npm(["publish", ...(dryRun ? ["--dry-run"] : [])], stage);
 		process.stdout.write(publish.stdout);
 		process.stderr.write(publish.stderr);
 		if (publish.status !== 0) {
-			throw new Error(
-				latest === undefined
-					? `npm publish ${name} failed. A package's first publish is by hand: docs/agents/clients.md.`
-					: `npm publish ${name} failed.`,
-			);
+			throw new Error(`npm publish ${name} failed.`);
 		}
 	}
 	if (!dryRun) registryWait(names.map((n) => `${scope}/${n}@${version}`));

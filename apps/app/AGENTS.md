@@ -163,6 +163,6 @@ Read the one that matches before you start.
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
 - A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Removing, restoring or keeping (`piecesKept`) a piece (UI, cache, queue and the rest): [docs/agents/pieces.md](docs/agents/pieces.md)
-- Publishing the SDK and CLI to npm (versions, first publish): [docs/agents/clients.md](docs/agents/clients.md)
+- Publishing the SDK and CLI to GitHub Packages, installing them: [docs/agents/clients.md](docs/agents/clients.md)
 - Planning a build of several contexts (approval up front, parallel PRs): [docs/agents/planning.md](docs/agents/planning.md)
 - A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)

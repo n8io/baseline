@@ -1,5 +1,6 @@
 // pnpm sdk-generate: writes clients/sdk/openapi.json from the app's own OpenAPI document (the build
-// booted on memory adapters, as api-check does) and generates clients/sdk/sdk.ts from it: one typed
+// booted on memory adapters, as api-check does), with clients/environments.json as its `servers`
+// (one per environment, `description` its name), and generates clients/sdk/sdk.ts from it: one typed
 // function per operation, named by its operationId. Run it after any change to a route; CI fails
 // when the committed files differ from what it writes. This is the only file that imports the generator.
 import { spawnSync } from "node:child_process";
@@ -10,10 +11,20 @@ import { documentSave } from "./api-check.ts";
 const sdk = "clients/sdk";
 
 export const sdkGenerate = async (): Promise<void> => {
+	const environments = JSON.parse(
+		readFileSync("clients/environments.json", "utf8"),
+	) as Record<string, string>;
 	await documentSave({
 		directory: ".",
 		file: `${sdk}/openapi.json`,
 		port: 3102,
+		prepare: (document) => ({
+			...(document as object),
+			servers: Object.entries(environments).map(([description, url]) => ({
+				description,
+				url,
+			})),
+		}),
 	});
 	await generate({
 		input: { target: `${sdk}/openapi.json` },

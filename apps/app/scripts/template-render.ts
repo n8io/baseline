@@ -588,6 +588,14 @@ const hostPortsRender = (file: TemplateFile, name: string): string => {
 	);
 };
 
+// The development Environment is the Project's own `pnpm dev` (PORT), in clients/environments.json
+// and in the SDK's copy of the document, which the sdk-generate script writes from it.
+const developmentUrlRender = (text: string, name: string): string =>
+	text.replaceAll(
+		"http://localhost:3000",
+		`http://localhost:${hostPortsCreate(name).PORT}`,
+	);
+
 // The SDK's files (the sdk piece). Its generated files are rendered as pnpm sdk-generate writes
 // them for a Project with no bounded context: the document without foo's operations and schemas,
 // and an sdk.ts that is only its header comment.
@@ -627,7 +635,10 @@ const sdkFileRender = (
 		);
 	}
 	// Compact, as pnpm sdk-generate saves it; templateFinish formats both alike.
-	return { path, text: JSON.stringify(document) };
+	return {
+		path,
+		text: developmentUrlRender(JSON.stringify(document), answers.name),
+	};
 };
 
 // The CLI's files (the cli piece): its package, its command and the SDK it runs on take the
@@ -659,6 +670,8 @@ export const templateFileRender = (
 	if (templateUntouchedPaths.some((p) => p.test(path))) return file;
 	if (path === "CONTEXT.md")
 		return { path, text: contextRender(text, answers) };
+	if (path === "clients/environments.json")
+		return { path, text: developmentUrlRender(text, answers.name) };
 	// A Project's biome.json is its root config, not one nested in the monorepo.
 	if (path === "biome.json") {
 		return { path, text: text.replace(/\n\t"root": false,/, "") };

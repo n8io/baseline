@@ -1,8 +1,9 @@
 name: clients-release
 
-# Publishes the SDK (clients/sdk) and the command line tool (clients/cli) to npm after each push to
-# main that changed them: scripts/clients-release.ts picks the version, docs/agents/clients.md says
-# how. Off, and green, until the repository variable CLIENTS_NPM_SCOPE names the npm scope.
+# Publishes the SDK (clients/sdk) and the command line tool (clients/cli) to GitHub Packages, this
+# repository's own npm registry, never public npm, after each push to main that changed them:
+# scripts/clients-release.ts picks the version, docs/agents/clients.md says how. Off, and green,
+# until the repository variable CLIENTS_NPM_SCOPE names the scope: this repository's owner.
 # workflow_dispatch: a run by hand, to check it after turning it on.
 on:
   push:
@@ -27,14 +28,14 @@ jobs:
       - run: echo "::notice::CLIENTS_NPM_SCOPE is not set, so nothing is published. docs/agents/clients.md says how to turn publishing on."
 
   publish:
-    # Only main publishes: the trusted publisher names the workflow, not the branch it ran on.
+    # Only main publishes.
     if: vars.CLIENTS_NPM_SCOPE != '' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # id-token: npm trusted publishing (OIDC), so no npm token is stored.
+    # packages: GitHub Packages takes the workflow's own GITHUB_TOKEN, so no token is stored.
     permissions:
       contents: read
-      id-token: write
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,8 +46,9 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
+      # npm reads the token from the environment when it calls npm.pkg.github.com, and only then.
+      - run: echo '//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}' >> ~/.npmrc
       - run: node scripts/clients-release.ts
         env:
           CLIENTS_NPM_SCOPE: ${{ vars.CLIENTS_NPM_SCOPE }}
-          # npm accepts provenance only from a public repository.
-          NPM_CONFIG_PROVENANCE: ${{ !github.event.repository.private }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

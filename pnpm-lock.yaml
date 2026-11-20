@@ -359,7 +359,11 @@ importers:
         specifier: workspace:*
         version: link:../sdk
 
-  apps/app/clients/sdk: {}
+  apps/app/clients/sdk:
+    dependencies:
+      '@n8io/baseline-sdk':
+        specifier: workspace:^
+        version: link:../../../../packages/sdk
 
   packages/analytics:
     dependencies:

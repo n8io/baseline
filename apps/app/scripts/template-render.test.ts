@@ -519,6 +519,18 @@ describe("hostPortsCreate and the files it renders into", () => {
 		).toBe(
 			`SHUTDOWN_DRAIN_DELAY_MS=0\nPORT=${ports.PORT}\nHEALTH_PORT=${ports.HEALTH_PORT}\n`,
 		);
+		expect(
+			render(
+				"clients/environments.json",
+				'{ "development": "http://localhost:3000" }\n',
+			),
+		).toBe(`{ "development": "http://localhost:${ports.PORT}" }\n`);
+		expect(
+			render(
+				"clients/sdk/openapi.json",
+				'{"info":{"title":"app"},"paths":{},"servers":[{"description":"development","url":"http://localhost:3000"}]}',
+			),
+		).toContain(`"url":"http://localhost:${ports.PORT}"`);
 		expect(render("compose.yaml", compose)).toBe(
 			"name: invoicing\nservices:\n",
 		);
