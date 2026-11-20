@@ -44,7 +44,9 @@ const timerMax = 2_147_483_647;
 const optionsCheck = (prefix: string, options: SdkOptions): void => {
 	const { retry, timeoutMs, totalTimeoutMs } = options;
 	if (retry != null && !(Number.isSafeInteger(retry) && retry >= 0)) {
-		throw new TypeError(`${prefix}retry must be a whole number, 0 or more`);
+		throw new TypeError(
+			`${prefix}retry must be a whole number, 0 or more, found ${retry}`,
+		);
 	}
 	for (const [option, value] of Object.entries({ timeoutMs, totalTimeoutMs })) {
 		if (
@@ -52,7 +54,7 @@ const optionsCheck = (prefix: string, options: SdkOptions): void => {
 			!(Number.isSafeInteger(value) && value > 0 && value <= timerMax)
 		) {
 			throw new TypeError(
-				`${prefix}${option} must be a positive integer, ${timerMax} at most`,
+				`${prefix}${option} must be a positive integer, ${timerMax} at most, found ${value}`,
 			);
 		}
 	}

@@ -138,7 +138,11 @@ describe("cacheCreate options", () => {
 					schema: z.string(),
 					ttlMs,
 				}),
-			).toThrow(new TypeError("cacheCreate: ttlMs must be a positive integer"));
+			).toThrow(
+				new TypeError(
+					`cacheCreate: ttlMs must be a positive integer, found ${ttlMs}`,
+				),
+			);
 		},
 	);
 

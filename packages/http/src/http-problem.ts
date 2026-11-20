@@ -36,9 +36,12 @@ const httpTraceIdActive = (): string | undefined => {
 		: undefined;
 };
 
-// The problem body for `status` with `code`, carrying the active trace id when there is one, for an
-// answer that is not a business error (validation, CSRF, not found). It takes `(status, code)`;
-// `httpErrorBodyCreate` takes `(error, status)`. Private: only this Package's handlers use it.
+/**
+ * The problem body for `status` with `code`, carrying the active trace id when there is one, for an
+ * answer that is not a business error (validation, CSRF, not found). For this Package's own modules
+ * only: the Package entry does not export it.
+ */
+// It takes `(status, code)`; `httpErrorBodyCreate` takes `(error, status)`.
 export const httpProblemCreate = (
 	status: number,
 	code: string,

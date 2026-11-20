@@ -121,7 +121,9 @@ const cacheByIdCreate = <T>(
 		throw new TypeError("cacheCreate: prefix must not be empty");
 	}
 	if (!Number.isInteger(ttlMs) || ttlMs <= 0) {
-		throw new TypeError("cacheCreate: ttlMs must be a positive integer");
+		throw new TypeError(
+			`cacheCreate: ttlMs must be a positive integer, found ${ttlMs}`,
+		);
 	}
 	if (onStoreError !== "miss" && onStoreError !== "throw") {
 		throw new TypeError(
