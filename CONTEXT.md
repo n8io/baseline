@@ -1,4 +1,4 @@
-# Building baseline: the shared packages, the app template, and the projects made from it.
+# Building baseline: the Packages, the Template, and the Projects made from it.
 
 ## Language
 
@@ -11,7 +11,7 @@ _Avoid_: lib, shared module, shared code
 _Avoid_: boilerplate, scaffold, skeleton
 
 **Project**:
-A repo made from the Template by `app-create`. It owns its code from then on, depends on Packages, runs `app-ci.yml`, and takes newer Template releases by Template upgrade.
+A repo made from the Template by `app-create`, which renders it: a copy of `apps/app` without the example context, under the Project's name. It owns its code from then on, depends on Packages, runs `app-ci.yml`, and takes newer Template releases by Template upgrade.
 _Avoid_: generated repo, child repo, downstream repo
 
 **Release**:

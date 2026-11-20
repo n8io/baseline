@@ -1,6 +1,6 @@
 # Package rules
 
-Read before working in `packages/`: on a factory, an option, a schema, a handle to close, a test or a span.
+Read before working in `packages/`: on a factory, an option, a schema, a dependency, a handle to close, a test, a span, or a new Package.
 
 ## Vendors
 
@@ -9,29 +9,66 @@ A Package's exports name no vendor type, error or option shape; a caller must no
 - Where the vendor has a client object, the factory takes the client, typed structurally (`cacheStoreRedisCreate({ redisClient })`).
 - Where the Package must build the client, the factory takes a `vendor` option typed as the vendor's own settings, spreads it under the Package's own options, and throws on every key that those own or that would do nothing. Export the type named after the factory's subject (`PostgresPoolVendorOptions`). A function that opens its own connection to the same vendor (`postgresMigrate`) takes `vendor` too.
 
-Never return the vendor's client from a neutral handle. The Project's side of this is [apps/app/docs/agents/vendor-settings.md](../../apps/app/docs/agents/vendor-settings.md).
+Never return the vendor's client from a neutral handle. Why it is these two ways and never a client getter: [ADR 0005](../adr/0005-vendor-escape-hatch.md). The Project's side of this is [apps/app/docs/agents/vendor-settings.md](../../apps/app/docs/agents/vendor-settings.md).
+
+## Options and handles
+
+One rule for each thing that drifted between Packages. Function inputs follow the root [AGENTS.md](../../AGENTS.md#function-inputs).
+
+- **Options type.** A factory that takes an options object exports its type as `<Subject>Options` (`PostgresPoolOptions`, `SdkFetchOptions`, `ShutdownOptions`), and its `vendor` key's type as `<Subject>VendorOptions`.
+- **Optional fields** are `?: T | null`, and `null` means the default, as leaving it out does. The one exception says so in its JSDoc: `PostgresPoolOptions.queryTimeoutMs: null` turns the limit off.
+- **Durations** are milliseconds, and the name ends in `Ms` (`timeoutMs`, `deadlineMs`, `renewMs`).
+- **URLs.** The Project's own origin is `baseUrl`. A connection string is `url` for a client of one service (`redisClientCreate({ url })`), and `databaseUrl` where Packages share one store read from `DATABASE_URL` (postgres, queue).
+- **Bad options** throw `TypeError` when the factory is called, with a message that starts with the function and the option: `postgresPoolCreate: queryTimeoutMs must be a positive integer or null`. An error that can only happen later, at runtime, is documented on the export that throws it.
+- **Closing.** A handle the Package defines closes with `close()`, and its `[Symbol.asyncDispose]` calls `close()`. A vendor's own type keeps its own name (`PostgresPool.end()`, `RedisClient.close()`). In a Package test, open a handle inside the test body with `await using`; the rule and its traps are in [apps/app/docs/agents/using.md](../../apps/app/docs/agents/using.md).
+- **Predicates.** An exported function ends in `Is`, `Has` or `Can` (`postgresUniqueViolationIs`). A method or an option callback keeps the JavaScript form (`isAlive()`, `isShuttingDown`).
+- **Doc comments.** Every exported function and type has a `/** */` JSDoc: it ships in the `.d.ts`, so an editor shows it to the caller. A `//` comment does not ship.
+- **Files.** A file is named after its main export in kebab case, without `Create` (`sdk-fetch.ts` holds `sdkFetchCreate`, `live-hub-memory.ts` holds `liveHubMemoryCreate`), and its test after the file (`sdk-fetch.test.ts`). `src/index.ts` only re-exports.
+- **Copied helpers.** A helper of about 20 lines that two Packages need is copied, not shared, so no Package depends on another for it. Above each copy: `// Copied from <path>; keep the two in step.`
 
 ## Schemas
 
-A Package may use Zod inside, as a regular dependency. A caller never needs it: no export names a Zod type, and `zod` is never a peer dependency. Where a caller passes a schema, take any Standard Schema (`StandardSchemaV1` from `@standard-schema/spec`, as `cacheCreate` and `queueConsumerCreate` do), and show a Zod example in the README. `@n8io/baseline-http` is the one exception: it is built on `@hono/zod-openapi`.
+A Package may use Zod inside, as a regular dependency. A caller never needs it: no export names a Zod type, and `zod` is never a peer dependency. Where a caller passes a schema, take any Standard Schema (`StandardSchemaV1` from `@standard-schema/spec`, as `cacheCreate` and `queueConsumerCreate` do), and show a Zod example in the README. `@n8io/baseline-http` is the one exception: it is built on `@hono/zod-openapi` ([ADR 0006](../adr/0006-zod-inside-packages.md)).
 
 ## Dependencies
 
 Every runtime dependency of a Package (`dependencies`, `peerDependencies`, `optionalDependencies`) needs an entry in the root `dependencies-allowed.json`: its name and a one-line reason naming the Packages that use it. `test/dependencies-allowed.test.ts` fails on one without, and on an entry no Package uses. Add one only for an established, industry-standard library that no listed one already covers, and ask first. `@n8io/baseline-*` packages need no entry. The Template's own list is `apps/app/dependencies-allowed.json` ([apps/app/docs/agents/dependency-updates.md](../../apps/app/docs/agents/dependency-updates.md)).
 
+- **Ranges** are caret (`^1.2.3`). Pin an exact version only with its reason written in that dependency's `dependencies-allowed.json` line, such as OpenTelemetry's packages, which must match each other.
+- **Peers** are only what the code imports, types included. An optional peer nothing imports goes, with its Needs line.
+- **Not in package.json on purpose:** telemetry's callers install `import-in-the-middle` beside it, because Node's loader hook and the instrumentations must share one copy. Its README says so in the install line and Needs; do not make it a peer.
+
 ## Test exports
 
-A Package exports two things for tests, and no mocks, spies or fixtures:
+A Package exports two things for tests, and no mocks, spies or fixtures.
 
-- A memory adapter, `<package><Port>MemoryCreate` (`cacheStoreMemoryCreate`), in the main entry. It takes one options object or none. It is a real adapter, the one a `memory://` URL picks in development, so a `<port>.contract.ts` runs the same cases against it and the real adapter (`packages/cache/src/cache.contract.ts`).
-- A test helper, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. It is exempt from the three-input limit of the function-inputs rule in the root `AGENTS.md` (Biome's `useMaxParams` is off for `*-test-*.ts` and `*.test.ts`), so a helper may take three positional inputs. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
+A **memory stand-in**, in the main entry, in one of four shapes. Copy the one closest to the new Package; a fifth shape needs a decision first.
 
-Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24).
+| Shape           | Who                                   | What                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Memory adapter  | cache, live, queue's Events publisher | `<package><Port>MemoryCreate` (`cacheStoreMemoryCreate`): a real adapter of the same port, taking one options object or none, for unit tests and a `memory://` URL in development. A `<package>-<port>.contract.ts` runs the same cases against it and the real adapter: `cache-store.contract.ts`, `live-hub.contract.ts`, `queue-events-publisher.contract.ts`. |
+| Logger fallback | analytics                             | `analyticsLoggerCreate()` logs what the vendor adapter would send. The Project opens it when the vendor's token is unset.                                                                                                                                                                                                                                         |
+| Memory mode     | authn                                 | The factory itself runs in memory (`issuerUrl: "memory://"`), so no second export exists.                                                                                                                                                                                                                                                                         |
+| None            | error-tracking                        | The Project skips opening it when `SENTRY_DSN` is unset.                                                                                                                                                                                                                                                                                                          |
+
+A **test helper**, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. Like every test file it is exempt from the function-inputs rule (Biome's `useMaxParams` is off for `*-test-*.ts` and `*.test.ts`), so it may take more than two positional inputs. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
+
+Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24). Tests use `it`, not `test`. A Package's own tests may use Vitest's spies, stubs and fake timers to reach a timer or a global; a README's testing note never asks a Project to, because a Project's tests may not (`test/no-mocks.test.ts`). It shows the memory stand-in instead.
 
 ## Spans
 
-Only `@n8io/baseline-telemetry` starts spans. Other packages set attributes on the active span. The app's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
+Only `@n8io/baseline-telemetry` starts spans. Other Packages set attributes on the active span through `@opentelemetry/api` (a peer), not through `@n8io/baseline-telemetry/span`, so no Package depends on telemetry; `/span` is for a Project's Use cases. The Project's tracing and span rules are in [apps/app/docs/agents/tracing.md](../../apps/app/docs/agents/tracing.md).
 
-## Handles to close
+## New Package
 
-A handle that must be closed (a hub, a pool, a queue, a server) also has `[Symbol.asyncDispose]`, calling its named close. In a Package test, open one inside a test body with `await using`. The rule and its traps are in [apps/app/docs/agents/using.md](../../apps/app/docs/agents/using.md).
+Copy the closest Package's folder and change, in one pull request:
+
+1. `package.json`: `name` `@n8io/baseline-<name>`, `version` `0.0.0`, and a `description` taken from the README's bold promise in glossary terms (Project, not app; no vendor first), ending in a full stop. Keep the other fields as every Package has them: `type`, `license`, `repository.directory`, `engines`, `files`, `exports` to `src/` with `publishConfig.exports` to `dist/`, and the `build`, `check`, `prepack`, `test` and `test:unit` scripts. A `/testing` subpath goes in both `exports` maps. No `keywords`, `homepage` or `bugs`.
+2. `tsdown.config.ts`: one entry per subpath; `platform: "neutral"` for code that also runs in browsers (sdk, the `client` entries), else `"node"`.
+3. `vitest.config.ts`, and a `turbo.json` when its tests use a shared service setup under `test/` (cache's is the model).
+4. `LICENSE`: a copy of the root one.
+5. `README.md` by [readmes.md](readmes.md), and a row in the root README's Packages table.
+6. A `dependencies-allowed.json` line for each new runtime dependency.
+7. A changeset making it `major`, so the Release publishes `1.0.0`.
+
+npm adds a trusted publisher only to a package that exists, so before that Release a maintainer publishes `0.0.0` once by hand with a short-lived token, then adds the trusted publisher (GitHub Actions, `n8io/baseline`, `release.yml`) on npmjs. Ask them; the Release fails until both are done.
