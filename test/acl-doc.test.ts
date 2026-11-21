@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { aggregateFilesCreate } from "../apps/app/scripts/aggregate-create.ts";
 import { contextFilesCreate } from "../apps/app/scripts/context-create.ts";
+import { modelFilesCreate } from "../apps/app/scripts/model-create.ts";
 import {
 	filesRead,
 	filesWrite,
@@ -21,7 +21,7 @@ import {
 // starts with `// <path>` and must appear in that file: in the second-context fixture's files when
 // the fixture adds the file, in one hunk of its wiring.patch when it changes a generated one, or
 // else in what `context-create invoice-line --reads customer` and then
-// `aggregate-create invoice-line invoice-line --bare` write. Whitespace and
+// `model-create invoice-line invoice-line --bare` write. Whitespace and
 // trailing commas are ignored: Biome reformats both the quoted block and the generated code.
 const doc = new URL("../apps/app/docs/agents/acl.md", import.meta.url);
 const fixture = new URL("render/second-context/", import.meta.url);
@@ -65,16 +65,16 @@ const generated = (() => {
 		templateFull,
 	});
 	filesWrite(project, shell);
-	const aggregate = aggregateFilesCreate({
-		aggregate: { kebab: "invoice-line", plural: "invoice-lines" },
+	const model = modelFilesCreate({
+		model: { kebab: "invoice-line", plural: "invoice-lines" },
 		appDirectory: project,
 		context: "invoice-line",
-		parts: [],
+		options: [],
 		templateFull,
 	});
 	return [
-		...shell.filter((f) => !aggregate.some((a) => a.path === f.path)),
-		...aggregate,
+		...shell.filter((f) => !model.some((a) => a.path === f.path)),
+		...model,
 	];
 })();
 

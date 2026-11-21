@@ -11,7 +11,7 @@ const actor: Actor = { id: "dev-seed", kind: "client", scopes: [] };
 const connections = await connectionsOpen({ role: "publisher" });
 
 // The seed on the context's Use cases, as its `seeds` entry runs it for the seed command. A
-// context's `seeds` holds one per Aggregate, so the test calls this Aggregate's own.
+// context's `seeds` holds one per Model, so the test calls this Model's own.
 const setup = () => {
 	const clock = clockMemoryCreate();
 	const { useCases } = contextsCreate({ ...connections, clock }).fooContext;
@@ -69,7 +69,7 @@ describe("fooSeed", () => {
 		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 	});
 
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	it("returns an archived foo it finds instead of failing", async () => {
 		const { clock, seed, useCases } = setup();
 		clock.set(new Date("2020-01-01T00:00:00Z"));
@@ -82,7 +82,7 @@ describe("fooSeed", () => {
 		expect(seeded[0]?.archivedAt).toEqual(new Date("2026-06-01T00:00:00Z"));
 		expect(await namesOf(useCases)).toEqual(["Alpha", "Beta", "Gamma"]);
 	});
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 
 	it("keeps other foos and the three it ensured when the database has more", async () => {
 		const { seed, useCases } = setup();

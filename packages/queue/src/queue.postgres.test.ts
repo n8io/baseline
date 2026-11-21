@@ -339,7 +339,7 @@ describe("queueCreate", () => {
 		expect(job?.state).toBe("completed");
 		expect(boss.getWipData({ includeInternal: true })).toEqual([]);
 		expect(boss.isTimekeeping()).toBe(false);
-		// The pool stays open for the composition root to close.
+		// The pool stays open for the entry point to close.
 		await expect(pgPool.query("SELECT 1")).resolves.toBeDefined();
 	});
 

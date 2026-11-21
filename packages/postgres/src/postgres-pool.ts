@@ -50,10 +50,10 @@ const postgresDurationMax = 2_147_483_647;
  * Whether a duration in milliseconds is a positive integer a timer or a Postgres setting can hold.
  * For the other modules of this Package only.
  */
-export const postgresDurationIs = (value: number): boolean =>
+export const postgresDurationIsValid = (value: number): boolean =>
 	Number.isSafeInteger(value) && value > 0 && value <= postgresDurationMax;
 
-/** The limit `postgresDurationIs` applies, for the messages that name it. */
+/** The limit `postgresDurationIsValid` applies, for the messages that name it. */
 export const postgresDurationMessage: string = `a positive integer, ${postgresDurationMax} at most`;
 
 const postgresPositiveIntegerIs = (value: number): boolean =>
@@ -79,7 +79,7 @@ export const postgresPoolCreate = (
 		owned: { max: "max", query_timeout: "queryTimeoutMs" },
 		vendor,
 	});
-	if (!postgresDurationIs(connectTimeoutMs)) {
+	if (!postgresDurationIsValid(connectTimeoutMs)) {
 		throw new TypeError(
 			`postgresPoolCreate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
 		);
@@ -89,7 +89,7 @@ export const postgresPoolCreate = (
 			`postgresPoolCreate: max must be a positive integer, found ${max}`,
 		);
 	}
-	if (queryTimeoutMs !== null && !postgresDurationIs(queryTimeoutMs)) {
+	if (queryTimeoutMs !== null && !postgresDurationIsValid(queryTimeoutMs)) {
 		throw new TypeError(
 			`postgresPoolCreate: queryTimeoutMs must be ${postgresDurationMessage} or null, found ${queryTimeoutMs}`,
 		);

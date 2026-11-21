@@ -15,3 +15,5 @@ Baseline named its parts in its own words: a Domain was one business entity, a M
 - Done: the code moved to the new words ticket by ticket and was released in `app@12.0.0`. While it moved, an `_Allowed until_` line in `apps/app/CONTEXT.md` kept the old words out of `glossary-check`; the line is gone, and `glossary-check` still reads one, for the next rename.
 - Use case, Port, Repository, Aggregate, Inbox, Clock, Actor, Composition root and Event key keep their names: they are already the standard words, except Event key, which has no DDD term and whose alternatives each come from one broker.
 - The style stays functional, in Wlaschin's sense: Zod data and pure functions, no classes.
+
+Superseded in part by [0012](0012-plain-terms.md).

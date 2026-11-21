@@ -1,4 +1,4 @@
-// Error reports for a composition root: with a DSN, every error the logger logs at error or fatal
+// Error reports for an entry point: with a DSN, every error the logger logs at error or fatal
 // goes to Sentry; without one, errors are only logged. `pnpm piece-remove error-tracking` deletes
 // this file.
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";

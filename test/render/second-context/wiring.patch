@@ -132,7 +132,7 @@ index 77570a9..42f304c 100644
 +		now,
 +	}: { actor: Actor; customerId: Id<"customer">; now: Date },
 +): Result<InvoiceLine, InvoiceLineForbiddenError> =>
-+	invoiceLineUpdateCan(invoiceLine, actor)
++	invoiceLineCanUpdate(invoiceLine, actor)
 +		? ok({ ...invoiceLine, customerId, updatedAt: now })
 +		: err(new InvoiceLineForbiddenError(invoiceLine.id));
 +

@@ -1,0 +1,4 @@
+// A23: a predicate names its model first, then Is, Has or Can (barCanDelete, not barDeletable)
+// expect: src/contexts/bar/domain/bar-can-delete.ts: barDeletable returns a boolean; a predicate names its model first, then Is, Has or Can
+// @file src/contexts/bar/domain/bar-can-delete.ts
+export const barDeletable = (bar: { locked: boolean }): boolean => !bar.locked;

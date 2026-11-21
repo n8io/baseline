@@ -7,16 +7,16 @@ Read when a task depends on who may do what: a new role, a scope, a Use case onl
 - Production: the identity provider puts them in the access token. `actorFromClaims` in `src/authn.ts` reads them (the default reads the space-separated `scope` claim; the comment above it lists the claims of other providers) and returns the `Actor`: `{ id, kind: "user" | "client", scopes }`. Switching providers edits that file.
 - Development and test: the memory issuer, `AUTHN_ISSUER_URL=memory://`. `src/authn.ts` lists its users (`authnMemoryUsersCreate`) and machine clients (`authnMemoryClientsCreate`). Only development and test may use it; in production `memory://` refuses to boot.
 
-## Scopes and specifications
+## Scopes and predicates
 
-- A context's `index.ts` exports each Aggregate's scopes, `<aggregate>Scopes` (`invoiceScopes = ["invoice:refund"] as const`). `src/server.ts` spreads each into the one `scopes` list; `pnpm aggregate-create` adds the new Aggregate's there.
+- A context's `index.ts` exports each Model's scopes, `<model>Scopes` (`invoiceScopes = ["invoice:refund"] as const`). `src/server.ts` spreads each into the one `scopes` list; `pnpm model-create` adds the new Model's there.
 - A scope means a permission, not a role. A role is a set of scopes the provider grants a group.
-- A specification in `domain/<aggregate>.ts` reads the Actor and answers yes or no: `actor.scopes.includes("invoice:refund") || invoice.createdBy === actor.id`. The transition that needs it calls it and returns the forbidden error (`invoiceRefund(invoice, { actor, now })`), so no Use case can skip it; a delete, which has no transition, checks it in the Use case; the route and the page never check a scope themselves.
-- Only a machine may call it: `actor.kind === "client"`, in a specification such as `invoiceImportCan`. A user holding every scope still fails it.
+- A predicate in `domain/<model>.ts` reads the Actor and answers yes or no: `actor.scopes.includes("invoice:refund") || invoice.createdBy === actor.id`. The model function that needs it calls it and returns the forbidden error (`invoiceRefund(invoice, { actor, now })`), so no Use case can skip it; a delete, which has no model function, checks it in the Use case; the route and the page never check a scope themselves.
+- Only a machine may call it: `actor.kind === "client"`, in a predicate such as `invoiceCanImport`. A user holding every scope still fails it.
 
 ## Actors that are not a person
 
-An Event handler, an anti-corruption layer and a Schedule call Use cases with an Actor they build themselves, `{ id: "invoice-schedule", kind: "client", scopes: [] }`. The Use case checks it like any other, so give it only the scopes that Use case's specifications need. Never hand it a list of every scope.
+An Event handler, an anti-corruption layer and a Schedule call Use cases with an Actor they build themselves, `{ id: "invoice-schedule", kind: "client", scopes: [] }`. The Use case checks it like any other, so give it only the scopes that Use case's predicates need. Never hand it a list of every scope.
 
 ## One dev user per role
 

@@ -1,4 +1,4 @@
-// Shared by context-create, aggregate-create, template-upgrade and app-create: fetches a baseline
+// Shared by context-create, model-create, template-upgrade and app-create: fetches a baseline
 // release and renders apps/app without the foo context. Native TS, no dependencies; shells out to
 // git and pnpm.
 // Why a JS/TS-aware scanner renames foo instead of wiring markers alone: foo also appears in
@@ -29,7 +29,7 @@ export type TemplateAnswers = {
 
 export type TemplateFile = { path: string; text: string };
 
-// The forms of the name foo becomes: a context's or an Aggregate's.
+// The forms of the name foo becomes: a context's or a Model's.
 export type NameForms = { kebab: string; plural: string };
 
 const templateRepository = "n8io/baseline";
@@ -66,14 +66,14 @@ const processRun = ({
 // foo, Foo, FOO and the plurals foos, Foos, never part of a longer lowercase word (footer).
 const fooPattern = /(foo|Foo|FOO)(s?)(?![a-z])/g;
 
-export const fooLineIs = (line: string): boolean => {
+export const lineIsFoo = (line: string): boolean => {
 	fooPattern.lastIndex = 0;
 	return fooPattern.test(line);
 };
 
 type Mode = "code" | "string" | "comment";
 
-export const codeFileIs = (path: string): boolean =>
+export const fileIsCode = (path: string): boolean =>
 	/\.(ts|tsx|js|mjs)$/.test(path);
 
 const regexCanStart = /[(,=:[!&|?{};+\-*%~^]/;
@@ -84,7 +84,7 @@ const regexKeywords =
 // code from strings and comments. JSX text reads as code; fooProseIs handles it.
 export const modesRead = (text: string, path: string): Mode[] => {
 	const modes: Mode[] = new Array(text.length);
-	if (!codeFileIs(path)) return modes.fill("comment");
+	if (!fileIsCode(path)) return modes.fill("comment");
 	const templateDepths: number[] = [];
 	let braceDepth = 0;
 	let i = 0;
@@ -176,7 +176,7 @@ export const modesRead = (text: string, path: string): Mode[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Renaming foo to another context or Aggregate
+// Renaming foo to another context or Model
 
 export const camelFromKebab = (kebab: string): string =>
 	kebab.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -346,7 +346,7 @@ const lineDepths = (
 // range grows to the whole bracket-balanced statement; in .env files it takes the item's `# @`
 // decorator lines.
 export const fooBlocksFind = (text: string, path: string): [number, number][] =>
-	linesBlocksFind({ lineIs: fooLineIs, path, text });
+	linesBlocksFind({ lineIs: lineIsFoo, path, text });
 
 export const linesBlocksFind = ({
 	lineIs,
@@ -359,7 +359,7 @@ export const linesBlocksFind = ({
 }): [number, number][] => {
 	const lines = text.split("\n");
 	const blocks: [number, number][] = [];
-	const code = codeFileIs(path);
+	const code = fileIsCode(path);
 	const depths = code ? lineDepths(text, modesRead(text, path)) : [];
 	const balance = (start: number, end: number) => {
 		let depth = 0;
@@ -463,7 +463,7 @@ const templateUntouchedPaths = [/^scripts\//, /^pnpm-lock\.yaml$/];
 const templateSkippedPaths = [/^CHANGELOG\.md$/];
 
 // Lines between a `wiring: contexts-start` and `contexts-end` marker pair are valid only while
-// a context exists. The render empties each pair; context-create and aggregate-create fill them.
+// a context exists. The render empties each pair; context-create and model-create fill them.
 const contextsStart = /^\s*(\/\/|#) wiring: contexts-start\s*$/;
 const contextsEnd = /^\s*(\/\/|#) wiring: contexts-end\s*$/;
 
@@ -624,11 +624,11 @@ const sdkFileRender = (
 	};
 	const fooless = (record: Record<string, unknown>) =>
 		Object.fromEntries(
-			Object.entries(record).filter(([key]) => !fooLineIs(key)),
+			Object.entries(record).filter(([key]) => !lineIsFoo(key)),
 		);
 	document.info.title = answers.name;
 	document.paths = fooless(document.paths);
-	// Bar's schemas go with foo's: Bar is foo's second Aggregate, whose names do not say foo.
+	// Bar's schemas go with foo's: Bar is foo's second Model, whose names do not say foo.
 	if (document.components?.schemas !== undefined) {
 		document.components.schemas = Object.fromEntries(
 			Object.entries(fooless(document.components.schemas)).filter(
@@ -696,7 +696,7 @@ export const templateFileRender = (
 			? composeProjectRender(ported, answers.name)
 			: ported;
 	// A root with no foo line, such as the Worker, may still hold a pair to empty.
-	if (!fooLineIs(rendered) && contextsPairsFind(rendered, path).length === 0) {
+	if (!lineIsFoo(rendered) && contextsPairsFind(rendered, path).length === 0) {
 		return { path, text: rendered };
 	}
 	const emptied = contextsPairsEmpty(rendered, path);
@@ -1040,7 +1040,7 @@ export const templateFetchOwn = async (
 	);
 };
 
-export const monorepoAppIs = (appDirectory: string): boolean =>
+export const appIsMonorepo = (appDirectory: string): boolean =>
 	existsSync(join(appDirectory, "../../packages/result/package.json")) &&
 	!existsSync(join(appDirectory, ".template.json"));
 

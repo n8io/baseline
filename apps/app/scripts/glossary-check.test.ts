@@ -270,11 +270,11 @@ describe("glossary-check", () => {
 
 describe("an alias written capitalized", () => {
 	it("matches only as written, so a plain English word passes", () => {
-		const text = "// A DTO holds.\n// A dto holds.\n";
+		const text = "// A Bean holds.\n// A bean holds.\n";
 		const hits = glossaryHitsFind({
 			diff: "+++ b/src/a.ts\n@@ -0,0 +1,2 @@\n+x\n+y",
 			languageOf: everyFile({
-				aliases: [{ alias: "DTO", term: "Entity" }],
+				aliases: [{ alias: "Bean", term: "Model" }],
 			}),
 			textRead: () => text,
 		});
@@ -317,10 +317,10 @@ const sampleMap = [
 	"",
 	"## Contexts",
 	"",
-	"| Context  | Subdomain  | Language                                                     |",
-	"| -------- | ---------- | ------------------------------------------------------------ |",
-	"| `league` | core       | [src/contexts/league/CONTEXT.md](src/contexts/league/CONTEXT.md) |",
-	"| `tour`   | supporting | [src/contexts/tour/CONTEXT.md](src/contexts/tour/CONTEXT.md)     |",
+	"| Context  | Language                                                     |",
+	"| -------- | ------------------------------------------------------------ |",
+	"| `league` | [src/contexts/league/CONTEXT.md](src/contexts/league/CONTEXT.md) |",
+	"| `tour`   | [src/contexts/tour/CONTEXT.md](src/contexts/tour/CONTEXT.md)     |",
 	"",
 	"## Relationships",
 	"",
@@ -333,9 +333,9 @@ const sampleMap = [
 const sampleGlossaries: Record<string, string> = {
 	"CONTEXT.md": "**Use case**:\nOne operation.\n_Avoid_: Service\n",
 	"src/contexts/league/CONTEXT.md":
-		"# League\n\nSubdomain: core\n\n## Language\n\n**Roster**:\nA team's golfers.\n_Avoid_: lineup\n",
+		"# League\n\n## Language\n\n**Roster**:\nA team's golfers.\n_Avoid_: lineup\n",
 	"src/contexts/tour/CONTEXT.md":
-		"# Tour\n\nSubdomain: supporting\n\n## Language\n\n**Golfer**:\nA player on tour.\n\n**Score**:\nStrokes in a round.\n",
+		"# Tour\n\n## Language\n\n**Golfer**:\nA player on tour.\n\n**Score**:\nStrokes in a round.\n",
 };
 
 describe("the context map", () => {
@@ -345,12 +345,10 @@ describe("the context map", () => {
 				{
 					context: "league",
 					glossary: "src/contexts/league/CONTEXT.md",
-					subdomain: "core",
 				},
 				{
 					context: "tour",
 					glossary: "src/contexts/tour/CONTEXT.md",
-					subdomain: "supporting",
 				},
 			],
 			glossaries: [
@@ -503,22 +501,6 @@ describe("the context map", () => {
 				"a row with no context folder",
 				{ contexts: ["league"] },
 				"CONTEXT-MAP.md: there is no src/contexts/tour/",
-			],
-			[
-				"an unknown subdomain type",
-				{ map: sampleMap.replace("| core       |", "| main       |") },
-				'league\'s subdomain is core, supporting or generic, not "main"',
-			],
-			[
-				"a context glossary with another subdomain",
-				{
-					glossaryRead: (path: string) =>
-						sampleGlossaries[path]?.replace(
-							"Subdomain: supporting",
-							"Subdomain: core",
-						),
-				},
-				'src/contexts/tour/CONTEXT.md: say "Subdomain: supporting"',
 			],
 			[
 				"a context with no glossary",

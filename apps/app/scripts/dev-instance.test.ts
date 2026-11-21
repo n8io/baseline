@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	devInstanceFile,
-	devInstanceLinkedIs,
+	devInstanceIsLinked,
 	devInstanceNameCreate,
 	devInstanceWrite,
 } from "./dev-instance.ts";
@@ -54,19 +54,19 @@ describe("devInstanceNameCreate", () => {
 	});
 });
 
-describe("devInstanceLinkedIs", () => {
+describe("devInstanceIsLinked", () => {
 	it("tells a linked worktree from the original checkout", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
 		const { linked, original } = checkoutsCreate(root.path);
 
-		expect(devInstanceLinkedIs(original)).toBe(false);
-		expect(devInstanceLinkedIs(linked)).toBe(true);
+		expect(devInstanceIsLinked(original)).toBe(false);
+		expect(devInstanceIsLinked(linked)).toBe(true);
 	});
 
 	it("takes a folder outside git for the original checkout", () => {
 		using root = mkdtempDisposableSync(join(tmpdir(), "dev-instance-"));
 
-		expect(devInstanceLinkedIs(root.path)).toBe(false);
+		expect(devInstanceIsLinked(root.path)).toBe(false);
 	});
 });
 

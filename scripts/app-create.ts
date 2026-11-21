@@ -37,7 +37,7 @@ export const requiredJobs = [
 // The monorepo's apps/app, whose node_modules hold the Biome and varlock the render runs.
 export const toolsDirectory = resolve(import.meta.dirname, "../apps/app");
 
-// invoice-line ↔ **Invoice line**:, the glossary term context-create and aggregate-create look for.
+// invoice-line ↔ **Invoice line**:, the glossary term context-create and model-create look for.
 export const glossaryTerm = (kebab: string): string => {
 	const words = kebab.replaceAll("-", " ");
 	return words.charAt(0).toUpperCase() + words.slice(1);
@@ -501,7 +501,7 @@ const githubSteps = ({
 const nextSteps = (directory: string): string =>
 	[
 		`Next: cd ${directory} && pnpm dev`,
-		"Then add your first context's row to CONTEXT-MAP.md, run `pnpm context-create <context>`, add its Aggregate's term to the context's CONTEXT.md, then `pnpm aggregate-create <context> <aggregate> --bare` (docs/agents/context-create.md).",
+		"Then add your first context's row to CONTEXT-MAP.md, run `pnpm context-create <context>`, add its Model's term to the context's CONTEXT.md, then `pnpm model-create <context> <model> --bare` (docs/agents/context-create.md).",
 	].join("\n");
 
 const kebabPattern = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;

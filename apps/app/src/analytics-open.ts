@@ -1,4 +1,4 @@
-// Analytics for a composition root: Mixpanel with a token, else the debug log.
+// Analytics for an entry point: Mixpanel with a token, else the debug log.
 // `pnpm piece-remove analytics` deletes this file.
 import {
 	type Analytics,

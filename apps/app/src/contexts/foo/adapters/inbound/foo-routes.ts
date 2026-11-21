@@ -14,7 +14,7 @@ import { fooHttpErrorAnswer, fooHttpJsonCreate } from "./foo-http.ts";
 // The route table is the API's view of the context's statuses; it fails type-checking if the two disagree.
 fooErrorStatus satisfies HttpErrorStatus<FooError>;
 
-// The API's own schemas: Aggregate schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
+// The API's own schemas: Model schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const FooResponse = z
 	.object({
 		id: Foo.shape.id,
@@ -67,7 +67,7 @@ const fooResponse = (foo: Foo): z.infer<typeof FooResponse> => ({
 	archivedAt: foo.archivedAt?.toISOString() ?? null,
 });
 
-// Each operation is named after the Use case it calls and tagged with its Aggregate; SDK methods
+// Each operation is named after the Use case it calls and tagged with its Model; SDK methods
 // and CLI commands take their names from both and their help from the summary (docs/agents/api.md).
 const fooCreateRoute = createRoute({
 	operationId: "fooCreate",

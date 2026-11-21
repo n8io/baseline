@@ -10,7 +10,7 @@ import {
 import { authnCookieClear, authnCookieGet } from "./authn-cookie.ts";
 import { AuthnInvalidError } from "./authn-errors.ts";
 import {
-	authnRequestUrlDataIs,
+	authnRequestUrlIsData,
 	authnRequestUrlPagePath,
 } from "./authn-request-url.ts";
 
@@ -33,7 +33,7 @@ const refreshWindowMs = 10_000;
  */
 const authnPageRedirect = (c: Context, path: string): Response => {
 	const target = `${path}?returnTo=${encodeURIComponent(authnRequestUrlPagePath(new URL(c.req.url)))}`;
-	if (!authnRequestUrlDataIs(new URL(c.req.url)))
+	if (!authnRequestUrlIsData(new URL(c.req.url)))
 		return c.redirect(target, 302);
 	return c.body(null, 204, {
 		"X-Remix-Redirect": target,

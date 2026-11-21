@@ -5,71 +5,46 @@
 The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`:
 
 **Bounded context**:
-The scope of one language, holding one or more Aggregates grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward.
+The scope of one language, holding one or more Models grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward. Its `index.ts` is its one entry: `<context>ContextCreate(...)` and its Public contract. Outside code imports nothing else from a context, and Use case tests go through it.
 _Avoid_: Domain, feature
 
-**Subdomain**:
-The kind of business area a bounded context serves: core, supporting or generic. `CONTEXT-MAP.md` and the context's own `CONTEXT.md` both name its type.
-
 **Context map**:
-`CONTEXT-MAP.md`: each bounded context, its subdomain type, and its relationships to the others: upstream or downstream, anti-corruption layer, Published language, Shared kernel.
+`CONTEXT-MAP.md`: each bounded context and its relationships to the others: upstream or downstream, anti-corruption layer, Public contract, Shared kernel.
 
 **Shared kernel**:
 What every bounded context shares and changes together: the result, id and authn Packages. Their types, and the result Package's `ok` and `err`, are the only imports `domain/` may take from outside itself, besides Zod and the id schema.
 
-**Aggregate**:
-An Aggregate root with the entities and value objects it owns, saved and loaded as one unit through one Repository. Every change to it goes through a Transition in its `domain/` file, so a Use case cannot save one that breaks an invariant. One Aggregate per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
-_Avoid_: entity graph, root object
-
-**Aggregate root**:
-The entity an Aggregate is held, loaded and saved by. Its schema, its value objects, its Transitions and its Specifications live in `domain/<aggregate>.ts`.
-_Avoid_: Model, main model
-
-**Entity**:
-A business object with an identity that lasts through its changes, defined as a Zod schema and the type inferred from it.
-_Avoid_: DTO
+**Model**:
+A business object with an identity that lasts through its changes, saved and loaded as one unit through one Repository, a Zod schema plus the type inferred from it, with its value objects, model functions in `domain/<model>.ts`. Every change to it goes through a Model function, so a Use case cannot save one that breaks an invariant. One Model per transaction is the default; several only inside one bounded context when one invariant spans them, with a `// invariant: <what>` comment above the transaction. Across contexts it is always a Domain event.
+_Avoid_: aggregate, entity, DTO
 
 **Value object**:
-A business value defined only by what it holds, with no identity of its own, defined as a Zod schema in its Aggregate's file.
+A business value defined only by what it holds, with no identity of its own, defined as a Zod schema in its Model's file.
 
 **Invariant**:
-A condition an Aggregate always holds. Its Transitions keep it.
+A condition a Model always holds. Its Model functions keep it.
 _Avoid_: business Rule
 
-**Transition**:
-A pure function in an Aggregate's `domain/` file that makes the Aggregate or changes it, keeping its invariants: `invoiceNew(input)` returns the Aggregate, or a `Result` when something can refuse it; a change (`invoiceLineAdd(invoice, input)`) returns `Result`. A Use case changes an Aggregate only through one: architecture rule A29 refuses a Use case that builds or copies one itself.
-_Avoid_: setter
-
-**Specification**:
-A reusable predicate over an Aggregate, in its `domain/` file, named ending in `Is`, `Has` or `Can` (`invoicePaidIs`).
-_Avoid_: policy, validator
+**Model function**:
+A pure function in a Model's `domain/` file that makes the Model or changes it, keeping its invariants: `invoiceNew(input)` returns the Model, or a `Result` when something can refuse it; a change (`invoiceLineAdd(invoice, input)`) returns `Result`. A Use case changes a Model only through one: architecture rule A29 refuses a Use case that builds or copies one itself. A model function may return a yes or no answer instead (a predicate), named model first, then `Is`, `Has` or `Can`, so it reads as English: `invoiceIsPaid`, `invoiceHasLines`, `invoiceCanRefund`.
+_Avoid_: setter, transition, domain function
 
 **Domain service**:
-Logic over several Aggregates that belongs to none of them, as a pure function in its own `domain/` file.
+Logic over several Models that belongs to none of them, as a pure function in its own `domain/` file.
 
 **Use case**:
-One operation a bounded context performs, in `application/`, such as creating an invoice (`invoiceCreate`). It loads an Aggregate through its ports, calls a Transition, saves the result and publishes. Each gets its ports from a factory: `invoiceCreate(ports)` returns the function.
+One operation a bounded context performs, in `application/`, such as creating an invoice (`invoiceCreate`). It loads a Model through its ports, calls a Model function, saves the result and publishes. Each gets its ports from a factory: `invoiceCreate(ports)` returns the function.
 _Avoid_: application service, service class, interactor
 
-**Module**:
-Anything with an interface and an implementation, at any scale: a function, a file, a Package or a bounded context. A bounded context is one deep module: a lot of behaviour behind a small interface.
-
-**Interface**:
-Everything a caller must know to use a module correctly: its types, and also its invariants, ordering, errors and required configuration. A bounded context's interface is its `index.ts`: `<context>ContextCreate(...)` and its Published language. Outside code imports nothing else from a context, and Use case tests go through it.
-_Avoid_: function signature
-
-**Seam**:
-A place where behaviour can change without editing that place: where a module's interface lives.
-
 **Adapter**:
-A concrete thing that satisfies an interface at a seam, named for the slot it fills, not for what is inside it.
+A concrete thing that fills a port, named for the slot it fills, not for what is inside it.
 
 **Port**:
-The interface at a seam: what a bounded context declares it needs from outside, such as saving an Aggregate or caching. A port stays only where two adapters exist, a production one and a memory one; an anti-corruption layer's slot, filled in process by the real upstream, is the one exception. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
+What a bounded context declares it needs from outside, such as saving a Model or caching. A port stays only where two adapters exist, a production one and a memory one; an anti-corruption layer's slot, filled in process by the real upstream, is the one exception. Repository ports live in `domain/repositories.ts`; the others (Clock, cache, analytics, live, transaction, events) in `application/ports.ts`.
 _Avoid_: port contract, gateway
 
 **Repository**:
-The port that saves and loads one Aggregate. Each Aggregate root has exactly one, named after it; the rest of the Aggregate is saved through it.
+The port that saves and loads one Model. Each Model has exactly one, named after it; the rest of the Model is saved through it.
 _Avoid_: DAO, data mapper
 
 **Inbound adapter**:
@@ -89,24 +64,21 @@ Who is performing a Use case: a signed-in user or a machine client.
 _Avoid_: principal, current user, user identity, user session
 
 **Scope**:
-What an Actor may do, named `<aggregate>:<verb>` (`invoice:refund`). The Actor carries its scopes; a context's `index.ts` exports each Aggregate's list ([docs/agents/authn.md](docs/agents/authn.md)).
-
-**Intake**:
-Where new work enters a process: HTTP routes, sockets, Event handlers, Schedules.
+What an Actor may do, named `<model>:<verb>` (`invoice:refund`). The Actor carries its scopes; a context's `index.ts` exports each Model's list ([docs/agents/authn.md](docs/agents/authn.md)).
 
 **UI**:
 The pages a Project serves, outside every bounded context; their loaders and actions call Use cases of any context through its interface. Holds no business logic.
 _Avoid_: frontend, web client
 
 **Domain event**:
-A fact a bounded context records in past tense (OrderPlaced) and delivers to other contexts once the change that caused it commits. Domain events go through the queue (pg-boss), and nothing else carries them. The schemas a context exports are part of its Published language. Short form: Event.
+A fact a bounded context records in past tense (OrderPlaced) and delivers to other contexts once the change that caused it commits. Domain events go through the queue (pg-boss), and nothing else carries them. The schemas a context exports are part of its Public contract. Short form: Event.
 _Avoid_: queue message, signal
 
-**Published language**:
-What a bounded context shares through its interface besides `<context>ContextCreate`: its Domain event schemas, its error types and the input schemas the UI needs.
+**Public contract**:
+What a bounded context shares through its `index.ts` besides `<context>ContextCreate`: its Domain event schemas, its error types and the input schemas the UI needs.
 
 **Event key**:
-The id of the entity a Domain event is about, named at every publish. Domain events with the same Event key reach each Event handler one at a time, in the order their changes committed; ones with different Event keys run beside each other.
+The id of the Model a Domain event is about, named at every publish. Domain events with the same Event key reach each Event handler one at a time, in the order their changes committed; ones with different Event keys run beside each other.
 _Avoid_: partition key, ordering key, group id
 
 **Event handler**:
@@ -147,9 +119,9 @@ _Avoid_: tracking event, product event, product metric
 An unexpected error sent to error tracking (Sentry) for triage: its class name, stack frames, cause chain and trace id, never its message. Every error the logger logs at error or fatal becomes one, so code reports an error by logging it.
 _Avoid_: crash report, Sentry issue
 
-**Composition root**:
+**Entry point**:
 A file that starts one process: it parses config, opens connections, builds each bounded context through `src/contexts.ts` and mounts what each one's interface returns (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/blocked-keys.ts`). It imports no adapter (each context's `index.ts` picks its own) and holds no business logic.
-_Avoid_: bootstrap, main file, DI container
+_Avoid_: composition root, DI container
 
 **Worker**:
 The process that runs a Project's Event handlers and Schedules, started from `src/worker.ts`; it never serves pages or the API.
@@ -191,5 +163,5 @@ _Avoid_: template sync, template update, rebase onto the template, rebase on the
 An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project will never remove (`piece-check` skips them) ([docs/agents/pieces.md](docs/agents/pieces.md)).
 _Avoid_: add-on, optional module
 
-**Part**:
-What `pnpm aggregate-create` adds to a new Aggregate beside its core (the Aggregate root, Use cases, repository, routes): `analytics`, `cache`, `live`, `pages`, `schedule` or `seed`, each a flag; `--bare` adds only the ones named. A part that belongs to a Piece (`pages` to `ui`, `schedule` to `queue`) needs that Piece installed.
+**Option**:
+What `pnpm model-create` adds to a new Model beside its core (the Model, Use cases, repository, routes): `analytics`, `cache`, `live`, `pages`, `schedule` or `seed`, each a flag; `--bare` adds only the ones named. An option that belongs to a Piece (`pages` to `ui`, `schedule` to `queue`) needs that Piece installed.

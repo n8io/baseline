@@ -1,8 +1,8 @@
-// pnpm aggregate-create <context> <aggregate> [--plural <p>] [--bare] [parts]: copies Foo, the
-// Template's Aggregate, into an existing context under a new name, and wires it in at every
-// `wiring:` marker, in the context's own files and in the composition roots. --bare copies only
-// Foo's core and the parts named. Writes no migration and never commits. pnpm context-create makes
-// the context first; `pnpm aggregate-create --help` lists the parts.
+// pnpm model-create <context> <model> [--plural <p>] [--bare] [options]: copies Foo, the
+// Template's Model, into an existing context under a new name, and wires it in at every
+// `wiring:` marker, in the context's own files and in the entry points. --bare copies only
+// Foo's core and the options named. Writes no migration and never commits. pnpm context-create makes
+// the context first; `pnpm model-create --help` lists the options.
 import {
 	existsSync,
 	mkdirSync,
@@ -20,16 +20,16 @@ import {
 } from "./pieces.ts";
 import { processRun } from "./process-run.ts";
 import {
+	appIsMonorepo,
 	camelFromKebab,
 	contextsPairsFind,
 	filesRead,
 	fooBlocksFind,
-	fooLineIs,
 	fooPathRename,
 	fooRename,
+	lineIsFoo,
 	linesBlocksFind,
 	linesRemove,
-	monorepoAppIs,
 	type NameForms,
 	pascalFromKebab,
 	type TemplateFile,
@@ -45,8 +45,8 @@ const markerPattern =
 // ---------------------------------------------------------------------------
 // The Template's foo context: its context files, Foo's files, and Bar's
 
-// The context's own files. context-create copies them without any Aggregate's lines;
-// aggregate-create adds its Aggregate's lines at their `wiring:` markers.
+// The context's own files. context-create copies them without any Model's lines;
+// model-create adds its Model's lines at their `wiring:` markers.
 export const contextFilePaths = new Set(
 	[
 		"index.ts",
@@ -62,35 +62,35 @@ export const contextFilePaths = new Set(
 	].map((path) => `src/contexts/foo/${path}`),
 );
 
-// Bar, foo's second Aggregate, stays in the Template: neither command ever copies it.
+// Bar, foo's second Model, stays in the Template: neither command ever copies it.
 const barPathIs = (path: string): boolean =>
 	/^src\/contexts\/foo\/(.+\/)?bar[-.][^/]*$/.test(path) ||
 	/^migrations\/[^/]*_foo_bar_[^/]*\//.test(path);
 // A line naming Bar: its identifiers (barCreate, BarRepository, bars), its id prefix ("bar") and
 // its files (./bar-routes.ts), not a word such as "bar:read" or a nav-bar.
-export const barLineIs = (line: string): boolean =>
+export const lineIsBar = (line: string): boolean =>
 	/\b(bar[A-Z]\w*|Bar[A-Za-z0-9]*|bars)\b|"bar"|\/bar[-.]/.test(line);
 
-// A foo that names the context, not the Foo Aggregate: its interface, ports, transaction, Use
+// A foo that names the context, not the Foo Model: its interface, ports, transaction, Use
 // cases, ACLs and upstream, Schedules list and memory state, its Postgres schema, and the paths of its folder and its own files.
 const contextFooPattern =
 	/\b(foo|Foo)(?=(?:Context|ContextCreate|Ports|PortsCreate|PortsMemoryCreate|Upstream|TestUpstreamCreate|Schedules|Transaction|TransactionPorts|TransactionMemoryCreate|TransactionPostgresCreate|Clock|UseCases|UseCasesCreate|UseCasesContext|MemoryState|MemoryStateCreate|[A-Z][A-Za-z0-9]*(?:Acl(?:Create|Actor)?|Upstream))\b)|(?<=contexts\/)foo(?=\/)|(?<=pgSchema\(")foo(?=")|\bfoo(?=-(?:use-cases|ports\.memory|test-upstream|transaction\.(?:memory|postgres))\.ts\b|-[a-z0-9-]+-acl(?:\.test)?\.ts\b)/g;
 const contextPlaceholder = (text: string): string =>
 	text.replace(contextFooPattern, (foo) => (foo === "Foo" ? "Qqctx" : "qqctx"));
 
-// A line that names the Foo Aggregate, not only the context.
-export const aggregateLineIs = (line: string): boolean =>
-	fooLineIs(contextPlaceholder(line));
+// A line that names the Foo Model, not only the context.
+export const lineIsModel = (line: string): boolean =>
+	lineIsFoo(contextPlaceholder(line));
 
-// Renames foo for an Aggregate in a context: the context's names where foo is the context, the
-// Aggregate's everywhere else.
-export const contextAggregateRename = ({
-	aggregate,
+// Renames foo for a Model in a context: the context's names where foo is the context, the
+// Model's everywhere else.
+export const contextModelRename = ({
+	model,
 	context,
 	path,
 	text,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	context: NameForms;
 	path: string;
 	text: string;
@@ -98,26 +98,26 @@ export const contextAggregateRename = ({
 	fooRename({
 		names: context,
 		path,
-		text: fooRename({ names: aggregate, path, text: contextPlaceholder(text) })
+		text: fooRename({ names: model, path, text: contextPlaceholder(text) })
 			.replaceAll("Qqctx", "Foo")
 			.replaceAll("qqctx", "foo"),
 	});
 
-export const contextAggregatePathRename = ({
-	aggregate,
+export const contextModelPathRename = ({
+	model,
 	context,
 	path,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	context: NameForms;
 	path: string;
 }): string =>
 	fooPathRename(
 		path.replace(/^src\/contexts\/foo\//, "src/contexts/qqctx/"),
-		aggregate,
+		model,
 	).replace(/^src\/contexts\/qqctx\//, `src/contexts/${context.kebab}/`);
 
-// One import or re-export per name, so a line names one Aggregate's or the context's only. Biome
+// One import or re-export per name, so a line names one Model's or the context's only. Biome
 // merges them back.
 const importsExplode = (text: string): string =>
 	text.replace(
@@ -137,11 +137,11 @@ const importsExplode = (text: string): string =>
 	);
 
 const markerCommentIs = (line: string): boolean =>
-	/^\s*\/\/ (piece-(start|end):|wiring:|aggregate-create-(start|end):|biome-ignore)/.test(
+	/^\s*\/\/ (piece-(start|end):|wiring:|model-create-(start|end):|biome-ignore)/.test(
 		line,
 	);
 
-// In a context file a block takes the comment lines just above it, and the piece or part block
+// In a context file a block takes the comment lines just above it, and the piece or option block
 // that holds nothing else.
 const blocksGrow = (
 	text: string,
@@ -153,9 +153,7 @@ const blocksGrow = (
 		let end = to;
 		for (;;) {
 			const above = lines[start - 1] ?? "";
-			const pair = /^\s*\/\/ (piece|aggregate-create)-start: (\S+)\s*$/.exec(
-				above,
-			);
+			const pair = /^\s*\/\/ (piece|model-create)-start: (\S+)\s*$/.exec(above);
 			if (/^\s*\/\//.test(above) && !markerCommentIs(above)) start--;
 			else if (
 				pair !== null &&
@@ -201,7 +199,7 @@ export const barRemove = (files: TemplateFile[]): TemplateFile[] =>
 			// Bar lives in src/; scripts and tests elsewhere may say bar for something else.
 			if (
 				!file.path.startsWith("src/") ||
-				!file.text.split("\n").some(barLineIs)
+				!file.text.split("\n").some(lineIsBar)
 			) {
 				return file;
 			}
@@ -210,20 +208,20 @@ export const barRemove = (files: TemplateFile[]): TemplateFile[] =>
 				path: file.path,
 				text: linesRemove(
 					text,
-					blocksOf({ lineIs: barLineIs, path: file.path, text }),
+					blocksOf({ lineIs: lineIsBar, path: file.path, text }),
 				),
 			};
 		});
 
 // ---------------------------------------------------------------------------
-// Pieces and parts
+// Pieces and options
 
 // Foo's own files and its pages, with their unit tests.
 const copiedPaths = [
 	/^src\/contexts\/foo\//,
 	/^src\/ui\/routes\/foo-(list|detail)(\.test)?\.tsx?$/,
 ];
-// home.tsx (the / redirect) and its test come back with the first Aggregate that has pages,
+// home.tsx (the / redirect) and its test come back with the first Model that has pages,
 // which it redirects to.
 const homePaths = new Set([
 	"src/ui/routes/home.tsx",
@@ -231,7 +229,7 @@ const homePaths = new Set([
 ]);
 
 // What each Piece of the stack (scripts/pieces.ts) owns in the Template's foo files: the files a
-// new context or Aggregate leaves out once the Piece is removed, and the env lines. A Piece's
+// new context or Model leaves out once the Piece is removed, and the env lines. A Piece's
 // `piece-start:` blocks stay out of them too. A new Piece fails type-checking until it is listed.
 const piecesTemplate: Record<Piece, { lines?: RegExp; paths: RegExp[] }> = {
 	analytics: { paths: [/^src\/contexts\/foo\/.*-analytics\.test\.ts$/] },
@@ -257,7 +255,7 @@ const piecesTemplate: Record<Piece, { lines?: RegExp; paths: RegExp[] }> = {
 	},
 	// Owns no context file (src/redis-open.ts is not a context's).
 	redis: { paths: [] },
-	// Owns no context file; aggregateChecksRun regenerates the SDK.
+	// Owns no context file; modelChecksRun regenerates the SDK.
 	sdk: { paths: [] },
 	ui: { paths: [/^src\/ui\//] },
 };
@@ -285,11 +283,11 @@ export const templateWithoutPieces = (
 			}, file.text),
 		}));
 
-// The parts --bare leaves out unless named. analytics, cache and live are pieces too, so foo marks
-// their lines with piece blocks; schedule and seed mark theirs with aggregate-create-start: <part> /
-// aggregate-create-end: <part> blocks. Each part is whole files plus those blocks, plus its lines at
-// the wiring markers wiringPartOf names. `piece` is the piece a part needs installed.
-export const aggregateParts = [
+// The options --bare leaves out unless named. analytics, cache and live are pieces too, so foo marks
+// their lines with piece blocks; schedule and seed mark theirs with model-create-start: <option> /
+// model-create-end: <option> blocks. Each option is whole files plus those blocks, plus its lines at
+// the wiring markers wiringOptionOf names. `piece` is the piece an option needs installed.
+export const modelOptions = [
 	"analytics",
 	"cache",
 	"live",
@@ -297,9 +295,9 @@ export const aggregateParts = [
 	"schedule",
 	"seed",
 ] as const;
-export type AggregatePart = (typeof aggregateParts)[number];
+export type ModelOption = (typeof modelOptions)[number];
 
-const partPieces: Record<AggregatePart, Piece | undefined> = {
+const optionPieces: Record<ModelOption, Piece | undefined> = {
 	analytics: "analytics",
 	cache: "cache",
 	live: "live",
@@ -308,7 +306,7 @@ const partPieces: Record<AggregatePart, Piece | undefined> = {
 	seed: undefined,
 };
 
-const partPaths: Record<AggregatePart, RegExp[]> = {
+const optionPaths: Record<ModelOption, RegExp[]> = {
 	analytics: [],
 	cache: [],
 	live: [],
@@ -319,14 +317,14 @@ const partPaths: Record<AggregatePart, RegExp[]> = {
 	seed: [/^src\/contexts\/foo\/adapters\/inbound\/foo-seed(\.test)?\.ts$/],
 };
 
-// The part a wiring line belongs to, from the file and the marker below it.
-export const wiringPartOf = ({
+// The option a wiring line belongs to, from the file and the marker below it.
+export const wiringOptionOf = ({
 	marker,
 	path,
 }: {
 	marker: string;
 	path: string;
-}): AggregatePart | undefined => {
+}): ModelOption | undefined => {
 	const name = /wiring: ([a-z-]+)/.exec(marker)?.[1];
 	if (name === "schedules" || name === "schedule-definitions")
 		return "schedule";
@@ -337,41 +335,41 @@ export const wiringPartOf = ({
 	return undefined;
 };
 
-// Drops every block from a `aggregate-create-start: <part>` line through its end line.
-const partBlocksRemove = (text: string, part: AggregatePart): string =>
+// Drops every block from a `model-create-start: <option>` line through its end line.
+const optionBlocksRemove = (text: string, option: ModelOption): string =>
 	text.replaceAll(
 		new RegExp(
-			`^[ \\t]*// aggregate-create-start: ${part}\\n[\\s\\S]*?^[ \\t]*// aggregate-create-end: ${part}\\n`,
+			`^[ \\t]*// model-create-start: ${option}\\n[\\s\\S]*?^[ \\t]*// model-create-end: ${option}\\n`,
 			"gm",
 		),
 		"",
 	);
 
-// Foo's own files as an Aggregate with only some parts has them. The part markers never reach a
-// Project: they are for aggregate-create alone.
-export const partsApply = ({
+// Foo's own files as a Model with only some options has them. The option markers never reach a
+// Project: they are for model-create alone.
+export const optionsApply = ({
 	files,
-	partsLeftOut,
+	optionsLeftOut,
 }: {
 	files: TemplateFile[];
-	partsLeftOut: AggregatePart[];
+	optionsLeftOut: ModelOption[];
 }): TemplateFile[] =>
 	templateWithoutPieces(
 		files.filter(
 			(file) =>
-				!partsLeftOut.some((part) =>
-					partPaths[part].some((r) => r.test(file.path)),
+				!optionsLeftOut.some((option) =>
+					optionPaths[option].some((r) => r.test(file.path)),
 				),
 		),
-		partsLeftOut.flatMap((part) => {
-			const piece = partPieces[part];
-			return piece === part ? [piece] : [];
+		optionsLeftOut.flatMap((option) => {
+			const piece = optionPieces[option];
+			return piece === option ? [piece] : [];
 		}),
 	).map((file) => ({
 		path: file.path,
-		text: partsLeftOut
-			.reduce((text, part) => partBlocksRemove(text, part), file.text)
-			.replaceAll(/^[ \t]*\/\/ aggregate-create-(start|end): [a-z-]+\n/gm, ""),
+		text: optionsLeftOut
+			.reduce((text, option) => optionBlocksRemove(text, option), file.text)
+			.replaceAll(/^[ \t]*\/\/ model-create-(start|end): [a-z-]+\n/gm, ""),
 	}));
 
 // ---------------------------------------------------------------------------
@@ -389,15 +387,15 @@ const importEnd = (lines: string[]): number => {
 
 const namedImports = /^import\s+(type\s+)?\{([^}]*)\}\s*from\s*("[^"]+");/gm;
 
-// The part a contexts-start/contexts-end pair serves, from its file and its template lines: a pair
-// whose lines only that part uses stays empty until an Aggregate brings the part.
-export const pairPartOf = ({
+// The option a contexts-start/contexts-end pair serves, from its file and its template lines: a pair
+// whose lines only that option uses stays empty until a Model brings the option.
+export const pairOptionOf = ({
 	content,
 	path,
 }: {
 	content: string;
 	path: string;
-}): AggregatePart | undefined => {
+}): ModelOption | undefined => {
 	if (path.startsWith("src/ui/")) return "pages";
 	// The Server's argument to uiLoadContextCreate.
 	if (path === "src/server.ts" && content.trim() === "contexts,") {
@@ -432,18 +430,18 @@ const pairsMatch = ({
 		return {
 			empty: end === start + 1,
 			lines,
-			part: pairPartOf({ path, content: lines.join("\n") }),
+			option: pairOptionOf({ path, content: lines.join("\n") }),
 			start,
 		};
 	});
 };
 
-// Which pairs a command fills: context-create the ones no part needs, aggregate-create the ones
-// its parts need.
-export type PairWanted = (part: AggregatePart | undefined) => boolean;
+// Which pairs a command fills: context-create the ones no option needs, model-create the ones
+// its options need.
+export type PairWanted = (option: ModelOption | undefined) => boolean;
 
 // Whether this file has an empty pair the command fills.
-export const pairsEmptyFillableHas = ({
+export const fileHasEmptyFillablePair = ({
 	pairWanted,
 	path,
 	project,
@@ -455,7 +453,7 @@ export const pairsEmptyFillableHas = ({
 	template: string;
 }): boolean =>
 	pairsMatch({ path, project, template }).some(
-		(pair) => pair.empty && pairWanted(pair.part),
+		(pair) => pair.empty && pairWanted(pair.option),
 	);
 
 // Fills each empty contexts-start/contexts-end pair the command wants with the template's lines,
@@ -474,7 +472,7 @@ export const contextsPairsFill = ({
 	const lines = project.split("\n");
 	const pairs = pairsMatch({ path, project, template });
 	for (const pair of [...pairs].reverse()) {
-		if (pair.empty && pairWanted(pair.part)) {
+		if (pair.empty && pairWanted(pair.option)) {
 			lines.splice(pair.start + 1, 0, ...pair.lines);
 		}
 	}
@@ -499,7 +497,7 @@ const importsMissingAdd = ({
 		),
 	);
 	const missing = [...template.matchAll(namedImports)]
-		.filter((m) => !fooLineIs(m[0]))
+		.filter((m) => !lineIsFoo(m[0]))
 		.flatMap(([, type = "", names = "", from]) =>
 			names
 				.split(",")
@@ -553,17 +551,17 @@ const blockPresentIs = ({
 // project's version: above the marker below it, or after the imports for an import. In a shared
 // file the marker must come right after the block (other foo lines aside); in a context file it is
 // the next marker down. A block the project already has is not added again, and neither is a line
-// at a marker of a part left out (its import stays for the unused-imports pass to drop).
+// at a marker of an option left out (its import stays for the unused-imports pass to drop).
 export const wiringInsert = ({
 	blockIs,
-	partsLeftOut,
+	optionsLeftOut,
 	path,
 	project,
 	rename,
 	template,
 }: {
 	blockIs: (line: string) => boolean;
-	partsLeftOut?: AggregatePart[] | null;
+	optionsLeftOut?: ModelOption[] | null;
 	path: string;
 	project: string;
 	rename: (text: string) => string;
@@ -601,8 +599,8 @@ export const wiringInsert = ({
 				`${path}: the template's line ${start + 1} names foo but has no wiring marker below it`,
 			);
 		}
-		const part = wiringPartOf({ path, marker });
-		if (part !== undefined && partsLeftOut?.includes(part)) continue;
+		const option = wiringOptionOf({ path, marker });
+		if (option !== undefined && optionsLeftOut?.includes(option)) continue;
 		const at = lines.findIndex((line) => line.trim() === marker.trim());
 		if (at === -1) {
 			throw new Error(
@@ -623,8 +621,8 @@ export const wiringInsert = ({
 
 // ---------------------------------------------------------------------------
 // --reads: an anti-corruption layer (ACL) per upstream context, written in foo's names before the
-// rename. The ACL belongs to the context, so context-create writes it; aggregate-create passes the
-// context's upstream to the ports calls in the Aggregate's tests.
+// rename. The ACL belongs to the context, so context-create writes it; model-create passes the
+// context's upstream to the ports calls in the Model's tests.
 
 type Target = {
 	camel: string;
@@ -670,7 +668,7 @@ export const readsRefusal = ({
 			return `--reads "${kebab}" is not kebab-case`;
 		if (kebab === names.kebab) return `${kebab} cannot read itself`;
 		// The Template's own context is renamed with the copy, so it cannot be a target.
-		if (fooLineIs(kebab))
+		if (lineIsFoo(kebab))
 			return `--reads ${kebab}: names foo, the Template's example name, which the render renames`;
 		if (!existsSync(join(appDirectory, "src/contexts", kebab, "index.ts")))
 			return `--reads ${kebab}: no src/contexts/${kebab}/`;
@@ -1061,7 +1059,7 @@ export const nameTerm = (kebab: string): string => {
 	return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-// The reason an Aggregate name is refused for its form or for lacking an entry in its context's
+// The reason a Model name is refused for its form or for lacking an entry in its context's
 // glossary, or undefined when it is fine.
 export const nameRefusal = ({
 	appDirectory,
@@ -1073,7 +1071,7 @@ export const nameRefusal = ({
 	kebab: string;
 }): string | undefined => {
 	if (!kebabPattern.test(kebab)) return `"${kebab}" is not kebab-case`;
-	if (fooLineIs(kebab))
+	if (lineIsFoo(kebab))
 		return `"${kebab}" names foo, the Template's example name, which the render renames`;
 	const term = nameTerm(kebab);
 	const path = `src/contexts/${context}/CONTEXT.md`;
@@ -1085,13 +1083,13 @@ export const nameRefusal = ({
 	return undefined;
 };
 
-// The reason aggregate-create refuses this Aggregate in this context, or undefined.
-export const aggregateRefusal = ({
-	aggregate,
+// The reason model-create refuses this Model in this context, or undefined.
+export const modelRefusal = ({
+	model,
 	appDirectory,
 	context,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	appDirectory: string;
 	context: string;
 }): string | undefined => {
@@ -1099,31 +1097,28 @@ export const aggregateRefusal = ({
 	if (!existsSync(join(appDirectory, "src/contexts", context, "index.ts"))) {
 		return `no src/contexts/${context}/; make it with pnpm context-create ${context}`;
 	}
-	for (const name of [aggregate.kebab, aggregate.plural]) {
+	for (const name of [model.kebab, model.plural]) {
 		if (!kebabPattern.test(name)) return `"${name}" is not kebab-case`;
 	}
 	// /api/v1/docs belongs to the API reference page and skips the sign-in guard.
-	if (aggregate.plural === "docs") {
+	if (model.plural === "docs") {
 		return '"docs" is the API reference page\'s path';
 	}
-	if (aggregate.plural === aggregate.kebab) {
+	if (model.plural === model.kebab) {
 		return "the plural must differ from the name";
 	}
-	// An Aggregate's names (its routes, scopes, ids and Use cases) are the app's, not only its
+	// A Model's names (its routes, scopes, ids and Use cases) are the app's, not only its
 	// context's: no other context may hold it, nor be named after it.
 	const contexts = join(appDirectory, "src/contexts");
 	for (const other of existsSync(contexts) ? readdirSync(contexts) : []) {
-		const aggregateFile = `src/contexts/${other}/domain/${aggregate.kebab}.ts`;
-		if (existsSync(join(appDirectory, aggregateFile)))
-			return `${aggregateFile} already exists`;
+		const modelFile = `src/contexts/${other}/domain/${model.kebab}.ts`;
+		if (existsSync(join(appDirectory, modelFile)))
+			return `${modelFile} already exists`;
 	}
-	if (
-		aggregate.kebab !== context &&
-		existsSync(join(contexts, aggregate.kebab))
-	) {
-		return `src/contexts/${aggregate.kebab}/ is another context; name the Aggregate otherwise`;
+	if (model.kebab !== context && existsSync(join(contexts, model.kebab))) {
+		return `src/contexts/${model.kebab}/ is another context; name the Model otherwise`;
 	}
-	return nameRefusal({ appDirectory, context, kebab: aggregate.kebab });
+	return nameRefusal({ appDirectory, context, kebab: model.kebab });
 };
 
 // The contexts a context already reads, from its ACL files: <context>-<upstream>-acl.ts.
@@ -1152,12 +1147,12 @@ export const contextReadsFind = ({
 };
 
 // ---------------------------------------------------------------------------
-// Building the Aggregate
+// Building the Model
 
-// The files a new Aggregate adds or changes in a context made with context-create, from the
-// template's files and the project's. `parts` null copies every part (no --bare).
+// The files a new Model adds or changes in a context made with context-create, from the
+// template's files and the project's. `options` null copies every option (no --bare).
 // drizzle-kit refuses two exported schemas of one name, so only a context's first table exports
-// its pgSchema; a later Aggregate's table keeps its own copy unexported, as Bar's does.
+// its pgSchema; a later Model's table keeps its own copy unexported, as Bar's does.
 const schemaExportDrop = ({
 	appDirectory,
 	file,
@@ -1182,32 +1177,32 @@ const schemaExportDrop = ({
 		: file;
 };
 
-export const aggregateFilesCreate = ({
-	aggregate,
+export const modelFilesCreate = ({
+	model,
 	appDirectory,
 	context,
-	parts = null,
+	options = null,
 	templateFull,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	appDirectory: string;
 	context: string;
-	parts?: AggregatePart[] | null;
+	options?: ModelOption[] | null;
 	templateFull: TemplateFile[];
 }): TemplateFile[] => {
-	const partsLeftOut =
-		parts === null
+	const optionsLeftOut =
+		options === null
 			? []
-			: aggregateParts.filter((part) => !parts.includes(part));
+			: modelOptions.filter((option) => !options.includes(option));
 	const contextNames = { kebab: context, plural: `${context}s` };
 	const template = barRemove(
 		templateWithoutPieces(templateFull, piecesRemovedFind(appDirectory)),
 	);
-	// The first Aggregate with pages fills the / route's pair in src/ui/routes.ts and brings
+	// The first Model with pages fills the / route's pair in src/ui/routes.ts and brings
 	// home.tsx back with it.
 	const routes = join(appDirectory, "src/ui/routes.ts");
 	const homeAdded =
-		!partsLeftOut.includes("pages") &&
+		!optionsLeftOut.includes("pages") &&
 		existsSync(routes) &&
 		contextsPairsFind(readFileSync(routes, "utf8"), "src/ui/routes.ts").some(
 			([start, end]) => end === start + 1,
@@ -1224,11 +1219,11 @@ export const aggregateFilesCreate = ({
 		files: foo,
 		reads: contextReadsFind({ appDirectory, context }),
 	}).filter((f) => foo.some((g) => g.path === f.path));
-	const own = partsApply({ files: read, partsLeftOut });
+	const own = optionsApply({ files: read, optionsLeftOut });
 	const rename = (path: string) => (text: string) =>
-		contextAggregateRename({ aggregate, context: contextNames, path, text });
+		contextModelRename({ model, context: contextNames, path, text });
 	const pathOf = (path: string) =>
-		contextAggregatePathRename({ aggregate, context: contextNames, path });
+		contextModelPathRename({ model, context: contextNames, path });
 	// Checked before anything is built, so a refusal writes nothing.
 	for (const file of own) {
 		if (existsSync(join(appDirectory, pathOf(file.path)))) {
@@ -1259,27 +1254,25 @@ export const aggregateFilesCreate = ({
 			: file.path;
 		const target = join(appDirectory, path);
 		if (!existsSync(target)) {
-			throw new Error(
-				`${path} is missing; the template wires Aggregates there`,
-			);
+			throw new Error(`${path} is missing; the template wires Models there`);
 		}
 		const [source = file] = contextFile
-			? partsApply({ files: [file], partsLeftOut })
+			? optionsApply({ files: [file], optionsLeftOut })
 			: [file];
 		const project = readFileSync(target, "utf8");
-		const pairWanted: PairWanted = (part) =>
-			part === undefined || !partsLeftOut.includes(part);
+		const pairWanted: PairWanted = (option) =>
+			option === undefined || !optionsLeftOut.includes(option);
 		files.push({
 			path,
 			text: wiringInsert({
 				// A UI line naming only the context, such as its Use cases' key, comes with the
-				// context's first Aggregate with pages.
+				// context's first Model with pages.
 				blockIs: (line) =>
-					aggregateLineIs(line) ||
-					(file.path.startsWith("src/ui/") && fooLineIs(line)),
-				partsLeftOut,
+					lineIsModel(line) ||
+					(file.path.startsWith("src/ui/") && lineIsFoo(line)),
+				optionsLeftOut,
 				path: file.path,
-				project: pairsEmptyFillableHas({
+				project: fileHasEmptyFillablePair({
 					pairWanted,
 					path,
 					project,
@@ -1300,7 +1293,7 @@ export const aggregateFilesCreate = ({
 	return files.map((file) => schemaExportDrop({ appDirectory, file }));
 };
 
-// Formats what context-create or aggregate-create wrote. A part or piece left out leaves imports
+// Formats what context-create or model-create wrote. An option or piece left out leaves imports
 // nothing uses, so an unused-imports pass goes first.
 export const filesFormat = ({
 	appDirectory,
@@ -1346,48 +1339,49 @@ export const filesWriteAll = ({
 	return wired.length;
 };
 
-// The parts this Project can have: those whose piece it has not removed.
-export const partsAvailableFind = (appDirectory: string): AggregatePart[] => {
+// The options this Project can have: those whose piece it has not removed.
+export const optionsAvailableFind = (appDirectory: string): ModelOption[] => {
 	const removed = piecesRemovedFind(appDirectory);
-	return aggregateParts.filter((part) => {
-		const piece = partPieces[part];
+	return modelOptions.filter((option) => {
+		const piece = optionPieces[option];
 		return piece === undefined || !removed.includes(piece);
 	});
 };
 
-// The refusal for parts this Project cannot have, or undefined.
-export const aggregatePartsRefusal = ({
+// The refusal for options this Project cannot have, or undefined.
+export const modelOptionsRefusal = ({
 	appDirectory,
-	parts,
+	options,
 }: {
 	appDirectory: string;
-	parts: AggregatePart[];
+	options: ModelOption[];
 }): string | undefined => {
-	const available = partsAvailableFind(appDirectory);
-	const missing = parts.find((part) => !available.includes(part));
+	const available = optionsAvailableFind(appDirectory);
+	const missing = options.find((option) => !available.includes(option));
 	return missing === undefined
 		? undefined
-		: `--${missing} needs the ${partPieces[missing]} piece, which this Project removed`;
+		: `--${missing} needs the ${optionPieces[missing]} piece, which this Project removed`;
 };
 
-// What to do after an aggregate-create, for the parts used.
-export const aggregateNextStepsText = ({
-	aggregate,
+// What to do after a model-create, for the options used.
+export const modelNextStepsText = ({
+	model,
 	context,
 	migrated,
-	parts,
+	options,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	context: string;
-	// Whether a migration already creates the Aggregate's table.
+	// Whether a migration already creates the Model's table.
 	migrated: boolean;
-	parts: AggregatePart[] | null;
+	options: ModelOption[] | null;
 }): string => {
 	const folder = `src/contexts/${context}`;
-	const name = aggregate.kebab;
-	const has = (part: AggregatePart) => parts === null || parts.includes(part);
+	const name = model.kebab;
+	const has = (option: ModelOption) =>
+		options === null || options.includes(option);
 	const steps = [
-		`Edit the Aggregate in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; give it its own transitions and specifications there, and delete the Use cases and API operations it does not need.`,
+		`Edit the Model in ${folder}/domain/${name}.ts and its table in ${folder}/adapters/outbound/${name}-table.ts; give it its own model functions there, and delete the Use cases and API operations it does not need.`,
 		...(migrated
 			? []
 			: [
@@ -1408,24 +1402,24 @@ export const aggregateNextStepsText = ({
 					`Change the pages in src/ui/routes/${name}-list.tsx and ${name}-detail.tsx.`,
 				]
 			: []),
-		"Business transitions and specifications, Event handlers and sagas are yours to write: docs/agents/context-create.md.",
+		"Business model functions, Event handlers and sagas are yours to write: docs/agents/context-create.md.",
 	];
 	return ["Next:", ...steps.map((step, k) => `  ${k + 1}. ${step}`)].join("\n");
 };
 
-// Whether a migration in migrations/ already creates the Aggregate's table.
-const aggregateMigrationHas = ({
-	aggregate,
+// Whether a migration in migrations/ already creates the Model's table.
+const modelMigrationHas = ({
+	model,
 	appDirectory,
 	context,
 }: {
-	aggregate: NameForms;
+	model: NameForms;
 	appDirectory: string;
 	context: string;
 }): boolean => {
 	const folder = join(appDirectory, "migrations");
 	if (!existsSync(folder)) return false;
-	const table = `CREATE TABLE "${context.replaceAll("-", "_")}"."${aggregate.kebab.replaceAll("-", "_")}"`;
+	const table = `CREATE TABLE "${context.replaceAll("-", "_")}"."${model.kebab.replaceAll("-", "_")}"`;
 	return readdirSync(folder, { withFileTypes: true }).some(
 		(d) =>
 			d.isDirectory() &&
@@ -1438,7 +1432,7 @@ const aggregateMigrationHas = ({
 
 // Runs pnpm check and pnpm test in the Project. When one fails it returns what to print, the
 // output and a closing line; undefined when both pass.
-export const aggregateChecksRun = ({
+export const modelChecksRun = ({
 	appDirectory,
 	command,
 }: {
@@ -1464,20 +1458,20 @@ export const aggregateChecksRun = ({
 
 // The template the Project's files come from: this checkout in the monorepo, else its release.
 export const templateOf = (appDirectory: string): TemplateFile[] =>
-	monorepoAppIs(appDirectory)
+	appIsMonorepo(appDirectory)
 		? filesRead(appDirectory)
 		: templateFetch(templateJsonRead(appDirectory).release);
 
-const usage = `Usage: pnpm aggregate-create <context> <aggregate> [--plural <plural>] [--bare] [parts]
+const usage = `Usage: pnpm model-create <context> <model> [--plural <plural>] [--bare] [options]
 
-Copies Foo, the Template's Aggregate, into src/contexts/<context>/ as <aggregate>, and wires it
+Copies Foo, the Template's Model, into src/contexts/<context>/ as <model>, and wires it
 into the context's files, the Server, the Worker and the UI. Make the context first with
-pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
+pnpm context-create, and add <model>'s **Term**: entry to its CONTEXT.md.
 
-  --plural <plural>  the plural, when it is not <aggregate>s
-  --bare             only the core: the Aggregate, its errors, create/get/list/update/delete, the
+  --plural <plural>  the plural, when it is not <model>s
+  --bare             only the core: the Model, its errors, create/get/list/update/delete, the
                      API, the repository (memory, Postgres, contract test), created and deleted
-                     Events. Without --bare every part below is copied.
+                     Events. Without --bare every option below is copied.
   --analytics        with --bare: track the created Event
   --cache            with --bare: a read-through cache on get
   --live             with --bare: live updates to pages
@@ -1486,9 +1480,9 @@ pnpm context-create, and add <aggregate>'s **Term**: entry to its CONTEXT.md.
   --seed             with --bare: development rows
   -h, --help         this help
 
-Never generated: business transitions, Event handlers, sagas. See docs/agents/context-create.md.`;
+Never generated: business model functions, Event handlers, sagas. See docs/agents/context-create.md.`;
 
-const options = {
+const flags = {
 	analytics: { type: "boolean" },
 	bare: { type: "boolean" },
 	cache: { type: "boolean" },
@@ -1500,7 +1494,7 @@ const options = {
 } as const;
 
 const main = () => {
-	const parsed = argsParse({ allowPositionals: true, options, usage });
+	const parsed = argsParse({ allowPositionals: true, options: flags, usage });
 	if (parsed === undefined) return;
 	const { positionals, values } = parsed;
 	const [context, kebab] = positionals;
@@ -1512,48 +1506,48 @@ const main = () => {
 		argsUsageFail(usage);
 		return;
 	}
-	const named = aggregateParts.filter((part) => values[part] === true);
+	const named = modelOptions.filter((option) => values[option] === true);
 	if (!values.bare && named.length > 0) {
 		argsFail(
-			"aggregate-create",
-			`--${named.join(", --")} picks parts for --bare; without --bare every part is copied`,
+			"model-create",
+			`--${named.join(", --")} picks options for --bare; without --bare every option is copied`,
 		);
 		return;
 	}
-	const parts = values.bare ? named : null;
-	const aggregate: NameForms = {
+	const options = values.bare ? named : null;
+	const model: NameForms = {
 		kebab,
 		plural: values.plural ?? `${kebab}s`,
 	};
 	const appDirectory = process.cwd();
 	const refusal =
-		aggregateRefusal({ aggregate, appDirectory, context }) ??
-		aggregatePartsRefusal({ appDirectory, parts: named });
+		modelRefusal({ model, appDirectory, context }) ??
+		modelOptionsRefusal({ appDirectory, options: named });
 	if (refusal !== undefined) {
-		argsFail("aggregate-create", refusal);
+		argsFail("model-create", refusal);
 		return;
 	}
 	let files: TemplateFile[] = [];
 	try {
-		files = aggregateFilesCreate({
-			aggregate,
+		files = modelFilesCreate({
+			model,
 			appDirectory,
 			context,
-			parts,
+			options,
 			templateFull: templateOf(appDirectory),
 		});
 	} catch (error) {
-		argsFail("aggregate-create", (error as Error).message);
+		argsFail("model-create", (error as Error).message);
 		return;
 	}
 	const wired = filesWriteAll({ appDirectory, files });
 	console.log(
-		`Wrote ${aggregate.kebab} into src/contexts/${context}/ and wired it into ${wired} files; running pnpm check and pnpm test.`,
+		`Wrote ${model.kebab} into src/contexts/${context}/ and wired it into ${wired} files; running pnpm check and pnpm test.`,
 	);
 	filesFormat({ appDirectory, paths: files.map((f) => f.path) });
-	const checksFailure = aggregateChecksRun({
+	const checksFailure = modelChecksRun({
 		appDirectory,
-		command: "aggregate-create",
+		command: "model-create",
 	});
 	if (checksFailure !== undefined) {
 		console.error(checksFailure);
@@ -1561,12 +1555,12 @@ const main = () => {
 		return;
 	}
 	console.log(
-		`Created ${aggregate.kebab}; pnpm check and pnpm test pass.\n${aggregateNextStepsText(
+		`Created ${model.kebab}; pnpm check and pnpm test pass.\n${modelNextStepsText(
 			{
-				aggregate,
+				model,
 				context,
-				migrated: aggregateMigrationHas({ aggregate, appDirectory, context }),
-				parts: parts ?? partsAvailableFind(appDirectory),
+				migrated: modelMigrationHas({ model, appDirectory, context }),
+				options: options ?? optionsAvailableFind(appDirectory),
 			},
 		)}`,
 	);

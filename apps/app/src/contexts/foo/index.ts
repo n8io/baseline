@@ -1,5 +1,5 @@
 // The context's interface: outside code imports only this file. fooContextCreate builds the
-// context and hands back what the composition roots mount; the rest is its Published language.
+// context and hands back what the entry points mount; the rest is its Public contract.
 
 import type { Actor } from "@n8io/baseline-authn";
 import { telemetryUseCasesTrace } from "@n8io/baseline-telemetry";
@@ -15,7 +15,7 @@ import { fooSeed } from "./adapters/inbound/foo-seed.ts";
 import { fooPortsCreate } from "./adapters/outbound/index.ts";
 import { fooUseCasesCreate } from "./application/foo-use-cases.ts";
 
-// Picks the context's adapters from the connections a composition root opened, and traces every
+// Picks the context's adapters from the connections an entry point opened, and traces every
 // Use case. Each part comes only with its Piece: handlers and schedules with the queue.
 export const fooContextCreate = ({
 	connections,
@@ -47,7 +47,7 @@ export const fooContextCreate = ({
 			// wiring: schedules
 		],
 		// piece-end: queue
-		// Development rows, one seed per Aggregate, run in this order.
+		// Development rows, one seed per Model, run in this order.
 		seeds: [
 			(actor: Actor) => fooSeed(useCases, actor),
 			// wiring: seeds
@@ -57,7 +57,7 @@ export const fooContextCreate = ({
 // What the context hands back: a downstream context's ACL reads it through its useCases.
 export type FooContext = ReturnType<typeof fooContextCreate>;
 
-// The Published language: what the UI and other contexts may use.
+// The Public contract: what the UI and other contexts may use.
 export type { FooUseCases } from "./application/foo-use-cases.ts";
 export { type Bar, BarCreateInput, BarListInput } from "./domain/bar.ts";
 export * from "./domain/errors.ts";
@@ -69,8 +69,8 @@ export {
 	type FooList,
 	FooListInput,
 	FooUpdateInput,
-	fooDeleteCan,
-	fooUpdateCan,
+	fooCanDelete,
+	fooCanUpdate,
 } from "./domain/foo.ts";
 export { fooErrorStatus } from "./foo-error-status.ts";
 

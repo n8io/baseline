@@ -37,7 +37,7 @@ const violationFind = (
 };
 
 /** True when `error` or any error in its `.cause` chain is a unique violation on `constraint`. */
-export const postgresUniqueViolationIs = (
+export const postgresErrorIsUniqueViolation = (
 	error: unknown,
 	constraint: string,
 ): boolean => violationFind(error)?.constraint === constraint;

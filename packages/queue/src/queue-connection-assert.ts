@@ -17,7 +17,7 @@ const queueUrlSslParams = [
 
 /**
  * Checks what queueMigrate and queueSchedulesSync are handed before pg-boss opens its own
- * connection: a Postgres URL (the composition root handles memory:// first), only the `vendor`
+ * connection: a Postgres URL (the entry point handles memory:// first), only the `vendor`
  * keys that connection reads, and TLS set in one place. Each message starts with `caller` and
  * never echoes the URL, which may hold a password.
  */

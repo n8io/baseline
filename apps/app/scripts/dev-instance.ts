@@ -20,7 +20,7 @@ export const devInstanceNameCreate = (project: string, folder: string) =>
 
 // A linked worktree's git dir is its own; the original checkout's is the common one. Without git
 // (a copy, no git binary) it is the original checkout.
-export const devInstanceLinkedIs = (directory: string): boolean => {
+export const devInstanceIsLinked = (directory: string): boolean => {
 	try {
 		const [gitDir, commonDir] = gitRun(directory, [
 			"rev-parse",
@@ -39,7 +39,7 @@ export const devInstanceLinkedIs = (directory: string): boolean => {
 // The instance's compose project name, writing its lines first when the file has none; undefined
 // in the original checkout.
 export const devInstanceWrite = (directory: string): string | undefined => {
-	if (!devInstanceLinkedIs(directory)) return undefined;
+	if (!devInstanceIsLinked(directory)) return undefined;
 	const path = join(directory, devInstanceFile);
 	const text = existsSync(path) ? readFileSync(path, "utf8") : "";
 	const written = parseEnv(text)["COMPOSE_PROJECT_NAME"];

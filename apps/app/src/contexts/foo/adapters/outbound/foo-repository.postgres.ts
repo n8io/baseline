@@ -1,6 +1,6 @@
 import {
+	postgresErrorIsUniqueViolation,
 	postgresKeysetCreate,
-	postgresUniqueViolationIs,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import { and, count, eq, isNotNull, isNull, lt } from "drizzle-orm";
@@ -26,7 +26,7 @@ const fooFromRow = (row: typeof foo.$inferSelect): Foo => ({
 export const fooRepositoryPostgresCreate = (
 	db: FooDatabase,
 ): FooRepository => ({
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	archiveStale: async (before, now) => {
 		const archived = await db
 			.update(foo)
@@ -35,7 +35,7 @@ export const fooRepositoryPostgresCreate = (
 			.returning({ id: foo.id });
 		return archived.length;
 	},
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 	delete: async (id) => {
 		const deleted = await db
 			.delete(foo)
@@ -61,7 +61,7 @@ export const fooRepositoryPostgresCreate = (
 			if (!row) throw new Error(`Foo ${value.id} was not inserted`);
 			return ok(fooFromRow(row));
 		} catch (error) {
-			if (postgresUniqueViolationIs(error, "foo_name_key")) {
+			if (postgresErrorIsUniqueViolation(error, "foo_name_key")) {
 				return err(new FooNameTakenError(value.name));
 			}
 			throw error;
@@ -119,7 +119,7 @@ export const fooRepositoryPostgresCreate = (
 			if (!row) return err(new FooNotFoundError(value.id));
 			return ok(fooFromRow(row));
 		} catch (error) {
-			if (postgresUniqueViolationIs(error, "foo_name_key")) {
+			if (postgresErrorIsUniqueViolation(error, "foo_name_key")) {
 				return err(new FooNameTakenError(value.name));
 			}
 			throw error;

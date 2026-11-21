@@ -3,12 +3,12 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
+	postgresErrorIsUniqueViolation,
 	postgresPoolCreate,
-	postgresUniqueViolationIs,
 	postgresUniqueViolationRead,
 } from "./index.ts";
 
-describe("postgresUniqueViolationIs", () => {
+describe("postgresErrorIsUniqueViolation", () => {
 	it("finds the pg error inside Drizzle's DrizzleQueryError", async () => {
 		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
@@ -25,8 +25,8 @@ describe("postgresUniqueViolationIs", () => {
 
 		expect(error).toBeInstanceOf(Error);
 		expect((error as Error).constructor.name).toBe("DrizzleQueryError");
-		expect(postgresUniqueViolationIs(error, "foo_name_key")).toBe(true);
-		expect(postgresUniqueViolationIs(error, "foo_pkey")).toBe(false);
+		expect(postgresErrorIsUniqueViolation(error, "foo_name_key")).toBe(true);
+		expect(postgresErrorIsUniqueViolation(error, "foo_pkey")).toBe(false);
 	});
 });
 

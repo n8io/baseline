@@ -39,7 +39,7 @@ export type QueueConsumerOptions<S extends StandardSchemaV1> = {
 	/** The Event it handles, as published (order.placed). */
 	eventName: string;
 	/**
-	 * `<handling context>.<event entity>-<event verb>` (billing.order-placed); also the Inbox
+	 * `<handling context>.<event model>-<event verb>` (billing.order-placed); also the Inbox
 	 * `consumer` key.
 	 */
 	queueName: string;

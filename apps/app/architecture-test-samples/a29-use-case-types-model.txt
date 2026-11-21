@@ -1,4 +1,4 @@
-// A29: a Use case never builds an Aggregate root as a literal
+// A29: a Use case never builds a Model as a literal
 // expect: src/contexts/billing/application/invoice-open.ts:2: : InvoiceLine = { makes or changes a InvoiceLine in a Use case
 // @file src/contexts/billing/application/invoice-open.ts
 export const invoiceOpen = (ports) => async (actor, input) => {

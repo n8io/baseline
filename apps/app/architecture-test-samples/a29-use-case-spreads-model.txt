@@ -1,5 +1,5 @@
-// A29: a Use case changes an Aggregate only through a transition in domain/, never by copying it with changes
-// expect: src/contexts/billing/application/invoice-rename.ts:4: ...invoice makes or changes a Invoice in a Use case; do it only through a transition in domain/invoice.ts
+// A29: a Use case changes a Model only through a model function in domain/, never by copying it with changes
+// expect: src/contexts/billing/application/invoice-rename.ts:4: ...invoice makes or changes a Invoice in a Use case; do it only through a model function in domain/invoice.ts
 // @file src/contexts/billing/application/invoice-rename.ts
 export const invoiceRename = (ports) => (actor, input) =>
 	ports.billingTransaction(async (t) => {

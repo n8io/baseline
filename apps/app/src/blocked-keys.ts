@@ -1,4 +1,4 @@
-// Composition root for an operator: lists and releases the Event keys a failed Event holds back.
+// Entry point for an operator: lists and releases the Event keys a failed Event holds back.
 // Run it in a pod as the migrate entry runs, `node src/blocked-keys.ts` (locally `pnpm blocked-keys`):
 //   (no arguments)             lists every blocked key
 //   retry <consumer> <key>     runs the failed Event again, before the Events waiting behind it

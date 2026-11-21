@@ -10,26 +10,26 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { contextFilesCreate } from "./context-create.ts";
 import {
-	type AggregatePart,
 	aclPath,
-	aggregateFilesCreate,
-	aggregateLineIs,
-	aggregateNextStepsText,
-	aggregateParts,
-	aggregateRefusal,
-	barLineIs,
-	contextAggregateRename,
+	contextModelRename,
 	contextReadsFind,
 	contextsPairsFill,
+	lineIsBar,
+	lineIsModel,
+	type ModelOption,
+	modelFilesCreate,
+	modelNextStepsText,
+	modelOptions,
+	modelRefusal,
 	nameRefusal,
 	nameTerm,
 	readsApply,
 	readsRefusal,
 	templateWithoutPieces,
 	wiringInsert,
-} from "./aggregate-create.ts";
-import { contextFilesCreate } from "./context-create.ts";
+} from "./model-create.ts";
 import { type Piece, pieceBlocksRemove, piecesRemovedFind } from "./pieces.ts";
 import {
 	filesRead,
@@ -68,9 +68,9 @@ const template =
 		.join() === "foo";
 
 const appCreate = (context: string): DisposableTempDir => {
-	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
+	const folder = mkdtempDisposableSync(join(tmpdir(), "model-create-"));
 	const directory = folder.path;
-	// The billing context's own glossary, which aggregate-create reads its Aggregates' terms from.
+	// The billing context's own glossary, which model-create reads its Models' terms from.
 	mkdirSync(join(directory, "src/contexts/billing"), { recursive: true });
 	writeFileSync(join(directory, "src/contexts/billing/CONTEXT.md"), context);
 	// Every piece installed, as app-create leaves a Project.
@@ -89,7 +89,7 @@ const appCreate = (context: string): DisposableTempDir => {
 	return folder;
 };
 
-describe("nameRefusal and aggregateRefusal", () => {
+describe("nameRefusal and modelRefusal", () => {
 	it("accepts a kebab-case name the glossary defines", () => {
 		using folder = appCreate("**Invoice line**:\nOne line.\n");
 		const app = folder.path;
@@ -105,8 +105,8 @@ describe("nameRefusal and aggregateRefusal", () => {
 			}),
 		).toBeUndefined();
 		expect(
-			aggregateRefusal({
-				aggregate: names,
+			modelRefusal({
+				model: names,
 				appDirectory: app,
 				context: "billing",
 			}),
@@ -120,27 +120,27 @@ describe("nameRefusal and aggregateRefusal", () => {
 		[{ kebab: "sheep", plural: "sheep" }, "must differ"],
 		[{ kebab: "doc", plural: "docs" }, "API reference"],
 		[{ kebab: "customer", plural: "customers" }, "no **Customer**: entry"],
-	])("refuses the Aggregate %j", (refused, reason) => {
+	])("refuses the Model %j", (refused, reason) => {
 		using folder = appCreate("**Invoice line**:\nOne line.\n**Sheep**:\nA.\n");
 		const app = folder.path;
 		mkdirSync(join(app, "src/contexts/billing"), { recursive: true });
 		writeFileSync(join(app, "src/contexts/billing/index.ts"), "");
 
 		expect(
-			aggregateRefusal({
-				aggregate: refused,
+			modelRefusal({
+				model: refused,
 				appDirectory: app,
 				context: "billing",
 			}),
 		).toContain(reason);
 	});
 
-	it("refuses a context that does not exist, and an Aggregate it already holds", () => {
+	it("refuses a context that does not exist, and a Model it already holds", () => {
 		using folder = appCreate("**Invoice line**:\nOne line.\n");
 		const app = folder.path;
 		const refusal = () =>
-			aggregateRefusal({
-				aggregate: names,
+			modelRefusal({
+				model: names,
 				appDirectory: app,
 				context: "billing",
 			});
@@ -152,14 +152,14 @@ describe("nameRefusal and aggregateRefusal", () => {
 		expect(refusal()).toContain("domain/invoice-line.ts already exists");
 		mkdirSync(join(app, "src/contexts/crm/domain"), { recursive: true });
 		const crm = () =>
-			aggregateRefusal({ aggregate: names, appDirectory: app, context: "crm" });
+			modelRefusal({ model: names, appDirectory: app, context: "crm" });
 		writeFileSync(join(app, "src/contexts/crm/index.ts"), "");
 		expect(crm()).toContain(
 			"src/contexts/billing/domain/invoice-line.ts already exists",
 		);
 		expect(
-			aggregateRefusal({
-				aggregate: { kebab: "billing", plural: "billings" },
+			modelRefusal({
+				model: { kebab: "billing", plural: "billings" },
 				appDirectory: app,
 				context: "crm",
 			}),
@@ -167,20 +167,20 @@ describe("nameRefusal and aggregateRefusal", () => {
 	});
 });
 
-describe("contextAggregateRename", () => {
-	it("spells the context where foo is the context and the Aggregate everywhere else", () => {
+describe("contextModelRename", () => {
+	it("spells the context where foo is the context and the Model everywhere else", () => {
 		const text = [
 			'import type { FooPorts } from "../application/ports.ts";',
 			'import { fooPortsMemoryCreate } from "../adapters/outbound/foo-ports.memory.ts";',
-			'import { fooDeleteCan } from "#contexts/foo/domain/foo.ts";',
+			'import { fooCanDelete } from "#contexts/foo/domain/foo.ts";',
 			"export const fooDelete = (ports: FooPorts) => ports.fooTransaction(async (t) => t.fooRepository);",
 			'const key = "foo.deleted";',
 			'export const fooSchema = pgSchema("foo");',
 		].join("\n");
 
 		expect(
-			contextAggregateRename({
-				aggregate: names,
+			contextModelRename({
+				model: names,
 				context: billing,
 				path: "src/contexts/foo/application/foo-delete.ts",
 				text,
@@ -188,33 +188,31 @@ describe("contextAggregateRename", () => {
 		).toEqual([
 			'import type { BillingPorts } from "../application/ports.ts";',
 			'import { billingPortsMemoryCreate } from "../adapters/outbound/billing-ports.memory.ts";',
-			'import { invoiceLineDeleteCan } from "#contexts/billing/domain/invoice-line.ts";',
+			'import { invoiceLineCanDelete } from "#contexts/billing/domain/invoice-line.ts";',
 			"export const invoiceLineDelete = (ports: BillingPorts) => ports.billingTransaction(async (t) => t.invoiceLineRepository);",
 			'const key = "invoice-line.deleted";',
 			'export const invoiceLineSchema = pgSchema("billing");',
 		]);
 	});
 
-	it("tells a line of the Aggregate from a line of the context, and finds Bar's", () => {
-		expect(aggregateLineIs("\tfooClock: Clock;")).toBe(false);
+	it("tells a line of the Model from a line of the context, and finds Bar's", () => {
+		expect(lineIsModel("\tfooClock: Clock;")).toBe(false);
 		expect(
-			aggregateLineIs("\tfooTransaction: fooTransactionMemoryCreate(state),"),
+			lineIsModel("\tfooTransaction: fooTransactionMemoryCreate(state),"),
 		).toBe(false);
-		expect(aggregateLineIs("\tfooReadRepository: FooReadRepository;")).toBe(
-			true,
-		);
+		expect(lineIsModel("\tfooReadRepository: FooReadRepository;")).toBe(true);
 		expect(
-			aggregateLineIs(
+			lineIsModel(
 				'app.route("/api/v1/foos", fooRoutesCreate(useCases.fooUseCases));',
 			),
 		).toBe(true);
-		expect(barLineIs("\tbarRepository: BarRepository;")).toBe(true);
-		expect(barLineIs("// a toolbar and a barrier")).toBe(false);
-		expect(barLineIs('\tscopes: ["bar:read"],')).toBe(false);
-		expect(barLineIs('<nav className="nav-bar">')).toBe(false);
-		expect(barLineIs('\tbars: new Map<Id<"bar">, Bar>(),')).toBe(true);
-		expect(barLineIs('export * from "./domain/bar.ts";')).toBe(true);
-		expect(barLineIs("\t// invariant: a Bar never outlives its Foo.")).toBe(
+		expect(lineIsBar("\tbarRepository: BarRepository;")).toBe(true);
+		expect(lineIsBar("// a toolbar and a barrier")).toBe(false);
+		expect(lineIsBar('\tscopes: ["bar:read"],')).toBe(false);
+		expect(lineIsBar('<nav className="nav-bar">')).toBe(false);
+		expect(lineIsBar('\tbars: new Map<Id<"bar">, Bar>(),')).toBe(true);
+		expect(lineIsBar('export * from "./domain/bar.ts";')).toBe(true);
+		expect(lineIsBar("\t// invariant: a Bar never outlives its Foo.")).toBe(
 			true,
 		);
 	});
@@ -222,8 +220,8 @@ describe("contextAggregateRename", () => {
 
 describe("wiringInsert", () => {
 	const rename = (text: string) =>
-		contextAggregateRename({
-			aggregate: names,
+		contextModelRename({
+			model: names,
 			context: billing,
 			path: "src/server.ts",
 			text,
@@ -245,7 +243,7 @@ describe("wiringInsert", () => {
 			"// wiring: routes",
 		].join("\n");
 		const inserted = wiringInsert({
-			blockIs: aggregateLineIs,
+			blockIs: lineIsModel,
 			path: "src/server.ts",
 			project,
 			rename,
@@ -263,7 +261,7 @@ describe("wiringInsert", () => {
 		]);
 		expect(
 			wiringInsert({
-				blockIs: aggregateLineIs,
+				blockIs: lineIsModel,
 				path: "src/server.ts",
 				project: inserted,
 				rename,
@@ -274,8 +272,8 @@ describe("wiringInsert", () => {
 
 	it("adds a line whose text sits inside a longer name, and skips one Biome reflowed", () => {
 		const order = (text: string) =>
-			contextAggregateRename({
-				aggregate: { kebab: "order", plural: "orders" },
+			contextModelRename({
+				model: { kebab: "order", plural: "orders" },
 				context: { kebab: "order", plural: "orders" },
 				path: "src/contexts.ts",
 				text,
@@ -304,7 +302,7 @@ describe("wiringInsert", () => {
 	it("stops and names the file when the project lost a marker", () => {
 		expect(() =>
 			wiringInsert({
-				blockIs: aggregateLineIs,
+				blockIs: lineIsModel,
 				path: "src/server.ts",
 				project: 'import { ENV } from "#env";\n',
 				rename,
@@ -313,7 +311,7 @@ describe("wiringInsert", () => {
 		).toThrow('src/server.ts: missing marker "// wiring: routes"');
 	});
 
-	it("adds no line at a marker of a part the Aggregate leaves out", () => {
+	it("adds no line at a marker of an option the Model leaves out", () => {
 		const template = [
 			'import { fooScopes } from "#contexts/foo/index.ts";',
 			"",
@@ -323,8 +321,8 @@ describe("wiringInsert", () => {
 
 		expect(
 			wiringInsert({
-				blockIs: aggregateLineIs,
-				partsLeftOut: ["seed"],
+				blockIs: lineIsModel,
+				optionsLeftOut: ["seed"],
 				path: "src/seed.ts",
 				project: "// wiring: scopes",
 				rename,
@@ -358,7 +356,7 @@ describe("wiringInsert", () => {
 
 		expect(
 			wiringInsert({
-				blockIs: aggregateLineIs,
+				blockIs: lineIsModel,
 				path: "src/contexts/foo/adapters/outbound/index.ts",
 				project,
 				rename,
@@ -397,7 +395,7 @@ describe("contextsPairsFill", () => {
 
 		expect(
 			contextsPairsFill({
-				pairWanted: (part) => part === undefined,
+				pairWanted: (option) => option === undefined,
 				path: "x.ts",
 				project,
 				template,
@@ -477,13 +475,13 @@ describe("readsRefusal and contextReadsFind", () => {
 	});
 });
 
-describe("aggregateNextStepsText", () => {
-	it("names the codegen step only before a migration exists, and only the parts copied", () => {
-		const bare = aggregateNextStepsText({
-			aggregate: names,
+describe("modelNextStepsText", () => {
+	it("names the codegen step only before a migration exists, and only the options copied", () => {
+		const bare = modelNextStepsText({
+			model: names,
 			context: "billing",
 			migrated: false,
-			parts: ["seed"],
+			options: ["seed"],
 		});
 		expect(bare).toContain("pnpm codegen --name invoice_line_create");
 		expect(bare).toContain(
@@ -492,11 +490,11 @@ describe("aggregateNextStepsText", () => {
 		expect(bare).not.toContain("Schedule");
 		expect(bare).not.toContain("pages");
 
-		const full = aggregateNextStepsText({
-			aggregate: names,
+		const full = modelNextStepsText({
+			model: names,
 			context: "billing",
 			migrated: true,
-			parts: null,
+			options: null,
 		});
 		expect(full).not.toContain("codegen");
 		expect(full).toContain("Schedule");
@@ -504,8 +502,8 @@ describe("aggregateNextStepsText", () => {
 	});
 });
 
-describe("the aggregate-create command", () => {
-	const script = new URL("./aggregate-create.ts", import.meta.url).pathname;
+describe("the model-create command", () => {
+	const script = new URL("./model-create.ts", import.meta.url).pathname;
 	const command = (...args: string[]) =>
 		spawnSync(process.execPath, [script, ...args], {
 			cwd: appRoot,
@@ -517,7 +515,7 @@ describe("the aggregate-create command", () => {
 			const run = command(flag);
 			expect(run.status).toBe(0);
 			expect(run.stdout).toContain(
-				"Usage: pnpm aggregate-create <context> <aggregate>",
+				"Usage: pnpm model-create <context> <model>",
 			);
 			expect(run.stderr).toBe("");
 		}
@@ -532,10 +530,10 @@ describe("the aggregate-create command", () => {
 		}
 	});
 
-	it("refuses a part flag without --bare", () => {
+	it("refuses an option flag without --bare", () => {
 		const run = command("billing", "invoice-line", "--schedule");
 		expect(run.status).toBe(1);
-		expect(run.stderr).toContain("--schedule picks parts for --bare");
+		expect(run.stderr).toContain("--schedule picks options for --bare");
 	});
 });
 
@@ -565,17 +563,17 @@ describe("pieceBlocksRemove", () => {
 });
 
 // A Project rendered from this template, with the billing context made by context-create, then
-// the Aggregates added in order, each written before the next is made.
+// the Models added in order, each written before the next is made.
 const projectBuild = ({
-	aggregates,
+	models,
 	reads = [],
 	removed = [],
 }: {
-	aggregates: { names: typeof names; parts?: AggregatePart[] | null }[];
+	models: { names: typeof names; options?: ModelOption[] | null }[];
 	reads?: string[];
 	removed?: Piece[];
 }) => {
-	const folder = mkdtempDisposableSync(join(tmpdir(), "aggregate-create-"));
+	const folder = mkdtempDisposableSync(join(tmpdir(), "model-create-"));
 	const app = folder.path;
 	const templateFull = filesRead(appRoot.pathname);
 	filesWrite(
@@ -602,12 +600,12 @@ const projectBuild = ({
 		templateFull,
 	});
 	filesWrite(app, shell);
-	const steps = aggregates.map(({ names: aggregate, parts = null }) => {
-		const created = aggregateFilesCreate({
-			aggregate,
+	const steps = models.map(({ names: model, options = null }) => {
+		const created = modelFilesCreate({
+			model,
 			appDirectory: app,
 			context: "billing",
-			parts,
+			options,
 			templateFull,
 		});
 		filesWrite(app, created);
@@ -620,11 +618,9 @@ const textOf = (files: TemplateFile[], path: string) =>
 	files.find((f) => f.path === path)?.text ?? "";
 
 describe.runIf(template)(
-	"context-create and aggregate-create on the template",
+	"context-create and model-create on the template",
 	() => {
-		const built = template
-			? projectBuild({ aggregates: [{ names }] })
-			: undefined;
+		const built = template ? projectBuild({ models: [{ names }] }) : undefined;
 		const files = built?.steps[0] ?? [];
 		const file = (path: string) => textOf(files, path);
 
@@ -663,8 +659,8 @@ describe.runIf(template)(
 		it("refuses to overwrite a file the project already has", () => {
 			if (!built) return;
 			expect(() =>
-				aggregateFilesCreate({
-					aggregate: names,
+				modelFilesCreate({
+					model: names,
 					appDirectory: built.app,
 					context: "billing",
 					templateFull: filesRead(appRoot.pathname),
@@ -673,9 +669,9 @@ describe.runIf(template)(
 		});
 
 		it("wires no Markdown file, even one that quotes a marker on its own line", () => {
-			using project = projectBuild({ aggregates: [] }).folder;
-			const created = aggregateFilesCreate({
-				aggregate: names,
+			using project = projectBuild({ models: [] }).folder;
+			const created = modelFilesCreate({
+				model: names,
 				appDirectory: project.path,
 				context: "billing",
 				templateFull: [
@@ -693,7 +689,7 @@ describe.runIf(template)(
 			);
 		});
 
-		it("builds the context in src/contexts.ts, with each Aggregate's routes, schedules and seeds in its index.ts", () => {
+		it("builds the context in src/contexts.ts, with each Model's routes, schedules and seeds in its index.ts", () => {
 			const shell = built?.shell ?? [];
 			expect(textOf(shell, "src/contexts/billing/index.ts")).toMatch(
 				/telemetryUseCasesTrace\(\s*billingUseCasesCreate\(billingPortsCreate\(connections\)\),\s*\);/,
@@ -733,9 +729,9 @@ describe.runIf(template)(
 			);
 		});
 
-		it("gives the context's files a second Aggregate's lines beside the first's, and the UI key once", () => {
+		it("gives the context's files a second Model's lines beside the first's, and the UI key once", () => {
 			using second = projectBuild({
-				aggregates: [
+				models: [
 					{ names },
 					{ names: { kebab: "invoice-note", plural: "invoice-notes" } },
 				],
@@ -772,15 +768,15 @@ describe.runIf(template)(
 			expect(index.match(/billingContextCreate = /g)).toHaveLength(1);
 		});
 
-		// One file or line that only each part brings. Imports do not count: the unused-imports pass
-		// drops the ones a left-out part leaves behind.
+		// One file or line that only each option brings. Imports do not count: the unused-imports pass
+		// drops the ones a left-out option leaves behind.
 		const importsDrop = (created: TemplateFile[]) =>
 			created.map((f) => ({
 				path: f.path,
 				text: f.text.replaceAll(/^import [\s\S]*?;$/gm, ""),
 			}));
-		const partSigns: Record<
-			AggregatePart,
+		const optionSigns: Record<
+			ModelOption,
 			(created: TemplateFile[]) => boolean
 		> = {
 			analytics: (created) =>
@@ -815,34 +811,34 @@ describe.runIf(template)(
 				),
 		};
 
-		it.each([[], ...aggregateParts.map((part) => [part])] as AggregatePart[][])(
-			"brings only the files and lines of the parts named with --bare %j",
-			(...parts) => {
-				const step = projectBuild({ aggregates: [{ names, parts }] });
+		it.each([[], ...modelOptions.map((option) => [option])] as ModelOption[][])(
+			"brings only the files and lines of the options named with --bare %j",
+			(...options) => {
+				const step = projectBuild({ models: [{ names, options }] });
 				using _folder = step.folder;
 				const created = step.steps[0] ?? [];
 
 				expect(
-					aggregateParts.filter((p) => partSigns[p](importsDrop(created))),
-				).toEqual(parts);
+					modelOptions.filter((p) => optionSigns[p](importsDrop(created))),
+				).toEqual(options);
 				expect(
-					created.filter((f) => /aggregate-create-(start|end)/.test(f.text)),
+					created.filter((f) => /model-create-(start|end)/.test(f.text)),
 				).toEqual([]);
 			},
 		);
 
-		it("copies with --bare and every part what it copies without --bare", () => {
+		it("copies with --bare and every option what it copies without --bare", () => {
 			const step = projectBuild({
-				aggregates: [{ names, parts: [...aggregateParts] }],
+				models: [{ names, options: [...modelOptions] }],
 			});
 			using _folder = step.folder;
 
 			expect(step.steps[0]).toEqual(files);
 		});
 
-		it("writes the ACL, its test and its wiring for --reads, and passes the upstream to a later Aggregate's tests", () => {
+		it("writes the ACL, its test and its wiring for --reads, and passes the upstream to a later Model's tests", () => {
 			const step = projectBuild({
-				aggregates: [{ names, parts: [] }],
+				models: [{ names, options: [] }],
 				reads: ["customer"],
 			});
 			using _folder = step.folder;
@@ -906,13 +902,13 @@ describe.runIf(template)(
 			).toEqual([]);
 		});
 
-		it("fills a first --bare Aggregate's wiring only for its parts, and a later one's for the parts it brings", () => {
+		it("fills a first --bare Model's wiring only for its options, and a later one's for the options it brings", () => {
 			const step = projectBuild({
-				aggregates: [
-					{ names, parts: [] },
+				models: [
+					{ names, options: [] },
 					{
 						names: { kebab: "invoice-note", plural: "invoice-notes" },
-						parts: ["pages", "schedule", "seed"],
+						options: ["pages", "schedule", "seed"],
 					},
 				],
 			});
@@ -980,7 +976,7 @@ describe.runIf(template)(
 
 		it("leaves out the pieces a Project removed, which have no package left", () => {
 			const step = projectBuild({
-				aggregates: [{ names }],
+				models: [{ names }],
 				removed: [
 					"analytics",
 					"api-reference",

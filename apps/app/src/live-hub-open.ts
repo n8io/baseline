@@ -1,4 +1,4 @@
-// The live hub for a composition root: on Redis, so every process sees every live update, or in
+// The live hub for an entry point: on Redis, so every process sees every live update, or in
 // memory for memory://. `pnpm piece-remove live` deletes this file.
 import {
 	type LiveHub,

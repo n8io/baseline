@@ -8,8 +8,8 @@ import { fooPortsMemoryCreate } from "./foo-ports.memory.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 import { fooTransactionPostgresCreate } from "./foo-transaction.postgres.ts";
 
-// Picks each port's adapter from the connections the composition root opened: a real one, or
-// "memory". Composition roots own every connection.
+// Picks each port's adapter from the connections the entry point opened: a real one, or
+// "memory". Entry points own every connection.
 export const fooPortsCreate = (connections: Connections): FooPorts => {
 	const { database } = connections;
 	// piece-start: queue

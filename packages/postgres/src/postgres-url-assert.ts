@@ -1,6 +1,6 @@
 // Copied to packages/queue/src/queue-connection-assert.ts; keep the two in step.
 /**
- * Pool and migrate accept only Postgres URLs; the composition root handles memory:// first.
+ * Pool and migrate accept only Postgres URLs; the entry point handles memory:// first.
  * The message names the scheme but never the URL, which may hold a password. `caller` is the
  * public function that was handed the URL, which the message starts with.
  */

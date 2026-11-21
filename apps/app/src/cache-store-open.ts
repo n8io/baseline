@@ -1,4 +1,4 @@
-// The cache store for a composition root: on Redis, or in memory for memory://. The only file that
+// The cache store for an entry point: on Redis, or in memory for memory://. The only file that
 // picks the cache's backend; a bounded context takes the store it is given.
 // `pnpm piece-remove cache` deletes this file.
 import {

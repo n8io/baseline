@@ -1,37 +1,36 @@
-// pnpm context-create <context> [--reads <context>]...: makes a bounded context with no Aggregate
+// pnpm context-create <context> [--reads <context>]...: makes a bounded context with no Model
 // yet: the context's own files from the Template's foo, renamed, without Foo's or Bar's lines, its
-// CONTEXT.md with the subdomain type CONTEXT-MAP.md gives it, and its wiring into the composition
-// roots. It refuses a context the map does not list. --reads adds an anti-corruption layer (ACL)
-// over another context. pnpm aggregate-create then adds its Aggregates. Writes no migration and never commits.
+// CONTEXT.md and its wiring into the entry points. It refuses a context the map does not list. --reads adds an anti-corruption layer (ACL)
+// over another context. pnpm model-create then adds its Models. Writes no migration and never commits.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { argsFail, argsParse, argsUsageFail } from "./args.ts";
+import { contextMapRead } from "./glossary-check.ts";
 import {
-	aggregateLineIs,
-	aggregateParts,
 	barRemove,
 	blocksOf,
 	contextFilePaths,
 	contextsPairsFill,
+	fileHasEmptyFillablePair,
 	filesFormat,
 	filesWriteAll,
 	kebabPattern,
+	lineIsModel,
+	modelOptions,
 	nameTerm,
+	optionsApply,
 	type PairWanted,
-	pairsEmptyFillableHas,
-	partsApply,
 	readsApply,
 	readsRefusal,
 	templateOf,
 	templateWithoutPieces,
 	wiringInsert,
-} from "./aggregate-create.ts";
-import { argsFail, argsParse, argsUsageFail } from "./args.ts";
-import { contextMapRead } from "./glossary-check.ts";
+} from "./model-create.ts";
 import { piecesRemovedFind } from "./pieces.ts";
 import {
-	fooLineIs,
 	fooPathRename,
 	fooRename,
+	lineIsFoo,
 	linesRemove,
 	type TemplateFile,
 } from "./template-render.ts";
@@ -60,30 +59,26 @@ export const contextRefusal = ({
 	context: string;
 }): string | undefined => {
 	if (!kebabPattern.test(context)) return `"${context}" is not kebab-case`;
-	if (fooLineIs(context))
+	if (lineIsFoo(context))
 		return `"${context}" names foo, the Template's example name, which the render renames`;
 	if (existsSync(join(appDirectory, "src/contexts", context))) {
 		return `src/contexts/${context}/ already exists`;
 	}
 	if (contextMapRowFind({ appDirectory, context }) === undefined) {
-		return `CONTEXT-MAP.md lists no ${context}; agree its subdomain type and add its row under ## Contexts first`;
+		return `CONTEXT-MAP.md lists no ${context}; add its row under ## Contexts first`;
 	}
 	return undefined;
 };
 
-// The context's own glossary: its subdomain type, a line to fill in, and an empty language that
-// aggregate-create needs each Aggregate's term in.
+// The context's own glossary: a line to fill in, and an empty language that model-create
+// needs each Model's term in.
 export const contextGlossaryText = ({
 	context,
-	subdomain,
 }: {
 	context: string;
-	subdomain: string;
 }): string => `# ${nameTerm(context)}
 
-Subdomain: ${subdomain}
-
-What the ${context.replaceAll("-", " ")} context does and the Aggregates it holds, in a sentence or two.
+What the ${context.replaceAll("-", " ")} context does and the Models it holds, in a sentence or two.
 
 ## Language
 `;
@@ -114,18 +109,18 @@ export const contextFilesCreate = ({
 	});
 	const rename = (path: string) => (text: string) =>
 		fooRename({ names, path, text });
-	// The context's files lose every Aggregate's lines and the part blocks that hold them.
+	// The context's files lose every Model's lines and the option blocks that hold them.
 	const own = read
 		.filter((f) => f.path !== "src/contexts.ts")
 		.map((file): TemplateFile => {
 			const [shell = file] = contextFilePaths.has(file.path)
-				? partsApply({ files: [file], partsLeftOut: [...aggregateParts] })
+				? optionsApply({ files: [file], optionsLeftOut: [...modelOptions] })
 				: [file];
 			const text = contextFilePaths.has(file.path)
 				? linesRemove(
 						shell.text,
 						blocksOf({
-							lineIs: aggregateLineIs,
+							lineIs: lineIsModel,
 							path: file.path,
 							text: shell.text,
 						}),
@@ -140,17 +135,12 @@ export const contextFilesCreate = ({
 		...own,
 		{
 			path: `src/contexts/${context}/CONTEXT.md`,
-			text: contextGlossaryText({
-				context,
-				// context-create refuses a context the map lacks; tests may skip the map.
-				subdomain:
-					contextMapRowFind({ appDirectory, context })?.subdomain ?? "core",
-			}),
+			text: contextGlossaryText({ context }),
 		},
 	];
-	// The composition roots get the context's own lines; aggregate-create brings the rest, the
+	// The entry points get the context's own lines; model-create brings the rest, the
 	// UI's included.
-	const pairWanted: PairWanted = (part) => part === undefined;
+	const pairWanted: PairWanted = (option) => option === undefined;
 	for (const file of template) {
 		if (
 			/^(src\/contexts|src\/ui|scripts|test)\//.test(file.path) ||
@@ -169,7 +159,7 @@ export const contextFilesCreate = ({
 			);
 		}
 		const project = readFileSync(target, "utf8");
-		const filled = pairsEmptyFillableHas({
+		const filled = fileHasEmptyFillablePair({
 			pairWanted,
 			path: file.path,
 			project,
@@ -183,7 +173,7 @@ export const contextFilesCreate = ({
 				})
 			: project;
 		const text = wiringInsert({
-			blockIs: (line) => fooLineIs(line) && !aggregateLineIs(line),
+			blockIs: (line) => lineIsFoo(line) && !lineIsModel(line),
 			path: file.path,
 			project: filled,
 			rename: rename(file.path),
@@ -204,8 +194,8 @@ export const contextNextStepsText = ({
 }): string =>
 	[
 		"Next:",
-		`  1. Say in src/contexts/${context}/CONTEXT.md what ${context} does, and add each Aggregate's **Term**: under its ## Language.`,
-		`  2. pnpm aggregate-create ${context} <aggregate> adds its first Aggregate (often ${context} itself); pnpm check passes once it has one.`,
+		`  1. Say in src/contexts/${context}/CONTEXT.md what ${context} does, and add each Model's **Term**: under its ## Language.`,
+		`  2. pnpm model-create ${context} <model> adds its first Model (often ${context} itself); pnpm check passes once it has one.`,
 		...reads.map(
 			(target, k) =>
 				`  ${k + 3}. Read what ${context} needs from ${target} in src/contexts/${context}/adapters/outbound/${context}-${target}-acl.ts and its type in application/ports.ts, and add "| ${context} | ${target} | ACL |" under ## Relationships in CONTEXT-MAP.md.`,
@@ -214,10 +204,10 @@ export const contextNextStepsText = ({
 
 const usage = `Usage: pnpm context-create <context> [--reads <context>]...
 
-Makes src/contexts/<context>/, a bounded context with no Aggregate yet, from the Template's foo:
+Makes src/contexts/<context>/, a bounded context with no Model yet, from the Template's foo:
 its interface, ports, transaction, Use cases and adapters' entries, its CONTEXT.md, and its
-wiring into the composition roots. Add <context>'s row to CONTEXT-MAP.md first, then add each
-Aggregate's term to its CONTEXT.md and the Aggregate with pnpm aggregate-create.
+wiring into the entry points. Add <context>'s row to CONTEXT-MAP.md first, then add each
+Model's term to its CONTEXT.md and the Model with pnpm model-create.
 
   --reads <context>  reads <context> through an anti-corruption layer:
                      adapters/outbound/<context>-<upstream>-acl.ts. Repeat it for more.

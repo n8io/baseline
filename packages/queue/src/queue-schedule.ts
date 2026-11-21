@@ -41,7 +41,7 @@ export const queueScheduleCreate = ({
 export const queueScheduleEnvName = (name: string): string =>
 	`SCHEDULE_${name.toUpperCase().replaceAll(/[.-]/g, "_")}`;
 
-// A Schedule's override in the composition root's ENV (or any object): a cron, or `off`. An
+// A Schedule's override in the entry point's ENV (or any object): a cron, or `off`. An
 // undeclared or non-string item means none.
 const scheduleOverride = (env: object, name: string): string | undefined => {
 	const value: unknown = Reflect.get(env, queueScheduleEnvName(name));
@@ -55,7 +55,7 @@ export type QueueSchedulesSyncVendorOptions = QueueMigrateVendorOptions;
 export type QueueSchedulesSyncOptions = {
 	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
-	/** The composition root's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`. */
+	/** The entry point's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`. */
 	env: object;
 	/** The Schedules in code: each one's name and cron. */
 	schedules: readonly Pick<Schedule, "cron" | "name">[];
@@ -132,7 +132,7 @@ export const queueSchedulesSync = async (
 
 /** What `queueSchedulesStart` takes. */
 export type QueueSchedulesStartOptions = {
-	/** The composition root's ENV, for the `off` overrides. */
+	/** The entry point's ENV, for the `off` overrides. */
 	env: object;
 	/** The Worker's queue, from `queueCreate`. */
 	queue: Queue;

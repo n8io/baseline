@@ -1,4 +1,4 @@
-// A29: a Use case never changes a loaded Aggregate in place or copies it under a short name
+// A29: a Use case never changes a loaded Model in place or copies it under a short name
 // expect: src/contexts/billing/application/invoice-line-rename.ts:4: line.name = makes or changes a InvoiceLine in a Use case
 // @file src/contexts/billing/application/invoice-line-rename.ts
 export const invoiceLineRename = (ports) => (actor, input) =>

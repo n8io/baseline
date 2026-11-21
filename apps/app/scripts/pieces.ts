@@ -1,5 +1,5 @@
 // The Pieces of the stack: each one's identity once, and what removing it does. pnpm piece-remove
-// (scripts/piece-remove.ts) is the command; piece-check, template-upgrade, aggregate-create,
+// (scripts/piece-remove.ts) is the command; piece-check, template-upgrade, model-create,
 // context-create and structure.test.ts import from here. Not a command: importing it runs nothing.
 import { spawnSync } from "node:child_process";
 import {
@@ -14,7 +14,7 @@ import { z } from "zod";
 import { gitRun } from "./process-run.ts";
 
 // Every Piece of the stack a Project may remove with pnpm piece-remove. A new name here fails
-// type-checking until `pieces`, `pieceRemovals` and aggregate-create's piecesTemplate each say what
+// type-checking until `pieces`, `pieceRemovals` and model-create's piecesTemplate each say what
 // the Piece is and does.
 export const pieceNames = [
 	"analytics",
@@ -31,7 +31,7 @@ export const pieceNames = [
 
 export type Piece = (typeof pieceNames)[number];
 
-export const pieceIs = (name: string): name is Piece =>
+export const pieceIsKnown = (name: string): name is Piece =>
 	(pieceNames as readonly string[]).includes(name);
 
 type PieceIdentity = {
@@ -303,7 +303,7 @@ const cacheUrlLines = /^(#.*\n)*CACHE_URL=.*\n/m;
 const mixpanelTokenLines = /^(# Mixpanel.*\n)?(# @.*\n)*MIXPANEL_TOKEN=.*\n/m;
 // SENTRY_DSN, its comment and its decorators.
 const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
-// The SCHEDULE_* overrides and the marker aggregate-create adds them at; aggregate-create drops
+// The SCHEDULE_* overrides and the marker model-create adds them at; model-create drops
 // them from a new context the same way.
 export const pieceScheduleLines =
 	/^# schedule overrides.*\n((# @.*\n)?SCHEDULE_.*\n|# wiring: schedules\n)*/m;
@@ -530,7 +530,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 			`piecesKept in .template.json must be a list of Piece names; Pieces are ${names}`,
 		);
 	}
-	const keptUnknown = kept.filter((p) => !pieceIs(p));
+	const keptUnknown = kept.filter((p) => !pieceIsKnown(p));
 	if (keptUnknown.length > 0) {
 		throw new Error(
 			`piecesKept in .template.json names ${keptUnknown.join(", ")}, which is no Piece; Pieces are ${names}`,
@@ -543,7 +543,7 @@ export const pieceSettingsRead = (directory: string): PieceSettings => {
 		);
 	}
 	for (const [piece, paths] of Object.entries(files)) {
-		if (!pieceIs(piece)) {
+		if (!pieceIsKnown(piece)) {
 			throw new Error(
 				`pieceFiles in .template.json names ${piece}, which is no Piece; Pieces are ${names}`,
 			);

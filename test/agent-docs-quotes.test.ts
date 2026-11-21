@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { templateFileRender } from "../apps/app/scripts/template-render.ts";
 
 // These apps/app/docs/agents pages quote the Template's Foo renamed to a `baz` context (not `bar`: that is the
-// Template's real second Aggregate), because the
+// Template's real second Model), because the
 // render drops every line that names foo from a Project's copy. Each ts block starts with
 // `// <path>` and, with baz read as foo, must appear line for line in apps/app/<path>. Indents are
 // ignored: Biome dedents a quoted block.
@@ -74,7 +74,7 @@ describe.each(agentDocs)("%s", (path) => {
 		).toEqual([]);
 	});
 
-	// aggregate-create would wire into a file with a marker line, and piece-remove would cut it.
+	// model-create would wire into a file with a marker line, and piece-remove would cut it.
 	it("holds no wiring or piece marker line", () => {
 		expect(
 			text

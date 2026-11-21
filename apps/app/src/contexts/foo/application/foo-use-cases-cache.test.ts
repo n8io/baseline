@@ -49,7 +49,7 @@ describe("foo cache", () => {
 		expect(counts).toEqual({ hits: 1, sets: 1 });
 	});
 
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	it("serves an archived foo from the cache with its archive date intact", async () => {
 		const clock = clockMemoryCreate(new Date("2020-01-01T00:00:00Z"));
 		const { counts, foo, useCases } = await setup({ clock });
@@ -67,7 +67,7 @@ describe("foo cache", () => {
 		// One set: the second get parsed what the first stored instead of reading and storing again.
 		expect(counts.sets).toBe(1);
 	});
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 
 	it("reads the change after an update and nothing after a delete", async () => {
 		const { foo, useCases } = await setup();

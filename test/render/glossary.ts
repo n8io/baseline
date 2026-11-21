@@ -1,5 +1,5 @@
-// What a Project does by hand around context-create and aggregate-create: it lists the context in
-// CONTEXT-MAP.md first, then adds each Aggregate's term to the context's own CONTEXT.md.
+// What a Project does by hand around context-create and model-create: it lists the context in
+// CONTEXT-MAP.md first, then adds each Model's term to the context's own CONTEXT.md.
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -7,11 +7,9 @@ import { join } from "node:path";
 export const glossaryContextMapRowAdd = ({
 	context,
 	map,
-	subdomain,
 }: {
 	context: string;
 	map: string;
-	subdomain: string;
 }): string => {
 	const lines = map.split("\n");
 	const start = lines.indexOf("## Contexts");
@@ -22,7 +20,7 @@ export const glossaryContextMapRowAdd = ({
 		if (line.startsWith("## ")) break;
 		if (line.startsWith("|")) last = k;
 	}
-	const row = `| \`${context}\` | ${subdomain} | [src/contexts/${context}/CONTEXT.md](src/contexts/${context}/CONTEXT.md) |`;
+	const row = `| \`${context}\` | [src/contexts/${context}/CONTEXT.md](src/contexts/${context}/CONTEXT.md) |`;
 	lines.splice(last + 1, 0, row);
 	return lines.join("\n");
 };
@@ -40,7 +38,6 @@ export const glossaryContextMapDefine = ({
 		glossaryContextMapRowAdd({
 			context,
 			map: readFileSync(path, "utf8"),
-			subdomain: "core",
 		}),
 	);
 };

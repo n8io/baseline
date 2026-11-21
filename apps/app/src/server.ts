@@ -1,4 +1,4 @@
-// Composition root for the HTTP server: the API, sign-in, pages and live streams. A block marked
+// Entry point for the HTTP server: the API, sign-in, pages and live streams. A block marked
 // with a Piece's name belongs to that Piece; `pnpm piece-remove` takes it out.
 import type { Server } from "node:http";
 import {

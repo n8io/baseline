@@ -1,4 +1,4 @@
-// Composition root for Event handlers and Schedules; it never serves pages or the API.
+// Entry point for Event handlers and Schedules; it never serves pages or the API.
 import { healthServerCreate } from "@n8io/baseline-health";
 import { logger } from "@n8io/baseline-logger";
 import { queueSchedulesStart } from "@n8io/baseline-queue";

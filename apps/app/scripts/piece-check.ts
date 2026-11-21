@@ -13,7 +13,7 @@ import { argsParse } from "./args.ts";
 import {
 	filesNamedIn,
 	type Piece,
-	pieceIs,
+	pieceIsKnown,
 	pieceNames,
 	pieceRemovals,
 	pieceRemove,
@@ -345,8 +345,8 @@ const main = async () => {
 		}
 		return;
 	}
-	const requested = parsed.positionals.filter(pieceIs);
-	const unknown = parsed.positionals.filter((p) => !pieceIs(p));
+	const requested = parsed.positionals.filter(pieceIsKnown);
+	const unknown = parsed.positionals.filter((p) => !pieceIsKnown(p));
 	if (unknown.length > 0) {
 		console.error(
 			`piece-check: unknown Piece ${unknown.join(", ")}; Pieces are ${pieceNames.join(", ")}`,

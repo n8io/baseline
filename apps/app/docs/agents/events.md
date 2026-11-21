@@ -31,13 +31,13 @@ export const billingOrderPlacedHandlerCreate = (u: BillingUseCases) =>
 - Delivery is at least once. The Use case takes `inbox` in its input and passes it to its transaction port: `billingTransaction(work, inbox)`.
 - The adapter inserts `(consumer, eventId)` into `queue.inbox` in the same transaction. A repeat skips the work and returns `ok`.
 - Such a Use case returns `Result<void, E>`.
-- Publish an Event only inside the Use case's transaction, through its Aggregate's `<aggregate>Events` port, and after the write it is about.
-- A new Event needs three edits: its schema in `domain/<aggregate>.ts`, its name in `<Aggregate>EventMap` in the same file (which types the Events port), and its export at the `// wiring: events` marker in the context's `index.ts`.
-- A context whose ids other contexts hold publishes `<entity>.deleted`. Each context holding that id handles it: see [Holding another context's id](#holding-another-contexts-id).
+- Publish an Event only inside the Use case's transaction, through its Model's `<model>Events` port, and after the write it is about.
+- A new Event needs three edits: its schema in `domain/<model>.ts`, its name in `<Model>EventMap` in the same file (which types the Events port), and its export at the `// wiring: events` marker in the context's `index.ts`.
+- A context whose ids other contexts hold publishes `<model>.deleted`. Each context holding that id handles it: see [Holding another context's id](#holding-another-contexts-id).
 
 ## Order and the Event key
 
-Every publish names an Event key, the id of the entity the Event is about:
+Every publish names an Event key, the id of the model the Event is about:
 
 ```ts
 await transaction.orderEvents.publish({
@@ -51,8 +51,8 @@ await transaction.orderEvents.publish({
 });
 ```
 
-- Each Event handler gets the Events of one Event key one at a time, in the order their transactions committed, however many Workers run. Events with different Event keys run beside each other, so never rely on order across entities.
-- The port types `key` as its Aggregate's own id (`Id<"order">`), so a publish without one, or with another Aggregate's id, does not compile.
+- Each Event handler gets the Events of one Event key one at a time, in the order their transactions committed, however many Workers run. Events with different Event keys run beside each other, so never rely on order across models.
+- The port types `key` as its Model's own id (`Id<"order">`), so a publish without one, or with another Model's id, does not compile.
 - While an Event waits for a retry, the later Events of its Event key wait behind it. Keep an Event handler's Use case short, and let it return `err` for an outcome you expect: only a throw is retried.
 - An Event that fails all five attempts blocks its Event key until someone releases it, or for 7 days, after which it is deleted and the key moves on with an error log. The Worker logs it at error level (error tracking hears it, and again each day), `queue.blockedKeys()` lists it, `queue.blockedKeyRetry({ consumer, key })` or `queue.blockedKeyGiveUp({ consumer, key })` releases it, and in a pod `node src/blocked-keys.ts` does both. The runbook is "Runbook: a blocked key" in the `@n8io/baseline-queue` README.
 
@@ -64,11 +64,11 @@ Order holds per Event key and per Event handler. Plan for the three places it do
 - **A redriven Event.** Releasing a blocked key by giving its Event up (`blockedKeyGiveUp`), then redriving the copy from `<queueName>.dead`, runs that Event after the ones that waited behind it ("Runbook: a blocked key" in the `@n8io/baseline-queue` README). Retrying it in place (`blockedKeyRetry`) keeps its turn.
 - **A stale Event.** Where a late or repeated Event must not undo a newer state, put a version or sequence on the Event (one the publisher keeps on its row, or the source feed's sequence number) and keep the last one applied on the row. The Use case compares it inside its transaction, skips an Event whose version is not newer and returns `ok`. The inbox already skips an exact repeat; the guard covers a redriven or out-of-band one.
 
-## Event handlers that write a shared Aggregate
+## Event handlers that write a shared Model
 
-Two Events with different Event keys run at once, on one Worker or several. When both change the same Aggregate (two `payment.received` Events, keyed by payment, both add to one invoice's paid total), both read it, and the second save overwrites the first: money lost under load, with no error.
+Two Events with different Event keys run at once, on one Worker or several. When both change the same Model (two `payment.received` Events, keyed by payment, both add to one invoice's paid total), both read it, and the second save overwrites the first: money lost under load, with no error.
 
-Lock the root before reading it (`findByIdForUpdate`), or make the write one atomic statement, and prove it with a race test: the rules, id-order locking and the test are in [data.md](data.md#locking-and-limits). One transaction writes one Aggregate unless one invariant spans several (the **Aggregate** glossary entry, A28); across contexts, publish an Event and let the other context react. Lock on every path that touches the rows, Use cases and Schedules too.
+Lock the root before reading it (`findByIdForUpdate`), or make the write one atomic statement, and prove it with a race test: the rules, id-order locking and the test are in [data.md](data.md#locking-and-limits). One transaction writes one Model unless one invariant spans several (the **Model** glossary entry, A28); across contexts, publish an Event and let the other context react. Lock on every path that touches the rows, Use cases and Schedules too.
 
 ## Fan-out in an Event handler
 
@@ -82,9 +82,9 @@ An Event handler that writes many rows for one Event (an `order.placed` with hun
 
 A table column that holds another context's id ships with the Event handler that cleans it up, in the same PR. Architecture rule A14 fails the check otherwise: a table in `src/contexts/<context>/adapters/outbound/` with a `<other>` id column needs `src/contexts/<context>/adapters/inbound/<context>-<other>-deleted-handler.ts` handling `"<other>.deleted"`. So when you land tables first, land these Event handlers and their Use cases with them.
 
-The repository side is one bulk method per clean-up, repeated in the memory adapter and held equal by `adapters/outbound/<aggregate>-repository.contract.ts`:
+The repository side is one bulk method per clean-up, repeated in the memory adapter and held equal by `adapters/outbound/<model>-repository.contract.ts`:
 
-- Rows that cannot live without the other entity: `deleteByCustomerId(customerId)` deletes them and returns the ids it removed, sorted, so the Use case can publish `<entity>.deleted` for each, in the same transaction and in id order (each publish locks its Event key until the transaction ends, so two clean-ups publishing in different orders deadlock).
+- Rows that cannot live without the other model: `deleteByCustomerId(customerId)` deletes them and returns the ids it removed, sorted, so the Use case can publish `<model>.deleted` for each, in the same transaction and in id order (each publish locks its Event key until the transaction ends, so two clean-ups publishing in different orders deadlock).
 - Rows that can: `clearByCustomerId(customerId)` sets the column to null (or removes the child rows) and returns the ids of the roots it touched, so the Use case can recompute or notify them.
 
 With an inbox the transaction returns `Result<void, E>`, so a value the Use case needs after commit (ids for live updates) goes in a `let` that the work assigns, read only when the result is ok. A repeat skips the work and leaves it empty, so nothing is sent twice.
@@ -115,7 +115,7 @@ expect(await useCases.invoiceList(actor, { orderId })).toMatchObject({
 
 ## Changing an Event's shape
 
-During a rollout, Workers of the old release and the new one run side by side for minutes, and an Event published by one may reach the other. An Event also keeps its shape for as long as it waits: through its retries, then up to 7 days as a blocked key. A Worker that rejects the shape retries it five times and then blocks its Event key, and every later Event of that entity waits behind it.
+During a rollout, Workers of the old release and the new one run side by side for minutes, and an Event published by one may reach the other. An Event also keeps its shape for as long as it waits: through its retries, then up to 7 days as a blocked key. A Worker that rejects the shape retries it five times and then blocks its Event key, and every later Event of that model waits behind it.
 
 Event handlers validate with the definition the publishing context exports (`#contexts/<publisher>/index.ts`), so widening is one edit there. The Template defines Events with Zod `z.object`, which drops keys it does not know. Never use `.strict()` or `z.strictObject` for an Event: an old Worker would then reject every new field.
 
@@ -137,5 +137,5 @@ Never rename an Event or remove a required field in one release. A new Event wit
 
 ## Naming beside Events
 
-- A change with no Event still names its analytics event as an Event would be named, `<entity>.<past-tense verb>` (`customer.renamed`), and a machine Actor tracks with its Actor id (`billing-order-placed-handler`).
-- A live channel is named after the Aggregate that sends it. When the UI watches another context's entity (the invoices of one customer), the channel keeps its own name and its `id` is that entity's id; the live route checks the Actor can read that entity.
+- A change with no Event still names its analytics event as an Event would be named, `<model>.<past-tense verb>` (`customer.renamed`), and a machine Actor tracks with its Actor id (`billing-order-placed-handler`).
+- A live channel is named after the Model that sends it. When the UI watches another context's model (the invoices of one customer), the channel keeps its own name and its `id` is that model's id; the live route checks the Actor can read that model.

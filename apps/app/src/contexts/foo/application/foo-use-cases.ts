@@ -15,9 +15,9 @@ export const fooUseCasesCreate = (ports: FooPorts) => ({
 	fooDelete: fooDelete(ports),
 	fooGet: fooGet(ports),
 	fooList: fooList(ports),
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	fooStaleArchive: fooStaleArchive(ports),
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 	fooUpdate: fooUpdate(ports),
 	// wiring: use-cases
 });

@@ -1,10 +1,10 @@
 # Schedules
 
-Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `baz` context whose Aggregate Baz has a Schedule that archives stale bazs; an Aggregate made by `pnpm aggregate-create` starts with the same files under its own name.
+Read when adding, changing, testing or removing a Schedule. A Schedule calls one Use case on a cron, in the Worker. The examples use a `baz` context whose Model Baz has a Schedule that archives stale bazs; a Model made by `pnpm model-create` starts with the same files under its own name.
 
 ## The file pair
 
-One file per Schedule in the context's `adapters/inbound/`. It exports two things: `<aggregate>Schedule`, the name and cron that migrate syncs, and `<aggregate>ScheduleCreate`, which the Worker starts with the context's Use cases.
+One file per Schedule in the context's `adapters/inbound/`. It exports two things: `<model>Schedule`, the name and cron that migrate syncs, and `<model>ScheduleCreate`, which the Worker starts with the context's Use cases.
 
 ```ts
 // src/contexts/baz/adapters/inbound/baz-schedule.ts
@@ -26,13 +26,13 @@ export const bazScheduleCreate = (u: BazUseCases) =>
 	});
 ```
 
-- The Actor is a `client` with id `<aggregate>-schedule` and only the scopes its Use case checks.
-- The name is `<aggregate>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
-- Two Schedules for one Aggregate: one file each, `adapters/inbound/<aggregate>-<words>-schedule.ts` exporting `<aggregate><Words>Schedule` and `<aggregate><Words>ScheduleCreate` (`invoiceOverdueMarkSchedule`, `invoiceOverdueMarkScheduleCreate`). They may share one Actor in `adapters/inbound/<aggregate>-schedule-actor.ts`.
+- The Actor is a `client` with id `<model>-schedule` and only the scopes its Use case checks.
+- The name is `<model>.<use case words, kebab>`. The cron is UTC with minute precision, so the shortest interval is one minute.
+- Two Schedules for one Model: one file each, `adapters/inbound/<model>-<words>-schedule.ts` exporting `<model><Words>Schedule` and `<model><Words>ScheduleCreate` (`invoiceOverdueMarkSchedule`, `invoiceOverdueMarkScheduleCreate`). They may share one Actor in `adapters/inbound/<model>-schedule-actor.ts`.
 
 ## Wiring
 
-`pnpm aggregate-create` wires a new Aggregate's first Schedule. For another one, add the same four things by hand:
+`pnpm model-create` wires a new Model's first Schedule. For another one, add the same four things by hand:
 
 1. Import the pair in the context's `index.ts`.
 2. Add `bazSchedule,` to its `<context>Schedules` list, above `// wiring: schedule-definitions`: `src/migrate.ts` syncs that list.
@@ -70,7 +70,7 @@ export const bazStaleArchive =
 
 ## "Due" work is a repository method
 
-The test for "due" is not a specification. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. This set-based write is the one change to an Aggregate that skips its transitions: loading every due row to change it one at a time would lose that single claim. `domain/<aggregate>.ts` still computes the method's inputs (`bazStaleBefore(now)` gives the cut-off). Adapters may not import the domain's functions (A4), so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
+The test for "due" is not a predicate. It is one repository method whose Postgres side is a single `UPDATE ... WHERE ... RETURNING`, so two runs never claim the same row, and whose `WHERE` skips rows already done, so a repeat changes nothing. This set-based write is the one change to a Model that skips its model functions: loading every due row to change it one at a time would lose that single claim. `domain/<model>.ts` still computes the method's inputs (`bazStaleBefore(now)` gives the cut-off). Adapters may not import the domain's functions (A4), so the memory adapter repeats the predicate, and the repository contract test holds the two equal.
 
 ```ts
 // src/contexts/baz/adapters/outbound/baz-repository.postgres.ts
@@ -101,7 +101,7 @@ When each changed row needs an Event, return the rows (`.returning()`) instead o
 
 ## Tests
 
-- The repository method: one case in `<aggregate>-repository.contract.ts`, so the memory and Postgres adapters agree on the boundary.
+- The repository method: one case in `<model>-repository.contract.ts`, so the memory and Postgres adapters agree on the boundary.
 - The Use case: build the context through its interface on memory connections with a memory clock ([tests.md](tests.md)), create rows at times due and not due, move the clock, run it, and read which rows changed.
 - The Schedule: take it from the context's `schedules`, call `run()`, and check the result and a later read. That is also how to run a Schedule on demand in any test: never wait for the cron.
 

@@ -5,7 +5,7 @@
 // - redis alone is refused, because the cache and live updates run on it, and sdk alone, because the cli runs on it;
 // - all ten removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all ten removed, then invoice-line added with context-create and aggregate-create, pass check, unit tests and build
+// - all ten removed, then invoice-line added with context-create and model-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // With no case, one render serves every check. CI runs one render per case so they run side by side:
 // alone-1 (ui, live, cache, queue), alone-2 (analytics, error-tracking, api-reference, cli then sdk) and
@@ -17,13 +17,13 @@ import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
-	aggregateFilesCreate,
-	aggregateRefusal,
-} from "../../apps/app/scripts/aggregate-create.ts";
-import {
 	contextFilesCreate,
 	contextRefusal,
 } from "../../apps/app/scripts/context-create.ts";
+import {
+	modelFilesCreate,
+	modelRefusal,
+} from "../../apps/app/scripts/model-create.ts";
 import { gitRun, processRun } from "../../apps/app/scripts/process-run.ts";
 import { filesWrite } from "../../apps/app/scripts/template-render.ts";
 import {
@@ -90,22 +90,20 @@ const contextAdd = ({
 		directory,
 		term: glossaryTerm(names.kebab),
 	});
-	const refused = aggregateRefusal({
-		aggregate: names,
+	const refused = modelRefusal({
+		model: names,
 		appDirectory: directory,
 		context: names.kebab,
 	});
 	if (refused !== undefined) throw new Error(refused);
-	const aggregate = aggregateFilesCreate({
-		aggregate: names,
+	const model = modelFilesCreate({
+		model: names,
 		appDirectory: directory,
 		context: names.kebab,
 		templateFull: files,
 	});
-	filesWrite(directory, aggregate);
-	const created = [...shell, ...aggregate].filter(
-		(f) => !f.path.endsWith(".md"),
-	);
+	filesWrite(directory, model);
+	const created = [...shell, ...model].filter((f) => !f.path.endsWith(".md"));
 	const paths = created.map((f) => f.path);
 	const unusedImports = "--only=correctness/noUnusedImports";
 	pnpmInheritRun(directory, [

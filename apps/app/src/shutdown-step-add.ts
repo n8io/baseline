@@ -1,4 +1,4 @@
-// How a composition root lists what to close: a step goes to the front or the back of a group,
+// How an entry point lists what to close: a step goes to the front or the back of a group,
 // and the list it came from is not changed.
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 
