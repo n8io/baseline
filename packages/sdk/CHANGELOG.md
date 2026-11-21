@@ -1,5 +1,11 @@
 # @n8io/baseline-sdk
 
+## 2.0.1
+
+### Patch Changes
+
+- d5953b6: `SdkFetchOptions` takes its environment type argument with a `string` default, like `SdkOptions` and `SdkFetch`, and bad-option messages end `found X`. Test files are named after `sdk-fetch.ts`.
+
 ## 2.0.0
 
 ### Major Changes

@@ -1,5 +1,60 @@
 # app
 
+## 15.0.0
+
+### Major Changes
+
+- e73c8c4: New architecture rule A30: a function never edits its input (no property assignment, `delete`, or push/sort/splice and the like on a parameter), unless `// mutates: <why>` sits right above it. The Template follows it: `analyticsOpen`, `errorTrackingOpen`, `liveHubOpen`, `queueOpen` and `redisOpen` take the shutdown steps so far and return them with their own added (`ShutdownSteps` from `src/shutdown-step-add.ts`), `liveHubOpen` takes `role`, and `connectionsOpen` assembles them. After upgrading, run `pnpm test` and fix what A30 names.
+
+### Minor Changes
+
+- 348eea5: Template tidy-up from the final consistency audit. A `*.test.tsx` file now runs and is placement-checked like a `.test.ts`. `pnpm api-check`, `pnpm sdk-generate` and `pnpm check` take `--help` (sdk-generate used to run and rewrite files), every help line reads "this help", and scripts shell out through `processRun`/`gitRun` except where an exit status is the answer. Scripts share `argsFail` from `scripts/args.ts`; `nextStepsText` is `aggregateNextStepsText`. Optional script inputs take `null`. Glossary words are capitalised in messages and the generator-copied comments. Docs: a new docs/agents/ports.md (calling a service outside the app), where a new Event is defined, the piece-marker rule behind a "writing code that uses one" trigger, Worker and Server capitalised, `_Avoid_` aliases that no longer collide with the docs.
+
+  To upgrade a Project: a script of your own that imported `nextStepsText` from aggregate-create.ts imports `aggregateNextStepsText`.
+- 3e45f69: The Template's domain types are readonly: `Foo`, `Bar`, their inputs and Events are `Readonly<z.infer<...>>`, `FooList.items` is `readonly Foo[]`, and `listByFooId` and `bar-list` return `readonly Bar[]`. The memory repository stores a new Foo instead of editing one. A Project that edits a Foo or a returned list copies it first. A root test (`test/readonly-types.test.ts`) fails a mutable array, Map or Set in an exported Package signature.
+
+### Patch Changes
+
+- 1dd4cd8: The API reference page and `pnpm piece-remove` read `package.json`, `dependencies-allowed.json` and `biome.json` with a Zod schema instead of a type cast, so a file of the wrong shape fails with a message that names the field.
+- fcf1de0: `fast-check` is a dev dependency, for property tests beside the unit tests (`src/cursor-property.test.ts` shows the shape: round trips and paging order over generated inputs).
+- d5953b6: src/blocked-keys.ts takes its blocked key type from `QueueBlockedKey` in `@n8io/baseline-queue`.
+- f0993b4: Turn on the noFallthroughCasesInSwitch, noImplicitReturns and noPropertyAccessFromIndexSignature compiler flags and the Biome noFloatingPromises, noMisusedPromises, useAwaitThenable and useExhaustiveSwitchCases rules. Biome useLiteralKeys is off because it rewrites the bracket access the new flag requires. The architecture test now awaits `init()` from es-module-lexer.
+- Updated dependencies [1dd4cd8]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [d5953b6]
+- Updated dependencies [3e45f69]
+- Updated dependencies [3e45f69]
+- Updated dependencies [3e45f69]
+- Updated dependencies [3e45f69]
+- Updated dependencies [3e45f69]
+- Updated dependencies [f0993b4]
+- Updated dependencies [f0993b4]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-authn@7.1.0
+  - @n8io/baseline-analytics@2.1.1
+  - @n8io/baseline-cache@6.3.1
+  - @n8io/baseline-error-tracking@1.1.1
+  - @n8io/baseline-health@2.1.1
+  - @n8io/baseline-http@3.1.0
+  - @n8io/baseline-live@7.3.1
+  - @n8io/baseline-logger@3.1.3
+  - @n8io/baseline-postgres@5.5.0
+  - @n8io/baseline-queue@9.1.0
+  - @n8io/baseline-redis@1.1.1
+  - @n8io/baseline-shutdown@3.2.0
+  - @n8io/baseline-telemetry@2.0.3
+
 ## 14.0.0
 
 ### Major Changes

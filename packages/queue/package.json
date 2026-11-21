@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-queue",
-	"version": "9.0.0",
+	"version": "9.1.0",
 	"description": "Events, Event handlers and Schedules in the Project's own Postgres: Events commit with the rows that caused them and reach each Event handler in order per Event key.",
 	"license": "MIT",
 	"type": "module",

@@ -1,5 +1,18 @@
 # @n8io/baseline-http
 
+## 3.1.0
+
+### Minor Changes
+
+- 3e45f69: Exported types and functions take and return readonly arrays (errors, codes), so a caller's array is never edited and an array a Package returns cannot be. A mutable array a caller passes in still compiles; code that edits a returned array, or hands it to a function that wants `T[]`, copies it first.
+
+### Patch Changes
+
+- d5953b6: Doc comments on `httpErrorBodyCreate` and `httpRouterCreate` no longer name functions the Package does not export. README folds are tidied.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 3.0.2
 
 ### Patch Changes

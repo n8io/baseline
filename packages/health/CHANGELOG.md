@@ -1,5 +1,11 @@
 # @n8io/baseline-health
 
+## 2.1.1
+
+### Patch Changes
+
+- d5953b6: The bad `port` message ends `found X`. README: the `healthServerCreate` row says it throws a `TypeError` on a bad `port`; "Project" for the app.
+
 ## 2.1.0
 
 ### Minor Changes

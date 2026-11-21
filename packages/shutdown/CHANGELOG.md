@@ -1,5 +1,18 @@
 # @n8io/baseline-shutdown
 
+## 3.2.0
+
+### Minor Changes
+
+- d5953b6: shutdownHandleCreate refuses a `deadlineMs` above 2147483647 (what a timer can hold), and its messages end `found X`. README: the shutdown steps have their own fold.
+- 3e45f69: Exported types and functions take and return readonly arrays (intakes, resources), so a caller's array is never edited and an array a Package returns cannot be. A mutable array a caller passes in still compiles; code that edits a returned array, or hands it to a function that wants `T[]`, copies it first.
+
+### Patch Changes
+
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 3.1.0
 
 ### Minor Changes

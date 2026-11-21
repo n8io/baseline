@@ -1,5 +1,14 @@
 # @n8io/baseline-cache
 
+## 6.3.1
+
+### Patch Changes
+
+- d5953b6: Bad-option messages end `found X`. README: the `cacheCreate` row names the options it refuses, and the Exports table pairs each factory with its types. The common `cacheCreate` overload has its own doc comment.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 6.3.0
 
 ### Minor Changes

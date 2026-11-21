@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-live",
-	"version": "7.3.0",
+	"version": "7.3.1",
 	"description": "Live updates: an open page reruns its loaders when something it shows changes, through Server-Sent Events fanned out over Redis pub/sub.",
 	"license": "MIT",
 	"type": "module",

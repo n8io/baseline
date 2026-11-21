@@ -1,5 +1,14 @@
 # @n8io/baseline-analytics
 
+## 2.1.1
+
+### Patch Changes
+
+- d5953b6: The `vendor.host` message ends `found "<host>"`. README: the `analyticsMixpanelCreate` row names what it refuses, and `properties?` is marked optional.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 2.1.0
 
 ### Minor Changes
