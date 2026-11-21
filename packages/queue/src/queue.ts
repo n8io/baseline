@@ -32,7 +32,9 @@ export type Queue = {
 	 * and from when (deleteAt) the queue's next sweep deletes that Event unless it is released first,
 	 * so the key moves on without it. Empty when nothing is blocked. README, "Runbook: a blocked key", says when to release one and how.
 	 */
-	blockedKeys(): Promise<(QueueBlockedKey & { deleteAt: Date; since: Date })[]>;
+	blockedKeys(): Promise<
+		readonly (QueueBlockedKey & { deleteAt: Date; since: Date })[]
+	>;
 	/**
 	 * Releases a blocked key by running its failed Event again, before the Events waiting behind
 	 * it. true when it released the key; false when that Consumer has no blocked Event for the key.

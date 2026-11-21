@@ -12,7 +12,7 @@ export type AuthnTestOidcProvider = {
 	app: Hono;
 	/** What the user's browser would get back from the authorize page: a code for this request. */
 	authorize: (authorizeUrl: string, sub?: string) => string;
-	revoked: string[];
+	revoked: readonly string[];
 	options: {
 		accessAudience: string;
 		down: boolean;
@@ -21,6 +21,7 @@ export type AuthnTestOidcProvider = {
 		revokeFails: boolean;
 		rotate: boolean;
 	};
+	// mutable: a test clears it to make the provider refuse every refresh token.
 	refreshTokens: Set<string>;
 };
 

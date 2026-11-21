@@ -22,7 +22,7 @@ export type CliRequest = { baseUrl: string; token?: string };
  * An SDK function. The CLI calls it with the path fields in path order, then the body if the
  * operation has one, then the query object if it has query fields, then a `CliRequest`.
  */
-export type CliOperation = (...args: never[]) => unknown;
+export type CliOperation = (...args: readonly never[]) => unknown;
 
 /** The command line tool `cliCreate` returns. */
 export type Cli = {
@@ -278,7 +278,7 @@ const programCreate = ({
 	name,
 	operations,
 }: {
-	commands: CliCommand[];
+	commands: readonly CliCommand[];
 	document: CliDocument;
 	name: string;
 	operations: Readonly<Record<string, CliOperation>>;

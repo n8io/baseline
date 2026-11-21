@@ -12,7 +12,7 @@ export type AuthnMemoryAuthorizationOptions = {
 	/** How long before expiry a new token is fetched, in ms; at most half the token's lifetime. `null` means 60,000. */
 	renewMs?: number | null;
 	/** The scopes to ask for. `null` means all of the client's. */
-	scopes?: string[] | null;
+	scopes?: readonly string[] | null;
 };
 
 /** Returns the current `Authorization` value; `{ renew: true }` fetches a new token first, as after a 401. */

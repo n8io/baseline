@@ -107,7 +107,10 @@ export const postgresKeysetCreate = ({
 	idColumn,
 	kind,
 	sortColumn,
-}: PostgresKeysetOptions): { orderBy: SQL[]; where: SQL | undefined } => {
+}: PostgresKeysetOptions): {
+	orderBy: readonly SQL[];
+	where: SQL | undefined;
+} => {
 	if (!postgresKeysetKinds.includes(kind)) {
 		throw new TypeError(
 			`postgresKeysetCreate: kind must be "date", "integer", "number" or "text", found ${JSON.stringify(kind)}`,

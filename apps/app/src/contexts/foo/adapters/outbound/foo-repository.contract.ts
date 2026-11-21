@@ -210,7 +210,9 @@ export const fooRepositoryContract = (
 
 	describe("list", () => {
 		const day = (n: number): Date => new Date(Date.UTC(2026, 0, n, 0, 0, 0, 0));
-		const seed = async (ports: FooRepositoryContractPorts): Promise<Foo[]> => {
+		const seed = async (
+			ports: FooRepositoryContractPorts,
+		): Promise<readonly Foo[]> => {
 			const foos = ["Delta", "Alpha", "Charlie", "Bravo", "Echo"].map(
 				(name, index) => fooBuild({ createdAt: day(index + 1), name }),
 			);
@@ -221,7 +223,8 @@ export const fooRepositoryContract = (
 			);
 			return foos;
 		};
-		const names = (items: Foo[]): string[] => items.map((foo) => foo.name);
+		const names = (items: readonly Foo[]): string[] =>
+			items.map((foo) => foo.name);
 
 		it("pages every sort to the end, ties by id", async () => {
 			const ports = await create();

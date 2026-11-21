@@ -16,10 +16,17 @@ import { authnSecretKeyDerive } from "./authn-secret-key.ts";
 export type AuthnClaims = Record<string, unknown>;
 
 /** A person the memory issuer's sign-in page offers. */
-export type AuthnMemoryUser = { id: string; name: string; scopes: string[] };
+export type AuthnMemoryUser = {
+	readonly id: string;
+	readonly name: string;
+	readonly scopes: readonly string[];
+};
 
 /** A machine client the memory issuer's `POST /auth/token` signs tokens for. */
-export type AuthnMemoryClient = { id: string; scopes: string[] };
+export type AuthnMemoryClient = {
+	readonly id: string;
+	readonly scopes: readonly string[];
+};
 
 /** What `authnCreate` takes. */
 export type AuthnOptions = {
@@ -40,9 +47,9 @@ export type AuthnOptions = {
 	/** Maps the verified access token's claims to the Actor; a throw means "not an Actor". */
 	actorFromClaims: (claims: AuthnClaims) => Actor;
 	/** The people the memory issuer's sign-in page offers; when unset or empty, one `dev-user` without scopes. */
-	memoryUsers?: AuthnMemoryUser[] | null;
+	memoryUsers?: readonly AuthnMemoryUser[] | null;
 	/** The machine clients the memory issuer's `POST /auth/token` serves; default none. */
-	memoryClients?: AuthnMemoryClient[] | null;
+	memoryClients?: readonly AuthnMemoryClient[] | null;
 	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
 	memoryIssuerAllowed?: boolean | null;
 };
@@ -63,8 +70,8 @@ export type AuthnTokens = {
 export type AuthnMemoryIssuer = {
 	kind: "memory";
 	accessTtlSeconds: number;
-	clients: AuthnMemoryClient[];
-	users: AuthnMemoryUser[];
+	clients: readonly AuthnMemoryClient[];
+	users: readonly AuthnMemoryUser[];
 	tokensCreate: (actor: Actor) => Promise<AuthnTokens>;
 	tokensRefresh: (refreshToken: string) => Promise<AuthnTokens | undefined>;
 };
@@ -169,7 +176,7 @@ const authnVerifyCreate =
 		jwks,
 		options,
 	}: {
-		algorithms?: string[];
+		algorithms?: readonly string[];
 		issuer: string;
 		jwks: JWTVerifyGetKey;
 		options: AuthnOptions;
@@ -178,7 +185,7 @@ const authnVerifyCreate =
 		let payload: JWTPayload;
 		try {
 			({ payload } = await jwtVerify(accessToken, jwks, {
-				...(algorithms === undefined ? {} : { algorithms }),
+				...(algorithms === undefined ? {} : { algorithms: [...algorithms] }),
 				issuer,
 				requiredClaims: ["exp"],
 				...(options.audienceClaim === "client_id"
@@ -222,7 +229,7 @@ const memoryUsersDefault: AuthnMemoryUser[] = [
 
 const authnIdsUniqueCheck = (
 	field: "memoryClients" | "memoryUsers",
-	entries: { id: string }[],
+	entries: readonly { id: string }[],
 ): void => {
 	const ids = entries.map((entry) => entry.id);
 	const repeated = ids.find((id, index) => ids.indexOf(id) !== index);

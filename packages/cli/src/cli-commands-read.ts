@@ -28,7 +28,7 @@ export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 /** One flag of a command: a path, query or body field. */
 export type CliField = {
 	/** The values the schema allows (its `enum`), as text; for an array, its items' values. */
-	choices?: string[];
+	choices?: readonly string[];
 	/** The schema's `default`, shown in the help; the CLI does not send it. */
 	default?: unknown;
 	/** The parameter's or schema's `description`. */
@@ -46,7 +46,7 @@ export type CliField = {
 export type CliCommand = {
 	body: boolean;
 	description: string;
-	fields: CliField[];
+	fields: readonly CliField[];
 	group: string;
 	name: string;
 	operationId: string;
@@ -264,7 +264,7 @@ const textRead = (value: unknown): string =>
  * One command per operation: `<tag> <rest of operationId>` in kebab-case, so `fooCreate` under the
  * tag `foo` is `foo create`. Throws on an operation the CLI cannot name or give flags to.
  */
-export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
+export const cliCommandsRead = (document: CliDocument): readonly CliCommand[] =>
 	Object.entries(document.paths ?? {}).flatMap(([path, value]) => {
 		const pathItem = refResolve(document, value);
 		return methods

@@ -19,7 +19,7 @@ export type HttpProblem = {
 	title: string;
 	code: string;
 	traceId?: string;
-	errors?: { pointer: string; detail: string }[];
+	errors?: readonly { pointer: string; detail: string }[];
 };
 
 /** The `Content-Type` of every problem body: `application/problem+json`. */
@@ -66,7 +66,7 @@ export const httpErrorBodyCreate = (
 
 /** The OpenAPI schema of a problem body whose `code` is one of `codes`. */
 export const httpProblemSchemaCreate = (
-	codes: [string, ...string[]],
+	codes: readonly [string, ...string[]],
 ): z.ZodType<HttpProblem> =>
 	z.object({
 		status: z.number().int(),
