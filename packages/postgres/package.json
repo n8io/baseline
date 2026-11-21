@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-postgres",
-	"version": "5.4.0",
+	"version": "5.5.0",
 	"description": "One pool, transactions that follow your Result and migrations that run once however many processes start, plus prefixed-id columns and keyset paging.",
 	"license": "MIT",
 	"type": "module",

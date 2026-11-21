@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-health",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"description": "Liveness and readiness probes on their own port, so a busy server never hides them, with readiness answering 503 once shutdown starts.",
 	"license": "MIT",
 	"type": "module",

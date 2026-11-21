@@ -1,5 +1,12 @@
 # @n8io/baseline-logger
 
+## 3.1.3
+
+### Patch Changes
+
+- d5953b6: The `LOG_LEVEL` message ends `found "<level>"`. README: the `/err-serialize` row starts with its entry.
+- f0993b4: Read index-signature properties with bracket access, which the stricter noPropertyAccessFromIndexSignature compiler flag requires. No behavior change.
+
 ## 3.1.2
 
 ### Patch Changes

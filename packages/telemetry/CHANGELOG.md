@@ -1,5 +1,15 @@
 # @n8io/baseline-telemetry
 
+## 2.0.3
+
+### Patch Changes
+
+- d5953b6: README: the `/span` rows start with their entry.
+- f0993b4: Read index-signature properties with bracket access, which the stricter noPropertyAccessFromIndexSignature compiler flag requires. No behavior change.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 2.0.2
 
 ### Patch Changes

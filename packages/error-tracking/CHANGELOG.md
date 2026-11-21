@@ -1,5 +1,14 @@
 # @n8io/baseline-error-tracking
 
+## 1.1.1
+
+### Patch Changes
+
+- d5953b6: README folds are tidied.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 1.1.0
 
 ### Minor Changes

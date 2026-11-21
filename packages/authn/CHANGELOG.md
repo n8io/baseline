@@ -1,5 +1,20 @@
 # @n8io/baseline-authn
 
+## 7.1.0
+
+### Minor Changes
+
+- d5953b6: authnCreate refuses an unknown `audienceClaim` and authnMiddlewareCreate an unknown `source` with a `TypeError` at the call (`authnCreate: audienceClaim must be "aud" or "client_id", found "x"`), where they used to fall back to `aud` and the cookie middleware. authnTestSignIn errors start `authnTestSignIn: `, and the `renewMs` message ends `found X`. The README Exports table is in entry order.
+- 3e45f69: Exported types and functions take and return readonly arrays (scopes, users, clients, memoryUsers, memoryClients, algorithms), so a caller's array is never edited and an array a Package returns cannot be. A mutable array a caller passes in still compiles; code that edits a returned array, or hands it to a function that wants `T[]`, copies it first.
+
+### Patch Changes
+
+- 1dd4cd8: The client's token refresh reads the refresh response without a type cast: a body that is not an object with a numeric `expiresAt` is ignored.
+- f0993b4: Read index-signature properties with bracket access, which the stricter noPropertyAccessFromIndexSignature compiler flag requires. No behavior change.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 7.0.0
 
 ### Major Changes

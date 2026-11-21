@@ -1,5 +1,18 @@
 # @n8io/baseline-queue
 
+## 9.1.0
+
+### Minor Changes
+
+- d5953b6: New export `QueueBlockedKey` (`{ consumer, key }`), the type `blockedKeyRetry` and `blockedKeyGiveUp` take and `blockedKeys()` lists. queueCreate refuses an unknown `role` with a `TypeError` (`queueCreate: role must be "publisher" or "worker", found "x"`), where it used to open a publisher. README: one Exports shape, the memory publisher serves `memory://` in development too, and each options field has a doc comment.
+- 3e45f69: Exported types and functions take and return readonly arrays (consumers, schedules, queuesRemoved, blockedKeys, values), so a caller's array is never edited and an array a Package returns cannot be. A mutable array a caller passes in still compiles; code that edits a returned array, or hands it to a function that wants `T[]`, copies it first.
+
+### Patch Changes
+
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 9.0.0
 
 ### Major Changes

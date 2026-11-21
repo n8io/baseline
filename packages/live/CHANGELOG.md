@@ -1,5 +1,14 @@
 # @n8io/baseline-live
 
+## 7.3.1
+
+### Patch Changes
+
+- d5953b6: Server and Live update are written as the glossary writes them (the malformed-update log line now reads "Dropped a malformed Live update"). README: the `liveStreamCreate` row names what it refuses, and the testing example closes the hub with `await using`.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 7.3.0
 
 ### Minor Changes

@@ -1,5 +1,14 @@
 # @n8io/baseline-redis
 
+## 1.1.1
+
+### Patch Changes
+
+- d5953b6: redisClientCreate prints a refused scheme with `://` (`found "http://"`), as postgres does. README: the `redisClientCreate` row says what it rejects.
+- Updated dependencies [d5953b6]
+- Updated dependencies [f0993b4]
+  - @n8io/baseline-logger@3.1.3
+
 ## 1.1.0
 
 ### Minor Changes
