@@ -1,4 +1,4 @@
-import { idFromUuid } from "@n8io/baseline-id";
+import { type Id, idFromUuid } from "@n8io/baseline-id";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,6 +8,8 @@ import {
 	cursorEncode,
 	cursorMemoryPage,
 } from "./cursor.ts";
+
+type Item = { id: Id<"item">; rank: number };
 
 const idArbitrary = fc.uuid().map((uuid) => idFromUuid("item", uuid));
 
@@ -97,14 +99,15 @@ describe("cursor properties", () => {
 					const seen: string[] = [];
 					let after: Cursor<"item"> | null = null;
 					for (let page = 0; page <= all.length; page++) {
-						const result = cursorMemoryPage({
-							after,
-							descending,
-							items: all,
-							kind: "integer",
-							limit,
-							sortValue: (item) => item.rank,
-						});
+						const result: { items: Item[]; nextCursor: string | null } =
+							cursorMemoryPage<"item", Item>({
+								after,
+								descending,
+								items: all,
+								kind: "integer",
+								limit,
+								sortValue: (item) => item.rank,
+							});
 						seen.push(...result.items.map((item) => item.id));
 						if (result.nextCursor === null) break;
 						after = cursorDecode({
