@@ -54,6 +54,8 @@ A **memory stand-in**, in the main entry, in one of four shapes. Copy the one cl
 
 A **test helper**, `<package>Test<Thing><Verb>`, in `src/<package>-test-*.ts`. Like every test file it is exempt from the function-inputs rule (Biome's `useMaxParams` is off for `*-test-*.ts` and `*.test.ts`), but an options object still reads better past two inputs. `src/testing.ts` re-exports it as `@n8io/baseline-<package>/testing`, and nothing else does. Export one only when the Template would otherwise copy the Package's internals, or when the same helper appears twice; any other helper stays unexported beside its tests.
 
+A pure function with an invariant (a round trip, an order, never throws) also gets `<name>-property.test.ts` with `fast-check` (`id-property.test.ts`), and a public generic gets `<name>-types.test.ts` with `expectTypeOf` (`id-types.test.ts`). Each type test also asserts one value, because `requireAssertions` counts only run-time assertions. `pnpm knip` (root) fails on an unused file, export or dependency: delete it, un-export it, or ignore it in `knip.jsonc` with the reason beside it.
+
 Nothing a Package exports imports a test runner, and no production source imports a test helper: `test/package-testing.test.ts` checks both. Only tests import `/testing` (architecture rule A24). Tests use `it`, not `test`. A Package's own tests may use Vitest's spies, stubs and fake timers to reach a timer or a global; a README's testing note never asks a Project to, because the Template's tests may not (the Template's `structure.test.ts` checks it) and a Project copies them. It shows the memory stand-in instead.
 
 ## Spans and metrics

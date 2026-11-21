@@ -67,6 +67,8 @@ jobs:
           path: .turbo/cache
           restore-keys: turbo-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
+      # Unused files, exports and dependencies; knip.jsonc says how to settle a finding.
+      - run: pnpm knip
       # main runs every task, so its cache holds them all.
       - run: pnpm turbo run check test build ${{ github.ref != 'refs/heads/main' && '--affected' || '' }}
       # --affected skips the root tests on a diff only inside packages/, such as a new optional peer

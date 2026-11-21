@@ -47,7 +47,7 @@ const configDirectory = (): string => {
 };
 
 /** Where `<name> login` keeps its token. */
-export const cliLoginPath = (name: string): string =>
+const cliLoginPath = (name: string): string =>
 	join(configDirectory(), name, "login.json");
 
 /** The stored token for `url`, unless it has expired or came from another URL. */

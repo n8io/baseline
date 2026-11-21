@@ -23,7 +23,7 @@ export type CliDocument = {
 };
 
 /** How a flag's text becomes a value. */
-export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
+type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 
 /** One flag of a command: a path, query or body field. */
 export type CliField = {
