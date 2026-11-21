@@ -4,8 +4,8 @@ import { envMemoryRefused } from "./env.ts";
 describe("varlock setup file", () => {
 	it("loads .env.test into process.env and ENV in this worker", async () => {
 		const { ENV } = await import("./env.ts");
-		expect(process.env.APP_ENV).toBe("test");
-		expect(process.env.LOG_LEVEL).toBe("silent");
+		expect(process.env["APP_ENV"]).toBe("test");
+		expect(process.env["LOG_LEVEL"]).toBe("silent");
 		expect(ENV.DATABASE_URL).toBe("memory://");
 		expect(ENV.PORT).toBe(3000);
 	});

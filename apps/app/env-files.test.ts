@@ -138,7 +138,7 @@ describe("env files", () => {
 
 	// A shell that exports real URLs must not send unit tests to a real Postgres or Redis.
 	it("runs the unit tests on memory adapters whatever the shell exports", () => {
-		expect([process.env.DATABASE_URL, process.env.CACHE_URL]).toEqual([
+		expect([process.env["DATABASE_URL"], process.env["CACHE_URL"]]).toEqual([
 			"memory://",
 			"memory://",
 		]);
