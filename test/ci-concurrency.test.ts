@@ -82,4 +82,11 @@ describe("ci.yml runs", () => {
 		for (const checkout of checkouts ?? [])
 			expect(checkout).toContain("persist-credentials: false");
 	});
+
+	it("baseline's change filter skips the heavy jobs on a Version packages PR that only moves versions", () => {
+		const ci = read(".github/workflows/ci.yml");
+		expect(ci).toContain(`HEAD_REF: \${{ github.head_ref }}`);
+		expect(ci).toContain(`[ "$HEAD_REF" = changeset-release/main ]`);
+		expect(ci).toContain(`grep -q '^apps/app/' <<< "$files"; then code=false`);
+	});
 });

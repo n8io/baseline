@@ -18,6 +18,7 @@ permissions:
 
 # A pull request that changes only Markdown outside apps/app skips integration, render, render-and-test and api-only:
 # a skipped job satisfies a required check. packages still runs; Turborepo picks the affected tasks.
+# So does the Version packages PR when it only moves Package versions, changelogs and changesets.
 jobs:
   # Whether the pull request changes anything but Markdown. If this job fails, the jobs run anyway.
   changes:
@@ -35,6 +36,7 @@ jobs:
       - id: diff
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           code=true
           if [ -n "$BASE" ]; then
@@ -42,6 +44,15 @@ jobs:
             files=$(git diff --name-only --no-renames "$BASE...HEAD")
             # The Template's Markdown ships to Projects, whose tests read it, so it counts as code here.
             if ! grep -qv '\.md$' <<< "$files" && ! grep -q '^apps/app/' <<< "$files"; then code=false; fi
+            # The Version packages PR only moves versions and changelogs of Packages, which the render and
+            # piece jobs install from npmjs, never from this checkout. Every other diff there runs everything.
+            if [ "$HEAD_REF" = changeset-release/main ] && ! grep -qvE '\.md$|^\.changeset/|^packages/[^/]+/package\.json$' <<< "$files"; then
+              versions_only=true
+              for file in $(grep '^packages/' <<< "$files" | grep 'package\.json$'); do
+                if git diff -U0 "$BASE...HEAD" -- "$file" | grep '^[+-][^+-]' | grep -qv '"version"'; then versions_only=false; fi
+              done
+              if [ "$versions_only" = true ] && ! grep -q '^apps/app/' <<< "$files"; then code=false; fi
+            fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
 
