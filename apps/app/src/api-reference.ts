@@ -6,6 +6,9 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { httpRouterCreate } from "@n8io/baseline-http";
 import type { Context } from "hono";
+import { z } from "zod";
+
+const packageManifestSchema = z.object({ version: z.string() });
 
 const assetBody = ({ directory, name }: { directory: string; name: string }) =>
 	readFileSync(join(directory, name));
@@ -21,9 +24,9 @@ export const apiReferenceRoutesCreate = () => {
 		"swagger-ui-dist/package.json",
 	);
 	const directory = dirname(manifest);
-	const { version } = JSON.parse(readFileSync(manifest, "utf8")) as {
-		version: string;
-	};
+	const { version } = packageManifestSchema.parse(
+		JSON.parse(readFileSync(manifest, "utf8")),
+	);
 	const script = assetBody({ directory, name: "swagger-ui-bundle.js" });
 	const style = assetBody({ directory, name: "swagger-ui.css" });
 	const base = `/api/v1/docs/${version}`;
