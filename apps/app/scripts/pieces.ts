@@ -113,6 +113,19 @@ const manifestSchema = z.looseObject({
 });
 type Manifest = z.infer<typeof manifestSchema>;
 
+// The JSON checked against the schema, in the file's own key order (a schema parse reorders keys
+// by its shape), so an edited file diffs only where it changed.
+const objectParse = <Shape extends z.ZodRawShape>(
+	schema: z.ZodObject<Shape, z.core.$loose>,
+	text: string,
+) => {
+	const original: unknown = JSON.parse(text);
+	const parsed = schema.parse(original);
+	return typeof original === "object" && original !== null
+		? { ...original, ...parsed }
+		: parsed;
+};
+
 const biomeSchema = z.looseObject({
 	css: z.unknown().optional(),
 	files: z.looseObject({ includes: z.array(z.string()) }),
@@ -133,7 +146,7 @@ const manifestEdit = (directory: string, edit: (m: Manifest) => Manifest) =>
 		directory,
 		path: "package.json",
 		edit: (text) => {
-			const manifest = manifestSchema.parse(JSON.parse(text));
+			const manifest = objectParse(manifestSchema, text);
 			return `${JSON.stringify(edit(manifest), null, "\t")}\n`;
 		},
 	});
@@ -164,8 +177,9 @@ const dependenciesAllowedPieceRemove = (directory: string, piece: Piece) =>
 	});
 
 export const packagesInstalled = (directory: string): Set<string> => {
-	const manifest = manifestSchema.parse(
-		JSON.parse(readFileSync(join(directory, "package.json"), "utf8")),
+	const manifest = objectParse(
+		manifestSchema,
+		readFileSync(join(directory, "package.json"), "utf8"),
 	);
 	return new Set(
 		Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }),
@@ -244,7 +258,7 @@ const uiEdit = (directory: string) => {
 		directory,
 		path: "biome.json",
 		edit: (text) => {
-			const { css: _css, ...biome } = biomeSchema.parse(JSON.parse(text));
+			const { css: _css, ...biome } = objectParse(biomeSchema, text);
 			return `${JSON.stringify(
 				{
 					...biome,
