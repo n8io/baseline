@@ -24,7 +24,11 @@ const cursorArbitrary: fc.Arbitrary<Cursor<"item">> = fc.oneof(
 		id: idArbitrary,
 		kind: fc.constant<CursorKind>("date"),
 		value: fc
-			.date({ max: new Date("9999-12-31"), min: new Date("1000-01-01") })
+			.date({
+				noInvalidDate: true,
+				max: new Date("9999-12-31"),
+				min: new Date("1000-01-01"),
+			})
 			.map((date) => date.toISOString()),
 	}),
 	fc.record({
@@ -35,7 +39,10 @@ const cursorArbitrary: fc.Arbitrary<Cursor<"item">> = fc.oneof(
 	fc.record({
 		id: idArbitrary,
 		kind: fc.constant<CursorKind>("number"),
-		value: fc.double({ noNaN: true, noDefaultInfinity: true }),
+		value: fc
+			// JSON has no -0: it writes it as 0.
+			.double({ noNaN: true, noDefaultInfinity: true })
+			.map((number) => (Object.is(number, -0) ? 0 : number)),
 	}),
 );
 
