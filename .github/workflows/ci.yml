@@ -207,11 +207,16 @@ jobs:
       skip: ${{ needs.render.result != 'success' }}
 
   # pnpm piece-remove on a fresh render: each piece alone, all together, and the way back.
-  api-only:
+  # One render per case, side by side; `api-only` below is the one required check that gathers them.
+  api-only-case:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [alone-1, alone-2, all]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -222,11 +227,26 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       - run: pnpm install --frozen-lockfile
-      - name: Render, remove each piece alone and all together, revert, then check, test, build and serve
+      - name: Render, remove pieces, revert, then check, test, build and serve (${{ matrix.case }})
+        env:
+          CASE: ${{ matrix.case }}
         run: |
           git config --global user.name "api-only"
           git config --global user.email "api-only@users.noreply.github.com"
-          node test/render/api-only.ts "$RUNNER_TEMP/api-only"
+          node test/render/api-only.ts "$RUNNER_TEMP/api-only" "$CASE"
+
+  # The required check. Skipped cases (a Markdown-only diff) report skipped, and so does the gate's work.
+  api-only:
+    needs: api-only-case
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULT: ${{ needs.api-only-case.result }}
+        run: |
+          echo "api-only cases: $RESULT"
+          [ "$RESULT" = success ] || [ "$RESULT" = skipped ]
 
   automerge:
     if: github.event_name == 'pull_request'
