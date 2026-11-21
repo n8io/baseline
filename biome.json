@@ -48,7 +48,7 @@
 				"useDateNow": "error",
 				"useFlatMap": "error",
 				"useIndexOf": "error",
-				"useLiteralKeys": "error",
+				"useLiteralKeys": "off",
 				"useMathMinMax": "error",
 				"useNumericLiterals": "error",
 				"useOptionalChain": "error",
@@ -62,6 +62,12 @@
 				"noUnusedPrivateClassMembers": "error",
 				"noUnusedVariables": "error",
 				"useParseIntRadix": "error"
+			},
+			"nursery": {
+				"noFloatingPromises": "error",
+				"noMisusedPromises": "error",
+				"useAwaitThenable": "error",
+				"useExhaustiveSwitchCases": "error"
 			},
 			"performance": {
 				"noAccumulatingSpread": "error",

@@ -118,7 +118,7 @@ describe("telemetry from the production build", { timeout: 30_000 }, () => {
 
 	it("exports pino records as OTLP logs", () => {
 		const signals = otlpReceiverSignals(server, receiver);
-		expect(signals.logs).toContain("Server listening");
+		expect(signals["logs"]).toContain("Server listening");
 	});
 
 	it.each(

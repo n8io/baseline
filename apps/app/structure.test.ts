@@ -470,7 +470,7 @@ describe("naming", () => {
 				source: readFileSync(new URL(name, appRoot), "utf8"),
 			}));
 		expect(files.length).toBeGreaterThan(10);
-		expect(architectureRules.A23?.(files)).toEqual([]);
+		expect(architectureRules["A23"]?.(files)).toEqual([]);
 	});
 });
 
@@ -811,8 +811,8 @@ describe("docker compose commands", () => {
 
 	it("keep the dev script parts piece-remove edits while their pieces are here", () => {
 		const here = (path: string) => existsSync(new URL(path, appRoot));
-		expect(manifest.scripts.dev?.includes(pieceDevUi)).toBe(here("src/ui"));
-		expect(pieceDevWorker.test(manifest.scripts.dev ?? "")).toBe(
+		expect(manifest.scripts["dev"]?.includes(pieceDevUi)).toBe(here("src/ui"));
+		expect(pieceDevWorker.test(manifest.scripts["dev"] ?? "")).toBe(
 			here("src/worker.ts"),
 		);
 	});

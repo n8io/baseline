@@ -392,7 +392,7 @@ describe("app-create", () => {
 									parameters: {
 										...r.parameters,
 										required_status_checks: [
-											...((r.parameters?.required_status_checks ??
+											...((r.parameters?.["required_status_checks"] ??
 												[]) as unknown[]),
 										].reverse(),
 									},
@@ -492,7 +492,7 @@ describe("app-create", () => {
 				(r) => r.type === "required_status_checks",
 			);
 			if (checks?.parameters)
-				checks.parameters.required_status_checks = [
+				checks.parameters["required_status_checks"] = [
 					"check",
 					"unit",
 					"integration",
@@ -514,7 +514,7 @@ describe("app-create", () => {
 			const current = stored();
 			const pull = current.rules.find((r) => r.type === "pull_request");
 			if (pull?.parameters)
-				pull.parameters.allowed_merge_methods = ["merge", "squash"];
+				pull.parameters["allowed_merge_methods"] = ["merge", "squash"];
 
 			expect(
 				rulesetChangesFind({ current, wanted: rulesetBodyCreate() }),

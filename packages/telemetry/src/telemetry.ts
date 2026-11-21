@@ -198,7 +198,7 @@ const metricReaderOptions = (): {
 	exportIntervalMillis: number;
 	exportTimeoutMillis: number;
 } => {
-	const interval = Number(process.env.OTEL_METRIC_EXPORT_INTERVAL);
+	const interval = Number(process.env["OTEL_METRIC_EXPORT_INTERVAL"]);
 	const exportIntervalMillis =
 		Number.isFinite(interval) && interval > 0 ? interval : 60_000;
 	return {
@@ -233,7 +233,7 @@ export const telemetryStart = (): void => {
 	}
 	// Exceptions as log records, not span events; read when instrumentations
 	// are built, so it is set first.
-	process.env.OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN ??= "logs";
+	process.env["OTEL_SEMCONV_EXCEPTION_SIGNAL_OPT_IN"] ??= "logs";
 	protocolOthersWarn();
 	const spanProcessors = spanProcessorsFromEnv();
 	const logRecordProcessors = logRecordProcessorsFromEnv();
@@ -273,17 +273,17 @@ export const telemetryStart = (): void => {
 	// NodeSDK builds its own OTLP log exporter from the environment when it is given no log
 	// processor; a signal with no exporter must not get one. Traces and metrics are given empty
 	// lists, which it keeps.
-	const logsExporter = process.env.OTEL_LOGS_EXPORTER;
+	const logsExporter = process.env["OTEL_LOGS_EXPORTER"];
 	if (logRecordProcessors.length === 0) {
-		process.env.OTEL_LOGS_EXPORTER = "none";
+		process.env["OTEL_LOGS_EXPORTER"] = "none";
 	}
 	try {
 		sdk.start();
 	} finally {
 		if (logsExporter === undefined) {
-			delete process.env.OTEL_LOGS_EXPORTER;
+			delete process.env["OTEL_LOGS_EXPORTER"];
 		} else {
-			process.env.OTEL_LOGS_EXPORTER = logsExporter;
+			process.env["OTEL_LOGS_EXPORTER"] = logsExporter;
 		}
 	}
 };

@@ -118,17 +118,17 @@ describe("architecture", () => {
 			"src/contexts/bar/domain/bar-open.ts",
 			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { z } from "zod";\nimport { idSchemaCreate } from "../../../id-schema.ts";\nimport { barClosedIs } from "./bar-closed.ts";\n',
 		);
-		expect(architectureRules.A2?.([rule])).toEqual([]);
+		expect(architectureRules["A2"]?.([rule])).toEqual([]);
 		const result = await architectureFileCreate(
 			"src/contexts/bar/domain/bar-open.ts",
 			'import { ok } from "@n8io/baseline-result";\n',
 		);
-		expect(architectureRules.A2?.([result])).toEqual([]);
+		expect(architectureRules["A2"]?.([result])).toEqual([]);
 		const value = await architectureFileCreate(
 			"src/contexts/bar/domain/bar-open.ts",
 			'import { idCreate } from "@n8io/baseline-id";\n',
 		);
-		expect(architectureRules.A2?.([value])).toHaveLength(1);
+		expect(architectureRules["A2"]?.([value])).toHaveLength(1);
 	});
 
 	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
@@ -144,18 +144,18 @@ describe("architecture", () => {
 		const typed = await seed(
 			'import type { BazContext } from "#contexts/baz/index.ts";\n',
 		);
-		expect(architectureRules.A6?.([acl, typed])).toEqual([]);
+		expect(architectureRules["A6"]?.([acl, typed])).toEqual([]);
 		// Without the ACL, baz is no upstream of bar.
-		expect(architectureRules.A6?.([typed])).toHaveLength(1);
+		expect(architectureRules["A6"]?.([typed])).toHaveLength(1);
 		const value = await seed(
 			'import { bazScopes } from "#contexts/baz/index.ts";\n',
 		);
-		expect(architectureRules.A6?.([acl, value])).toHaveLength(1);
+		expect(architectureRules["A6"]?.([acl, value])).toHaveLength(1);
 		const other = await architectureFileCreate(
 			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
 			'import type { QuxContext } from "#contexts/qux/index.ts";\n',
 		);
-		expect(architectureRules.A6?.([other])).toHaveLength(1);
+		expect(architectureRules["A6"]?.([other])).toHaveLength(1);
 	});
 
 	it("A6 lets only tests and test helpers in a context build contexts or open connections", async () => {
@@ -164,13 +164,13 @@ describe("architecture", () => {
 		const at = (path: string) => architectureFileCreate(path, source);
 		const outbound = "src/contexts/bar/adapters/outbound";
 		expect(
-			architectureRules.A6?.([
+			architectureRules["A6"]?.([
 				await at(`${outbound}/bar-test-upstream.ts`),
 				await at(`${outbound}/bar-baz-acl.test.ts`),
 			]),
 		).toEqual([]);
 		expect(
-			architectureRules.A6?.([await at(`${outbound}/bar-baz-acl.ts`)]),
+			architectureRules["A6"]?.([await at(`${outbound}/bar-baz-acl.ts`)]),
 		).toHaveLength(2);
 	});
 
@@ -179,7 +179,7 @@ describe("architecture", () => {
 			"src/contexts/baz-note/adapters/outbound/baz-note-baz-acl.ts",
 			"export const bazNoteBazAclCreate = () => bazNoteShape(useCases.bazGet(actor, {}));\n",
 		);
-		expect(architectureRules.A11?.([acl])).toEqual([]);
+		expect(architectureRules["A11"]?.([acl])).toEqual([]);
 	});
 
 	it("A14 passes once the other context's deleted Event has an Event handler", async () => {
@@ -192,7 +192,7 @@ describe("architecture", () => {
 			'export const x = "team.deleted";\n',
 		);
 		expect(
-			architectureRules.A14?.([...(sample?.files ?? []), handler]),
+			architectureRules["A14"]?.([...(sample?.files ?? []), handler]),
 		).toEqual([]);
 	});
 
@@ -215,14 +215,16 @@ describe("architecture", () => {
 				"src/contexts/billing/domain/invoice-line.ts",
 			].map((path) => architectureFileCreate(path, "")),
 		);
-		expect(architectureRules.A14?.([own, invoice, ...aggregates])).toEqual([]);
+		expect(architectureRules["A14"]?.([own, invoice, ...aggregates])).toEqual(
+			[],
+		);
 		expect(
-			architectureRules.A14?.([own, invoice, shipping, ...aggregates]),
+			architectureRules["A14"]?.([own, invoice, shipping, ...aggregates]),
 		).toEqual([
 			'src/contexts/shipping/adapters/outbound/parcel-table.ts: a column holding a invoice id needs src/contexts/shipping/adapters/inbound/shipping-invoice-deleted-handler.ts handling "invoice.deleted", so rows never point at a deleted invoice',
 		]);
 		// A table with no domain/ file of its name is a projection, not an Aggregate.
-		expect(architectureRules.A14?.([own, invoice, shipping])).toEqual([]);
+		expect(architectureRules["A14"]?.([own, invoice, shipping])).toEqual([]);
 	});
 
 	it("A14 reads the context's own longer Aggregate name before another context's shorter one", async () => {
@@ -239,7 +241,7 @@ describe("architecture", () => {
 				["src/contexts/catalog/domain/item.ts", ""],
 			].map(([path = "", source = ""]) => architectureFileCreate(path, source)),
 		);
-		expect(architectureRules.A14?.(files)).toEqual([]);
+		expect(architectureRules["A14"]?.(files)).toEqual([]);
 	});
 
 	it("A16 lets an Aggregate's Use case name its span attributes after the Aggregate", async () => {
@@ -255,7 +257,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-get.ts",
 			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
 		);
-		expect(architectureRules.A16?.([table, aggregate, useCase])).toEqual([
+		expect(architectureRules["A16"]?.([table, aggregate, useCase])).toEqual([
 			expect.stringContaining("span attribute baseline.note.id"),
 		]);
 	});
@@ -286,7 +288,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-close.ts",
 			body,
 		);
-		expect(architectureRules.A28?.([file])).toHaveLength(found);
+		expect(architectureRules["A28"]?.([file])).toHaveLength(found);
 	});
 
 	it("A23 lets a context's export start with one of its Aggregates' names", async () => {
@@ -302,7 +304,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-create.ts",
 			"export const invoiceLineCreate = () => 1;\nexport const noteCreate = () => 1;\n",
 		);
-		expect(architectureRules.A23?.([table, aggregate, useCase])).toEqual([
+		expect(architectureRules["A23"]?.([table, aggregate, useCase])).toEqual([
 			expect.stringContaining("noteCreate is exported from billing"),
 		]);
 	});
@@ -380,7 +382,7 @@ describe("architecture", () => {
 			"packages/telemetry/src/telemetry-sdk.ts",
 			"export const telemetryStart = () => 1;\nexport const telemetryShutdown = () => 1;\n",
 		);
-		expect(architectureRules.A23?.([file])).toEqual([
+		expect(architectureRules["A23"]?.([file])).toEqual([
 			"packages/telemetry/src/telemetry-sdk.ts: named after none of its exports (telemetryStart, telemetryShutdown); name the file after its primary export (telemetry-start.ts), or start its exports with telemetrySdk",
 		]);
 	});
@@ -401,8 +403,8 @@ describe("architecture", () => {
 				"export {};\n",
 			),
 		];
-		expect(architectureRules.A14?.(files)).toHaveLength(1);
-		expect(architectureRules.A14?.(files)[0]).toContain("a work-order id");
+		expect(architectureRules["A14"]?.(files)).toHaveLength(1);
+		expect(architectureRules["A14"]?.(files)[0]).toContain("a work-order id");
 	});
 
 	it("A25 lets adapters/inbound/ build its own schema from an Aggregate schema's shape", async () => {
@@ -410,7 +412,7 @@ describe("architecture", () => {
 			"src/contexts/bar/adapters/inbound/bar-routes.ts",
 			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../../domain/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',
 		);
-		expect(architectureRules.A25?.([route])).toEqual([]);
+		expect(architectureRules["A25"]?.([route])).toEqual([]);
 	});
 
 	it("A12 reads the repository ports too", async () => {
@@ -418,7 +420,7 @@ describe("architecture", () => {
 			"src/contexts/bar/domain/repositories.ts",
 			"export type BarRepository = { close(): Promise<void> };\n",
 		);
-		expect(architectureRules.A12?.([ports])).toEqual([
+		expect(architectureRules["A12"]?.([ports])).toEqual([
 			expect.stringContaining("no port declares close"),
 		]);
 	});
@@ -428,7 +430,7 @@ describe("architecture", () => {
 			"src/contexts/bar/application/bar-close.ts",
 			"export const barClose = (ports: { barClock: { now(): Date } }) => ({\n\tclosedAt: ports.barClock.now(),\n\tdueAt: new Date(ports.barClock.now().getTime() + 1),\n});\n",
 		);
-		expect(architectureRules.A26?.([useCase])).toEqual([]);
+		expect(architectureRules["A26"]?.([useCase])).toEqual([]);
 	});
 
 	it("A27 skips comments, tests and adapters", async () => {
@@ -446,7 +448,7 @@ describe("architecture", () => {
 				"export const x = () => { try { return 1; } catch { throw new Error(); } };\n",
 			),
 		]);
-		expect(architectureRules.A27?.(files)).toEqual([]);
+		expect(architectureRules["A27"]?.(files)).toEqual([]);
 	});
 
 	const a27Why =
@@ -472,7 +474,7 @@ describe("architecture", () => {
 			"src/contexts/bar/application/bar-close.ts",
 			body,
 		);
-		expect(architectureRules.A27?.([file])).toHaveLength(found);
+		expect(architectureRules["A27"]?.([file])).toHaveLength(found);
 	});
 
 	it("A27 tells a transition to return err", async () => {
@@ -480,7 +482,7 @@ describe("architecture", () => {
 			"src/contexts/bar/domain/bar.ts",
 			'export const barOpen = () => {\n\tthrow new Error("closed");\n};\n',
 		);
-		expect(architectureRules.A27?.([rule])).toEqual([
+		expect(architectureRules["A27"]?.([rule])).toEqual([
 			expect.stringContaining(
 				"bar.ts:2: throw in a domain/ file; a transition returns err(new <Name>Error())",
 			),

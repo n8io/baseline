@@ -199,14 +199,14 @@ const rulesetNormalize = ({
 				type === "required_status_checks"
 					? {
 							checks: (
-								(parameters?.required_status_checks ?? []) as {
+								(parameters?.["required_status_checks"] ?? []) as {
 									context: string;
 								}[]
 							)
 								.map(({ context }) => context)
 								.sort(),
-							create: parameters?.do_not_enforce_on_create,
-							strict: parameters?.strict_required_status_checks_policy,
+							create: parameters?.["do_not_enforce_on_create"],
+							strict: parameters?.["strict_required_status_checks_policy"],
 						}
 					: parametersPick({
 							keys: Object.keys(
@@ -342,7 +342,7 @@ const monorepo = resolve(import.meta.dirname, "..");
 // The folder the person ran the command in: pnpm runs a script from the monorepo root.
 const startDirectory = (): string =>
 	// biome-ignore lint/suspicious/noUndeclaredEnvVars: pnpm sets it; turbo never runs app-create
-	process.env.INIT_CWD ?? process.cwd();
+	process.env["INIT_CWD"] ?? process.cwd();
 
 export type AppCreateArgs = {
 	description: string | null;

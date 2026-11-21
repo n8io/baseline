@@ -11,7 +11,10 @@
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"noEmit": true,
+		"noFallthroughCasesInSwitch": true,
 		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"noPropertyAccessFromIndexSignature": true,
 		"noUncheckedIndexedAccess": true,
 		// piece-start: ui
 		"rootDirs": [".", "./.react-router/types"],

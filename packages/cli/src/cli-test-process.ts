@@ -24,7 +24,7 @@ export const cliTestProcessRun = async ({
 	stdin,
 }: CliTestProcessRunOptions): Promise<CliTestProcessRunResult> => {
 	const run = promisify(execFile)(process.execPath, [app, ...args], {
-		env: { PATH: process.env.PATH ?? "", XDG_CONFIG_HOME: config, ...env },
+		env: { PATH: process.env["PATH"] ?? "", XDG_CONFIG_HOME: config, ...env },
 	});
 	run.child.stdin?.end(stdin ?? "");
 	return run.then(
