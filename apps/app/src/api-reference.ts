@@ -32,7 +32,7 @@ export const apiReferenceRoutesCreate = () => {
 	const router = httpRouterCreate();
 	router.get("/", (c) => {
 		// httpSecureHeaders sets it; the router's own Context does not type that variable.
-		const nonce = (c as Context).var.secureHeadersNonce;
+		const nonce = (c as Context).var["secureHeadersNonce"];
 		c.header("cache-control", "no-store");
 		return c.html(`<!doctype html>
 <html lang="en">

@@ -30,7 +30,7 @@ export const uiLoadContextCreate = (
 		new Map<RouterContext<unknown>, unknown>([
 			[actorContext, c.var.actor],
 			[authnExpiresAtContext, c.var.authnExpiresAt],
-			[cspNonceContext, c.var.secureHeadersNonce],
+			[cspNonceContext, c.var["secureHeadersNonce"]],
 			[fooUseCasesContext, contexts.fooContext.useCases],
 			// wiring: context
 		]),
