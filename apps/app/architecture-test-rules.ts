@@ -161,7 +161,11 @@ const patternNames = (node: unknown): string[] => {
 const memberRoot = (node: unknown): string | undefined => {
 	if (!astNodeIs(node)) return undefined;
 	if (node.type === "ChainExpression") return memberRoot(node.expression);
-	if (node.type === "TSNonNullExpression" || node.type === "TSAsExpression") {
+	if (
+		node.type === "TSNonNullExpression" ||
+		node.type === "TSAsExpression" ||
+		node.type === "TSSatisfiesExpression"
+	) {
 		return memberRoot(node.expression);
 	}
 	if (node.type !== "MemberExpression") return undefined;
@@ -265,13 +269,11 @@ const mutationsFind = (root: unknown): Mutation[] => {
 				astNodeIs(target) &&
 				target.type === "MemberExpression" &&
 				memberText(target) === "Object.assign" &&
-				astNodeIs(args[0]) &&
-				args[0].type === "Identifier" &&
-				isParam(String(args[0].name))
+				isParam(memberRoot({ type: "MemberExpression", object: args[0] }))
 			) {
 				found.push({
 					at: node.start,
-					what: `calls Object.assign() on the parameter ${String(args[0].name)}`,
+					what: `calls Object.assign() on the parameter ${memberRoot({ type: "MemberExpression", object: args[0] })}`,
 				});
 			}
 		}

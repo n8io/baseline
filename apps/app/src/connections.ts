@@ -2,7 +2,7 @@
 // analytics and error tracking while the Project has those pieces, and the clock. Each context's adapters/outbound/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
-import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
+import { postgresPoolCreate } from "@n8io/baseline-postgres";
 import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { ENV } from "#env";
 import { analyticsOpen } from "./analytics-open.ts";
@@ -12,7 +12,7 @@ import { errorTrackingOpen } from "./error-tracking-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis-open.ts";
-import type { ShutdownSteps } from "./shutdown-step-add.ts";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
 // process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
@@ -31,11 +31,6 @@ export const databaseOpen = ({
 				databaseUrl: url,
 				max: poolMax ?? (role === "worker" ? 5 : 10),
 			});
-
-const databaseStep = (database: PostgresPool): ShutdownStep => ({
-	close: () => database.end(),
-	name: "database",
-});
 
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
 // is an intake, since it brings work in; elsewhere the live hub is, since it streams out.
@@ -69,10 +64,7 @@ export const connectionsOpen = async ({
 		await database.query("SELECT 1");
 	}
 	// Each opener returns the steps so far with its own added, in the order they close.
-	let steps: ShutdownSteps = {
-		intakes: [],
-		resources: database === "memory" ? [] : [databaseStep(database)],
-	};
+	let steps: ShutdownSteps = { intakes: [], resources: [] };
 	// piece-start: error-tracking
 	// First, so it reports what the other connections log while they open. It closes first too.
 	steps = errorTrackingOpen({
@@ -81,6 +73,14 @@ export const connectionsOpen = async ({
 		steps,
 	});
 	// piece-end: error-tracking
+	if (database !== "memory") {
+		steps = shutdownStepAdd({
+			at: "last",
+			group: "resources",
+			step: { close: () => database.end(), name: "database" },
+			steps,
+		});
+	}
 	// piece-start: redis
 	const redisOpened = await redisOpen({
 		steps,
