@@ -109,7 +109,7 @@ const manifestSchema = z.looseObject({
 	dependencies: recordSchema.optional(),
 	devDependencies: recordSchema.optional(),
 	imports: recordSchema.optional(),
-	scripts: z.record(z.string(), z.string().optional()),
+	scripts: z.record(z.string(), z.string().optional()).default({}),
 });
 type Manifest = z.infer<typeof manifestSchema>;
 
