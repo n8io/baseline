@@ -10,6 +10,14 @@ type RouterWindow = {
 	};
 };
 
+// The number under `key` of a runtime value, or undefined. No schema library: this file ships to
+// the browser, and one number does not earn a validator in the bundle.
+const numberAt = (value: unknown, key: string): number | undefined => {
+	if (typeof value !== "object" || value === null) return undefined;
+	const found: unknown = Reflect.get(value, key);
+	return typeof found === "number" ? found : undefined;
+};
+
 let refreshedExpiresAt: number | undefined;
 let inFlight: Promise<void> | undefined;
 
@@ -18,9 +26,7 @@ let inFlight: Promise<void> | undefined;
 const rootExpiresAt = (): number | undefined => {
 	const root = (globalThis as RouterWindow).__reactRouterDataRouter?.state
 		?.loaderData?.["root"];
-	if (typeof root !== "object" || root === null) return undefined;
-	const { authnExpiresAt } = root as { authnExpiresAt?: unknown };
-	return typeof authnExpiresAt === "number" ? authnExpiresAt : undefined;
+	return numberAt(root, "authnExpiresAt");
 };
 
 const expiresAtKnown = (): number | undefined => {
@@ -43,8 +49,8 @@ const refreshFetch = async (): Promise<void> => {
 		headers: { Accept: "application/json" },
 	});
 	if (!res.ok) return;
-	const body = (await res.json()) as { expiresAt?: unknown };
-	if (typeof body.expiresAt === "number") refreshedExpiresAt = body.expiresAt;
+	const expiresAtBody = numberAt(await res.json(), "expiresAt");
+	if (expiresAtBody !== undefined) refreshedExpiresAt = expiresAtBody;
 };
 
 // One refresh in flight per tab; Web Locks keep tabs from refreshing at the same time.

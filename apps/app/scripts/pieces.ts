@@ -10,6 +10,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { isAbsolute, join, normalize, relative } from "node:path";
+import { z } from "zod";
 import { gitRun } from "./process-run.ts";
 
 // Every Piece of the stack a Project may remove with pnpm piece-remove. A new name here fails
@@ -102,12 +103,20 @@ const textEdit = ({
 	if (edited !== text) writeFileSync(file, edited);
 };
 
-type Manifest = {
-	dependencies?: Record<string, string> | undefined;
-	devDependencies?: Record<string, string> | undefined;
-	imports?: Record<string, string> | undefined;
-	scripts: Partial<Record<string, string>>;
-};
+const recordSchema = z.record(z.string(), z.string());
+// Loose: a package.json keeps every field it has that the edits do not name.
+const manifestSchema = z.looseObject({
+	dependencies: recordSchema.optional(),
+	devDependencies: recordSchema.optional(),
+	imports: recordSchema.optional(),
+	scripts: z.record(z.string(), z.string().optional()),
+});
+type Manifest = z.infer<typeof manifestSchema>;
+
+const biomeSchema = z.looseObject({
+	css: z.unknown().optional(),
+	files: z.looseObject({ includes: z.array(z.string()) }),
+});
 
 // The record without the named keys; a missing record stays missing.
 const recordOmit = <Value>(
@@ -124,7 +133,7 @@ const manifestEdit = (directory: string, edit: (m: Manifest) => Manifest) =>
 		directory,
 		path: "package.json",
 		edit: (text) => {
-			const manifest = JSON.parse(text) as Manifest;
+			const manifest = manifestSchema.parse(JSON.parse(text));
 			return `${JSON.stringify(edit(manifest), null, "\t")}\n`;
 		},
 	});
@@ -138,7 +147,7 @@ const dependenciesAllowedEdit = (
 		directory,
 		path: "dependencies-allowed.json",
 		edit: (text) =>
-			`${JSON.stringify(edit(JSON.parse(text) as Record<string, string>), null, "\t")}\n`,
+			`${JSON.stringify(edit(recordSchema.parse(JSON.parse(text))), null, "\t")}\n`,
 	});
 
 // Drops the Piece's packages; without the UI, Hono serves itself through @hono/node-server.
@@ -155,9 +164,9 @@ const dependenciesAllowedPieceRemove = (directory: string, piece: Piece) =>
 	});
 
 export const packagesInstalled = (directory: string): Set<string> => {
-	const manifest = JSON.parse(
-		readFileSync(join(directory, "package.json"), "utf8"),
-	) as Manifest;
+	const manifest = manifestSchema.parse(
+		JSON.parse(readFileSync(join(directory, "package.json"), "utf8")),
+	);
 	return new Set(
 		Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }),
 	);
@@ -235,15 +244,20 @@ const uiEdit = (directory: string) => {
 		directory,
 		path: "biome.json",
 		edit: (text) => {
-			const biome = JSON.parse(text) as {
-				css?: unknown;
-				files: { includes: string[] };
-			};
-			delete biome.css;
-			biome.files.includes = biome.files.includes.filter(
-				(p) => p !== "!.react-router",
-			);
-			return `${JSON.stringify(biome, null, "\t")}\n`;
+			const { css: _css, ...biome } = biomeSchema.parse(JSON.parse(text));
+			return `${JSON.stringify(
+				{
+					...biome,
+					files: {
+						...biome.files,
+						includes: biome.files.includes.filter(
+							(p) => p !== "!.react-router",
+						),
+					},
+				},
+				null,
+				"\t",
+			)}\n`;
 		},
 	});
 	writeFileSync(join(directory, "vite.config.ts"), apiViteConfig);
