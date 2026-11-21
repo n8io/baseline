@@ -3,7 +3,8 @@
 // glossaries: CONTEXT.md, the architecture terms every file shares, and each bounded context's
 // own src/contexts/<context>/CONTEXT.md. A file in a context is held to the architecture terms
 // and that context's language: an `_Avoid_:` alias of either, or another context's term, is a hit.
-// Another context's term is fine in the adapters/ of a context the map lists downstream of it.
+// Another context's term is fine in the adapters/ of a context the map lists downstream of it,
+// and anywhere in a context that has an ACL to its context or whose own CONTEXT.md uses the term.
 // Other files (UI, composition roots) are held to every glossary's aliases. Given a glossary
 // instead of a map (Baseline runs it over the monorepo with its root CONTEXT.md), that glossary
 // holds every file. Only prose counts: comments and string literals in code files, every line of
@@ -271,6 +272,18 @@ export const glossaryLanguageOf = ({
 		contexts.map((c) => {
 			const terms = [...c.language.terms, ...sharedTerms];
 			const known = new Set(terms.map((t) => t.toLowerCase()));
+			// Terms and definitions only: an `_Avoid_` line names words the context rules out.
+			const ownText = glossaryRead(c.glossary)
+				.split("\n")
+				.filter((line) => !line.startsWith("_Avoid_"))
+				.join("\n");
+			const aclUpstreams = new Set(
+				map.relationships
+					.filter(
+						(r) => r.downstream === c.context && r.through.includes("ACL"),
+					)
+					.map((r) => r.upstream),
+			);
 			const foreign = contexts
 				.filter((other) => other.context !== c.context)
 				.flatMap((other) =>
@@ -279,7 +292,8 @@ export const glossaryLanguageOf = ({
 						term,
 					})),
 				)
-				.filter((f) => !known.has(f.term.toLowerCase()));
+				.filter((f) => !known.has(f.term.toLowerCase()))
+				.filter((f) => !wordPattern({ word: f.term }).test(ownText));
 			const upstreams = new Set(
 				map.relationships
 					.filter((r) => r.downstream === c.context)
@@ -287,7 +301,7 @@ export const glossaryLanguageOf = ({
 			);
 			const inner: GlossaryLanguage = {
 				aliases: [...sharedAliases, ...c.language.aliases],
-				foreign,
+				foreign: foreign.filter((f) => !aclUpstreams.has(f.context)),
 				terms: longestFirst(terms),
 			};
 			const adapters: GlossaryLanguage = {

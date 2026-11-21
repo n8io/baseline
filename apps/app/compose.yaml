@@ -1,4 +1,4 @@
-# Local services: `pnpm dev` runs them; by hand, `varlock run -- docker compose up -d`.
+# Local services: `pnpm dev` runs them; by hand, `pnpm exec varlock run -- docker compose up -d`.
 # Always run compose under varlock: it sets COMPOSE_PROJECT_NAME (the Project's name, or a linked worktree's
 # dev instance) and the host ports. `--profile telemetry` adds a local trace and log viewer (Grafana on
 # http://localhost:3001, one instance at a time); to send it

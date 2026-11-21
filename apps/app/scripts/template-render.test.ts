@@ -1,5 +1,6 @@
 import {
 	existsSync,
+	mkdirSync,
 	mkdtempDisposableSync,
 	readdirSync,
 	readFileSync,
@@ -21,6 +22,7 @@ import {
 	linesRemove,
 	lockfileRender,
 	readmeRender,
+	templateExportOwn,
 	templateFileRender,
 	templateFilesRender,
 	templateFinish,
@@ -660,6 +662,21 @@ describe.runIf(template)("the template's own files", () => {
 				}),
 			).toBe(linesRemove(text, fooBlocksFind(text, path)));
 		}
+	});
+});
+
+describe("templateExportOwn", () => {
+	it("exports with the checkout's own templateExport, not this file's", async () => {
+		using work = mkdtempDisposableSync(join(tmpdir(), "export-own-"));
+		const scripts = join(work.path, "apps/app/scripts");
+		mkdirSync(scripts, { recursive: true });
+		writeFileSync(
+			join(scripts, "template-render.ts"),
+			'export const templateExport = (checkout: string, ref: string) => [{ path: "own.txt", text: checkout + ref }];\n',
+		);
+		expect(await templateExportOwn(work.path, "app@9.9.9")).toEqual([
+			{ path: "own.txt", text: `${work.path}app@9.9.9` },
+		]);
 	});
 });
 
