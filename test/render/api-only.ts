@@ -1,4 +1,4 @@
-// node test/render/api-only.ts <directory>: renders this checkout's apps/app as app-create
+// node test/render/api-only.ts <directory> [case]: renders this checkout's apps/app as app-create
 // does, with the customer context, and drives the rendered Project's own `pnpm piece-remove`:
 // - each of ui, live, cache, queue, analytics, error-tracking, api-reference and cli removed alone, and sdk
 //   after cli, passes check, unit tests and build, and git revert of its commits gives back the starting tree;
@@ -7,7 +7,9 @@
 //   which passes check unchanged;
 // - all ten removed, then invoice-line added with context-create and aggregate-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
-// One render serves every case, to keep CI short. `pnpm piece-check` is not one of them:
+// With no case, one render serves every check. CI runs one render per case so they run side by side:
+// alone-1 (ui, live, cache, queue), alone-2 (analytics, error-tracking, api-reference, cli then sdk) and
+// all (the refusals, every piece together, and the served API). `pnpm piece-check` is not one of them:
 // render-and-test's `pieces` job runs it on the render that job checks.
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
@@ -302,13 +304,24 @@ const revertTo = (directory: string, before: string) => {
 	treeCleanRequire(directory, "pnpm install after the revert");
 };
 
+const casesOf = { all: 0, "alone-1": 0, "alone-2": 0 };
+
 const checkTestBuild = ["check", "test", "build"];
 
 const main = async () => {
 	const directory = resolve(process.argv[2] ?? "");
-	if (process.argv[2] === undefined || existsSync(directory)) {
-		throw new Error("usage: node test/render/api-only.ts <new directory>");
+	const only = process.argv[3];
+	if (
+		process.argv[2] === undefined ||
+		existsSync(directory) ||
+		(only !== undefined && !(only in casesOf))
+	) {
+		throw new Error(
+			`usage: node test/render/api-only.ts <new directory> [${Object.keys(casesOf).join("|")}]`,
+		);
 	}
+	const run = (name: keyof typeof casesOf) =>
+		only === undefined || only === name;
 	const files = checkoutExport();
 	await appRender({ directory, files, answers });
 	answersWrite({ directory, answers: { ...answers, release: "checkout" } });
@@ -325,15 +338,13 @@ const main = async () => {
 	gitCommitAll(directory, "Create api-only with customer");
 	const head = () => git(directory, ["rev-parse", "HEAD"]);
 
-	for (const piece of [
-		"ui",
-		"live",
-		"cache",
-		"queue",
-		"analytics",
-		"error-tracking",
-		"api-reference",
-	] as const) {
+	const alone = [
+		...(run("alone-1") ? (["ui", "live", "cache", "queue"] as const) : []),
+		...(run("alone-2")
+			? (["analytics", "error-tracking", "api-reference"] as const)
+			: []),
+	];
+	for (const piece of alone) {
 		const before = head();
 		pieceRemove({ directory, piece, scripts: checkTestBuild });
 		revertTo(directory, before);
@@ -342,15 +353,19 @@ const main = async () => {
 		);
 	}
 
-	// The CLI runs on the SDK: cli alone, then sdk after it, each passing check, test and build.
-	const clientsBefore = head();
-	for (const piece of ["cli", "sdk"] as const) {
-		pieceRemove({ directory, piece, scripts: checkTestBuild });
+	if (run("alone-2")) {
+		// The CLI runs on the SDK: cli alone, then sdk after it, each passing check, test and build.
+		const clientsBefore = head();
+		for (const piece of ["cli", "sdk"] as const) {
+			pieceRemove({ directory, piece, scripts: checkTestBuild });
+		}
+		revertTo(directory, clientsBefore);
+		console.log(
+			"api-only: cli alone, then sdk, pass check, test and build, and revert",
+		);
 	}
-	revertTo(directory, clientsBefore);
-	console.log(
-		"api-only: cli alone, then sdk, pass check, test and build, and revert",
-	);
+
+	if (!run("all")) return;
 
 	const refused = spawnSync("pnpm", ["piece-remove", "redis"], {
 		cwd: directory,
