@@ -247,8 +247,8 @@ const uiEdit = (directory: string) => {
 				: `${text.replace(/^import /m, `${nodeServerImport}import `)}${apiServeLines}`,
 	});
 	manifestEdit(directory, (manifest) => {
-		manifest.scripts.build = "vite build";
-		manifest.scripts.dev = manifest.scripts.dev?.replace(
+		manifest.scripts["build"] = "vite build";
+		manifest.scripts["dev"] = manifest.scripts["dev"]?.replace(
 			pieceDevUi,
 			"node --watch --import ./src/preload.ts src/server.ts",
 		);
@@ -325,7 +325,7 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 				edit: (text) => text.replace(pieceScheduleLines, ""),
 			});
 			manifestEdit(directory, (manifest) => {
-				manifest.scripts.dev = manifest.scripts.dev?.replace(
+				manifest.scripts["dev"] = manifest.scripts["dev"]?.replace(
 					pieceDevWorker,
 					"$1",
 				);

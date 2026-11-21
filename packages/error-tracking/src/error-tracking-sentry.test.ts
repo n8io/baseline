@@ -157,7 +157,7 @@ describe("errorTrackingSentryCreate", () => {
 			trace_id: spanContext.traceId,
 		});
 		expect(requests[0]?.header.trace?.trace_id).toBe(spanContext.traceId);
-		expect(requests[0]?.event.tags?.trace_id).toBe(spanContext.traceId);
+		expect(requests[0]?.event.tags?.["trace_id"]).toBe(spanContext.traceId);
 	});
 
 	it("passes vendor.release through", async () => {

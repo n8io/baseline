@@ -11,7 +11,7 @@ const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 it("sends traceparent when telemetry is started and a span is active", async () => {
 	const headers: (string | undefined)[] = [];
 	const server = createServer((request, response) => {
-		headers.push(request.headers.traceparent as string | undefined);
+		headers.push(request.headers["traceparent"] as string | undefined);
 		response.writeHead(204).end();
 	});
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -37,7 +37,7 @@ it("sends traceparent when telemetry is started and a span is active", async () 
 					OTEL_METRICS_EXPORTER: "none",
 					// With no trace exporter telemetry starts no tracer, so nothing is traced.
 					OTEL_TRACES_EXPORTER: "console",
-					PATH: process.env.PATH ?? "",
+					PATH: process.env["PATH"] ?? "",
 				},
 				stdio: ["ignore", "ignore", "inherit"],
 			},

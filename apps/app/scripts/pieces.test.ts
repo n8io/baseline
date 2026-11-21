@@ -684,10 +684,10 @@ describe("pieceRemove", () => {
 	});
 
 	describe("when the package manager fails", () => {
-		const pathBefore = process.env.PATH;
+		const pathBefore = process.env["PATH"];
 		afterEach(() => {
-			process.env.PATH = pathBefore;
-			delete process.env.FAKE_PNPM_FAIL;
+			process.env["PATH"] = pathBefore;
+			delete process.env["FAKE_PNPM_FAIL"];
 		});
 
 		// A `pnpm` first on PATH that fails the one command named by FAKE_PNPM_FAIL (a registry
@@ -701,7 +701,7 @@ describe("pieceRemove", () => {
 				'#!/bin/sh\nif [ "$1" = "$FAKE_PNPM_FAIL" ]; then echo "ERR_PNPM_FETCH_404 from the registry"; exit 1; fi\nexit 0\n',
 			);
 			chmodSync(file, 0o755);
-			process.env.PATH = `${bin}:${pathBefore ?? ""}`;
+			process.env["PATH"] = `${bin}:${pathBefore ?? ""}`;
 			return folder;
 		};
 
@@ -715,7 +715,7 @@ describe("pieceRemove", () => {
 					"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0", "react-router": "^7.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 				});
 				using _fake = pnpmFake();
-				process.env.FAKE_PNPM_FAIL = command;
+				process.env["FAKE_PNPM_FAIL"] = command;
 				const failed = pieceRemove(folder.path, piece);
 				expect(failed?.packageManager).toBe(`pnpm ${command}`);
 				expect(failed?.files).toEqual([]);
@@ -743,7 +743,7 @@ describe("pieceRemove", () => {
 				"package.json": `${JSON.stringify({ dependencies: { "@n8io/baseline-live": "^1.0.0" }, name: "fixture", scripts: { check: "node -e 0" } }, null, "\t")}\n`,
 			});
 			using _fake = pnpmFake();
-			process.env.FAKE_PNPM_FAIL = "check";
+			process.env["FAKE_PNPM_FAIL"] = "check";
 			const failed = pieceRemove(folder.path, "live");
 			expect(failed).toBeDefined();
 			expect(failed?.packageManager).toBeUndefined();

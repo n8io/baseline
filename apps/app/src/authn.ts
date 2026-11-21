@@ -67,11 +67,11 @@ export const actorFromClaims = (claims: AuthnClaims): Actor => {
 	if (typeof sub !== "string" || sub === "") {
 		throw new TypeError("The token has no sub claim");
 	}
-	const client = claims.client_id ?? claims.azp;
-	const machine = claims.gty === "client-credentials" || sub === client;
+	const client = claims["client_id"] ?? claims["azp"];
+	const machine = claims["gty"] === "client-credentials" || sub === client;
 	return {
 		id: sub,
 		kind: machine ? "client" : "user",
-		scopes: scopesFromClaim(claims.scope),
+		scopes: scopesFromClaim(claims["scope"]),
 	};
 };

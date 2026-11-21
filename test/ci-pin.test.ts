@@ -35,7 +35,7 @@ describe("the Template's app-ci pin", () => {
 		const { scripts } = JSON.parse(
 			readFileSync(join(root, "package.json"), "utf8"),
 		) as { scripts: Record<string, string> };
-		expect(scripts.version).toMatch(
+		expect(scripts["version"]).toMatch(
 			/^changeset version && node scripts\/ci-pin-write\.ts && /,
 		);
 	});

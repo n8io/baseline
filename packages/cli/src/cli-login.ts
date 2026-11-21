@@ -35,10 +35,10 @@ export const cliEnvPrefix = (name: string): string =>
 		.toUpperCase();
 
 const configDirectory = (): string => {
-	const xdg = process.env.XDG_CONFIG_HOME;
+	const xdg = process.env["XDG_CONFIG_HOME"];
 	if (xdg !== undefined && xdg !== "") return xdg;
 	if (process.platform === "win32") {
-		return process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+		return process.env["APPDATA"] ?? join(homedir(), "AppData", "Roaming");
 	}
 	if (process.platform === "darwin") {
 		return join(homedir(), "Library", "Application Support");
@@ -127,19 +127,19 @@ export const cliLoginRun = async ({
 	if (
 		sent.status < 200 ||
 		sent.status > 299 ||
-		typeof body.access_token !== "string" ||
-		typeof body.expires_in !== "number"
+		typeof body["access_token"] !== "string" ||
+		typeof body["expires_in"] !== "number"
 	) {
 		return {
 			error:
-				`login failed: POST ${url}/auth/token answered ${sent.status} ${typeof body.error === "string" ? body.error : ""}`.trimEnd(),
+				`login failed: POST ${url}/auth/token answered ${sent.status} ${typeof body["error"] === "string" ? body["error"] : ""}`.trimEnd(),
 		};
 	}
 	const logins = {
 		...(await loginsRead(name)),
 		[url]: {
-			expiresAt: new Date(Date.now() + body.expires_in * 1000).toISOString(),
-			token: body.access_token,
+			expiresAt: new Date(Date.now() + body["expires_in"] * 1000).toISOString(),
+			token: body["access_token"],
 		},
 	};
 	const path = cliLoginPath(name);

@@ -138,7 +138,7 @@ export const cliTestOperations: Record<string, CliOperation> = {
 
 if (import.meta.main) {
 	// CLI_TEST_SERVERS replaces the environments, so a test can point one at its own server.
-	const servers = process.env.CLI_TEST_SERVERS;
+	const servers = process.env["CLI_TEST_SERVERS"];
 	await cliCreate({
 		document:
 			servers === undefined

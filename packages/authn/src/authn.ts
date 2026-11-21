@@ -192,7 +192,7 @@ const authnVerifyCreate =
 		}
 		if (
 			options.audienceClaim === "client_id" &&
-			payload.client_id !== options.audience
+			payload["client_id"] !== options.audience
 		) {
 			return { status: "invalid" };
 		}

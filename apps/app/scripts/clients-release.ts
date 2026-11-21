@@ -197,7 +197,7 @@ export const clientsManifestPublish = ({
 	version: string;
 }): Record<string, unknown> => {
 	const { private: _, scripts: __, ...rest } = manifest;
-	const repository = process.env.GITHUB_REPOSITORY;
+	const repository = process.env["GITHUB_REPOSITORY"];
 	return {
 		...rest,
 		name: `${scope}/${manifest.name}`,
@@ -235,7 +235,7 @@ export const clientsRelease = ({
 	directory: string;
 	dryRun: boolean;
 }): void => {
-	const scopeName = process.env.CLIENTS_NPM_SCOPE?.replace(/^@/, "");
+	const scopeName = process.env["CLIENTS_NPM_SCOPE"]?.replace(/^@/, "");
 	if (!scopeName) throw new Error("Set CLIENTS_NPM_SCOPE to the npm scope.");
 	const scope = `@${scopeName}`;
 	const source = join(directory, "clients");

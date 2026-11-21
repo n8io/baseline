@@ -103,11 +103,11 @@ export const authnTestOidcProviderCreate = async (
 	);
 	app.post("/token", async (c) => {
 		const body = await c.req.parseBody();
-		if (body.grant_type === "authorization_code") {
-			const grant = grants.get(String(body.code));
-			grants.delete(String(body.code));
+		if (body["grant_type"] === "authorization_code") {
+			const grant = grants.get(String(body["code"]));
+			grants.delete(String(body["code"]));
 			const challenge = createHash("sha256")
-				.update(String(body.code_verifier))
+				.update(String(body["code_verifier"]))
 				.digest("base64url");
 			if (grant === undefined || grant.challenge !== challenge) {
 				return c.json({ error: "invalid_grant" }, 400);
@@ -118,8 +118,8 @@ export const authnTestOidcProviderCreate = async (
 			const { refresh_token: _, ...withoutRefresh } = issued;
 			return c.json(withoutRefresh);
 		}
-		if (body.grant_type === "refresh_token") {
-			const token = String(body.refresh_token);
+		if (body["grant_type"] === "refresh_token") {
+			const token = String(body["refresh_token"]);
 			if (!refreshTokens.has(token))
 				return c.json({ error: "invalid_grant" }, 400);
 			const fresh = await tokens(
@@ -139,8 +139,8 @@ export const authnTestOidcProviderCreate = async (
 	app.post("/revoke", async (c) => {
 		if (options.revokeFails) return c.json({ error: "server_error" }, 500);
 		const body = await c.req.parseBody();
-		revoked.push(String(body.token));
-		refreshTokens.delete(String(body.token));
+		revoked.push(String(body["token"]));
+		refreshTokens.delete(String(body["token"]));
 		return c.body(null, 200);
 	});
 

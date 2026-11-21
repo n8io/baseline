@@ -17,7 +17,7 @@ let inFlight: Promise<void> | undefined;
 // router state, so this sees it after hydration and after every revalidation.
 const rootExpiresAt = (): number | undefined => {
 	const root = (globalThis as RouterWindow).__reactRouterDataRouter?.state
-		?.loaderData?.root;
+		?.loaderData?.["root"];
 	if (typeof root !== "object" || root === null) return undefined;
 	const { authnExpiresAt } = root as { authnExpiresAt?: unknown };
 	return typeof authnExpiresAt === "number" ? authnExpiresAt : undefined;

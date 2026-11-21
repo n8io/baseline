@@ -69,7 +69,7 @@ const main = async (): Promise<number | undefined> => {
 	const parsed = argsParse({
 		options: {
 			url: {
-				default: `http://localhost:${process.env.PORT ?? "3000"}`,
+				default: `http://localhost:${process.env["PORT"] ?? "3000"}`,
 				type: "string",
 			},
 			wait: { default: "30", type: "string" },

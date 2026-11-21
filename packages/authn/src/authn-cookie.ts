@@ -65,7 +65,7 @@ export const authnCookieOpen = async ({
 }): Promise<string | "invalid"> => {
 	try {
 		const { payload } = await jwtDecrypt(sealed, key, { audience: name });
-		return typeof payload.v === "string" ? payload.v : "invalid";
+		return typeof payload["v"] === "string" ? payload["v"] : "invalid";
 	} catch {
 		return "invalid";
 	}

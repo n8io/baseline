@@ -86,7 +86,7 @@ const fixtureRun = (
 					OTEL_LOGS_EXPORTER: "none",
 					OTEL_METRICS_EXPORTER: "none",
 					OTEL_SERVICE_NAME: "register-test",
-					PATH: process.env.PATH ?? "",
+					PATH: process.env["PATH"] ?? "",
 					...env,
 				},
 			},
@@ -232,7 +232,7 @@ describe("@n8io/baseline-telemetry/register", () => {
 					"./src/telemetry-test-fixtures/preload.ts",
 					"src/telemetry-test-fixtures/shutdown-time.ts",
 				],
-				{ cwd: packageRoot, env: { PATH: process.env.PATH ?? "" } },
+				{ cwd: packageRoot, env: { PATH: process.env["PATH"] ?? "" } },
 			);
 			let out = "";
 			child.stdout.on("data", (chunk: Buffer) => {

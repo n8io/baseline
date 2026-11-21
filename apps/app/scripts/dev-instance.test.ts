@@ -86,7 +86,7 @@ describe("devInstanceWrite", () => {
 
 		expect(devInstanceWrite(linked)).toBe("invoicing-fix-login-bug");
 		expect(readFileSync(join(linked, devInstanceFile), "utf8")).toBe(
-			`# This worktree's dev instance (scripts/dev-instance.ts). The Worker serves on HEALTH_PORT + 1.\nCOMPOSE_PROJECT_NAME=invoicing-fix-login-bug\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nPORT=${ports.PORT}\nHEALTH_PORT=${ports.HEALTH_PORT}\n`,
+			`# This worktree's dev instance (scripts/dev-instance.ts). The Worker serves on HEALTH_PORT + 1.\nCOMPOSE_PROJECT_NAME=invoicing-fix-login-bug\nPOSTGRES_HOST_PORT=${ports["POSTGRES_HOST_PORT"]}\nPORT=${ports["PORT"]}\nHEALTH_PORT=${ports["HEALTH_PORT"]}\n`,
 		);
 	});
 
