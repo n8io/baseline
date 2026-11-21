@@ -180,7 +180,8 @@ const parametersPick = ({
 }: {
 	keys: string[];
 	parameters: Record<string, unknown> | undefined;
-}) => Object.fromEntries(keys.sort().map((key) => [key, parameters?.[key]]));
+}) =>
+	Object.fromEntries(keys.toSorted().map((key) => [key, parameters?.[key]]));
 
 const rulesetNormalize = ({
 	ruleset,

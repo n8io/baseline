@@ -6,11 +6,11 @@
 // <consumer> is the Event handler's queueName. It exits 1 when it released nothing.
 // `pnpm piece-remove queue` deletes this file.
 import type { Queue, QueueBlockedKey } from "@n8io/baseline-queue";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { ENV } from "#env";
 import { connectionsClose, databaseOpen } from "./connections.ts";
 import { queueOpen } from "./queue-open.ts";
+import type { ShutdownSteps } from "./shutdown-step-add.ts";
 
 const blockedKeyReleases = {
 	"give-up": (queue: Queue, blocked: QueueBlockedKey) =>
@@ -69,17 +69,21 @@ const database = databaseOpen({
 	url: ENV.DATABASE_URL,
 });
 // What queueOpen adds to close, then the pool, in that order.
-const resources: ShutdownStep[] = [];
-if (database !== "memory") {
-	resources.push({ close: () => database.end(), name: "database" });
-}
+const poolSteps: ShutdownSteps = {
+	intakes: [],
+	resources:
+		database === "memory"
+			? []
+			: [{ close: () => database.end(), name: "database" }],
+};
+let closing = poolSteps;
 try {
-	const { queue } = await queueOpen({
+	const { queue, steps } = await queueOpen({
 		database,
-		intakes: [],
-		resources,
 		role: "publisher",
+		steps: poolSteps,
 	});
+	closing = steps;
 	if (queue === "memory") {
 		console.error("DATABASE_URL is memory://: there is no queue to look at");
 		process.exitCode = 1;
@@ -87,7 +91,7 @@ try {
 		process.exitCode = await blockedKeysRun(queue, process.argv.slice(2));
 	}
 } finally {
-	await connectionsClose({ intakes: [], resources });
+	await connectionsClose(closing);
 	// Its spans and logs are lost when the process ends unflushed.
 	await telemetryShutdown();
 }

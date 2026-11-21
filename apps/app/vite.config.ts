@@ -9,6 +9,7 @@ const devUrlPrint: Plugin = {
 	name: "dev-url-print",
 	configureServer: (server) => {
 		const urlsPrint = server.printUrls;
+		// mutates: Vite calls printUrls off the server object when it starts
 		server.printUrls = () => {
 			urlsPrint();
 			server.config.logger.info(

@@ -5,18 +5,25 @@ import {
 	analyticsLoggerCreate,
 	analyticsMixpanelCreate,
 } from "@n8io/baseline-analytics";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
-// With Mixpanel, `steps` waits for the sends in flight at shutdown.
+// With Mixpanel, the steps it returns add one that waits for the sends in flight at shutdown.
 export const analyticsOpen = ({
 	steps,
 	token,
 }: {
-	steps: ShutdownStep[];
+	steps: ShutdownSteps;
 	token?: string | null;
-}): Analytics => {
-	if (!token) return analyticsLoggerCreate();
+}): { analytics: Analytics; steps: ShutdownSteps } => {
+	if (!token) return { analytics: analyticsLoggerCreate(), steps };
 	const analytics = analyticsMixpanelCreate({ token });
-	steps.push({ close: () => analytics.close(), name: "analytics" });
-	return analytics;
+	return {
+		analytics,
+		steps: shutdownStepAdd({
+			at: "last",
+			group: "resources",
+			step: { close: () => analytics.close(), name: "analytics" },
+			steps,
+		}),
+	};
 };

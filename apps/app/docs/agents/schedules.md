@@ -87,14 +87,13 @@ archiveStale: async (before, now) => {
 ```ts
 // src/contexts/baz/adapters/outbound/baz-repository.memory.ts
 archiveStale: async (before, now) => {
-	let archived = 0;
-	for (const baz of state.bazs.values()) {
-		if (baz.archivedAt === null && baz.updatedAt < before) {
-			baz.archivedAt = new Date(now);
-			archived += 1;
-		}
+	const stale = [...state.bazs.values()].filter(
+		(baz) => baz.archivedAt === null && baz.updatedAt < before,
+	);
+	for (const baz of stale) {
+		state.bazs.set(baz.id, { ...baz, archivedAt: new Date(now) });
 	}
-	return archived;
+	return stale.length;
 },
 ```
 

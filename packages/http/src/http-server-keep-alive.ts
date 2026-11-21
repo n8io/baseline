@@ -9,6 +9,8 @@ const httpKeepAliveMs = 65_000;
  * has already closed, and the client gets a 502. The headers timeout stays above it.
  */
 export const httpServerKeepAlive = (server: Server): void => {
+	// mutates: Node reads the timeouts off the server object itself
 	server.keepAliveTimeout = httpKeepAliveMs;
+	// mutates: Node reads the timeouts off the server object itself
 	server.headersTimeout = httpKeepAliveMs + 1_000;
 };

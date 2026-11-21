@@ -64,8 +64,9 @@ describe("foo live updates", () => {
 			...connections,
 			liveHub: liveHubOpen({
 				redis: { publish } as unknown as RedisClient,
-				steps: [],
-			}),
+				role: "publisher",
+				steps: { intakes: [], resources: [] },
+			}).liveHub,
 		}).fooContext;
 		const created = await useCases.fooCreate(owner, { name: "alpha" });
 		if (!created.ok) throw created.error;

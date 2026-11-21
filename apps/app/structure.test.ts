@@ -474,6 +474,26 @@ describe("naming", () => {
 	});
 });
 
+// architecture.test.ts runs A30 over src/; this runs it over the rest of the Project's code.
+describe("inputs", () => {
+	it("are not changed by a function outside src/ (A30)", () => {
+		const files = appFilesList(appRoot)
+			.filter(
+				(name) =>
+					/\.tsx?$/.test(name) &&
+					!name.endsWith(".d.ts") &&
+					!name.startsWith("src/"),
+			)
+			.map((name) => ({
+				imports: [],
+				path: name,
+				source: readFileSync(new URL(name, appRoot), "utf8"),
+			}));
+		expect(files.length).toBeGreaterThan(10);
+		expect(architectureRules.A30?.(files)).toEqual([]);
+	});
+});
+
 describe("tests", () => {
 	it("use no mocks, spies or fake timers", () => {
 		const files = appFilesList(appRoot).filter((name) => /\.tsx?$/.test(name));

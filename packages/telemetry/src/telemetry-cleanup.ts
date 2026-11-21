@@ -41,11 +41,13 @@ const stackFramesOnly = (stack: string, message: unknown): string => {
 const exceptionClean = (attributes: Attributes): void => {
 	const stack = attributes["exception.stacktrace"];
 	if (typeof stack === "string") {
+		// mutates: OpenTelemetry exports the attributes object it handed us
 		attributes["exception.stacktrace"] = stackFramesOnly(
 			stack,
 			attributes["exception.message"],
 		);
 	}
+	// mutates: OpenTelemetry exports the attributes object it handed us
 	delete attributes["exception.message"];
 };
 

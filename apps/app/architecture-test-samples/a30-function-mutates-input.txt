@@ -1,0 +1,8 @@
+// A30: a function returns a new value instead of changing the one it is given
+// expect: src/contexts/bar/domain/bar-names-collect.ts:3: calls push() on the parameter names; return a new value instead
+// @file src/contexts/bar/domain/bar-names-collect.ts
+export const barNamesCollect = (names: string[], name: string): string[] => {
+	if (name.length === 0) return names;
+	names.push(name);
+	return names;
+};

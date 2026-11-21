@@ -83,9 +83,11 @@ export const fooTransactionMemoryCreate = (
 				// wiring: transaction-ports
 			});
 			if (result.ok) {
+				// mutates: a commit writes the scratch copy back into the shared memory state
 				Object.assign(state, scratch);
 				// piece-start: queue
 				if (inboxKey !== undefined) state.inbox.add(inboxKey);
+				// mutates: a commit adds its Events to the shared memory state
 				state.published.push(...pending);
 				// piece-end: queue
 			}
