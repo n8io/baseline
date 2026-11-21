@@ -85,7 +85,7 @@ export const cliLoginRun = async ({
 }: {
 	clientId: string;
 	name: string;
-	scopes?: string[] | null;
+	scopes?: readonly string[] | null;
 	url: string;
 }): Promise<{ error: string } | { path: string }> => {
 	const { hostname, protocol } = new URL(url);

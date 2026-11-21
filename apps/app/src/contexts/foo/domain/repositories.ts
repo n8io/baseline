@@ -32,7 +32,7 @@ export type FooRepository = FooReadRepository & {
 
 export type BarReadRepository = {
 	// Oldest first.
-	listByFooId(fooId: Id<"foo">): Promise<Bar[]>;
+	listByFooId(fooId: Id<"foo">): Promise<readonly Bar[]>;
 };
 
 // Writes happen only through this, and only fooTransaction hands it out.

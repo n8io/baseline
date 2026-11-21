@@ -29,12 +29,16 @@ export const cursorTestPagesCheck = async <
 	sorts,
 	sortValues,
 }: {
-	items: T[];
+	items: readonly T[];
 	list: (input: {
 		cursor?: string | undefined;
 		limit: number;
 		sort: S;
-	}) => Promise<{ items: T[]; nextCursor: string | null; total?: number }>;
+	}) => Promise<{
+		items: readonly T[];
+		nextCursor: string | null;
+		total?: number;
+	}>;
 	sorts: readonly S[];
 	sortValues: Record<CursorTestSortField<S>, (item: T) => number | string>;
 }): Promise<void> => {

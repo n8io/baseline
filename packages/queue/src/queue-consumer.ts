@@ -90,7 +90,7 @@ const queueConsumerBatchSize = 10;
  */
 export const queueConsumersSubscribe = async (
 	queue: Queue,
-	consumers: Consumer[],
+	consumers: readonly Consumer[],
 ): Promise<void> => {
 	const boss = queueBossGet(queue, "queueEventsCreate");
 	for (const consumer of consumers) {
@@ -217,7 +217,7 @@ const consumerWork = async ({
 /** Subscribes, then starts a worker per consumer (Worker process only). */
 export const queueConsumersStart = async (
 	queue: Queue,
-	consumers: Consumer[],
+	consumers: readonly Consumer[],
 ): Promise<void> => {
 	await queueConsumersSubscribe(queue, consumers);
 	const boss = queueBossGet(queue, "queueEventsCreate");

@@ -90,7 +90,7 @@ archiveStale: async (before, now) => {
 	let archived = 0;
 	for (const baz of state.bazs.values()) {
 		if (baz.archivedAt === null && baz.updatedAt < before) {
-			baz.archivedAt = new Date(now);
+			state.bazs.set(baz.id, { ...baz, archivedAt: new Date(now) });
 			archived += 1;
 		}
 	}

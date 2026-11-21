@@ -16,13 +16,13 @@ export const Bar = z.object({
 	createdBy: z.string(),
 	createdAt: z.date(),
 });
-export type Bar = z.infer<typeof Bar>;
+export type Bar = Readonly<z.infer<typeof Bar>>;
 
 export const BarCreateInput = Bar.pick({ fooId: true, text: true });
-export type BarCreateInput = z.infer<typeof BarCreateInput>;
+export type BarCreateInput = Readonly<z.infer<typeof BarCreateInput>>;
 
 export const BarListInput = Bar.pick({ fooId: true });
-export type BarListInput = z.infer<typeof BarListInput>;
+export type BarListInput = Readonly<z.infer<typeof BarListInput>>;
 
 // A new Bar on a Foo. Taking the Foo, not its id, means a Bar is only ever built for a Foo that was
 // found; whoever may change the Foo may add a Bar to it.

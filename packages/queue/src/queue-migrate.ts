@@ -46,7 +46,7 @@ export type QueueMigrateOptions = {
 	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/** The `queueName` of each Consumer an earlier release removed: its queues are deleted. */
-	queuesRemoved?: string[] | null;
+	queuesRemoved?: readonly string[] | null;
 	/** Settings only pg-boss's own connection has, such as `ssl`. */
 	vendor?: QueueMigrateVendorOptions | null;
 };

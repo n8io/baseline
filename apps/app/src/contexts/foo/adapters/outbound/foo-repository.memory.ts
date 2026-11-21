@@ -25,7 +25,7 @@ export const fooRepositoryMemoryCreate = (state: {
 			let archived = 0;
 			for (const foo of state.foos.values()) {
 				if (foo.archivedAt === null && foo.updatedAt < before) {
-					foo.archivedAt = new Date(now);
+					state.foos.set(foo.id, { ...foo, archivedAt: new Date(now) });
 					archived += 1;
 				}
 			}

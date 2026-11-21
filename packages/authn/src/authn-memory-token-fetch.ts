@@ -15,7 +15,7 @@ export type AuthnMemoryTokenFetchOptions = {
 	/** One of the Project's `memoryClients`. */
 	clientId: string;
 	/** The scopes to ask for. `null` means all of the client's. */
-	scopes?: string[] | null;
+	scopes?: readonly string[] | null;
 };
 
 const tokenResponseRead = (

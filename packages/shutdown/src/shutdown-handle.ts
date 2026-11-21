@@ -20,9 +20,9 @@ export type ShutdownOptions = {
 	 */
 	drainDelayMs?: number | null;
 	/** Closed together; each stops accepting, then waits for its active work. */
-	intakes: ShutdownStep[];
+	intakes: readonly ShutdownStep[];
 	/** Closed one by one, in order, after every intake is done; telemetry last. */
-	resources: ShutdownStep[];
+	resources: readonly ShutdownStep[];
 };
 
 /** The running shutdown handle. `isShuttingDown()` turns true at the signal, for `/readyz`. */

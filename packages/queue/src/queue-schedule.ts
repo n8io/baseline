@@ -58,7 +58,7 @@ export type QueueSchedulesSyncOptions = {
 	/** The composition root's ENV: `SCHEDULE_<NAME>` overrides a cron, or turns the Schedule `off`. */
 	env: object;
 	/** The Schedules in code: each one's name and cron. */
-	schedules: Pick<Schedule, "cron" | "name">[];
+	schedules: readonly Pick<Schedule, "cron" | "name">[];
 	/** Settings only pg-boss's own connection has, such as `ssl`: the same ones queueMigrate takes. */
 	vendor?: QueueSchedulesSyncVendorOptions | null;
 };
@@ -137,7 +137,7 @@ export type QueueSchedulesStartOptions = {
 	/** The Worker's queue, from `queueCreate`. */
 	queue: Queue;
 	/** The Schedules to run. */
-	schedules: Schedule[];
+	schedules: readonly Schedule[];
 };
 
 /**
