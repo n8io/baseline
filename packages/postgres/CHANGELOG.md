@@ -1,5 +1,11 @@
 # @n8io/baseline-postgres
 
+## 6.0.0
+
+### Major Changes
+
+- 93cba39: `postgresUniqueViolationIs` is renamed `postgresErrorIsUniqueViolation`, so a predicate reads model first, then `Is`. To upgrade, rename the import and each call.
+
 ## 5.5.0
 
 ### Minor Changes
