@@ -33,7 +33,7 @@ Read when adding a bounded context, an Aggregate, a Seed, or a transition, speci
 - Language: the context's own `CONTEXT.md`, as a link or a path. Run `pnpm format` after editing the map: `pnpm check` fails on an unaligned table.
 - Subdomain: `core` (what sets the Project apart), `supporting` (needed, specific to it) or `generic` (any app has one). The context's `CONTEXT.md` says the same under its title: `Subdomain: core`.
 - A relationship row names the downstream context, the upstream it depends on, and how: `ACL` (it reads the upstream through an anti-corruption layer), `Domain events` (it handles the upstream's), or both. Both go through the upstream's Published language. The Shared kernel needs no row.
-- A file in a context uses its own terms and `CONTEXT.md`'s. Another context's term is a `glossary-check` hit, except in the `adapters/` of a context downstream of it. An `_Avoid_` alias written capitalized (`DTO`) matches only as written; write a plain word in lower case (`service`).
+- A file in a context uses its own terms and `CONTEXT.md`'s. Another context's term is a `glossary-check` hit, except in the `adapters/` of a context downstream of it, anywhere in a context with an ACL to it, and where the context's own `CONTEXT.md` uses the term. An `_Avoid_` alias written capitalized (`DTO`) matches only as written; write a plain word in lower case (`service`).
 
 ## What each flag writes
 

@@ -21,19 +21,20 @@ import {
 } from "./pieces.ts";
 import { gitRun, processRun } from "./process-run.ts";
 import {
+	filesRead,
 	filesWrite,
 	releaseLatest,
 	type TemplateAnswers,
 	type TemplateFile,
 	templateAnswers,
-	templateFetch,
+	templateFetchOwn,
 	templateFilesRender,
 	templateFinish,
 	templateJsonRead,
 } from "./template-render.ts";
 
 export type UpgradeTools = {
-	fetch: (version: string) => TemplateFile[];
+	fetch: (version: string) => Promise<TemplateFile[]> | TemplateFile[];
 	// Formats the render and regenerates its env types; tests skip it.
 	finish: (directory: string) => void;
 };
@@ -237,6 +238,68 @@ export const languageKeep = ({
 	});
 };
 
+const dependencyFields = [
+	"dependencies",
+	"devDependencies",
+	"optionalDependencies",
+	"peerDependencies",
+] as const;
+
+// The packages a package.json asks for, with their ranges.
+const dependenciesRead = (text: string): Record<string, string> => {
+	try {
+		const manifest = JSON.parse(text) as Partial<
+			Record<(typeof dependencyFields)[number], Record<string, string>>
+		>;
+		return Object.assign({}, ...dependencyFields.map((f) => manifest[f] ?? {}));
+	} catch {
+		return {};
+	}
+};
+
+const importRoots = ["src/", "test/", "scripts/", "clients/"];
+const importPattern =
+	/(?:^\s*(?:import|export)\b[^;"']*?\bfrom\s*|^\s*import\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)["']([^"'.#/][^"']*)["']/gm;
+
+const importFileIs = (file: TemplateFile): boolean =>
+	importRoots.some((root) => file.path.startsWith(root)) &&
+	/\.[cm]?[jt]sx?$/.test(file.path);
+
+export type DroppedImport = { name: string; paths: string[]; range: string };
+
+// A dependency the merge took out of package.json (the Template stopped using it) that the
+// Project's own code still imports. The merge applies a removal the Project never touched without
+// a conflict, so the next install would prune a package the Project still needs.
+export const droppedImportsFind = ({
+	after,
+	before,
+	files,
+}: {
+	after: string;
+	before: string;
+	files: TemplateFile[];
+}): DroppedImport[] => {
+	const were = dependenciesRead(before);
+	const are = dependenciesRead(after);
+	const dropped = Object.keys(were).filter((name) => !(name in are));
+	const importers = new Map<string, Set<string>>();
+	for (const file of files) {
+		if (!importFileIs(file)) continue;
+		for (const [, specifier = ""] of file.text.matchAll(importPattern)) {
+			const [scope = "", name] = specifier.split("/");
+			const pack = scope.startsWith("@") ? `${scope}/${name ?? ""}` : scope;
+			if (dropped.includes(pack)) {
+				importers.set(pack, (importers.get(pack) ?? new Set()).add(file.path));
+			}
+		}
+	}
+	return [...importers].map(([name, paths]) => ({
+		name,
+		paths: [...paths].sort(),
+		range: were[name] ?? "",
+	}));
+};
+
 const sdkGeneratedPaths = ["clients/sdk/openapi.json", "clients/sdk/sdk.ts"];
 
 // A Piece whose package (or folder) the Project's own release did not have yet is new, not removed: it arrives.
@@ -272,15 +335,19 @@ export const templateUpgrade = async ({
 	appDirectory: string;
 	to: string;
 	tools: UpgradeTools;
-}): Promise<{ conflicts: string[]; changelog: string }> => {
+}): Promise<{
+	conflicts: string[];
+	changelog: string;
+	dropped: DroppedImport[];
+}> => {
 	const status = gitRun(appDirectory, ["status", "--porcelain"]);
 	if (status.trim() !== "") {
 		throw new Error("the working tree has changes; commit or stash them first");
 	}
 	const template = templateJsonRead(appDirectory);
 	const answers: TemplateAnswers = templateAnswers(appDirectory, template);
-	const fromFiles = tools.fetch(template.release);
-	const toFiles = tools.fetch(to);
+	const fromFiles = await tools.fetch(template.release);
+	const toFiles = await tools.fetch(to);
 	// The Project's lockfile is its own after app-create: its next install moves only what changed.
 	// So are the SDK's generated files once it has them: pnpm sdk-generate writes them from its API.
 	const sdkOwn = existsSync(join(appDirectory, "clients/sdk/openapi.json"));
@@ -304,6 +371,8 @@ export const templateUpgrade = async ({
 			}),
 			project: glossary,
 		});
+	const manifestPath = join(appDirectory, "package.json");
+	const manifestBefore = readFileSync(manifestPath, "utf8");
 	const { conflicts } = templateMerge({
 		repository: appDirectory,
 		from: await kept(fromFiles),
@@ -319,6 +388,14 @@ export const templateUpgrade = async ({
 		const text = readFileSync(workspace, "utf8");
 		writeFileSync(workspace, workspaceExcludesDedupe(text));
 	}
+	const dropped =
+		conflicts.length === 0
+			? droppedImportsFind({
+					before: manifestBefore,
+					after: readFileSync(manifestPath, "utf8"),
+					files: filesRead(appDirectory).filter(importFileIs),
+				})
+			: [];
 	writeFileSync(
 		join(appDirectory, ".template.json"),
 		`${JSON.stringify({ ...template, release: to }, null, "\t")}\n`,
@@ -327,6 +404,7 @@ export const templateUpgrade = async ({
 	return {
 		changelog: changelogBetween({ changelog, from: template.release, to }),
 		conflicts,
+		dropped,
 	};
 };
 
@@ -352,7 +430,7 @@ export const templateUpgradeRun = async ({
 	tools: UpgradeTools;
 }): Promise<number> => {
 	const { error: logError, log } = output ?? console;
-	let result: { conflicts: string[]; changelog: string };
+	let result: Awaited<ReturnType<typeof templateUpgrade>>;
 	try {
 		if (templateJsonRead(appDirectory).release === to) {
 			log(`template-upgrade: already on release ${to}; nothing to upgrade`);
@@ -378,6 +456,12 @@ export const templateUpgradeRun = async ({
 		}
 		logError(
 			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run ${steps}. If the install answers 404 for an @n8io/baseline-* tarball, npm is still publishing the release: wait a few minutes and run it again.`,
+		);
+		return 1;
+	}
+	if (result.dropped.length > 0) {
+		logError(
+			`template-upgrade: merged, but the Template dropped ${result.dropped.length === 1 ? "a dependency" : "dependencies"} your code still imports, and the install would prune ${result.dropped.length === 1 ? "it" : "them"}:\n${result.dropped.map(({ name, paths }) => `  ${name} (${paths.join(", ")})`).join("\n")}\nPut each back: \`pnpm add ${result.dropped.map(({ name, range }) => `${name}@${range}`).join(" ")}\`, and its line in dependencies-allowed.json (the Template's removal took that out too). Then run pnpm install, pnpm format, pnpm check and pnpm test. .template.json has moved, so running template-upgrade again does nothing.`,
 		);
 		return 1;
 	}
@@ -419,7 +503,7 @@ const main = async () => {
 		appDirectory,
 		to: values.to ?? releaseLatest(),
 		tools: {
-			fetch: (version) => templateFetch(version),
+			fetch: (version) => templateFetchOwn(version),
 			finish: (directory) => templateFinish(directory, appDirectory),
 		},
 		pnpm: (args) => {

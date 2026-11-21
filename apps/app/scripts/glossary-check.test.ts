@@ -399,18 +399,51 @@ describe("the context map", () => {
 			).toEqual([]);
 		});
 
-		it("fails another context's term and either glossary's aliases", () => {
+		it("fails the term of a context with no relationship, and either glossary's aliases", () => {
+			expect(
+				hitsIn(
+					"src/contexts/tour/domain/golfer.md",
+					"The Service reads the Roster.",
+				),
+			).toEqual([
+				'apps/app/src/contexts/tour/domain/golfer.md:1: "Roster" is a term of the league context',
+				'apps/app/src/contexts/tour/domain/golfer.md:1: "Service" is an alias of "Use case"',
+			]);
 			expect(
 				hitsIn(
 					"src/contexts/league/domain/roster.md",
-					"The Service sets the lineup from the Golfers' Score.",
+					"The Service sets the lineup.",
 				),
 			).toEqual([
-				'apps/app/src/contexts/league/domain/roster.md:1: "Golfers" is a term of the tour context',
-				'apps/app/src/contexts/league/domain/roster.md:1: "Score" is a term of the tour context',
 				'apps/app/src/contexts/league/domain/roster.md:1: "Service" is an alias of "Use case"',
 				'apps/app/src/contexts/league/domain/roster.md:1: "lineup" is an alias of "Roster"',
 			]);
+		});
+
+		it("lets a context name the terms of an upstream it has an ACL for", () => {
+			expect(
+				hitsIn(
+					"src/contexts/league/domain/roster.md",
+					"The Roster scores each Golfer's Score.",
+				),
+			).toEqual([]);
+		});
+
+		it("lets a context name another context's term its own CONTEXT.md uses", () => {
+			const own = glossaryLanguageOf({
+				glossaryRead: (path) =>
+					path === "src/contexts/tour/CONTEXT.md"
+						? `${sampleGlossaries[path]}\n**Pick**:\nA golfer on a Roster.\n`
+						: (sampleGlossaries[path] ?? ""),
+				map: contextMapRead(sampleMap),
+			});
+			const hits = (line: string) =>
+				glossaryHitsFind({
+					diff: `+++ b/apps/app/src/contexts/tour/domain/pick.md\n@@ -0,0 +1 @@\n+${line}`,
+					languageOf: own,
+					textRead: () => line,
+				}).map((hit) => glossaryHitFormat(hit, false));
+			expect(hits("A Pick joins a Roster.")).toEqual([]);
 		});
 
 		it("lets the adapters of a downstream context name its upstream's terms", () => {

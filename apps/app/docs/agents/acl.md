@@ -102,3 +102,4 @@ When a context acts on another context's Domain event and that context waits on 
 - A Domain event carries what its Event handlers need to act without reading the publisher back, such as the customer id and the amount on an `order.placed`.
 - The waiting context has one Event handler per outcome Domain event.
 - Inside one context, a change across several Aggregates under one invariant is one transaction, not a saga ([context-create.md](context-create.md)).
+- Removing a saga's Event handler also needs its queue in `queuesRemoved` in `migrate.ts`; otherwise pg-boss keeps copying Events into a queue nothing drains.

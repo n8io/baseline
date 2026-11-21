@@ -67,6 +67,13 @@ describe.each(agentDocs)("%s", (path) => {
 		).toEqual({ path, text });
 	});
 
+	// varlock is a devDependency, not a global tool: a shell only finds it through pnpm.
+	it("types no bare varlock command", () => {
+		expect(
+			[...text.matchAll(/`varlock [^`]*`/g)].map(([span]) => span),
+		).toEqual([]);
+	});
+
 	// aggregate-create would wire into a file with a marker line, and piece-remove would cut it.
 	it("holds no wiring or piece marker line", () => {
 		expect(

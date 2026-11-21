@@ -17,6 +17,7 @@ import { gitRun } from "./process-run.ts";
 import { filesWrite, type TemplateFile } from "./template-render.ts";
 import {
 	changelogBetween,
+	droppedImportsFind,
 	languageKeep,
 	secretKeep,
 	templateUpgradeRun,
@@ -110,6 +111,43 @@ const projectCreate = (a: string): DisposableTempDir => {
 	gitRun(app, ["commit", "--quiet", "-m", "project"]);
 	return folder;
 };
+
+describe("droppedImportsFind", () => {
+	const manifestOf = (names: string[]) =>
+		JSON.stringify({
+			dependencies: Object.fromEntries(names.map((name) => [name, "^1.0.0"])),
+		});
+	const files = [
+		{
+			path: "src/a.tsx",
+			text: 'import { a } from "@scope/pack/sub";\nconst b = await import("gone");\nimport "./local.ts";\nimport "#env";\nimport fs from "node:fs";\n',
+		},
+		{ path: "docs/x.ts", text: 'import "gone";\n' },
+	];
+
+	it("names each dropped package that code under src, test, scripts or clients still imports", () => {
+		expect(
+			droppedImportsFind({
+				before: manifestOf(["@scope/pack", "gone", "kept", "unused"]),
+				after: manifestOf(["kept"]),
+				files,
+			}),
+		).toEqual([
+			{ name: "@scope/pack", paths: ["src/a.tsx"], range: "^1.0.0" },
+			{ name: "gone", paths: ["src/a.tsx"], range: "^1.0.0" },
+		]);
+	});
+
+	it("finds nothing when no import loses its dependency", () => {
+		expect(
+			droppedImportsFind({
+				before: manifestOf(["gone"]),
+				after: manifestOf(["gone"]),
+				files,
+			}),
+		).toEqual([]);
+	});
+});
 
 describe("templateUpgradeRun", () => {
 	it("merges the template's change into the project's own edits, without committing", async () => {
@@ -394,6 +432,49 @@ describe("templateUpgradeRun", () => {
 		expect(run.errors.join("\n")).toContain(
 			"pnpm install, pnpm format, pnpm check and pnpm test",
 		);
+	});
+
+	it("stops before the install when the Template dropped a dependency the Project still imports", async () => {
+		const manifestOf = (icons: boolean) =>
+			`${JSON.stringify({ dependencies: { ...(icons ? { "lucide-react": "^1.2.3" } : {}), "react-router": "1.0.0" }, name: "app" }, null, "\t")}\n`;
+		const release = (icons: boolean, a: string): TemplateFile[] => [
+			{ path: "package.json", text: manifestOf(icons) },
+			{ path: "src/a.ts", text: a },
+		];
+		const drops: Record<string, TemplateFile[]> = {
+			"3.0.0": release(true, "one\ntwo\nthree\nfour\nfive\n"),
+			"3.1.0": release(false, "one\ntwo\nthree\n4\nfive\n"),
+		};
+		using folder = mkdtempDisposableSync(join(tmpdir(), "template-upgrade-"));
+		const app = folder.path;
+		gitRun(app, ["init", "--quiet", "--initial-branch=main"]);
+		gitRun(app, ["config", "user.email", "test@example.com"]);
+		gitRun(app, ["config", "user.name", "Test"]);
+		execFileSync("mkdir", ["-p", join(app, "src")]);
+		writeFileSync(
+			join(app, ".template.json"),
+			'{ "release": "3.0.0", "description": "Invoices." }\n',
+		);
+		writeFileSync(join(app, "package.json"), manifestOf(true));
+		writeFileSync(
+			join(app, "src/a.ts"),
+			'import { Check } from "lucide-react";\none\ntwo\nthree\nfour\nfive\n',
+		);
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "project"]);
+		const run = runCapture();
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "3.1.0",
+				...run,
+				tools: { fetch: (v) => drops[v] ?? [], finish: () => {} },
+			}),
+		).toBe(1);
+		expect(run.errors.join("\n")).toContain("lucide-react (src/a.ts)");
+		expect(run.errors.join("\n")).toContain("pnpm add lucide-react@^1.2.3");
+		expect(run.scripts).toEqual([]);
 	});
 
 	it("renders a release with that release's own render code", async () => {

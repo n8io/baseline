@@ -18,6 +18,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export type TemplateAnswers = {
 	// The Project's package name, e.g. "invoicing".
@@ -986,10 +987,25 @@ export const templateExport = (
 	return filesRead(app);
 };
 
-// Clones the release (blobless) and exports its apps/app, then removes the clone.
-export const templateFetch = (version: string): TemplateFile[] => {
-	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
-	const clone = join(work.path, "clone");
+// Exports with the release's own templateExport, as releaseRender renders with its own render code:
+// the Project's copy of this file is the old release's, so a release's change to the export (the
+// sdk workspace block, the client pins) would otherwise never reach the Project. A checkout whose
+// scripts/ lacks the file or the function (app@1.0.0) uses this file's.
+export const templateExportOwn = async (
+	checkout: string,
+	ref: string,
+): Promise<TemplateFile[]> => {
+	const own = join(checkout, "apps/app/scripts/template-render.ts");
+	if (!existsSync(own)) return templateExport(checkout, ref);
+	const loaded = (await import(pathToFileURL(own).href)) as {
+		templateExport?: typeof templateExport;
+	};
+	return (loaded.templateExport ?? templateExport)(checkout, ref);
+};
+
+// Clones the release (blobless) into `work`.
+const releaseClone = (work: string, version: string): string => {
+	const clone = join(work, "clone");
 	processRun({
 		command: "git",
 		args: [
@@ -1004,7 +1020,24 @@ export const templateFetch = (version: string): TemplateFile[] => {
 			clone,
 		],
 	});
-	return templateExport(clone, releaseTag(version));
+	return clone;
+};
+
+// Exports a release's apps/app with this file's templateExport, then removes the clone.
+export const templateFetch = (version: string): TemplateFile[] => {
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
+	return templateExport(releaseClone(work.path, version), releaseTag(version));
+};
+
+// Exports it with the release's own templateExport (templateExportOwn).
+export const templateFetchOwn = async (
+	version: string,
+): Promise<TemplateFile[]> => {
+	using work = mkdtempDisposableSync(join(tmpdir(), "template-"));
+	return await templateExportOwn(
+		releaseClone(work.path, version),
+		releaseTag(version),
+	);
 };
 
 export const monorepoAppIs = (appDirectory: string): boolean =>
