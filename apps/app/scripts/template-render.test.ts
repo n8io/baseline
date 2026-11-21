@@ -480,7 +480,7 @@ describe("hostPortsCreate and the files it renders into", () => {
 			templateFileRender({ path, text }, answers)?.text;
 
 		expect(render(".env.schema", schema)).toBe(
-			`HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=${ports.POSTGRES_HOST_PORT}\nREDIS_HOST_PORT=${ports.REDIS_HOST_PORT}\nSERVER_HOST_PORT=${ports.SERVER_HOST_PORT}\nHEALTH_HOST_PORT=${ports.HEALTH_HOST_PORT}\nCOMPOSE_PROJECT_NAME=invoicing\n`,
+			`HEALTH_PORT=9000\nPOSTGRES_HOST_PORT=${ports["POSTGRES_HOST_PORT"]}\nREDIS_HOST_PORT=${ports["REDIS_HOST_PORT"]}\nSERVER_HOST_PORT=${ports["SERVER_HOST_PORT"]}\nHEALTH_HOST_PORT=${ports["HEALTH_HOST_PORT"]}\nCOMPOSE_PROJECT_NAME=invoicing\n`,
 		);
 		expect(
 			render(
@@ -488,20 +488,20 @@ describe("hostPortsCreate and the files it renders into", () => {
 				"SHUTDOWN_DRAIN_DELAY_MS=0\nPORT=3000\nHEALTH_PORT=9000\n",
 			),
 		).toBe(
-			`SHUTDOWN_DRAIN_DELAY_MS=0\nPORT=${ports.PORT}\nHEALTH_PORT=${ports.HEALTH_PORT}\n`,
+			`SHUTDOWN_DRAIN_DELAY_MS=0\nPORT=${ports["PORT"]}\nHEALTH_PORT=${ports["HEALTH_PORT"]}\n`,
 		);
 		expect(
 			render(
 				"clients/environments.json",
 				'{ "development": "http://localhost:3000" }\n',
 			),
-		).toBe(`{ "development": "http://localhost:${ports.PORT}" }\n`);
+		).toBe(`{ "development": "http://localhost:${ports["PORT"]}" }\n`);
 		expect(
 			render(
 				"clients/sdk/openapi.json",
 				'{"info":{"title":"app"},"paths":{},"servers":[{"description":"development","url":"http://localhost:3000"}]}',
 			),
-		).toContain(`"url":"http://localhost:${ports.PORT}"`);
+		).toContain(`"url":"http://localhost:${ports["PORT"]}"`);
 		expect(render("compose.yaml", compose)).toBe(
 			"name: invoicing\nservices:\n",
 		);

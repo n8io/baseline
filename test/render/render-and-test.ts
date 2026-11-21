@@ -253,7 +253,7 @@ const main = async () => {
 			paths: [...new Set(created)].filter((p) => !p.endsWith(".md")),
 		});
 	}
-	if (process.env.RENDER_AND_TEST_STOP === "fixture") {
+	if (process.env["RENDER_AND_TEST_STOP"] === "fixture") {
 		// To change the fixture: edit this tree, then copy its new files to second-context/files
 		// and save `git diff` as second-context/wiring.patch.
 		gitCommitAll(directory, "Add the contexts");

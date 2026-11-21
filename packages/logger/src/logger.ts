@@ -28,5 +28,5 @@ export type Logger = {
 /** The one logger: JSON to stdout, level from `LOG_LEVEL` (default `info`). A
  * `LOG_LEVEL` that is not a level throws a `TypeError` on import. */
 export const logger: Logger = pino(
-	loggerOptionsCreate(loggerLevelAssert(process.env.LOG_LEVEL || "info")),
+	loggerOptionsCreate(loggerLevelAssert(process.env["LOG_LEVEL"] || "info")),
 );

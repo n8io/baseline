@@ -42,13 +42,13 @@ export default async function integrationGlobalSetup(
 	project: TestProject,
 ): Promise<void> {
 	const databaseUrl = urlCreate(
-		process.env.INTEGRATION_DATABASE_URL,
+		process.env["INTEGRATION_DATABASE_URL"],
 		() =>
 			`postgres://baseline:baseline@localhost:${portRead("POSTGRES_HOST_PORT")}/baseline`,
 	);
 	// piece-start: redis
 	const cacheUrl = urlCreate(
-		process.env.INTEGRATION_CACHE_URL,
+		process.env["INTEGRATION_CACHE_URL"],
 		() => `redis://localhost:${portRead("REDIS_HOST_PORT")}`,
 	);
 	project.provide("integrationCacheUrl", cacheUrl);

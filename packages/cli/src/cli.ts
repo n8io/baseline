@@ -22,7 +22,7 @@ export type CliRequest = { baseUrl: string; token?: string };
  * An SDK function. The CLI calls it with the path fields in path order, then the body if the
  * operation has one, then the query object if it has query fields, then a `CliRequest`.
  */
-export type CliOperation = (...args: never[]) => unknown;
+export type CliOperation = (...args: readonly never[]) => unknown;
 
 /** The command line tool `cliCreate` returns. */
 export type Cli = {
@@ -127,7 +127,7 @@ const argsBuild = async ({
 				)
 				.map((field) => [field.name, options[attributeOf(field)]]),
 		);
-	const fromData = await dataRead(options.data);
+	const fromData = await dataRead(options["data"]);
 	const bodyFields = picked("body");
 	const flagged = Object.keys(bodyFields).length > 0;
 	const dataIsObject =
@@ -159,8 +159,8 @@ const responsePrint = (response: unknown): void => {
 	if (typeof status !== "number" || status >= 400) {
 		const problem = (data ?? {}) as Options;
 		const reason =
-			typeof problem.title === "string"
-				? [problem.title, problem.code].filter(Boolean).join(": ")
+			typeof problem["title"] === "string"
+				? [problem["title"], problem["code"]].filter(Boolean).join(": ")
 				: `HTTP ${status} ${JSON.stringify(data ?? null)}`;
 		process.stderr.write(`${reason}\n`);
 		process.exitCode = 1;
@@ -201,8 +201,8 @@ const urlRead = ({
 	const [kind, value] =
 		(
 			[
-				["url", options.url],
-				["env", options.env],
+				["url", options["url"]],
+				["env", options["env"]],
 				["url", process.env[`${prefix}_URL`] || undefined],
 				["env", process.env[`${prefix}_ENV`] || undefined],
 			] as const
@@ -232,7 +232,7 @@ const tokenRead = async ({
 	url: string;
 }): Promise<string | undefined> => {
 	const fromEnv = process.env[`${cliEnvPrefix(name)}_TOKEN`];
-	if (typeof options.token === "string") return options.token;
+	if (typeof options["token"] === "string") return options["token"];
 	if (fromEnv !== undefined && fromEnv !== "") return fromEnv;
 	return cliLoginTokenRead({ name, url });
 };
@@ -257,9 +257,11 @@ const loginAdd = ({
 		.action(async (_options: Options, command: Command) => {
 			const options = command.optsWithGlobals<Options>();
 			const result = await cliLoginRun({
-				clientId: String(options.clientId),
+				clientId: String(options["clientId"]),
 				name,
-				scopes: Array.isArray(options.scope) ? options.scope.map(String) : null,
+				scopes: Array.isArray(options["scope"])
+					? options["scope"].map(String)
+					: null,
 				url: urlRead({ document, name, options }),
 			});
 			if ("error" in result) {
@@ -278,7 +280,7 @@ const programCreate = ({
 	name,
 	operations,
 }: {
-	commands: CliCommand[];
+	commands: readonly CliCommand[];
 	document: CliDocument;
 	name: string;
 	operations: Readonly<Record<string, CliOperation>>;

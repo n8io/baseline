@@ -118,7 +118,7 @@ export const cliTestDocument: CliDocument = {
 };
 
 export const cliTestOperations: Record<string, CliOperation> = {
-	fooCreate: async (...args: unknown[]) =>
+	fooCreate: async (...args: readonly unknown[]) =>
 		(args[0] as { name?: string } | undefined)?.name === "taken"
 			? {
 					data: {
@@ -129,16 +129,17 @@ export const cliTestOperations: Record<string, CliOperation> = {
 					},
 					status: 409,
 				}
-			: ok(args),
-	fooGet: async (...args: unknown[]) => ok(args),
-	fooUpdate: async (...args: unknown[]) => ok(args),
-	fooList: async (...args: unknown[]) => ok(args),
-	invoiceLineCustomerAssign: async (...args: unknown[]) => ok(args),
+			: ok([...args]),
+	fooGet: async (...args: readonly unknown[]) => ok([...args]),
+	fooUpdate: async (...args: readonly unknown[]) => ok([...args]),
+	fooList: async (...args: readonly unknown[]) => ok([...args]),
+	invoiceLineCustomerAssign: async (...args: readonly unknown[]) =>
+		ok([...args]),
 };
 
 if (import.meta.main) {
 	// CLI_TEST_SERVERS replaces the environments, so a test can point one at its own server.
-	const servers = process.env.CLI_TEST_SERVERS;
+	const servers = process.env["CLI_TEST_SERVERS"];
 	await cliCreate({
 		document:
 			servers === undefined

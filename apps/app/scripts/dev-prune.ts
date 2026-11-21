@@ -36,7 +36,7 @@ export const devInstancesStale = (
 		if (/^prunable/m.test(block)) continue;
 		const file = join(worktree + suffix, devInstanceFile);
 		const text = existsSync(file) ? readFileSync(file, "utf8") : "";
-		live.add(parseEnv(text).COMPOSE_PROJECT_NAME ?? "");
+		live.add(parseEnv(text)["COMPOSE_PROJECT_NAME"] ?? "");
 		live.add(devInstanceNameCreate(project, basename(worktree)));
 	}
 	const stale = containers.filter(

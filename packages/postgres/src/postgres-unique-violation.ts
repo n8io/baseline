@@ -1,10 +1,10 @@
 /** A unique violation as data: the constraint, and the key's columns and values as Postgres printed them. */
 export type PostgresUniqueViolation = {
 	/** The key's columns, or expressions for an expression index. Empty when Postgres sent no detail. */
-	columns: string[];
+	columns: readonly string[];
 	constraint: string;
 	/** The clashing values as Postgres printed them, in column order. Empty when unreadable. */
-	values: string[];
+	values: readonly string[];
 };
 
 // The first Postgres unique violation (23505) in `error` or its `.cause` chain. Drizzle wraps

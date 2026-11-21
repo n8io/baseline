@@ -245,8 +245,8 @@ const pieceInRelease = (files: TemplateFile[]) => {
 		files.find((f) => f.path === "package.json")?.text ?? "{}",
 	) as Record<string, Record<string, string> | undefined>;
 	const names = new Set([
-		...Object.keys(manifest.dependencies ?? {}),
-		...Object.keys(manifest.devDependencies ?? {}),
+		...Object.keys(manifest["dependencies"] ?? {}),
+		...Object.keys(manifest["devDependencies"] ?? {}),
 	]);
 	return (piece: Piece) => {
 		const { folder } = pieces[piece];

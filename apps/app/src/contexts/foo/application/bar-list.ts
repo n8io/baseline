@@ -13,7 +13,7 @@ export const barList =
 	async (
 		_actor: Actor,
 		input: BarListInput,
-	): Promise<Result<Bar[], FooNotFoundError>> => {
+	): Promise<Result<readonly Bar[], FooNotFoundError>> => {
 		if (!(await fooReadRepository.findById(input.fooId))) {
 			return err(new FooNotFoundError(input.fooId));
 		}

@@ -45,7 +45,7 @@ export const architectureFileCreate = async (
 	filePath: string,
 	source: string,
 ): Promise<ArchitectureFile> => {
-	await init;
+	await init();
 	// The lexer reads TypeScript but not JSX, so .tsx goes through Vite's transform first.
 	const code = filePath.endsWith(".tsx")
 		? // Like verbatimModuleSyntax: an unused value import still loads at runtime, so it stays.
@@ -113,6 +113,24 @@ type AstNode = {
 	type: string;
 	start: number;
 	end: number;
+	argument?: unknown;
+	arguments?: unknown;
+	body?: unknown;
+	callee?: unknown;
+	computed?: unknown;
+	elements?: unknown;
+	expression?: unknown;
+	id?: unknown;
+	init?: unknown;
+	left?: unknown;
+	name?: unknown;
+	object?: unknown;
+	operator?: unknown;
+	parameter?: unknown;
+	params?: unknown;
+	properties?: unknown;
+	property?: unknown;
+	value?: unknown;
 	[key: string]: unknown;
 };
 const astNodeIs = (value: unknown): value is AstNode =>

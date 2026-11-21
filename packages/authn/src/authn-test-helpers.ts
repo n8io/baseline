@@ -7,11 +7,11 @@ export const authnTestSecret: string = Buffer.alloc(32, 7).toString(
 
 // The Template's default mapping: `sub`, space-separated `scope`, `gty` for machines.
 export const authnTestActorFromClaims = (claims: AuthnClaims): Actor => ({
-	id: String(claims.sub),
-	kind: claims.gty === "client-credentials" ? "client" : "user",
+	id: String(claims["sub"]),
+	kind: claims["gty"] === "client-credentials" ? "client" : "user",
 	scopes:
-		typeof claims.scope === "string" && claims.scope !== ""
-			? claims.scope.split(" ")
+		typeof claims["scope"] === "string" && claims["scope"] !== ""
+			? claims["scope"].split(" ")
 			: [],
 });
 

@@ -369,7 +369,7 @@ describe("POST /auth/token, client credentials", () => {
 		expect(res.headers.get("Cache-Control")).toBe("no-store");
 		expect(body).toMatchObject({ expires_in: 900, token_type: "Bearer" });
 		expect(
-			(await whoami(app, String(body.access_token))).body.actor,
+			(await whoami(app, String(body["access_token"]))).body.actor,
 		).toStrictEqual({
 			id: "feed",
 			kind: "client",

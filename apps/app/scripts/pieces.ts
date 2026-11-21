@@ -261,7 +261,7 @@ const uiEdit = (directory: string) => {
 		scripts: {
 			...manifest.scripts,
 			build: "vite build",
-			dev: manifest.scripts.dev?.replace(
+			dev: manifest.scripts["dev"]?.replace(
 				pieceDevUi,
 				"node --watch --import ./src/preload.ts src/server.ts",
 			),
@@ -343,7 +343,7 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 					...(recordOmit(manifest.scripts, [
 						"blocked-keys",
 					]) as Manifest["scripts"]),
-					dev: manifest.scripts.dev?.replace(pieceDevWorker, "$1"),
+					dev: manifest.scripts["dev"]?.replace(pieceDevWorker, "$1"),
 				},
 			}));
 		},

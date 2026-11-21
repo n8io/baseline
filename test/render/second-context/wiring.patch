@@ -1,8 +1,8 @@
 diff --git a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts b/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
-index 1ed7175..166a272 100644
+index 1ed7175..d9ebd07 100644
 --- a/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
 +++ b/src/contexts/invoice-line/adapters/outbound/invoice-line-repository.memory.ts
-@@ -28,6 +28,16 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
+@@ -28,6 +28,17 @@ export const invoiceLineRepositoryMemoryCreate = (state: {
  	};
  
  	return {
@@ -10,7 +10,8 @@ index 1ed7175..166a272 100644
 +			let cleared = 0;
 +			for (const invoiceLine of state.invoiceLines.values()) {
 +				if (invoiceLine.customerId === customerId) {
-+					delete invoiceLine.customerId;
++					const { customerId: _cleared, ...rest } = invoiceLine;
++					state.invoiceLines.set(invoiceLine.id, rest);
 +					cleared += 1;
 +				}
 +			}
@@ -84,41 +85,41 @@ index 1273f1f..251f28f 100644
  	invoiceLineGet: invoiceLineGet(ports),
  	invoiceLineList: invoiceLineList(ports),
 diff --git a/src/contexts/invoice-line/domain/invoice-line.ts b/src/contexts/invoice-line/domain/invoice-line.ts
-index a777c3b..905c4b9 100644
+index 77570a9..42f304c 100644
 --- a/src/contexts/invoice-line/domain/invoice-line.ts
 +++ b/src/contexts/invoice-line/domain/invoice-line.ts
-@@ -13,6 +13,8 @@ export const InvoiceLine = z.object({
+@@ -15,6 +15,8 @@ export const InvoiceLine = z.object({
  	createdAt: z.date(),
  	updatedAt: z.date(),
  	archivedAt: z.date().nullable(),
 +	// The customer billed, if any; cleared when that customer is deleted.
 +	customerId: idSchemaCreate("customer").optional(),
  });
- export type InvoiceLine = z.infer<typeof InvoiceLine>;
+ export type InvoiceLine = Readonly<z.infer<typeof InvoiceLine>>;
  
-@@ -35,6 +37,21 @@ export const InvoiceLineDeleteInput = z.object({
- });
- export type InvoiceLineDeleteInput = z.infer<typeof InvoiceLineDeleteInput>;
+@@ -43,6 +45,21 @@ export type InvoiceLineDeleteInput = Readonly<
+ 	z.infer<typeof InvoiceLineDeleteInput>
+ >;
  
 +export const InvoiceLineCustomerAssignInput = z.object({
 +	invoiceLineId: idSchemaCreate("invoice_line"),
 +	customerId: idSchemaCreate("customer"),
 +});
-+export type InvoiceLineCustomerAssignInput = z.infer<
-+	typeof InvoiceLineCustomerAssignInput
++export type InvoiceLineCustomerAssignInput = Readonly<
++	z.infer<typeof InvoiceLineCustomerAssignInput>
 +>;
 +
 +export const InvoiceLineCustomerClearInput = z.object({
 +	customerId: idSchemaCreate("customer"),
 +});
-+export type InvoiceLineCustomerClearInput = z.infer<
-+	typeof InvoiceLineCustomerClearInput
++export type InvoiceLineCustomerClearInput = Readonly<
++	z.infer<typeof InvoiceLineCustomerClearInput>
 +>;
 +
  export const InvoiceLineListInput = z.object({
  	limit: z.number().int().min(1).max(100).default(50),
  	cursor: z.string().optional(),
-@@ -100,6 +117,19 @@ export const invoiceLineRename = (
+@@ -110,6 +127,19 @@ export const invoiceLineRename = (
  		? ok({ ...invoiceLine, name, updatedAt: now })
  		: err(new InvoiceLineForbiddenError(invoiceLine.id));
  
@@ -151,6 +152,7 @@ index bce2886..ccbedfc 100644
  };
  // wiring: repositories
 diff --git a/src/contexts/invoice-line/index.ts b/src/contexts/invoice-line/index.ts
+index 9216f5a..dff255a 100644
 --- a/src/contexts/invoice-line/index.ts
 +++ b/src/contexts/invoice-line/index.ts
 @@ -3,6 +3,7 @@
@@ -161,7 +163,7 @@ diff --git a/src/contexts/invoice-line/index.ts b/src/contexts/invoice-line/inde
  import { invoiceLineRoutesCreate } from "./adapters/inbound/invoice-line-routes.ts";
  import {
  	type InvoiceLineUpstream,
-@@ -32,6 +33,7 @@ export const invoiceLineContextCreate = ({
+@@ -34,6 +35,7 @@ export const invoiceLineContextCreate = ({
  		],
  		// piece-start: queue
  		handlers: [

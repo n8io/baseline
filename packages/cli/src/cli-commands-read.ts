@@ -28,7 +28,7 @@ export type CliFieldKind = "array" | "boolean" | "json" | "number" | "string";
 /** One flag of a command: a path, query or body field. */
 export type CliField = {
 	/** The values the schema allows (its `enum`), as text; for an array, its items' values. */
-	choices?: string[];
+	choices?: readonly string[];
 	/** The schema's `default`, shown in the help; the CLI does not send it. */
 	default?: unknown;
 	/** The parameter's or schema's `description`. */
@@ -46,7 +46,7 @@ export type CliField = {
 export type CliCommand = {
 	body: boolean;
 	description: string;
-	fields: CliField[];
+	fields: readonly CliField[];
 	group: string;
 	name: string;
 	operationId: string;
@@ -77,9 +77,9 @@ export const cliKebab = (text: string): string =>
 // Follows a local `$ref` (`#/components/schemas/Foo`) until it reaches a node.
 const refResolve = (document: CliDocument, value: unknown): Node => {
 	let node = nodeIs(value) ? value : {};
-	for (let hops = 0; typeof node.$ref === "string" && hops < 20; hops++) {
+	for (let hops = 0; typeof node["$ref"] === "string" && hops < 20; hops++) {
 		let target: unknown = document;
-		for (const part of node.$ref.replace(/^#\//, "").split("/")) {
+		for (const part of node["$ref"].replace(/^#\//, "").split("/")) {
 			target = nodeIs(target)
 				? target[part.replaceAll("~1", "/").replaceAll("~0", "~")]
 				: undefined;
@@ -93,16 +93,16 @@ const refResolve = (document: CliDocument, value: unknown): Node => {
 const typeOf = (document: CliDocument, schema: Node): unknown => {
 	const types = new Set(
 		[
-			schema.type,
-			...[schema.anyOf, schema.oneOf]
+			schema["type"],
+			...[schema["anyOf"], schema["oneOf"]]
 				.flatMap((members) => (Array.isArray(members) ? members : []))
-				.map((member) => refResolve(document, member).type),
+				.map((member) => refResolve(document, member)["type"]),
 		]
 			.flat()
 			.filter((type) => typeof type === "string" && type !== "null"),
 	);
-	if (types.size === 0 && Array.isArray(schema.enum)) {
-		return schema.enum.every((value) => typeof value === "string")
+	if (types.size === 0 && Array.isArray(schema["enum"])) {
+		return schema["enum"].every((value) => typeof value === "string")
 			? "string"
 			: undefined;
 	}
@@ -120,7 +120,7 @@ const kindOf = (document: CliDocument, node: Node): CliFieldKind => {
 // A schema and the members of its `anyOf` and `oneOf` (Zod's nullable), resolved.
 const membersOf = (document: CliDocument, node: Node): Node[] => [
 	node,
-	...[node.anyOf, node.oneOf]
+	...[node["anyOf"], node["oneOf"]]
 		.flatMap((members) => (Array.isArray(members) ? members : []))
 		.map((member) => refResolve(document, member)),
 ];
@@ -128,7 +128,7 @@ const membersOf = (document: CliDocument, node: Node): Node[] => [
 // The `enum` of a schema, as the text a flag takes, without the null a nullable adds.
 const choicesOf = (document: CliDocument, node: Node): string[] | undefined => {
 	const values = membersOf(document, node)
-		.flatMap((member) => (Array.isArray(member.enum) ? member.enum : []))
+		.flatMap((member) => (Array.isArray(member["enum"]) ? member["enum"] : []))
 		.filter((value) => value !== null)
 		.map((value) =>
 			typeof value === "string" ? value : JSON.stringify(value),
@@ -163,8 +163,9 @@ const schemaRead = (
 	// A nullable array keeps its `items` in the non-null member.
 	const items = refResolve(
 		document,
-		membersOf(document, node).find((member) => member.items !== undefined)
-			?.items,
+		membersOf(document, node).find((member) => member["items"] !== undefined)?.[
+			"items"
+		],
 	);
 	// A boolean is a switch, so its values are not listed.
 	const choices =
@@ -196,37 +197,44 @@ const fieldsRead = ({
 	const parameters = [
 		...new Map(
 			[
-				...(Array.isArray(pathItem.parameters) ? pathItem.parameters : []),
-				...(Array.isArray(operation.parameters) ? operation.parameters : []),
+				...(Array.isArray(pathItem["parameters"])
+					? pathItem["parameters"]
+					: []),
+				...(Array.isArray(operation["parameters"])
+					? operation["parameters"]
+					: []),
 			]
 				.map((parameter) => refResolve(document, parameter))
-				.map((parameter) => [`${parameter.in} ${parameter.name}`, parameter]),
+				.map((parameter) => [
+					`${parameter["in"]} ${parameter["name"]}`,
+					parameter,
+				]),
 		).values(),
 	];
 	const other = parameters.find(
-		(parameter) => parameter.in !== "path" && parameter.in !== "query",
+		(parameter) => parameter["in"] !== "path" && parameter["in"] !== "query",
 	);
 	if (other !== undefined) {
 		throw new TypeError(
-			`cliCreate: document ${String(operation.operationId)} has a ${String(other.in)} parameter, ${String(other.name)}; the CLI sends only path, query and body fields`,
+			`cliCreate: document ${String(operation["operationId"])} has a ${String(other["in"])} parameter, ${String(other["name"])}; the CLI sends only path, query and body fields`,
 		);
 	}
 	const parameterFields = parameters
 		.map(
 			(parameter): CliField => ({
-				flag: cliKebab(String(parameter.name)),
-				in: parameter.in === "path" ? "path" : "query",
+				flag: cliKebab(String(parameter["name"])),
+				in: parameter["in"] === "path" ? "path" : "query",
 				// A path parameter without a schema is still text.
-				...(parameter.schema === undefined && parameter.in === "path"
+				...(parameter["schema"] === undefined && parameter["in"] === "path"
 					? { kind: "string" }
-					: schemaRead(document, parameter.schema)),
+					: schemaRead(document, parameter["schema"])),
 				// The parameter's own description wins over its schema's.
-				...(typeof parameter.description === "string" &&
-				parameter.description !== ""
-					? { description: parameter.description }
+				...(typeof parameter["description"] === "string" &&
+				parameter["description"] !== ""
+					? { description: parameter["description"] }
 					: {}),
-				name: String(parameter.name),
-				required: parameter.required === true,
+				name: String(parameter["name"]),
+				required: parameter["required"] === true,
 			}),
 		)
 		.sort((a, b) => fieldPlace(path, a) - fieldPlace(path, b));
@@ -234,14 +242,15 @@ const fieldsRead = ({
 		document,
 		refResolve(
 			document,
-			refResolve(document, refResolve(document, operation.requestBody).content)[
-				"application/json"
-			],
-		).schema,
+			refResolve(
+				document,
+				refResolve(document, operation["requestBody"])["content"],
+			)["application/json"],
+		)["schema"],
 	);
-	const required = Array.isArray(schema.required) ? schema.required : [];
+	const required = Array.isArray(schema["required"]) ? schema["required"] : [];
 	const bodyFields = Object.entries(
-		nodeIs(schema.properties) ? schema.properties : {},
+		nodeIs(schema["properties"]) ? schema["properties"] : {},
 	).map(
 		([name, property]): CliField => ({
 			flag: cliKebab(name),
@@ -264,15 +273,15 @@ const textRead = (value: unknown): string =>
  * One command per operation: `<tag> <rest of operationId>` in kebab-case, so `fooCreate` under the
  * tag `foo` is `foo create`. Throws on an operation the CLI cannot name or give flags to.
  */
-export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
+export const cliCommandsRead = (document: CliDocument): readonly CliCommand[] =>
 	Object.entries(document.paths ?? {}).flatMap(([path, value]) => {
 		const pathItem = refResolve(document, value);
 		return methods
 			.filter((method) => nodeIs(pathItem[method]))
 			.map((method): CliCommand => {
 				const operation = refResolve(document, pathItem[method]);
-				const operationId = textRead(operation.operationId);
-				const tags = Array.isArray(operation.tags) ? operation.tags : [];
+				const operationId = textRead(operation["operationId"]);
+				const tags = Array.isArray(operation["tags"]) ? operation["tags"] : [];
 				const tag = textRead(tags[0]);
 				const where = `${method.toUpperCase()} ${path}`;
 				if (
@@ -302,10 +311,10 @@ export const cliCommandsRead = (document: CliDocument): CliCommand[] =>
 						`cliCreate: document ${operationId} has two fields that are both --${clash}, or one that the CLI keeps for itself (--data, --env, --help, --token, --url); rename one`,
 					);
 				}
-				const summary = textRead(operation.summary);
+				const summary = textRead(operation["summary"]);
 				return {
-					body: operation.requestBody !== undefined,
-					description: textRead(operation.description) || summary,
+					body: operation["requestBody"] !== undefined,
+					description: textRead(operation["description"]) || summary,
 					fields,
 					group,
 					name,

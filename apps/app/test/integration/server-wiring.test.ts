@@ -339,7 +339,9 @@ describe("server wiring", { timeout: 30_000 }, () => {
 				expect.arrayContaining(["get", "patch", "delete"]),
 			);
 			expect(
-				Object.keys(doc.paths["/api/v1/foos/{fooId}"]?.patch?.responses ?? {}),
+				Object.keys(
+					doc.paths["/api/v1/foos/{fooId}"]?.["patch"]?.responses ?? {},
+				),
 			).toEqual(expect.arrayContaining(["200", "403", "404", "409"]));
 			expect(Object.keys(doc.components.schemas)).toContain("FooResponse");
 		});

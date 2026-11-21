@@ -51,8 +51,11 @@ describe("logger", () => {
 		logger.error(new TypeError(canary));
 		logger.error({ err: new RangeError(canary), route: "GET /foos" });
 
-		expect(lines.map((line) => line.msg)).toEqual(["TypeError", "RangeError"]);
-		expect(lines[0]?.err).toMatchObject({ type: "TypeError" });
+		expect(lines.map((line) => line["msg"])).toEqual([
+			"TypeError",
+			"RangeError",
+		]);
+		expect(lines[0]?.["err"]).toMatchObject({ type: "TypeError" });
 		expect(lines[1]).toMatchObject({ route: "GET /foos" });
 		expect(JSON.stringify(lines)).not.toContain(canary);
 	});
@@ -62,7 +65,7 @@ describe("logger", () => {
 		logger.error({ err: new Error(canary) }, "request failed");
 		logger.error({ err: new Error(canary), msg: "query failed" });
 
-		expect(lines.map((line) => line.msg)).toEqual([
+		expect(lines.map((line) => line["msg"])).toEqual([
 			"request failed",
 			"query failed",
 		]);

@@ -594,7 +594,7 @@ const hostPortsRender = (file: TemplateFile, name: string): string => {
 const developmentUrlRender = (text: string, name: string): string =>
 	text.replaceAll(
 		"http://localhost:3000",
-		`http://localhost:${hostPortsCreate(name).PORT}`,
+		`http://localhost:${hostPortsCreate(name)["PORT"]}`,
 	);
 
 // The SDK's files (the sdk Piece). Its generated files are rendered as pnpm sdk-generate writes
@@ -607,7 +607,7 @@ const sdkFileRender = (
 	const { path, text } = file;
 	if (path === "clients/sdk/package.json") {
 		const manifest = JSON.parse(text) as Record<string, unknown>;
-		manifest.name = `${answers.name}-sdk`;
+		manifest["name"] = `${answers.name}-sdk`;
 		return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
 	}
 	if (path === "clients/sdk/sdk.ts") {
@@ -653,8 +653,8 @@ const cliFileRender = (
 	const text = file.text.replaceAll("app-sdk", `${answers.name}-sdk`);
 	if (path !== "clients/cli/package.json") return { path, text };
 	const manifest = JSON.parse(text) as Record<string, unknown>;
-	manifest.name = `${answers.name}-cli`;
-	manifest.bin = { [answers.name]: "./cli.ts" };
+	manifest["name"] = `${answers.name}-cli`;
+	manifest["bin"] = { [answers.name]: "./cli.ts" };
 	return { path, text: `${JSON.stringify(manifest, null, "\t")}\n` };
 };
 
@@ -679,9 +679,9 @@ export const templateFileRender = (
 	}
 	if (path === "package.json") {
 		const manifest = JSON.parse(text) as Record<string, unknown>;
-		manifest.name = answers.name;
+		manifest["name"] = answers.name;
 		// The version is the Project's own, never the Template's.
-		delete manifest.version;
+		delete manifest["version"];
 		return {
 			path,
 			text: `${JSON.stringify(manifest, null, "\t")}\n`,

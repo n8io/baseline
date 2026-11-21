@@ -150,7 +150,7 @@ describe("clientsManifestPublish", () => {
 		expect(manifest).not.toHaveProperty("private");
 		expect(manifest).not.toHaveProperty("scripts");
 		// Conditions are read in order, so types must come first.
-		expect(JSON.stringify(manifest.exports)).toBe(
+		expect(JSON.stringify(manifest["exports"])).toBe(
 			'{".":{"types":"./dist/index.d.ts","default":"./dist/index.js"},"./openapi.json":"./openapi.json"}',
 		);
 	});

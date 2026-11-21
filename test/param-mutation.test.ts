@@ -33,6 +33,6 @@ describe("inputs", () => {
 	it("changes no input in a Package or a root script (A30)", () => {
 		const files = sourcesRead();
 		expect(files.length).toBeGreaterThan(100);
-		expect(architectureRules.A30?.(files)).toEqual([]);
+		expect(architectureRules["A30"]?.(files)).toEqual([]);
 	});
 });

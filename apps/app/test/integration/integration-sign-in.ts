@@ -10,7 +10,7 @@ export const integrationSignIn = async (
 	url: string,
 	who: "admin" | "user" = "admin",
 ): Promise<SignedIn> => {
-	const secret = process.env.AUTHN_SECRET;
+	const secret = process.env["AUTHN_SECRET"];
 	if (secret === undefined) throw new Error("AUTHN_SECRET is not loaded");
 	return authnTestSignIn({ baseUrl: url, secret, who: `dev-${who}` });
 };

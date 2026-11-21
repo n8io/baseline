@@ -42,7 +42,7 @@ export const devInstanceWrite = (directory: string): string | undefined => {
 	if (!devInstanceLinkedIs(directory)) return undefined;
 	const path = join(directory, devInstanceFile);
 	const text = existsSync(path) ? readFileSync(path, "utf8") : "";
-	const written = parseEnv(text).COMPOSE_PROJECT_NAME;
+	const written = parseEnv(text)["COMPOSE_PROJECT_NAME"];
 	if (written) return written;
 	const manifest = JSON.parse(
 		readFileSync(join(directory, "package.json"), "utf8"),

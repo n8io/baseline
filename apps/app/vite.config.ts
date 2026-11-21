@@ -13,7 +13,7 @@ const devUrlPrint: Plugin = {
 		server.printUrls = () => {
 			urlsPrint();
 			server.config.logger.info(
-				`  ➜  Open:    http://${process.env.COMPOSE_PROJECT_NAME}.localhost:${process.env.PORT}/`,
+				`  ➜  Open:    http://${process.env["COMPOSE_PROJECT_NAME"]}.localhost:${process.env["PORT"]}/`,
 			);
 		};
 	},
@@ -48,6 +48,6 @@ export default defineConfig({
 	// src/preload.ts (varlock) sets PORT for `pnpm dev`; `pnpm build` has none and serves nothing.
 	server: {
 		strictPort: true,
-		...(process.env.PORT && { port: Number(process.env.PORT) }),
+		...(process.env["PORT"] && { port: Number(process.env["PORT"]) }),
 	},
 });

@@ -28,7 +28,7 @@ export const authnSignInPageMemoryForm = ({
 	users,
 }: {
 	returnTo: string;
-	users: AuthnMemoryUser[];
+	users: readonly AuthnMemoryUser[];
 }): string =>
 	page(
 		"Sign in (local)",

@@ -16,22 +16,22 @@ export const Foo = z.object({
 	updatedAt: z.date(),
 	archivedAt: z.date().nullable(),
 });
-export type Foo = z.infer<typeof Foo>;
+export type Foo = Readonly<z.infer<typeof Foo>>;
 
 export const FooCreateInput = Foo.pick({ name: true });
-export type FooCreateInput = z.infer<typeof FooCreateInput>;
+export type FooCreateInput = Readonly<z.infer<typeof FooCreateInput>>;
 
 export const FooGetInput = z.object({ fooId: idSchemaCreate("foo") });
-export type FooGetInput = z.infer<typeof FooGetInput>;
+export type FooGetInput = Readonly<z.infer<typeof FooGetInput>>;
 
 export const FooUpdateInput = z.object({
 	fooId: idSchemaCreate("foo"),
 	name: Foo.shape.name,
 });
-export type FooUpdateInput = z.infer<typeof FooUpdateInput>;
+export type FooUpdateInput = Readonly<z.infer<typeof FooUpdateInput>>;
 
 export const FooDeleteInput = z.object({ fooId: idSchemaCreate("foo") });
-export type FooDeleteInput = z.infer<typeof FooDeleteInput>;
+export type FooDeleteInput = Readonly<z.infer<typeof FooDeleteInput>>;
 
 export const FooListInput = z.object({
 	limit: z.number().int().min(1).max(100).default(50),
@@ -43,12 +43,12 @@ export const FooListInput = z.object({
 		.enum(["createdAt", "-createdAt", "name", "-name"])
 		.default("-createdAt"),
 });
-export type FooListInput = z.infer<typeof FooListInput>;
+export type FooListInput = Readonly<z.infer<typeof FooListInput>>;
 
 export type FooList = {
-	items: Foo[];
-	nextCursor: string | null;
-	total?: number;
+	readonly items: readonly Foo[];
+	readonly nextCursor: string | null;
+	readonly total?: number;
 };
 
 // Foo guards its invariants here: a Use case builds or changes a Foo only through these, so it
@@ -100,10 +100,10 @@ export const fooStaleBefore = (now: Date): Date =>
 
 // piece-start: queue
 export const fooCreated = z.object({ fooId: idSchemaCreate("foo") });
-export type FooCreated = z.infer<typeof fooCreated>;
+export type FooCreated = Readonly<z.infer<typeof fooCreated>>;
 
 export const fooDeleted = z.object({ fooId: idSchemaCreate("foo") });
-export type FooDeleted = z.infer<typeof fooDeleted>;
+export type FooDeleted = Readonly<z.infer<typeof fooDeleted>>;
 
 export type FooEventMap = {
 	"foo.created": FooCreated;

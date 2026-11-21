@@ -559,7 +559,7 @@ const main = () => {
 			languageOf,
 			textRead: (file) => readFileSync(join(root, file), "utf8"),
 		});
-		const actions = process.env.GITHUB_ACTIONS === "true";
+		const actions = process.env["GITHUB_ACTIONS"] === "true";
 		for (const hit of hits) console.log(glossaryHitFormat(hit, actions));
 		if (hits.length === 0)
 			console.log("glossary-check: no hits in added lines");

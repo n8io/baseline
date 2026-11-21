@@ -2,7 +2,7 @@ import { setTimeout } from "node:timers/promises";
 
 /** The pool the helper watches `pg_stat_activity` through: a `PostgresPool` fits. */
 export type PostgresTestInterleavePool = {
-	query(text: string): Promise<{ rows: unknown[] }>;
+	query(text: string): Promise<{ rows: readonly unknown[] }>;
 };
 
 /** What `postgresTestInterleave` takes. */

@@ -39,9 +39,9 @@ export type Events = {
 	 * Every instance that may publish calls this at boot, so no Event is sent before its Consumers
 	 * are known. Safe to repeat on any number of instances.
 	 */
-	consumersSubscribe(consumers: Consumer[]): Promise<void>;
+	consumersSubscribe(consumers: readonly Consumer[]): Promise<void>;
 	/** Subscribes, then starts running the Consumers (Worker process only). */
-	consumersStart(consumers: Consumer[]): Promise<void>;
+	consumersStart(consumers: readonly Consumer[]): Promise<void>;
 	/** `transaction` is the open transaction's client. */
 	publisherCreate<M extends Record<string, unknown>>(
 		transaction: QueueSql,
@@ -134,6 +134,7 @@ export const queueEventsCreate = (queue: Queue): Events => {
 /** What `queueEventsPublisherMemoryCreate` takes. */
 export type QueueEventsPublisherMemoryOptions<M> = {
 	/** The array each publish is pushed to as `{ name, data, key }`. Default a new one. */
+	// mutable: the publisher pushes each publish to it, so a test reads what was published.
 	published?: { name: keyof M; data: unknown; key: string }[] | null;
 };
 

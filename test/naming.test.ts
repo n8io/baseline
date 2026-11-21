@@ -33,6 +33,6 @@ describe("naming", () => {
 	it("names every export outside apps/app generic to specific (A23)", () => {
 		const files = sourcesRead();
 		expect(files.length).toBeGreaterThan(100);
-		expect(architectureRules.A23?.(files)).toEqual([]);
+		expect(architectureRules["A23"]?.(files)).toEqual([]);
 	});
 });
