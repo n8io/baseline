@@ -1,12 +1,15 @@
 name: ci
 
-# A run on main tests main after each merge and saves the Turborepo cache every pull request reads.
+# A run on main restores the Turborepo cache, so a merge runs only the tasks it changed, saves it for every pull request,
+# and a nightly run on main runs every task with --force.
 # workflow_dispatch: main-run starts that run after a Dependabot merge, which a push cannot.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * *"
 
 # A newer run on a ref cancels the older one; each run on main gets a group of its own, so none is cancelled.
 concurrency:
@@ -70,9 +73,8 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
       # Only main saves the cache: one saved on a pull request is readable by that pull request alone.
-      # main restores none, so each saved cache holds one full run and never grows.
-      - if: github.ref != 'refs/heads/main'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # main restores the last one and drops entries older than a week before saving, so it stays small.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: turbo-${{ runner.os }}-${{ github.sha }}
           path: .turbo/cache
@@ -80,8 +82,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Unused files, exports and dependencies; knip.jsonc says how to settle a finding.
       - run: pnpm knip
-      # main runs every task, so its cache holds them all.
-      - run: pnpm turbo run check test build ${{ github.ref != 'refs/heads/main' && '--affected' || '' }}
+      # main runs every task from the restored cache, so its cache holds them all; the nightly run ignores it.
+      - run: pnpm turbo run check test build ${{ github.ref != 'refs/heads/main' && '--affected' || (github.event_name == 'schedule' && '--force' || '') }}
       # --affected skips the root tests on a diff only inside packages/, such as a new optional peer
       # that leaves the lockfile alone; this one reads every Package's package.json.
       - if: github.ref != 'refs/heads/main'
@@ -91,6 +93,8 @@ jobs:
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         continue-on-error: true
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
+      - if: github.ref == 'refs/heads/main'
+        run: find .turbo/cache -type f -mtime +7 -delete
       - if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
