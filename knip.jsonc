@@ -1,0 +1,47 @@
+// knip finds unused files, exports and dependencies. `pnpm knip` must print nothing; CI's packages job runs it.
+// Fix a finding by deleting the code or un-exporting it. Ignore one only here, with the reason beside it.
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"workspaces": {
+		".": {
+			"entry": ["scripts/*.ts", "scripts/readme-svg/*.ts", "test/**/*.test.ts"],
+			"ignore": ["test/render/**"]
+		},
+		"apps/app": {
+			"entry": [
+				"scripts/*.ts",
+				"src/server.ts",
+				"src/**/*.test.{ts,tsx}",
+				"test/integration/**/*.ts",
+				"*.test.ts"
+			],
+			"ignore": ["src/ui/components/**"],
+			// isbot: used by react-router-hono-server's plugin. shadcn: a CLI the ui docs run. swagger-ui-dist: read by path, not imported.
+			"ignoreDependencies": ["isbot", "shadcn", "swagger-ui-dist"]
+		},
+		"packages/*": {
+			"entry": [
+				"src/*-test-fixtures/**/*.ts",
+				"src/**/*.test.ts",
+				"src/**/*.contract.ts"
+			]
+		}
+	},
+	// Run from CI steps and scripts, not installed as dependencies of the workspace that calls them.
+	"ignoreBinaries": [
+		"api-check",
+		"drizzle-kit",
+		"glossary-check",
+		"oasdiff",
+		"piece-check",
+		"sdk-generate"
+	],
+	"ignoreIssues": {
+		// The rules file's types are its public shape; another ticket (rule A28) owns the file.
+		"apps/app/architecture-test-rules.ts": ["types"],
+		// foo is the reference Bounded Context: its exports show a Project what a context exposes.
+		"apps/app/src/contexts/foo/**": ["exports", "types"]
+	},
+	// react-router writes ./+types/* when it builds; the integration tests spawn ./src/preload.ts from the app folder.
+	"ignoreUnresolved": ["\\./\\+types/.*", "\\./src/preload\\.ts"]
+}

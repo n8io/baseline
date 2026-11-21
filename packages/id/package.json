@@ -35,5 +35,8 @@
 		"prepack": "tsdown",
 		"test": "vitest run",
 		"test:unit": "vitest run"
+	},
+	"devDependencies": {
+		"fast-check": "^4.10.3"
 	}
 }

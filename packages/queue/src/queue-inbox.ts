@@ -31,7 +31,7 @@ export const queueInboxInsert = async (
 /**
  * The Package's own Schedule; queueSchedulesSync never removes names in the `queue.` namespace.
  */
-export const queueInboxPruneName = "queue.inbox-prune";
+const queueInboxPruneName = "queue.inbox-prune";
 
 /** Daily, in the Worker: deletes inbox rows older than 30 days. */
 export const queueInboxPruneStart = async (boss: PgBoss): Promise<void> => {
