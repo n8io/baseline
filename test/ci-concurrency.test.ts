@@ -20,10 +20,10 @@ describe("ci.yml runs", () => {
 		},
 	);
 
-	it("baseline's run on main tests main and alone saves the Turborepo cache", () => {
+	it("baseline's run on main restores and alone saves the Turborepo cache, and the nightly run forces every task", () => {
 		const ci = read(".github/workflows/ci.yml");
 		expect(ci).toContain(
-			"\n  push:\n    branches: [main]\n  workflow_dispatch:\n",
+			'\n  push:\n    branches: [main]\n  workflow_dispatch:\n  schedule:\n    - cron: "17 7 * * *"\n',
 		);
 		expect(ci).not.toMatch(/uses: actions\/cache@/);
 		expect(ci).not.toContain("github.event_name == 'push'");
@@ -32,9 +32,10 @@ describe("ci.yml runs", () => {
 			/- if: github\.ref == 'refs\/heads\/main'\n {8}uses: actions\/cache\/save@/,
 		);
 		expect(ci.match(/uses: actions\/cache\/save@/g)).toHaveLength(1);
-		expect(ci).toMatch(
-			/- if: github\.ref != 'refs\/heads\/main'\n {8}uses: actions\/cache\/restore@/,
-		);
+		// main restores the cache too, and prunes entries older than a week before it saves.
+		expect(ci).toMatch(/- uses: actions\/cache\/restore@/);
+		expect(ci).toContain("find .turbo/cache -type f -mtime +7 -delete");
+		expect(ci).toContain("github.event_name == 'schedule' && '--force'");
 		expect(ci).toContain(
 			"\n  automerge:\n    if: github.event_name == 'pull_request'\n",
 		);
