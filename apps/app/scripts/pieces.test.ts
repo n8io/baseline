@@ -14,7 +14,7 @@ import {
 	filesNamedIn,
 	type Piece,
 	pieceFilesRemove,
-	pieceIs,
+	pieceIsKnown,
 	pieceMarkersProblems,
 	pieceNames,
 	pieceRemove,
@@ -184,8 +184,8 @@ describe("pieceRemoveRefusal", () => {
 		expect(pieceUsage).toBe(
 			`Usage: pnpm piece-remove <${pieceNames.join("|")}>\n\n  -h, --help  this help`,
 		);
-		expect(pieceNames.every(pieceIs)).toBe(true);
-		expect(pieceIs("pages")).toBe(false);
+		expect(pieceNames.every(pieceIsKnown)).toBe(true);
+		expect(pieceIsKnown("pages")).toBe(false);
 	});
 
 	it("refuses a .template.json whose pieceFiles is wrong, and says why", () => {

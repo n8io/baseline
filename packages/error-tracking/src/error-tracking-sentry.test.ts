@@ -93,21 +93,14 @@ describe("errorTrackingSentryCreate", () => {
 			);
 			errorTracking.report(`thrown ${canary}`);
 			errorTracking.report({ email: canary });
-			errorTracking.report(new AggregateError([new Error(canary)], canary));
+			errorTracking.report(new ModelError([new Error(canary)], canary));
 		}
 
 		expect(requests).toHaveLength(6);
 		expect(JSON.stringify(requests)).not.toContain(canary);
 		expect(
 			requests.map((r) => r.event.exception?.values?.at(-1)?.type),
-		).toEqual([
-			"Error",
-			"Error",
-			"Error",
-			"string",
-			"object",
-			"AggregateError",
-		]);
+		).toEqual(["Error", "Error", "Error", "string", "object", "ModelError"]);
 		expect(JSON.stringify(requests)).not.toMatch(/server_name|"os"|"device"/);
 	});
 

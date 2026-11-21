@@ -2,11 +2,11 @@
 // hands to app-ci.yml. origin/main is the previous release rendered as app-create renders it,
 // with no context yet; HEAD upgrades it to this checkout's apps/app with template-upgrade and
 // checks, tests and builds it with no context, as app-create leaves a new Project. Then it adds
-// contexts with this checkout's context-create, each with an Aggregate of its own name from
-// aggregate-create: customer with --bare first, invoice-line with --bare and --reads customer, one
-// --bare context per part, so each part passes app-ci alone and fills the wiring the first context
-// left empty, and vendor with every part, which then gets a second Aggregate, vendor-contact, with
-// every part too. Then the second-context fixture: a customer_id column on invoice lines and the
+// contexts with this checkout's context-create, each with a Model of its own name from
+// model-create: customer with --bare first, invoice-line with --bare and --reads customer, one
+// --bare context per option, so each option passes app-ci alone and fills the wiring the first context
+// left empty, and vendor with every option, which then gets a second Model, vendor-contact, with
+// every option too. Then the second-context fixture: a customer_id column on invoice lines and the
 // Event handler that clears it when a customer is deleted. HEAD installs this checkout's packages/*.
 import {
 	cpSync,
@@ -18,16 +18,16 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-	type AggregatePart,
-	aggregateFilesCreate,
-	aggregateRefusal,
-	filesFormat,
-	readsRefusal,
-} from "../../apps/app/scripts/aggregate-create.ts";
-import {
 	contextFilesCreate,
 	contextRefusal,
 } from "../../apps/app/scripts/context-create.ts";
+import {
+	filesFormat,
+	type ModelOption,
+	modelFilesCreate,
+	modelRefusal,
+	readsRefusal,
+} from "../../apps/app/scripts/model-create.ts";
 import { npmTarballsWait } from "../../apps/app/scripts/npm-tarballs-wait.ts";
 import { processRun } from "../../apps/app/scripts/process-run.ts";
 import {
@@ -60,28 +60,28 @@ const answers = {
 	name: "render-test",
 	release: "",
 };
-// customer first: invoice-line reads it through an anti-corruption layer. `parts` null is an aggregate-create
-// without --bare. `context` names an existing context to add the Aggregate to; without it,
-// context-create makes a context of the Aggregate's name first.
+// customer first: invoice-line reads it through an anti-corruption layer. `options` null is a model-create
+// without --bare. `context` names an existing context to add the Model to; without it,
+// context-create makes a context of the Model's name first.
 const contexts: {
 	context?: string;
 	definition: string;
 	kebab: string;
-	parts: AggregatePart[] | null;
+	options: ModelOption[] | null;
 	plural: string;
 	reads: string[];
 }[] = [
 	{
 		definition: "Someone invoice lines are billed to.",
 		kebab: "customer",
-		parts: [],
+		options: [],
 		plural: "customers",
 		reads: [],
 	},
 	{
 		definition: "One charge on an invoice, which may name its customer.",
 		kebab: "invoice-line",
-		parts: [],
+		options: [],
 		plural: "invoice-lines",
 		reads: ["customer"],
 	},
@@ -94,17 +94,17 @@ const contexts: {
 			["schedule", "payment"],
 			["seed", "refund"],
 		] as const
-	).map(([part, kebab]) => ({
-		definition: `A context made with aggregate-create --bare --${part}.`,
+	).map(([option, kebab]) => ({
+		definition: `A context made with model-create --bare --${option}.`,
 		kebab,
-		parts: [part],
+		options: [option],
 		plural: `${kebab}s`,
 		reads: [],
 	})),
 	{
 		definition: "Someone who sells to the shop.",
 		kebab: "vendor",
-		parts: null,
+		options: null,
 		plural: "vendors",
 		reads: [],
 	},
@@ -112,7 +112,7 @@ const contexts: {
 		context: "vendor",
 		definition: "A person to call at a vendor.",
 		kebab: "vendor-contact",
-		parts: null,
+		options: null,
 		plural: "vendor-contacts",
 		reads: [],
 	},
@@ -205,7 +205,14 @@ const main = async () => {
 		);
 	}
 
-	for (const { context, definition, kebab, parts, plural, reads } of contexts) {
+	for (const {
+		context,
+		definition,
+		kebab,
+		options,
+		plural,
+		reads,
+	} of contexts) {
 		const created: string[] = [];
 		if (context === undefined) {
 			glossaryContextMapDefine({ context: kebab, directory });
@@ -232,22 +239,22 @@ const main = async () => {
 			directory,
 			term: glossaryTerm(kebab),
 		});
-		const aggregate = { kebab, plural };
-		const refusal = aggregateRefusal({
-			aggregate,
+		const model = { kebab, plural };
+		const refusal = modelRefusal({
+			model,
 			appDirectory: directory,
 			context: context ?? kebab,
 		});
 		if (refusal !== undefined) throw new Error(refusal);
-		const aggregateFiles = aggregateFilesCreate({
-			aggregate,
+		const modelFiles = modelFilesCreate({
+			model,
 			appDirectory: directory,
 			context: context ?? kebab,
-			parts,
+			options,
 			templateFull: files,
 		});
-		filesWrite(directory, aggregateFiles);
-		created.push(...aggregateFiles.map((f) => f.path));
+		filesWrite(directory, modelFiles);
+		created.push(...modelFiles.map((f) => f.path));
 		filesFormat({
 			appDirectory: directory,
 			paths: [...new Set(created)].filter((p) => !p.endsWith(".md")),
@@ -269,7 +276,7 @@ const main = async () => {
 	});
 	pnpmInheritRun(directory, ["exec", "biome", "check", "--write", "."]);
 	pnpmInheritRun(directory, ["codegen"]);
-	// The contexts added routes, so the SDK is regenerated, as a Project does after aggregate-create.
+	// The contexts added routes, so the SDK is regenerated, as a Project does after model-create.
 	pnpmInheritRun(directory, ["sdk-generate"]);
 	pnpmInheritRun(directory, ["check"]);
 	pnpmInheritRun(directory, ["test"]);

@@ -7,8 +7,8 @@ describe("glossaryContextMapRowAdd", () => {
 		"",
 		"## Contexts",
 		"",
-		"| Context | Subdomain | Language |",
-		"| ------- | --------- | -------- |",
+		"| Context | Language |",
+		"| ------- | -------- |",
 		"",
 		"## Relationships",
 		"",
@@ -21,19 +21,17 @@ describe("glossaryContextMapRowAdd", () => {
 		const once = glossaryContextMapRowAdd({
 			context: "billing",
 			map,
-			subdomain: "core",
 		});
 		const twice = glossaryContextMapRowAdd({
 			context: "crm",
 			map: once,
-			subdomain: "generic",
 		});
 
 		expect(twice.split("\n").slice(4, 9)).toEqual([
-			"| Context | Subdomain | Language |",
-			"| ------- | --------- | -------- |",
-			"| `billing` | core | [src/contexts/billing/CONTEXT.md](src/contexts/billing/CONTEXT.md) |",
-			"| `crm` | generic | [src/contexts/crm/CONTEXT.md](src/contexts/crm/CONTEXT.md) |",
+			"| Context | Language |",
+			"| ------- | -------- |",
+			"| `billing` | [src/contexts/billing/CONTEXT.md](src/contexts/billing/CONTEXT.md) |",
+			"| `crm` | [src/contexts/crm/CONTEXT.md](src/contexts/crm/CONTEXT.md) |",
 			"",
 		]);
 	});
@@ -43,7 +41,6 @@ describe("glossaryContextMapRowAdd", () => {
 			glossaryContextMapRowAdd({
 				context: "billing",
 				map: "# Map\n",
-				subdomain: "core",
 			}),
 		).toThrow("no ## Contexts");
 	});

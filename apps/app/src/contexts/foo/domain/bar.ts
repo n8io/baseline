@@ -4,9 +4,9 @@ import { err, ok, type Result } from "@n8io/baseline-result";
 import { z } from "zod";
 import { idSchemaCreate } from "../../../id-schema.ts";
 import { FooForbiddenError } from "./errors.ts";
-import { type Foo, fooUpdateCan } from "./foo.ts";
+import { type Foo, fooCanUpdate } from "./foo.ts";
 
-// The context's second Aggregate: a short note on one Foo. A Bar holds its Foo's id, never the
+// The context's second Model: a short note on one Foo. A Bar holds its Foo's id, never the
 // Foo, and never outlives it: fooDelete deletes a Foo's Bars in the same transaction.
 export const Bar = z.object({
 	id: idSchemaCreate("bar"),
@@ -39,7 +39,7 @@ export const barNew = ({
 	input: Pick<BarCreateInput, "text">;
 	now: Date;
 }): Result<Bar, FooForbiddenError> =>
-	fooUpdateCan(foo, actor)
+	fooCanUpdate(foo, actor)
 		? ok({
 				id,
 				fooId: foo.id,

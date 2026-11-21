@@ -93,12 +93,12 @@ describe("architecture", () => {
 		},
 		{
 			from: "=>\n\tports.billingTransaction(",
-			name: "a28-transaction-two-aggregates.txt",
+			name: "a28-transaction-two-models.txt",
 			to: "=>\n\t// invariant: an invoice closes with its lines.\n\tports.billingTransaction(",
 		},
 		{
 			from: "update({ ...invoice, name: input.name })",
-			name: "a29-use-case-spreads-aggregate.txt",
+			name: "a29-use-case-spreads-model.txt",
 			to: "update(invoiceRename(invoice, input.name).value)",
 		},
 	])("$name passes once fixed", async ({ from, name, to }) => {
@@ -196,7 +196,7 @@ describe("architecture", () => {
 		).toEqual([]);
 	});
 
-	it("A14 needs no handler for an id of the context's own Aggregate, and one for another context's Aggregate", async () => {
+	it("A14 needs no handler for an id of the context's own Model, and one for another context's Model", async () => {
 		const own = await architectureFileCreate(
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
 			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("billing").table("invoice_line", { invoiceId: text("invoice_id") });\n',
@@ -209,25 +209,23 @@ describe("architecture", () => {
 			"src/contexts/shipping/adapters/outbound/parcel-table.ts",
 			'import { pgSchema, text } from "drizzle-orm/pg-core";\nexport const t = pgSchema("shipping").table("parcel", { invoiceId: text("invoice_id") });\n',
 		);
-		const aggregates = await Promise.all(
+		const models = await Promise.all(
 			[
 				"src/contexts/billing/domain/invoice.ts",
 				"src/contexts/billing/domain/invoice-line.ts",
 			].map((path) => architectureFileCreate(path, "")),
 		);
-		expect(architectureRules["A14"]?.([own, invoice, ...aggregates])).toEqual(
-			[],
-		);
+		expect(architectureRules["A14"]?.([own, invoice, ...models])).toEqual([]);
 		expect(
-			architectureRules["A14"]?.([own, invoice, shipping, ...aggregates]),
+			architectureRules["A14"]?.([own, invoice, shipping, ...models]),
 		).toEqual([
 			'src/contexts/shipping/adapters/outbound/parcel-table.ts: a column holding a invoice id needs src/contexts/shipping/adapters/inbound/shipping-invoice-deleted-handler.ts handling "invoice.deleted", so rows never point at a deleted invoice',
 		]);
-		// A table with no domain/ file of its name is a projection, not an Aggregate.
+		// A table with no domain/ file of its name is a projection, not a Model.
 		expect(architectureRules["A14"]?.([own, invoice, shipping])).toEqual([]);
 	});
 
-	it("A14 reads the context's own longer Aggregate name before another context's shorter one", async () => {
+	it("A14 reads the context's own longer Model name before another context's shorter one", async () => {
 		const files = await Promise.all(
 			[
 				[
@@ -244,12 +242,12 @@ describe("architecture", () => {
 		expect(architectureRules["A14"]?.(files)).toEqual([]);
 	});
 
-	it("A16 lets an Aggregate's Use case name its span attributes after the Aggregate", async () => {
+	it("A16 lets a Model's Use case name its span attributes after the Model", async () => {
 		const table = await architectureFileCreate(
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
 			"",
 		);
-		const aggregate = await architectureFileCreate(
+		const model = await architectureFileCreate(
 			"src/contexts/billing/domain/invoice-line.ts",
 			"",
 		);
@@ -257,7 +255,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-get.ts",
 			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
 		);
-		expect(architectureRules["A16"]?.([table, aggregate, useCase])).toEqual([
+		expect(architectureRules["A16"]?.([table, model, useCase])).toEqual([
 			expect.stringContaining("span attribute baseline.note.id"),
 		]);
 	});
@@ -276,7 +274,7 @@ describe("architecture", () => {
 		{
 			body: "export const x = async (ports) => {\n\tawait ports.billingTransaction(async (t) => t.invoiceRepository.x());\n\tawait ports.billingTransaction(async (t) => t.invoiceLineRepository.x());\n};\n",
 			found: 0,
-			name: "one transaction per Aggregate",
+			name: "one transaction per Model",
 		},
 		{
 			body: "export const x = (ports) =>\n\t// invariant: an invoice closes with its lines,\n\t// which it locks first.\n\tports.billingTransaction(async (t) => t.invoiceRepository.x(t.invoiceLineRepository));\n",
@@ -399,12 +397,12 @@ describe("architecture", () => {
 		expect(architectureRules["A30"]?.(files)).toEqual([]);
 	});
 
-	it("A23 lets a context's export start with one of its Aggregates' names", async () => {
+	it("A23 lets a context's export start with one of its Models' names", async () => {
 		const table = await architectureFileCreate(
 			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
 			"",
 		);
-		const aggregate = await architectureFileCreate(
+		const model = await architectureFileCreate(
 			"src/contexts/billing/domain/invoice-line.ts",
 			"",
 		);
@@ -412,7 +410,7 @@ describe("architecture", () => {
 			"src/contexts/billing/application/invoice-line-create.ts",
 			"export const invoiceLineCreate = () => 1;\nexport const noteCreate = () => 1;\n",
 		);
-		expect(architectureRules["A23"]?.([table, aggregate, useCase])).toEqual([
+		expect(architectureRules["A23"]?.([table, model, useCase])).toEqual([
 			expect.stringContaining("noteCreate is exported from billing"),
 		]);
 	});
@@ -515,7 +513,7 @@ describe("architecture", () => {
 		expect(architectureRules["A14"]?.(files)[0]).toContain("a work-order id");
 	});
 
-	it("A25 lets adapters/inbound/ build its own schema from an Aggregate schema's shape", async () => {
+	it("A25 lets adapters/inbound/ build its own schema from a Model schema's shape", async () => {
 		const route = await architectureFileCreate(
 			"src/contexts/bar/adapters/inbound/bar-routes.ts",
 			'import { z } from "@hono/zod-openapi";\nimport { Bar } from "../../domain/bar.ts";\n\nexport const BarResponse = z\n\t.object({ name: Bar.shape.name })\n\t.openapi("BarResponse");\n',
@@ -585,14 +583,14 @@ describe("architecture", () => {
 		expect(architectureRules["A27"]?.([file])).toHaveLength(found);
 	});
 
-	it("A27 tells a transition to return err", async () => {
+	it("A27 tells a model function to return err", async () => {
 		const rule = await architectureFileCreate(
 			"src/contexts/bar/domain/bar.ts",
 			'export const barOpen = () => {\n\tthrow new Error("closed");\n};\n',
 		);
 		expect(architectureRules["A27"]?.([rule])).toEqual([
 			expect.stringContaining(
-				"bar.ts:2: throw in a domain/ file; a transition returns err(new <Name>Error())",
+				"bar.ts:2: throw in a domain/ file; a model function returns err(new <Name>Error())",
 			),
 		]);
 	});

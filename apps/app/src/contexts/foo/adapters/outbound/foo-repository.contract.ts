@@ -309,7 +309,7 @@ export const fooRepositoryContract = (
 		});
 	});
 
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	it("archives every unarchived foo updated before the cutoff", async () => {
 		const ports = await create();
 		const before = new Date("2026-02-01T00:00:00.000Z");
@@ -335,5 +335,5 @@ export const fooRepositoryContract = (
 			archived,
 		);
 	});
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 };

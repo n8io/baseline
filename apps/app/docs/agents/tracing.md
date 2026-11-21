@@ -29,7 +29,7 @@ Decide in this order:
 
 Never start a span:
 
-- for a transition, a specification, a helper, or anything that takes microseconds;
+- for a model function, a helper, or anything that takes microseconds;
 - per loop iteration or per item. One span covers the loop and an attribute holds the count;
 - to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
 - for an error. Return an err; the Use case span records `error.type`;
@@ -37,7 +37,7 @@ Never start a span:
 
 Name a child span `<useCase> <step>`. A name never holds an id or input: those go in attributes.
 
-Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<prefix>` the context the Use case is in, or one of its Aggregates, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
+Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<prefix>` the context the Use case is in, or one of its Models, in snake_case. A fact such as a cache hit becomes a count (`baseline.invoice.cache_hit_count`) or goes on the Use case's `err`:
 
 - `baseline.<prefix>.id`, its own id.
 - `baseline.<prefix>.<thing>_id`, another context's id or any other id (`baseline.invoice.customer_id`, `baseline.invoice.order_id`).
@@ -45,7 +45,7 @@ Attribute keys in a Use case are checked by A16. Only these shapes pass, with `<
 
 Names, emails and other personal data never go on a span.
 
-One Event hop makes these spans. `<queue>` is the Event handler's queue name with `.ordered` added (`billing.customer-deleted.ordered`; the name is `<handling context>.<event entity>-<event verb>`):
+One Event hop makes these spans. `<queue>` is the Event handler's queue name with `.ordered` added (`billing.customer-deleted.ordered`; the name is `<handling context>.<event model>-<event verb>`):
 
 1. `send <queue>`, one per subscribed Event handler, in the trace of the Use case that published the Event (a request, or the Schedule's tick).
 2. `process <queue>`, written by the Worker, and `complete <queue>` or `fail <queue>` when it settles the job. A Worker fetch has no span of its own.

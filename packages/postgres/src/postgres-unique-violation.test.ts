@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
-	postgresUniqueViolationIs,
+	postgresErrorIsUniqueViolation,
 	postgresUniqueViolationRead,
 } from "./index.ts";
 
 const violation = { code: "23505", constraint: "foo_name_key" };
 
-describe("postgresUniqueViolationIs", () => {
+describe("postgresErrorIsUniqueViolation", () => {
 	it("matches a 23505 on the constraint, directly or in the cause chain", () => {
-		expect(postgresUniqueViolationIs(violation, "foo_name_key")).toBe(true);
+		expect(postgresErrorIsUniqueViolation(violation, "foo_name_key")).toBe(
+			true,
+		);
 		expect(
-			postgresUniqueViolationIs(
+			postgresErrorIsUniqueViolation(
 				new Error("outer", { cause: new Error("mid", { cause: violation }) }),
 				"foo_name_key",
 			),
@@ -18,22 +20,24 @@ describe("postgresUniqueViolationIs", () => {
 	});
 
 	it("rejects another constraint, another code or a non-error", () => {
-		expect(postgresUniqueViolationIs(violation, "foo_pkey")).toBe(false);
+		expect(postgresErrorIsUniqueViolation(violation, "foo_pkey")).toBe(false);
 		expect(
-			postgresUniqueViolationIs(
+			postgresErrorIsUniqueViolation(
 				{ code: "23503", constraint: "foo_name_key" },
 				"foo_name_key",
 			),
 		).toBe(false);
-		expect(postgresUniqueViolationIs(undefined, "foo_name_key")).toBe(false);
-		expect(postgresUniqueViolationIs("23505", "foo_name_key")).toBe(false);
+		expect(postgresErrorIsUniqueViolation(undefined, "foo_name_key")).toBe(
+			false,
+		);
+		expect(postgresErrorIsUniqueViolation("23505", "foo_name_key")).toBe(false);
 	});
 
 	it("stops on a cause cycle", () => {
 		const first: { cause?: unknown } = {};
 		first.cause = { cause: first };
 
-		expect(postgresUniqueViolationIs(first, "foo_name_key")).toBe(false);
+		expect(postgresErrorIsUniqueViolation(first, "foo_name_key")).toBe(false);
 	});
 });
 

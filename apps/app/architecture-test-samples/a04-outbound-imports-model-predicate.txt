@@ -1,4 +1,4 @@
-// A4: adapters/outbound/ never applies an Aggregate's specification or transition
+// A4: adapters/outbound/ never applies a Model's predicate or model function
 // expect: src/contexts/billing/adapters/outbound/invoice-repository.memory.ts imports invoiceOverdueIs: adapters/outbound/ holds no business logic
 // @file src/contexts/billing/adapters/outbound/invoice-repository.memory.ts
 import { Invoice, invoiceOverdueIs } from "../../domain/invoice.ts";

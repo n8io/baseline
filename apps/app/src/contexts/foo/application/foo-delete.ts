@@ -2,7 +2,7 @@ import type { Actor } from "@n8io/baseline-authn";
 import { err, ok, type Result } from "@n8io/baseline-result";
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 import { FooForbiddenError, FooNotFoundError } from "../domain/errors.ts";
-import { type FooDeleteInput, fooDeleteCan } from "../domain/foo.ts";
+import { type FooDeleteInput, fooCanDelete } from "../domain/foo.ts";
 import type { FooPorts } from "./ports.ts";
 
 export const fooDelete =
@@ -22,7 +22,7 @@ export const fooDelete =
 				input.fooId,
 			);
 			if (!foo) return err(new FooNotFoundError(input.fooId));
-			if (!fooDeleteCan(foo, actor)) {
+			if (!fooCanDelete(foo, actor)) {
 				return err(new FooForbiddenError(input.fooId));
 			}
 			await transaction.barRepository.deleteByFooId(foo.id);

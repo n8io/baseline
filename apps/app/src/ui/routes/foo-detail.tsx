@@ -13,9 +13,9 @@ import { z } from "zod";
 import {
 	type FooError,
 	FooUpdateInput,
-	fooDeleteCan,
+	fooCanDelete,
+	fooCanUpdate,
 	fooErrorStatus,
-	fooUpdateCan,
 } from "#contexts/foo/index.ts";
 import {
 	AlertDialog,
@@ -68,7 +68,7 @@ export const loader = async (args: Route.LoaderArgs) => {
 	}
 	const foo = result.value;
 	return {
-		can: { delete: fooDeleteCan(foo, actor), update: fooUpdateCan(foo, actor) },
+		can: { delete: fooCanDelete(foo, actor), update: fooCanUpdate(foo, actor) },
 		foo,
 	};
 };

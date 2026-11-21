@@ -49,7 +49,7 @@ describe("contextRefusal", () => {
 		const app = folder.path;
 		writeFileSync(
 			join(app, "CONTEXT-MAP.md"),
-			"## Contexts\n\n| Context | Subdomain | Language |\n| --- | --- | --- |\n| `billing` | core | [x](src/contexts/billing/CONTEXT.md) |\n| `crm` | generic | [x](src/contexts/crm/CONTEXT.md) |\n",
+			"## Contexts\n\n| Context | Language |\n| --- | --- |\n| `billing` | [x](src/contexts/billing/CONTEXT.md) |\n| `crm` | [x](src/contexts/crm/CONTEXT.md) |\n",
 		);
 		mkdirSync(join(app, "src/contexts/crm"), { recursive: true });
 
@@ -76,23 +76,21 @@ describe("contextRefusal", () => {
 });
 
 describe("contextGlossaryText", () => {
-	it("names the subdomain type and leaves the language for the Aggregates' terms", () => {
-		expect(
-			contextGlossaryText({ context: "order-desk", subdomain: "supporting" }),
-		).toBe(
-			"# Order desk\n\nSubdomain: supporting\n\nWhat the order desk context does and the Aggregates it holds, in a sentence or two.\n\n## Language\n",
+	it("leaves the language for the Models' terms", () => {
+		expect(contextGlossaryText({ context: "order-desk" })).toBe(
+			"# Order desk\n\nWhat the order desk context does and the Models it holds, in a sentence or two.\n\n## Language\n",
 		);
 	});
 });
 
 describe("contextNextStepsText", () => {
-	it("points at aggregate-create and each ACL to fill", () => {
+	it("points at model-create and each ACL to fill", () => {
 		const text = contextNextStepsText({
 			context: "billing",
 			reads: ["customer"],
 		});
 
-		expect(text).toContain("pnpm aggregate-create billing <aggregate>");
+		expect(text).toContain("pnpm model-create billing <model>");
 		expect(text).toContain(
 			"src/contexts/billing/adapters/outbound/billing-customer-acl.ts",
 		);
@@ -140,7 +138,7 @@ describe.runIf(template)("context-create on the template", () => {
 	})();
 	const file = (path: string) => files.find((f) => f.path === path)?.text ?? "";
 
-	it("writes the context's shell with a CONTEXT.md stub and no Aggregate", () => {
+	it("writes the context's shell with a CONTEXT.md stub and no Model", () => {
 		const paths = files.map((f) => f.path);
 
 		expect(paths).toContain("src/contexts/billing/CONTEXT.md");
@@ -160,7 +158,7 @@ describe.runIf(template)("context-create on the template", () => {
 		expect(paths.filter((p) => p.startsWith("src/ui/"))).toEqual([]);
 	});
 
-	it("keeps the context's ports and wiring markers for aggregate-create", () => {
+	it("keeps the context's ports and wiring markers for model-create", () => {
 		expect(file("src/contexts/billing/application/ports.ts")).toContain(
 			"billingClock: Clock;",
 		);

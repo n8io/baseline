@@ -60,7 +60,7 @@ export const invoiceLinePortsCreate = (
 ): InvoiceLinePorts => {
 ```
 
-The context's interface takes them as `upstream`, and `contextsCreate` in `src/contexts.ts` passes each upstream context it built first. The Server, the Worker, the seed and page tests all build their contexts there, so no Composition root names an ACL:
+The context's interface takes them as `upstream`, and `contextsCreate` in `src/contexts.ts` passes each upstream context it built first. The Server, the Worker, the seed and page tests all build their contexts there, so no Entry point names an ACL:
 
 ```ts
 // src/contexts.ts
@@ -90,16 +90,16 @@ const setup = async () => {
 - **Rules.** Architecture rule A11 fails an ACL that imports anything of another context but its upstream's `index.ts`, or calls an upstream Use case that is not a `*Get` or `*List`. A6 fails any other file that imports another context, except an Event handler (its Domain event schemas) and a seed (an upstream's types). Inside a context only tests and test helpers import `src/contexts.ts` or `src/connections.ts`.
 - **Lists.** An ACL that needs every match calls the upstream's `*List` Use case page by page, passing `nextCursor` back until it is `null`, and returns one array. Keep such a read to lists that stay small; a large one is a Projection fed by the upstream's Domain events.
 - **Seeds.** A seed that needs upstream rows gets the upstream from `index.ts` and runs after the upstream's seeds: [context-create.md](context-create.md#seeds).
-- **Between the read and the commit.** An ACL reads before the downstream context's transaction opens, so the upstream can change in between (the customer is deleted after the check). Pick one, and say which in the Use case's comment: accept it, because an Event handler of the upstream's `<aggregate>.deleted` cleans up; read again after commit and undo; or sweep with a Schedule.
+- **Between the read and the commit.** An ACL reads before the downstream context's transaction opens, so the upstream can change in between (the customer is deleted after the check). Pick one, and say which in the Use case's comment: accept it, because an Event handler of the upstream's `<model>.deleted` cleans up; read again after commit and undo; or sweep with a Schedule.
 
 ## Saga
 
 When a context acts on another context's Domain event and that context waits on the result (an order waits for billing to approve the customer's credit), the outcome travels back as a Domain event. The contexts take turns, each through an Event handler that calls a Use case: a choreographed saga.
 
-- The acting context's Use case publishes `<aggregate>.<thing>-applied` or `<aggregate>.<thing>-refused` in the same transaction as its write, keyed by the entity the waiting context tracks, and returns `ok` for both.
+- The acting context's Use case publishes `<model>.<thing>-applied` or `<model>.<thing>-refused` in the same transaction as its write, keyed by the model the waiting context tracks, and returns `ok` for both.
 - A refusal is an outcome, not a failure. An `err` rolls the transaction back, so the inbox row and the `-refused` Domain event go with it, and only a throw is retried: the waiting context would wait for ever.
 - Return `err` only for an outcome nobody waits on.
 - A Domain event carries what its Event handlers need to act without reading the publisher back, such as the customer id and the amount on an `order.placed`.
 - The waiting context has one Event handler per outcome Domain event.
-- Inside one context, a change across several Aggregates under one invariant is one transaction, not a saga ([context-create.md](context-create.md)).
+- Inside one context, a change across several Models under one invariant is one transaction, not a saga ([context-create.md](context-create.md)).
 - Removing a saga's Event handler also needs its queue in `queuesRemoved` in `migrate.ts`; otherwise pg-boss keeps copying Events into a queue nothing drains.

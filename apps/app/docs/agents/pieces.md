@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back, or when writing code that uses a piece. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Aggregate's piece behaviour is tested in a file of its own (`application/<aggregate>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<aggregate>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm aggregate-create` see that a piece's package is gone and leave the piece out of every new context and Aggregate.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Model's piece behaviour is tested in a file of its own (`application/<model>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<model>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm model-create` see that a piece's package is gone and leave the piece out of every new context and Model.
 
 ## How to remove a piece
 
@@ -17,7 +17,7 @@ When `pnpm check` fails after the removal, the command undoes it (the tree is as
 
 Rules for code that belongs to a piece, so the removal stays clean:
 
-- Put it in a whole file named for the piece (`<aggregate>-use-cases-<piece>.test.ts`, `adapters/outbound/<aggregate>-<piece>.ts`) where you can, and in blocks only where it shares a file.
+- Put it in a whole file named for the piece (`<model>-use-cases-<piece>.test.ts`, `adapters/outbound/<model>-<piece>.ts`) where you can, and in blocks only where it shares a file.
 - A variable or parameter used only inside a block must be declared inside it, or it is unused once the block goes. An import is never inside a block: piece-remove deletes the imports nothing uses.
 - Blocks of different pieces may nest; they may not cross. Biome sorts imports and exports and can pull a block apart: put a block's exports in their own group, after a blank line and a comment, below the file's other exports, as a context's `index.ts` does. `structure.test.ts` fails on a start without its end, and on blocks that cross.
 - Never wrap an import line in markers: Biome sorts imports and would carry one into or out of a block. Add a new import with the imports above the file's first `piece-start:` line, and an import only a piece uses to that piece's own file. When `pnpm format` has pulled a block apart (`structure.test.ts` or piece-remove says the markers do not balance), move the imports it carried back above the first marker and put each `piece-start:` and `piece-end:` line back around the code it held, then run `pnpm format` again and check the blocks are still whole.
@@ -43,25 +43,25 @@ A Project's own file that belongs to a piece, such as a test of the pages under 
 
 The React Router pages, their components and styles, and the Vite dev server. The API, sign-in, live update streams and the Worker stay. Without UI pages, `src/server.ts` serves its Hono app with `@hono/node-server`, Vite builds it into `build/server/index.js` as before, and `pnpm dev` runs it with `node --watch`.
 
-Add the UI pages back: `git revert` the "Remove ui" commit. For each Aggregate created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Aggregate, and add their lines at the `wiring:` markers in `src/ui/routes.ts` and `src/ui/context.ts`.
+Add the UI pages back: `git revert` the "Remove ui" commit. For each Model created after it, copy the `*-list.tsx` and `*-detail.tsx` pages and their tests from `apps/app/src/ui/routes/` of the Template release named in `.template.json`, renamed to the Model, and add their lines at the `wiring:` markers in `src/ui/routes.ts` and `src/ui/context.ts`.
 
 ## Live updates
 
 `pnpm piece-remove live`
 
-The live update streams (`/live/<aggregate>/<id>`, `@n8io/baseline-live`) and each Aggregate's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
+The live update streams (`/live/<model>/<id>`, `@n8io/baseline-live`) and each Model's live updates port. Redis stays for the cache; once both are gone, [Redis](#redis) can go too.
 
-Add live updates back: `git revert` the "Remove live" commit. For each Aggregate created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live-routes.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, with its route inside the `piece-start: live` block of the context's `index.ts`.
+Add live updates back: `git revert` the "Remove live" commit. For each Model created after it, copy every `piece-start: live` block, the `adapters/inbound/*-live-routes.ts` file and its test, and `application/*-use-cases-live.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Model, with its route inside the `piece-start: live` block of the context's `index.ts`.
 
 ## The cache
 
 `pnpm piece-remove cache`
 
-The cache store (`src/cache-store-open.ts`), each Aggregate's cache port and its adapter (`adapters/outbound/<aggregate>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
+The cache store (`src/cache-store-open.ts`), each Model's cache port and its adapter (`adapters/outbound/<model>-cached.ts`), the read-through in its get Use case and the clears in its update and delete Use cases. Every get then reads the database. Live updates and Redis stay.
 
 While you keep it: how a cached read can be stale, and why a failed cache call needs no catch, is in [data.md](data.md#cached-reads).
 
-Add the cache back: `git revert` the "Remove cache" commit. For each Aggregate created after it, copy every `piece-start: cache` block, the `adapters/outbound/*-cached.ts` file and its test and `application/*-use-cases-cache.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate.
+Add the cache back: `git revert` the "Remove cache" commit. For each Model created after it, copy every `piece-start: cache` block, the `adapters/outbound/*-cached.ts` file and its test and `application/*-use-cases-cache.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Model.
 
 ## Redis
 
@@ -79,17 +79,17 @@ The queue (`@n8io/baseline-queue` on pg-boss), each context's Domain events and 
 
 The command also drops the `SCHEDULE_*` overrides from `.env.schema`, takes the Worker out of `pnpm dev` and drops the `blocked-keys` script. `pnpm check` then regenerates `src/env.d.ts`.
 
-Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Aggregate created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` files from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts` and its `SCHEDULE_*` line at the one in `.env.schema`. Once per context, also copy `adapters/outbound/index-queue.test.ts` and add `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`.
+Add the queue and the Worker back: `git revert` the "Remove queue" commit. For each Model created after it, copy every `piece-start: queue` block and the `adapters/inbound/*-schedule.ts`, `adapters/inbound/*-schedule.test.ts`, `adapters/outbound/*-transaction.postgres.test.ts` files from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Model, and add its schedule at the `schedules` and `schedule-definitions` markers in the context's `index.ts` and its `SCHEDULE_*` line at the one in `.env.schema`. Once per context, also copy `adapters/outbound/index-queue.test.ts` and add `...<context>Schedules` at the `schedules` marker in `src/migrate.ts`.
 
 ## Analytics
 
 `pnpm piece-remove analytics`
 
-Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Aggregate's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` (and in `.env.production`, once you added it). Nothing else uses it, so it can go in any order.
+Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Model's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` (and in `.env.production`, once you added it). Nothing else uses it, so it can go in any order.
 
 `MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 
-Add analytics back: `git revert` the "Remove analytics" commit. For each Aggregate created after it, copy every `piece-start: analytics` block and `application/*-use-cases-analytics.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Aggregate.
+Add analytics back: `git revert` the "Remove analytics" commit. For each Model created after it, copy every `piece-start: analytics` block and `application/*-use-cases-analytics.test.ts` from the example context in `apps/app/src/contexts/` of the Template release named in `.template.json`, renamed to the Model.
 
 ## Error tracking
 
@@ -97,7 +97,7 @@ Add analytics back: `git revert` the "Remove analytics" commit. For each Aggrega
 
 Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` (and in `.env.production`, once you added it). Code reports an error by logging it, so no context holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
 
-It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the composition root has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
+It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the entry point has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
 
 `SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=infisical()` to `.env.production` and a `SENTRY_DSN` secret to the Infisical project.
 

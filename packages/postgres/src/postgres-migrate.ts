@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import {
-	postgresDurationIs,
+	postgresDurationIsValid,
 	postgresDurationMessage,
 } from "./postgres-pool.ts";
 import { postgresUrlAssert } from "./postgres-url-assert.ts";
@@ -63,13 +63,13 @@ export const postgresMigrate = async (
 		vendor: options.vendor ?? {},
 	});
 	const connectTimeoutMs = options.connectTimeoutMs ?? 3_000;
-	if (!postgresDurationIs(connectTimeoutMs)) {
+	if (!postgresDurationIsValid(connectTimeoutMs)) {
 		throw new TypeError(
 			`postgresMigrate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
 		);
 	}
 	const lockWaitMs = options.lockWaitMs ?? 60_000;
-	if (!postgresDurationIs(lockWaitMs)) {
+	if (!postgresDurationIsValid(lockWaitMs)) {
 		throw new TypeError(
 			`postgresMigrate: lockWaitMs must be ${postgresDurationMessage}, found ${lockWaitMs}`,
 		);

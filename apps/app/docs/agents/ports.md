@@ -2,7 +2,7 @@
 
 Read when a context needs something outside itself that is not Postgres, the cache, Live updates or another context: send an email, charge a card, call a partner's API, store a file. Postgres goes through repositories ([data.md](data.md)), another context through an ACL ([acl.md](acl.md)).
 
-A Use case never sees the vendor. It calls a port in the context's own words, the composition root opens the vendor's client once, and an outbound adapter joins the two. The analytics port is the model: `analyticsOpen` in `src/analytics-open.ts`, `connections.analytics`, and the context's `<context>Analytics` port.
+A Use case never sees the vendor. It calls a port in the context's own words, the entry point opens the vendor's client once, and an outbound adapter joins the two. The analytics port is the model: `analyticsOpen` in `src/analytics-open.ts`, `connections.analytics`, and the context's `<context>Analytics` port.
 
 ## Steps
 

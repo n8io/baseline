@@ -33,7 +33,7 @@ It asks two questions; pass them as flags instead with `--name --description [--
 
 <table>
 <tr>
-<td width="33%" valign="top"><b>Bounded contexts, not folders of stuff</b><br>Aggregates with their transitions, Use cases, ports and adapters in one layout per bounded context. <code>pnpm context-create</code> and <code>pnpm aggregate-create</code> add a context and its Aggregates, wired and tested, once their terms are in <code>CONTEXT.md</code>.</td>
+<td width="33%" valign="top"><b>Bounded contexts, not folders of stuff</b><br>Models with their model functions, Use cases, ports and adapters in one layout per bounded context. <code>pnpm context-create</code> and <code>pnpm model-create</code> add a context and its Models, wired and tested, once their terms are in <code>CONTEXT.md</code>.</td>
 <td width="33%" valign="top"><b>Events that keep their order</b><br>An Event commits with the write that caused it, reaches each Event handler in order per Event key, and an inbox skips a repeat. Schedules run in the Worker.</td>
 <td width="33%" valign="top"><b>An API that documents itself</b><br>An OpenAPI document and an interactive reference at <code>/api/v1/docs</code>. CI fails a breaking change to it.</td>
 </tr>
@@ -60,7 +60,7 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `ui`             | React Router pages, their components and the Vite dev server       | The API, sign-in, live update streams and the Worker, served by Hono |
 | `api-reference`  | The interactive reference at `/api/v1/docs`                        | The OpenAPI document at `/api/v1/openapi.json`                       |
 | `live`           | Live update streams to open pages                                  | Pages that show data as of their load                                |
-| `cache`          | The read-through cache on each Aggregate's get                     | Every get reads Postgres                                             |
+| `cache`          | The read-through cache on each Model's get                         | Every get reads Postgres                                             |
 | `redis`          | The Redis connection and its Docker service (after live and cache) | Postgres as the only data store                                      |
 | `queue`          | Events, Schedules and the Worker process                           | One long-running process; plain Postgres transactions                |
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
@@ -68,44 +68,44 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `cli`            | The Project's CLI in `clients/cli`                                 | The typed SDK for TypeScript callers                                 |
 | `sdk`            | The typed SDK in `clients/sdk` and its publishing (after cli)      | The API and its OpenAPI document                                     |
 
-`pnpm aggregate-create` leaves a removed piece out of every new Aggregate, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
+`pnpm model-create` leaves a removed piece out of every new Model, and `pnpm template-upgrade` keeps it out. The `pieces` CI job removes each piece on a throwaway copy on every pull request that changes code, so they stay removable. The [pieces guide](apps/app/docs/agents/pieces.md) has the order rules and how to add one back.
 
 ## Packages
 
 Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-<name>` needs no registry setup. Each wraps one concern behind a contract that does not name its vendor, and its README lists its exports, an example, and the env vars and peers it needs.
 
-| I need to…                                                                 | Package                                     | Runs on            |
-| -------------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
-| save an Aggregate in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
-| tell another context something happened, or run on a Schedule              | [`queue`](packages/queue)                   | pg-boss            |
-| refresh open pages when data changes                                       | [`live`](packages/live)                     | SSE, Redis pub/sub |
-| skip a slow read, and keep working when the store is down                  | [`cache`](packages/cache)                   | Redis or memory    |
-| share one connection between the cache and live updates                    | [`redis`](packages/redis)                   | node-redis         |
-| know who is calling: OIDC sign-in, JWT checks and the Actor                | [`authn`](packages/authn)                   | any OIDC provider  |
-| return an expected business error as `err(…)`, not a throw                 | [`result`](packages/result)                 |                    |
-| give an entity a prefixed id no other entity's id can pass for             | [`id`](packages/id)                         | TypeID, UUIDv7     |
-| shape API errors and add the API helpers                                   | [`http`](packages/http)                     | Hono               |
-| see a request across processes                                             | [`telemetry`](packages/telemetry)           | OpenTelemetry      |
-| log through the one logger, with credentials redacted                      | [`logger`](packages/logger)                 | pino               |
-| hear about unexpected errors, linked to their trace                        | [`error-tracking`](packages/error-tracking) | Sentry             |
-| track what an Actor did, sent without blocking                             | [`analytics`](packages/analytics)           | Mixpanel           |
-| answer `/livez` and `/readyz`                                              | [`health`](packages/health)                 |                    |
-| call the API from the generated SDK, with timeouts and safe retries        | [`sdk`](packages/sdk)                       | ky                 |
-| give API clients a command line, from the OpenAPI document                 | [`cli`](packages/cli)                       | commander          |
-| shut down gracefully, in order                                             | [`shutdown`](packages/shutdown)             |                    |
+| I need to…                                                            | Package                                     | Runs on            |
+| --------------------------------------------------------------------- | ------------------------------------------- | ------------------ |
+| save a Model in one transaction, migrate, page by keyset, take a lock | [`postgres`](packages/postgres)             | pg, Drizzle        |
+| tell another context something happened, or run on a Schedule         | [`queue`](packages/queue)                   | pg-boss            |
+| refresh open pages when data changes                                  | [`live`](packages/live)                     | SSE, Redis pub/sub |
+| skip a slow read, and keep working when the store is down             | [`cache`](packages/cache)                   | Redis or memory    |
+| share one connection between the cache and live updates               | [`redis`](packages/redis)                   | node-redis         |
+| know who is calling: OIDC sign-in, JWT checks and the Actor           | [`authn`](packages/authn)                   | any OIDC provider  |
+| return an expected business error as `err(…)`, not a throw            | [`result`](packages/result)                 |                    |
+| give a model a prefixed id no other model's id can pass for           | [`id`](packages/id)                         | TypeID, UUIDv7     |
+| shape API errors and add the API helpers                              | [`http`](packages/http)                     | Hono               |
+| see a request across processes                                        | [`telemetry`](packages/telemetry)           | OpenTelemetry      |
+| log through the one logger, with credentials redacted                 | [`logger`](packages/logger)                 | pino               |
+| hear about unexpected errors, linked to their trace                   | [`error-tracking`](packages/error-tracking) | Sentry             |
+| track what an Actor did, sent without blocking                        | [`analytics`](packages/analytics)           | Mixpanel           |
+| answer `/livez` and `/readyz`                                         | [`health`](packages/health)                 |                    |
+| call the API from the generated SDK, with timeouts and safe retries   | [`sdk`](packages/sdk)                       | ky                 |
+| give API clients a command line, from the OpenAPI document            | [`cli`](packages/cli)                       | commander          |
+| shut down gracefully, in order                                        | [`shutdown`](packages/shutdown)             |                    |
 
 ## In a Project
 
-| Task                                                  | Command                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Lint, format check and typecheck                      | `pnpm check`                                                                   |
-| Unit tests (memory adapters)                          | `pnpm test`                                                                    |
-| Integration tests (`pnpm dev` first)                  | `pnpm test:integration`                                                        |
-| Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`                                                                  |
-| Add a context, then an Aggregate                      | `pnpm context-create <context>`, `pnpm aggregate-create <context> <aggregate>` |
-| Remove a piece                                        | `pnpm piece-remove <piece>`                                                    |
-| Generate a migration after you edit any `*-table.ts`. | `pnpm codegen`                                                                 |
-| Pull the newest Template release                      | `pnpm template-upgrade`                                                        |
+| Task                                                  | Command                                                                |
+| ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| Lint, format check and typecheck                      | `pnpm check`                                                           |
+| Unit tests (memory adapters)                          | `pnpm test`                                                            |
+| Integration tests (`pnpm dev` first)                  | `pnpm test:integration`                                                |
+| Most of CI (not oasdiff, migrations, sast, image)     | `pnpm run ci`                                                          |
+| Add a context, then a Model                           | `pnpm context-create <context>`, `pnpm model-create <context> <model>` |
+| Remove a piece                                        | `pnpm piece-remove <piece>`                                            |
+| Generate a migration after you edit any `*-table.ts`. | `pnpm codegen`                                                         |
+| Pull the newest Template release                      | `pnpm template-upgrade`                                                |
 
 > [!TIP]
 > `pnpm template-upgrade` does a 3-way merge between the release your Project came from and the newest one. Resolve every conflict marker before you commit.

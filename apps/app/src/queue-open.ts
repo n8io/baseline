@@ -1,4 +1,4 @@
-// The queue and Events for a composition root, in the same Postgres as the contexts: both "memory"
+// The queue and Events for an entry point, in the same Postgres as the contexts: both "memory"
 // with a memory database. `pnpm piece-remove queue` deletes this file.
 import type { PostgresPool } from "@n8io/baseline-postgres";
 import { type Events, type Queue, queueCreate } from "@n8io/baseline-queue";

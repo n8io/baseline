@@ -1,10 +1,10 @@
 # UI pages
 
-Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `baz` context and its Aggregate Baz; an Aggregate made by `pnpm aggregate-create` starts with the same two pages, `<aggregate>-list.tsx` and `<aggregate>-detail.tsx`, under its own name.
+Read when adding, changing, testing or removing a page under `src/ui/`. The examples use a `baz` context and its Model Baz; a Model made by `pnpm model-create` starts with the same two pages, `<model>-list.tsx` and `<model>-detail.tsx`, under its own name.
 
 ## A page
 
-One React Router route module per page, `src/ui/routes/<aggregate>-<view>.tsx`, listed in `src/ui/routes.ts` above `// wiring: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a bounded context only through its `index.ts` (A10).
+One React Router route module per page, `src/ui/routes/<model>-<view>.tsx`, listed in `src/ui/routes.ts` above `// wiring: routes`. It exports a `loader`, an `action` when the page changes anything, the page component as default, and an `ErrorBoundary` when the loader can throw. The UI reaches a bounded context only through its `index.ts` (A10).
 
 ## Loader
 
@@ -26,9 +26,9 @@ export const loader = async (args: Route.LoaderArgs) => {
 };
 ```
 
-- Each bounded context's Use cases are one router context key, `<context>UseCasesContext` in `src/ui/context.ts`. A context's first Aggregate with pages adds the key and its entry in `uiLoadContextCreate`.
+- Each bounded context's Use cases are one router context key, `<context>UseCasesContext` in `src/ui/context.ts`. A context's first Model with pages adds the key and its entry in `uiLoadContextCreate`.
 - A Use case error the page cannot go on from (not found, forbidden) is thrown as `data(...)` with its status from the context's exported `bazErrorStatus`, keyed by the error's `type` (the same table the API uses). Never write a status literal for a Use case's error.
-- Show a control only when the Actor may use it: call the context's exported "can" specifications in the loader and return booleans. The Use case still checks; the specification only hides what it would refuse.
+- Show a control only when the Actor may use it: call the context's exported "can" predicates in the loader and return booleans. The Use case still checks; the predicate only hides what it would refuse.
 
 ```ts
 // src/ui/routes/baz-detail.tsx
@@ -41,7 +41,7 @@ const bazErrorThrow = ({ message, type }: BazError): never => {
 // src/ui/routes/baz-detail.tsx
 const baz = result.value;
 return {
-	can: { delete: bazDeleteCan(baz, actor), update: bazUpdateCan(baz, actor) },
+	can: { delete: bazCanDelete(baz, actor), update: bazCanUpdate(baz, actor) },
 	baz,
 };
 ```
@@ -53,22 +53,22 @@ return {
 An action calls exactly one write Use case. A page with several forms tells them apart by a hidden `intent` field and calls one Use case per intent.
 
 - Parse the form with the context's input type. On failure return `data({ errors: z.flattenError(parsed.error).fieldErrors, values }, { status: 400 })`, so the form shows each field's errors and keeps what was typed.
-- On success, `redirect` to the changed entity, or return `{ ok: true }` to stay.
+- On success, `redirect` to the changed model, or return `{ ok: true }` to stay.
 - A refused change the user can fix is a message on the page, not an error page: return `data({ errors, values }, { status: bazErrorStatus.BazNameTaken })` and render it beside the form. Throw the rest with `bazErrorThrow`; the `ErrorBoundary` shows them.
 - Words for a refused change: `error.message`, or, when users need other words, a `Record<BazError["type"], string>` in `src/ui/lib/<context>-error-message.ts`, so a new error fails to compile until it has words.
 - Pending state comes from `useNavigation()`: disable the form's buttons while it submits.
 
 ## Live updates
 
-A page that shows an entity others can change reruns its loaders when that entity changes. The call sits between the page's `piece-start: live` and `piece-end: live` lines, so `pnpm piece-remove live` takes it out.
+A page that shows a model others can change reruns its loaders when that model changes. The call sits between the page's `piece-start: live` and `piece-end: live` lines, so `pnpm piece-remove live` takes it out.
 
 ```ts
 // src/ui/routes/baz-detail.tsx
 useLiveUpdates({ channel: "baz", id: baz.id });
 ```
 
-- The channel is the Aggregate's name, the id the entity's. Its Use case sends on that channel after commit, and `adapters/inbound/<aggregate>-live-routes.ts` serves the stream only to an Actor its read Use case allows.
-- A hook cannot be called conditionally. A page that follows a second entity only some of the time passes `id: null` while there is none: no stream opens.
+- The channel is the Model's name, the id the model's. Its Use case sends on that channel after commit, and `adapters/inbound/<model>-live-routes.ts` serves the stream only to an Actor its read Use case allows.
+- A hook cannot be called conditionally. A page that follows a second model only some of the time passes `id: null` while there is none: no stream opens.
 
 ## Forms
 

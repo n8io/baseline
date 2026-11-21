@@ -18,7 +18,7 @@ import type { FooEventMap } from "../../domain/foo.ts";
 import { barRepositoryPostgresCreate } from "./bar-repository.postgres.ts";
 import { fooRepositoryPostgresCreate } from "./foo-repository.postgres.ts";
 
-// One Postgres transaction: everything the work writes, in every Aggregate of the context,
+// One Postgres transaction: everything the work writes, in every Model of the context,
 // commits or rolls back together.
 export const fooTransactionPostgresCreate = (
 	pgPool: PostgresPool,
@@ -46,7 +46,7 @@ export const fooTransactionPostgresCreate = (
 				if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 					return ok(undefined) as Result<T, E>;
 				}
-				// An Aggregate's Events port, publishing on this transaction's connection. The Use case
+				// A Model's Events port, publishing on this transaction's connection. The Use case
 				// gets publish only: committed() is this file's to call.
 				const eventsCreate = <M extends Record<string, unknown>>() => {
 					const publisher = events.publisherCreate<M>(pgClient);

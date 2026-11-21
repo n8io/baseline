@@ -347,9 +347,9 @@ const aclOf = (p: string): string | undefined => {
 };
 const tableIs = (p: string): boolean =>
 	/^src\/contexts\/[^/]+\/adapters\/outbound\/[^/]+-table\.ts$/.test(p);
-// A context's Aggregates: an Aggregate root schema in domain/ with its own table in adapters/outbound/. A table
+// A context's Models: a Model schema in domain/ with its own table in adapters/outbound/. A table
 // with no domain/ file of its name (a projection) is not one. structure.test.ts reads it too.
-export const architectureAggregatesFind = (
+export const architectureModelsFind = (
 	paths: string[],
 	context: string,
 ): string[] =>
@@ -361,12 +361,12 @@ export const architectureAggregatesFind = (
 			? [name]
 			: [];
 	});
-const aggregatesOf = (files: ArchitectureFile[], context: string): string[] =>
-	architectureAggregatesFind(
+const modelsOf = (files: ArchitectureFile[], context: string): string[] =>
+	architectureModelsFind(
 		files.map((f) => f.path),
 		context,
 	);
-// The composition roots, as CONTEXT.md lists them: each file starts one process.
+// The entry points, as CONTEXT.md lists them: each file starts one process.
 const roots = [
 	"src/blocked-keys.ts",
 	"src/migrate.ts",
@@ -374,7 +374,7 @@ const roots = [
 	"src/server.ts",
 	"src/worker.ts",
 ];
-// Where Use cases must not be built bare: contextsCreate and the composition roots (a context's
+// Where Use cases must not be built bare: contextsCreate and the entry points (a context's
 // index.ts is checked too).
 const useCasesBuilders = [...roots, "src/contexts.ts"];
 
@@ -480,7 +480,7 @@ const thingWords =
 // .server/.client suffix is left out, and a test helper or rules file (<area>-test-<thing>.ts)
 // is named after its area. Not checked: tests, index.ts, a Package's subpath entries (named after
 // the subpath, so without the package's name), the repository's and the Template's scripts/
-// (commands named after their pnpm script, and their helpers), the composition roots, an <aggregate>-table.ts (the Aggregate's Drizzle
+// (commands named after their pnpm script, and their helpers), the entry points, an <model>-table.ts (the Model's Drizzle
 // table), the generated SDK and files exporting only types, classes, components, hooks and
 // framework names. It reads `export const|let|function` lines, not `export { … }` lists.
 const exportedValue = /^export (?:const|let|(?:async )?function\*?) (\w+)/gm;
@@ -550,7 +550,7 @@ const scopeOf = (p: string): string | undefined => {
 };
 
 // What domain/ imports from outside its context: Zod, the id schema and the result package (a
-// transition returns ok or err), and the shared kernel's types (the Actor and an id).
+// model function returns ok or err), and the shared kernel's types (the Actor and an id).
 const domainImportsAllowed = new Set([
 	"@n8io/baseline-result",
 	"src/id-schema.ts",
@@ -590,7 +590,7 @@ const sharedSchemaNames = (f: ArchitectureFile): string[] => {
 	return names;
 };
 
-// The functions a context's domain/ exports: its transitions, specifications and domain services.
+// The functions a context's domain/ exports: its model functions and domain services.
 const domainFunctionNames = (
 	files: ArchitectureFile[],
 	context: string,
@@ -608,7 +608,7 @@ const domainFunctionNames = (
 			),
 	);
 
-// Adapters translate; the Aggregate's transitions and specifications run only in Use cases.
+// Adapters translate; the Model's model functions run only in Use cases.
 const adapterDomainLogicImports = (
 	files: ArchitectureFile[],
 	layer: string,
@@ -639,7 +639,7 @@ const adapterDomainLogicImports = (
 				...namespaces.map((m) => `* as ${m[1]}`),
 			].map(
 				(name) =>
-					`${f.path} imports ${name}: ${layer}/ holds no business logic; call a Use case that applies the transition or specification`,
+					`${f.path} imports ${name}: ${layer}/ holds no business logic; call a Use case that applies the model function`,
 			);
 		});
 
@@ -724,7 +724,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				if (!target) return undefined;
 				return partsOf(imp.target).join("/") === "index.ts"
 					? undefined
-					: `outside a context, import only src/contexts/${target}/index.ts, its one interface: build it with ${camel(target)}ContextCreate, or export the Published language you need from it`;
+					: `outside a context, import only src/contexts/${target}/index.ts, its one interface: build it with ${camel(target)}ContextCreate, or export the Public contract you need from it`;
 			},
 		}),
 
@@ -774,7 +774,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) === "domain",
 			check: ({ imp }) =>
 				imp.specifier.startsWith("@hono/")
-					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<aggregate>-routes.ts"
+					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<model>-routes.ts"
 					: undefined,
 		}),
 		...textCheck({
@@ -782,7 +782,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
 			pattern: /\.openapi\(/g,
 			reason: () =>
-				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<aggregate>-routes.ts",
+				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts",
 		}),
 	],
 
@@ -809,7 +809,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				f.path !== "src/ui/entry.server.tsx",
 			check: ({ imp }) =>
 				imp.specifier === "@n8io/baseline-logger"
-					? "contexts and the UI never log; return an error or set a span attribute, and log in the composition roots (src/ui/entry.server.tsx for page errors)"
+					? "contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
 					: undefined,
 		}),
 
@@ -881,7 +881,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				),
 			pattern: /\bclose\s*\??\s*[(:<]/g,
 			reason: () =>
-				"no port declares close; the composition roots open and close connections",
+				"no port declares close; the entry points open and close connections",
 		}),
 		...textCheck({
 			files,
@@ -889,7 +889,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern:
 				/\b(new Pool|createClient|postgresPoolCreate|redisClientCreate|queueCreate)\(/g,
 			reason: (m) =>
-				`${m[1]}( opens a connection; the composition roots own connections and pass them to <context>ContextCreate through src/contexts.ts`,
+				`${m[1]}( opens a connection; the entry points own connections and pass them to <context>ContextCreate through src/contexts.ts`,
 		}),
 		...textCheck({
 			files,
@@ -916,7 +916,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => !tableIs(f.path) && !testIs(f.path),
 			pattern: /\bpgSchema\(|\bpgTable\(|\.table\(\s*["'`]/g,
 			reason: () =>
-				"tables live only in src/contexts/<context>/adapters/outbound/<aggregate>-table.ts",
+				"tables live only in src/contexts/<context>/adapters/outbound/<model>-table.ts",
 		}),
 		...textCheck({
 			files,
@@ -971,15 +971,15 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					.map((m) => files.find((c) => c.path === `${folder}${m[1]}.ts`))
 					.map((c) => c?.source ?? "");
 				const source = [f.source, ...imported].join("\n");
-				// Another context's id, or an id of one of its Aggregates, is a column built with that id's
+				// Another context's id, or an id of one of its Models, is a column built with that id's
 				// prefix, whatever it is named (proposer_team_id); a plain uuid("proposer_team_id") or a
-				// column named <other>_id counts too. An id of the context's own Aggregate needs no handler.
+				// column named <other>_id counts too. An id of the context's own Model needs no handler.
 				// The context's own names count while picking the longest match, so its order-item id
 				// is not read as another context's item id, then drop out: they need no handler.
-				const own = new Set([context, ...aggregatesOf(files, context)]);
+				const own = new Set([context, ...modelsOf(files, context)]);
 				const held = [
 					...new Set(
-						contexts.flatMap((other) => [other, ...aggregatesOf(files, other)]),
+						contexts.flatMap((other) => [other, ...modelsOf(files, other)]),
 					),
 				]
 					.filter((other) => {
@@ -1042,10 +1042,10 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						),
 					].map((k) => k[2] ?? k[3] ?? ""),
 				);
-				// An Aggregate's Use cases may name the Aggregate instead: baseline.invoice_line.id.
+				// A Model's Use cases may name the Model instead: baseline.invoice_line.id.
 				const scopes = [
 					context,
-					...aggregatesOf(files, contextOf(f.path) ?? "").map(snake),
+					...modelsOf(files, contextOf(f.path) ?? "").map(snake),
 				].join("|");
 				const valid = new RegExp(
 					`^baseline\\.(${scopes})\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
@@ -1178,7 +1178,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => !testIs(f.path),
 			check: ({ f, imp }) => {
 				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
-					return "only src/env.ts imports varlock/env; import ENV from #env in a composition root or src/connections.ts";
+					return "only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts";
 				}
 				const rootsWithEnv = [
 					...roots,
@@ -1186,7 +1186,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					"src/connections.ts",
 				];
 				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the composition roots and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+					? "only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 					: undefined;
 			},
 		}),
@@ -1227,8 +1227,8 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern: exportedPredicate,
 			reason: ([, constName, functionName]) => {
 				const name = constName ?? functionName ?? "";
-				return !exemptIs(name) && !/(Is|Has|Can)$/.test(name)
-					? `${name} returns a boolean; a predicate ends in Is, Has or Can (invoiceDeleteCan, postgresUniqueViolationIs)`
+				return !exemptIs(name) && !/[a-z0-9](?:Is|Has|Can)[A-Z0-9]/.test(name)
+					? `${name} returns a boolean; a predicate names its model first, then Is, Has or Can, so it reads as English (invoiceIsPaid, invoiceHasLines, invoiceCanRefund)`
 					: undefined;
 			},
 		}),
@@ -1239,17 +1239,17 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			reason: ([, constName, functionName], f) => {
 				const name = constName ?? functionName ?? "";
 				const scope = scopeOf(f.path) ?? "";
-				// A context's export may start with one of its Aggregates' names instead.
+				// A context's export may start with one of its Models' names instead.
 				const context = contextOf(f.path);
 				const scopes = [
 					scope,
-					...(context ? aggregatesOf(files, context).map(camel) : []),
+					...(context ? modelsOf(files, context).map(camel) : []),
 				];
 				return exemptIs(name) ||
 					unscopedNames.has(name) ||
 					scopes.some((s) => new RegExp(`^${s}(?:[A-Z0-9]|$)`).test(name))
 					? undefined
-					: `${name} is exported from ${scope}; start every exported function with its Package or context name, or one of its context's Aggregates: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+					: `${name} is exported from ${scope}; start every exported function with its Package or context name, or one of its context's Models: ${scope}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 			},
 		}),
 	],
@@ -1264,7 +1264,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: undefined,
 		}),
 
-	// A7 keeps OpenAPI out of domain/. An Aggregate schema is plain Zod, so `.openapi` is missing on it until
+	// A7 keeps OpenAPI out of domain/. A Model schema is plain Zod, so `.openapi` is missing on it until
 	// @hono/zod-openapi has loaded: a call on one works or throws with test order.
 	A25: (files) =>
 		files
@@ -1338,7 +1338,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					}
 					const instead =
 						kind === "domain/ file"
-							? "a transition returns err(new <Name>Error()) and names the error in its Result"
+							? "a model function returns err(new <Name>Error()) and names the error in its Result"
 							: "return err(new <Name>Error()) and add the error to the Use case's error union";
 					return [
 						`${where}; ${instead}. Only a bug that cannot happen throws (never not-found, forbidden, conflict or validation): throw new Error(...) directly under a one-line "// unreachable: <why, in a few words>"`,
@@ -1346,7 +1346,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				});
 			}),
 
-	// One Aggregate per transaction: a transaction whose work reaches two Aggregates' repositories
+	// One Model per transaction: a transaction whose work reaches two Models' repositories
 	// says which invariant needs both, in a `// invariant: <what>` comment right above the call.
 	// The ports already keep a transaction inside one context.
 	A28: (files) =>
@@ -1382,12 +1382,12 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					)
 						? []
 						: [
-								`${f.path}:${line + 1}: one transaction writes ${[...repositories].sort().join(" and ")}; keep one Aggregate per transaction, or say the invariant that needs both in a "// invariant: <what>" comment above it`,
+								`${f.path}:${line + 1}: one transaction writes ${[...repositories].sort().join(" and ")}; keep one Model per transaction, or say the invariant that needs both in a "// invariant: <what>" comment above it`,
 							];
 				});
 			}),
 
-	// An Aggregate changes only through its transitions, so a Use case never builds one or copies
+	// A Model changes only through its model functions, so a Use case never builds one or copies
 	// one with changes: no literal typed as or cast to the root, no spread of or assignment to a
 	// variable named for it or loaded by a repository find, and no literal handed to its
 	// repository's write. Text, not types, like A23: it reads names, so an untyped literal under
@@ -1405,7 +1405,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						/\b(?:const|let)\s+(\w+)\s*=\s*await\s+[\w.]*Repository\s*\.\s*find\w*\(/g,
 					),
 				].map((m) => m[1] ?? "");
-				return aggregatesOf(files, context).flatMap((kebab) => {
+				return modelsOf(files, context).flatMap((kebab) => {
 					const variable = camel(kebab);
 					const pascal = variable.charAt(0).toUpperCase() + variable.slice(1);
 					const names = [variable, `\\w+${pascal}`, ...loaded].join("|");
@@ -1421,7 +1421,7 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					);
 					return [...code.matchAll(pattern)].map((m) => {
 						const line = code.slice(0, m.index).split("\n").length;
-						return `${f.path}:${line}: ${m[0].trim()} makes or changes a ${pascal} in a Use case; do it only through a transition in domain/${kebab}.ts that returns Result, so its invariants hold`;
+						return `${f.path}:${line}: ${m[0].trim()} makes or changes a ${pascal} in a Use case; do it only through a model function in domain/${kebab}.ts that returns Result, so its invariants hold`;
 					});
 				});
 			}),

@@ -7,7 +7,7 @@ import {
 	InvoiceLineNotFoundError,
 } from "../domain/errors.ts";
 import {
-	invoiceLineCustomerAssign as customerAssignTransition,
+	invoiceLineCustomerAssign as customerAssignDomain,
 	type InvoiceLine,
 	type InvoiceLineCustomerAssignInput,
 } from "../domain/invoice-line.ts";
@@ -47,7 +47,7 @@ export const invoiceLineCustomerAssign =
 			);
 			if (!invoiceLine)
 				return err(new InvoiceLineNotFoundError(input.invoiceLineId));
-			const assigned = customerAssignTransition(invoiceLine, {
+			const assigned = customerAssignDomain(invoiceLine, {
 				actor,
 				customerId: input.customerId,
 				now: ports.invoiceLineClock.now(),

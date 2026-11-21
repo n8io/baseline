@@ -6,7 +6,7 @@ import {
 	agentDocsViolationsRead,
 } from "./agent-docs-test-rules.ts";
 import {
-	architectureAggregatesFind,
+	architectureModelsFind,
 	architectureRules,
 } from "./architecture-test-rules.ts";
 import {
@@ -44,7 +44,7 @@ const termOf = (name: string) => {
 	return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(" ");
 };
 
-// `glossaryOf` gives a context's own CONTEXT.md, which holds its Aggregates' terms.
+// `glossaryOf` gives a context's own CONTEXT.md, which holds its Models' terms.
 const structureViolations = (
 	paths: string[],
 	glossaryOf: (context: string) => string,
@@ -68,13 +68,13 @@ const structureViolations = (
 	}
 	for (const [name, files] of byContext) {
 		const base = `src/contexts/${name}`;
-		// The context's CONTEXT.md, and each Aggregate's error statuses (one table file each).
-		const aggregates = architectureAggregatesFind(paths, name);
+		// The context's CONTEXT.md, and each Model's error statuses (one table file each).
+		const models = architectureModelsFind(paths, name);
 		const allowed = new Set([
 			"CONTEXT.md",
 			"index.ts",
 			`${name}-error-status.ts`,
-			...aggregates.map((aggregate) => `${aggregate}-error-status.ts`),
+			...models.map((model) => `${model}-error-status.ts`),
 		]);
 		const folders = [
 			"domain",
@@ -105,11 +105,11 @@ const structureViolations = (
 			const inFolder = folders.some((folder) => file.startsWith(`${folder}/`));
 			if (!allowed.has(file) && !inFolder) {
 				problems.push(
-					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts; put the Aggregates, errors and repository ports in domain/, Use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
+					`${base}/${file}: a context root holds only CONTEXT.md, index.ts and <model>-error-status.ts; put the Models, errors and repository ports in domain/, Use cases and the other ports in application/, inbound adapters in adapters/inbound/, outbound adapters in adapters/outbound/`,
 				);
 			}
 		}
-		// Each Aggregate in domain/ is a glossary term, and so is any other file of schemas there.
+		// Each Model in domain/ is a glossary term, and so is any other file of schemas there.
 		// Errors, repository ports and domain services are not; a domain service is a file with no
 		// table of its name and a test beside it.
 		for (const file of files) {
@@ -118,7 +118,7 @@ const structureViolations = (
 				stem &&
 				!stem.endsWith(".test") &&
 				!["errors", "repositories"].includes(stem) &&
-				(aggregates.includes(stem) || !files.includes(`domain/${stem}.test.ts`))
+				(models.includes(stem) || !files.includes(`domain/${stem}.test.ts`))
 			)
 				termCheck(stem, name);
 		}
@@ -154,13 +154,13 @@ const testPlacementViolations = (paths: string[]): string[] => {
 	const nameOf = (path: string) => path.slice(folderOf(path).length);
 	const testIs = (path: string) => /\.test\.tsx?$/.test(path);
 	const sources = paths.filter((path) => !testIs(path));
-	// An Aggregate's test of a context file (billing-use-cases.ts) is named with the Aggregate in
-	// the context's place (invoice-line-use-cases-cache.test.ts), so two Aggregates' tests differ.
-	const aggregatesOf = (path: string): string[] => {
+	// A Model's test of a context file (billing-use-cases.ts) is named with the Model in
+	// the context's place (invoice-line-use-cases-cache.test.ts), so two Models' tests differ.
+	const modelsOf = (path: string): string[] => {
 		const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1];
 		return context === undefined
 			? []
-			: architectureAggregatesFind(sources, context);
+			: architectureModelsFind(sources, context);
 	};
 	return paths
 		.filter(testIs)
@@ -171,9 +171,9 @@ const testPlacementViolations = (paths: string[]): string[] => {
 			const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1] ?? "";
 			const names = [
 				name,
-				...aggregatesOf(path)
-					.filter((aggregate) => name.startsWith(`${aggregate}-`))
-					.map((aggregate) => `${context}${name.slice(aggregate.length)}`),
+				...modelsOf(path)
+					.filter((model) => name.startsWith(`${model}-`))
+					.map((model) => `${context}${name.slice(model.length)}`),
 			];
 			const beside = sources.some((source) => {
 				const stem = nameOf(source).replace(/\.[^.]+$/, "");
@@ -304,7 +304,7 @@ describe("context structure", () => {
 		},
 		{
 			message:
-				"src/contexts/bar/helper.ts: a context root holds only CONTEXT.md, index.ts and <aggregate>-error-status.ts",
+				"src/contexts/bar/helper.ts: a context root holds only CONTEXT.md, index.ts and <model>-error-status.ts",
 			paths: [...barBase, "src/contexts/bar/helper.ts"],
 			name: "a stray root file",
 		},
@@ -322,7 +322,7 @@ describe("context structure", () => {
 			message:
 				"src/contexts/bar/CONTEXT.md: add a **Bar line**: term for bar-line",
 			paths: [...barBase, "src/contexts/bar/domain/bar-line.ts"],
-			name: "an Aggregate with no glossary term",
+			name: "a Model with no glossary term",
 		},
 	])("fails on $name", ({ message, paths }) => {
 		expect(structureViolations(paths, () => context)).toEqual([
@@ -330,7 +330,7 @@ describe("context structure", () => {
 		]);
 	});
 
-	it("reads each context's own glossary for its Aggregates' terms", () => {
+	it("reads each context's own glossary for its Models' terms", () => {
 		const paths = [
 			...barBase,
 			...barBase.map((path) => path.replaceAll("bar", "baz")),
@@ -342,7 +342,7 @@ describe("context structure", () => {
 		]);
 	});
 
-	it("passes a CONTEXT.md and each Aggregate's error statuses at the root", () => {
+	it("passes a CONTEXT.md and each Model's error statuses at the root", () => {
 		const paths = [
 			...barBase,
 			"src/contexts/bar/CONTEXT.md",
@@ -362,14 +362,14 @@ describe("context structure", () => {
 		).toEqual([expect.stringContaining("a context root holds only")]);
 	});
 
-	it("passes an Aggregate once the glossary has its term", () => {
+	it("passes a Model once the glossary has its term", () => {
 		const paths = [...barBase, "src/contexts/bar/domain/bar-line.ts"];
 		expect(
 			structureViolations(paths, () => `${context}**Bar line**:\n`),
 		).toEqual([]);
 	});
 
-	it("term-checks an Aggregate's file even with a test beside it, but not a domain service", () => {
+	it("term-checks a Model's file even with a test beside it, but not a domain service", () => {
 		const paths = [
 			...barBase,
 			"src/contexts/bar/domain/bar-line.ts",
@@ -428,7 +428,7 @@ describe("test placement", () => {
 		],
 		["a test in another folder", ["docs/a.ts", "docs/a.test.ts"]],
 		[
-			"a context file's test named after no Aggregate",
+			"a context file's test named after no Model",
 			[
 				"src/contexts/bar/application/bar-use-cases.ts",
 				"src/contexts/bar/application/baz-use-cases-cache.test.ts",

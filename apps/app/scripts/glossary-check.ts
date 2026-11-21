@@ -5,7 +5,7 @@
 // and that context's language: an `_Avoid_:` alias of either, or another context's term, is a hit.
 // Another context's term is fine in the adapters/ of a context the map lists downstream of it,
 // and anywhere in a context that has an ACL to its context or whose own CONTEXT.md uses the term.
-// Other files (UI, composition roots) are held to every glossary's aliases. Given a glossary
+// Other files (UI, entry points) are held to every glossary's aliases. Given a glossary
 // instead of a map (Baseline runs it over the monorepo with its root CONTEXT.md), that glossary
 // holds every file. Only prose counts: comments and string literals in code files, every line of
 // other text files; migrations, JSON, the glossaries and a string that is the value of `kind:`,
@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { argsParse, argsUsageFail } from "./args.ts";
 import { processRun } from "./process-run.ts";
-import { codeFileIs, modesRead } from "./template-render.ts";
+import { fileIsCode, modesRead } from "./template-render.ts";
 
 type GlossaryAlias = { alias: string; term: string };
 
@@ -174,12 +174,10 @@ export const glossaryLanguageRead = (glossary: string): GlossaryLanguage => ({
 	terms: glossaryTermsRead(glossary),
 });
 
-export const contextSubdomains = ["core", "supporting", "generic"];
-
 const contextThroughs = ["ACL", "Domain events"];
 
 export type ContextMap = {
-	contexts: { context: string; glossary: string; subdomain: string }[];
+	contexts: { context: string; glossary: string }[];
 	// Every CONTEXT.md the map links, contexts' and shared ones alike, relative to the map.
 	glossaries: string[];
 	relationships: { downstream: string; through: string[]; upstream: string }[];
@@ -210,16 +208,13 @@ const tableRowsRead = (text: string, heading: string): string[][] => {
 const cellText = (cell = ""): string =>
 	(/\]\(([^)]+)\)/.exec(cell)?.[1] ?? cell).replaceAll("`", "").trim();
 
-// CONTEXT-MAP.md: a `## Contexts` table (Context | Subdomain | Language) and a `## Relationships`
+// CONTEXT-MAP.md: a `## Contexts` table (Context | Language) and a `## Relationships`
 // table (Downstream | Upstream | Through). docs/agents/context-create.md gives the format.
 export const contextMapRead = (map: string): ContextMap => ({
-	contexts: tableRowsRead(map, "Contexts").map(
-		([context, subdomain, glossary]) => ({
-			context: cellText(context),
-			glossary: cellText(glossary),
-			subdomain: cellText(subdomain),
-		}),
-	),
+	contexts: tableRowsRead(map, "Contexts").map(([context, glossary]) => ({
+		context: cellText(context),
+		glossary: cellText(glossary),
+	})),
 	glossaries: [
 		...new Set(
 			[...map.matchAll(/\]\(([^)]*CONTEXT\.md)\)/g)].map((m) => m[1] ?? ""),
@@ -382,7 +377,7 @@ export const glossaryHitsFind = ({
 		// The glossaries and the map name every alias and term on purpose.
 		if (glossarySkipIs(added.file)) continue;
 		let prose = added.text;
-		if (codeFileIs(added.file)) {
+		if (fileIsCode(added.file)) {
 			let lines = proses.get(added.file);
 			if (lines === undefined) {
 				// A file that cannot be read (a renamed path prefix, a deleted file) is skipped alone.
@@ -440,8 +435,7 @@ export const glossaryHitFormat = (
 };
 
 // What is wrong with an app's glossaries: CONTEXT.md holds only the shared terms, CONTEXT-MAP.md
-// has one row per folder in src/contexts/ with a subdomain type and its CONTEXT.md, that file says
-// the same subdomain, and each relationship joins two listed contexts through an ACL,
+// has one row per folder in src/contexts/ with its CONTEXT.md, and each relationship joins two listed contexts through an ACL,
 // Domain events or both. `glossaryRead` returns undefined for a missing file.
 export const contextMapViolations = ({
 	appGlossary,
@@ -472,13 +466,8 @@ export const contextMapViolations = ({
 			);
 		}
 	}
-	for (const { context, glossary, subdomain } of parsed.contexts) {
+	for (const { context, glossary } of parsed.contexts) {
 		const path = `src/contexts/${context}/CONTEXT.md`;
-		if (!contextSubdomains.includes(subdomain)) {
-			problems.push(
-				`CONTEXT-MAP.md: ${context}'s subdomain is core, supporting or generic, not "${subdomain}"`,
-			);
-		}
 		if (glossary !== path) {
 			problems.push(
 				`CONTEXT-MAP.md: link ${context}'s language as ${path}, not "${glossary}"`,
@@ -490,14 +479,8 @@ export const contextMapViolations = ({
 			);
 			continue;
 		}
-		const text = glossaryRead(path);
-		if (!contextSubdomains.includes(subdomain)) continue;
-		if (text === undefined) {
+		if (glossaryRead(path) === undefined) {
 			problems.push(`${path}: add ${context}'s language`);
-		} else if (/^Subdomain: (.*)$/m.exec(text)?.[1]?.trim() !== subdomain) {
-			problems.push(
-				`${path}: say "Subdomain: ${subdomain}" under the title, as CONTEXT-MAP.md does`,
-			);
 		}
 	}
 	for (const { downstream, through, upstream } of parsed.relationships) {

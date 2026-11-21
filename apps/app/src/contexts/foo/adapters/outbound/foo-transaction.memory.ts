@@ -12,7 +12,7 @@ import type { Foo } from "../../domain/foo.ts";
 import { barRepositoryMemoryCreate } from "./bar-repository.memory.ts";
 import { fooRepositoryMemoryCreate } from "./foo-repository.memory.ts";
 
-// The context's committed rows, one map per Aggregate. The read repositories and the transaction
+// The context's committed rows, one map per Model. The read repositories and the transaction
 // share one state object; a transaction swaps in its copies on commit.
 export type FooMemoryState = {
 	bars: Map<Id<"bar">, Bar>;

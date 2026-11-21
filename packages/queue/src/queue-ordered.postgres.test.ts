@@ -271,7 +271,7 @@ describe("order at publish", () => {
 		const first = await pgPool.connect();
 		const second = await pgPool.connect();
 		try {
-			// `first` starts first, but `second` changes the entity and commits first.
+			// `first` starts first, but `second` changes the model and commits first.
 			await first.query("BEGIN");
 			await first.query("SELECT now()");
 			await second.query("BEGIN");

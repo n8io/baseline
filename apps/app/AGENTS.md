@@ -17,7 +17,7 @@ Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
 - dev server: `pnpm dev` at the URL it prints runs Postgres, Redis, migrate, seed, Worker. `pnpm dev:reset` wipes data, `dev:prune` removed worktrees'
 - build, migrate, seed: `pnpm build`, `pnpm migrate`, `pnpm seed`
 - codegen: `pnpm codegen` (after editing a `*-table.ts` file)
-- new context: `pnpm context-create`; new Aggregate: `pnpm aggregate-create`
+- new context: `pnpm context-create`; new Model: `pnpm model-create`
 - API check (oasdiff): `pnpm api-check`
 - pieces removable: `pnpm piece-check`
 - template upgrade: `pnpm template-upgrade`
@@ -40,35 +40,35 @@ CI fails a command at its budget. Make the code faster or set a new budget on pu
 
 ## Where new work goes
 
-One context per business area, holding its Aggregates (context-create.md).
+One context per business area, holding its Models (context-create.md).
 
-| Kind of work                                      | File                                 |
-| ------------------------------------------------- | ------------------------------------ |
-| Entry: exports for outside code, and the scopes   | `index.ts`                           |
-| Repository ports                                  | `domain/repositories.ts`             |
-| Other ports                                       | `application/ports.ts`               |
-| Errors the context returns                        | `domain/errors.ts`                   |
-| Aggregate: schemas, transitions, specifications   | `domain/<aggregate>.ts`              |
-| Domain service: logic over several Aggregates     | `domain/<name>.ts`                   |
-| One Use case per file, tested on memory adapters  | `application/<aggregate>-<verb>.ts`  |
-| Use cases factory and its type                    | `application/*-use-cases.ts`         |
-| A helper two Use cases share                      | `application/<aggregate>-<thing>.ts` |
-| Routes, streams, Event handlers, Schedules, Seeds | `adapters/inbound/`                  |
-| Port implementations, tables, contract tests      | `adapters/outbound/`                 |
-| Each error's HTTP status, for routes and pages    | `<aggregate>-error-status.ts`        |
-| A test through the context's interface            | `<file>.test.ts`                     |
+| Kind of work                                      | File                             |
+| ------------------------------------------------- | -------------------------------- |
+| Entry: exports for outside code, and the scopes   | `index.ts`                       |
+| Repository ports                                  | `domain/repositories.ts`         |
+| Other ports                                       | `application/ports.ts`           |
+| Errors the context returns                        | `domain/errors.ts`               |
+| Model: schema and model functions                 | `domain/<model>.ts`              |
+| Domain service: logic over several Models         | `domain/<name>.ts`               |
+| One Use case per file, tested on memory adapters  | `application/<model>-<verb>.ts`  |
+| Use cases factory and its type                    | `application/*-use-cases.ts`     |
+| A helper two Use cases share                      | `application/<model>-<thing>.ts` |
+| Routes, streams, Event handlers, Schedules, Seeds | `adapters/inbound/`              |
+| Port implementations, tables, contract tests      | `adapters/outbound/`             |
+| Each error's HTTP status, for routes and pages    | `<model>-error-status.ts`        |
+| A test through the context's interface            | `<file>.test.ts`                 |
 
 - Outside code imports only `index.ts`, the context's one interface (A5).
 - `domain/` and `application/` never import `adapters/`; `index.ts` wires them.
-- Only an Aggregate's transitions make or change it (A29); adapters hold no business logic.
+- Only a Model's model functions make or change it (A29); adapters hold no business logic.
 - Name things generic to specific: prefix, subject, then action or qualifier (`invoiceCreate`, `postgresPoolCreate`, `invoiceRepositoryPostgresCreate`). A23 checks it:
   - An exported name never starts with a verb.
-  - Every exported function in a Package starts with its Package's name, or in a context with its context's or Aggregate's name (`queueConsumerCreate`, `invoiceStaleIs`).
+  - Every exported function in a Package starts with its Package's name, or in a context with its context's or Model's name (`queueConsumerCreate`, `invoiceIsStale`).
   - A function that builds and returns a thing ends in `Create`. `Repository`, `Schema`, `Routes` and adapter names (`Memory`, `Postgres`, `Redis`) come last before it: `invoiceRepositoryPostgresCreate`, `idSchemaCreate`.
-  - A predicate (a `boolean` or type-predicate return) ends in `Is`, `Has` or `Can`: `invoiceDeleteCan`, `postgresUniqueViolationIs`. A method or option callback keeps the `isAlive()` form.
+  - A predicate (a `boolean` or type-predicate return) names its model first, then `Is`, `Has` or `Can`, so it reads as English: `invoiceIsPaid`, `invoiceHasLines`, `invoiceCanRefund`, not `invoicePaidIs` or `invoiceRefundCan`. A method or option callback keeps the `isAlive()` form.
   - A file is named after its primary export without `Create` (`invoice-routes.ts` has `invoiceRoutesCreate`) or the subject its exports share (`cursor.ts`). Port adapters are `<port>.memory.ts` and `<port>.postgres.ts` (A19 needs it), shared cases `<port>.contract.ts`.
   - Exceptions:
-    - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
+    - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Model comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
     - `ok` and `err` (result Package) take no prefix.
     - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
@@ -119,7 +119,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - An action calls exactly one write Use case. A loader may call any number of read Use cases across contexts.
 - Do one write per Use case where possible.
 - Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
-- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Aggregate's analytics port lists every name it sends.
+- Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Model's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch: one run covers any number of missed ticks, and a repeat changes nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
 - Reuse a shadcn component before making one; add one only with `pnpm exec shadcn add <name>`, never by hand.
@@ -134,7 +134,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Privacy
 
-- Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never an Aggregate, an input or error message text.
+- Logs, spans, metrics, analytics events and Error reports carry only ids, error codes, class names, counts and timings. Never a Model, an input or error message text.
 - Paths and queries never carry personal data. Path parameters are ids.
 - Card numbers never enter the app.
 
@@ -143,7 +143,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 Read the one that matches before you start.
 
 - A role, a scope, a dev user or a machine-only Use case: [docs/agents/authn.md](docs/agents/authn.md)
-- A new context, Aggregate, Seed, transition or Use case; one Aggregate per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
+- A new context, Model, Seed, model function or Use case; one Model per transaction: [docs/agents/context-create.md](docs/agents/context-create.md)
 - An Event handler or a Domain event: [docs/agents/events.md](docs/agents/events.md)
 - A context reading another (an ACL), or a saga across contexts: [docs/agents/acl.md](docs/agents/acl.md)
 - A table, a repository, a list, a migration, SQL or a cached read: [docs/agents/data.md](docs/agents/data.md)

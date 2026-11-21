@@ -3,7 +3,7 @@ import type { Result } from "@n8io/baseline-result";
 import {
 	type PostgresClient,
 	type PostgresPool,
-	postgresDurationIs,
+	postgresDurationIsValid,
 	postgresDurationMessage,
 } from "./postgres-pool.ts";
 
@@ -47,7 +47,7 @@ export const postgresTransactionRun = async <T, E>({
 	work,
 }: PostgresTransactionRunOptions<T, E>): Promise<Result<T, E>> => {
 	const timeoutMs = timeoutMsGiven ?? 5_000;
-	if (!postgresDurationIs(timeoutMs)) {
+	if (!postgresDurationIsValid(timeoutMs)) {
 		throw new TypeError(
 			`postgresTransactionRun: timeoutMs must be ${postgresDurationMessage}, found ${timeoutMs}`,
 		);

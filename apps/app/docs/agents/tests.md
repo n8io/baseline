@@ -1,10 +1,10 @@
 # A context's tests
 
-Read when writing or deleting a context's tests. A context has one interface, its `index.ts`, and its tests cross the same seam its callers do.
+Read when writing or deleting a context's tests. A context has one interface, its `index.ts`, and its tests go through the same entry its callers do.
 
 ## Through the interface
 
-Build the context the way the composition roots do, on memory connections, and drive what it hands back:
+Build the context the way the entry points do, on memory connections, and drive what it hands back:
 
 ```ts
 const connections = await connectionsOpen({ role: "publisher" });
@@ -26,8 +26,8 @@ const { useCases } = contextsCreate(connections).invoiceContext;
 
 Only three kinds of test reach behind `index.ts`:
 
-- A seam with two adapters: the repository suite in `<aggregate>-repository.contract.ts`, run on memory and on Postgres, and the transaction's commit and rollback.
+- A port with two adapters: the repository suite in `<model>-repository.contract.ts`, run on memory and on Postgres, and the transaction's commit and rollback.
 - A race: two transactions interleaved on Postgres (`postgresTestInterleave`), which memory cannot show.
-- An invariant no read can show, such as an Aggregate's rows deleted with another's: drive it through the interface on Postgres, then look in the table.
+- An invariant no read can show, such as a Model's rows deleted with another's: drive it through the interface on Postgres, then look in the table.
 
-Delete a test that only repeats an interface test, such as a test of one transition or specification whose cases a Use case test covers, or a unit test of a thin adapter. Move a case it has that no interface test covers into the Use case test first.
+Delete a test that only repeats an interface test, such as a test of one model function or predicate whose cases a Use case test covers, or a unit test of a thin adapter. Move a case it has that no interface test covers into the Use case test first.

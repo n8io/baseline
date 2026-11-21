@@ -18,7 +18,7 @@ export type QueueBlockedKey = {
 	key: string;
 };
 
-/** The queue a composition root opens with `queueCreate`; close it with `close()`. */
+/** The queue an entry point opens with `queueCreate`; close it with `close()`. */
 export type Queue = {
 	/**
 	 * false only when this process's own poll loops are stuck, which a restart fixes. A poll that
@@ -47,7 +47,7 @@ export type Queue = {
 	blockedKeyGiveUp(blocked: QueueBlockedKey): Promise<boolean>;
 	/**
 	 * Stops the Consumers and the cron pass and waits up to 15 s for running jobs. It leaves the
-	 * pool open: the composition root closes it after.
+	 * pool open: the entry point closes it after.
 	 */
 	close(): Promise<void>;
 	/** Calls close(), so `await using` closes the queue when its block ends. */
@@ -163,7 +163,7 @@ export type QueueOptions = {
 	 * the pool's size.
 	 */
 	concurrency?: number | null;
-	/** The pool every query of the queue runs on; the composition root closes it after the queue. */
+	/** The pool every query of the queue runs on; the entry point closes it after the queue. */
 	pgPool: QueueSql;
 	/**
 	 * `"publisher"` (the Server) only sends: it runs no Consumers, no maintenance, no cron pass and

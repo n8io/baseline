@@ -75,28 +75,28 @@ export const fooNew = ({
 });
 
 // The owner or a holder of foo:update may change a foo.
-export const fooUpdateCan = (foo: Foo, actor: Actor): boolean =>
+export const fooCanUpdate = (foo: Foo, actor: Actor): boolean =>
 	actor.scopes.includes("foo:update") || foo.createdBy === actor.id;
 
 // The owner or a holder of foo:delete may delete a foo.
-export const fooDeleteCan = (foo: Foo, actor: Actor): boolean =>
+export const fooCanDelete = (foo: Foo, actor: Actor): boolean =>
 	actor.scopes.includes("foo:delete") || foo.createdBy === actor.id;
 
 export const fooRename = (
 	foo: Foo,
 	{ actor, name, now }: { actor: Actor; name: string; now: Date },
 ): Result<Foo, FooForbiddenError> =>
-	fooUpdateCan(foo, actor)
+	fooCanUpdate(foo, actor)
 		? ok({ ...foo, name, updatedAt: now })
 		: err(new FooForbiddenError(foo.id));
 
-// aggregate-create-start: schedule
+// model-create-start: schedule
 export const FOO_STALE_DAYS = 30;
 
 // A foo nobody has changed since this cut-off, and that is not archived yet, is stale.
 export const fooStaleBefore = (now: Date): Date =>
 	new Date(now.getTime() - FOO_STALE_DAYS * 86_400_000);
-// aggregate-create-end: schedule
+// model-create-end: schedule
 
 // piece-start: queue
 export const fooCreated = z.object({ fooId: idSchemaCreate("foo") });

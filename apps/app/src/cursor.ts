@@ -6,7 +6,7 @@ import { type Id, idToUuid } from "@n8io/baseline-id";
 export type CursorKind = "date" | "integer" | "number" | "text";
 
 // A list page's position: the sort value and id of its last item, as base64url JSON. Every
-// repository adapter of an Aggregate, memory or Postgres, uses it, so a cursor from one reads the
+// repository adapter of a Model, memory or Postgres, uses it, so a cursor from one reads the
 // same in another. `kind` says which sort wrote it.
 export type Cursor<P extends string> = {
 	id: Id<P>;

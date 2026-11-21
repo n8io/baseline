@@ -1,4 +1,4 @@
-// The connections every composition root opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
+// The connections every entry point opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
 // analytics and error tracking while the Project has those pieces, and the clock. Each context's adapters/outbound/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.

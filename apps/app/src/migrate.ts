@@ -1,4 +1,4 @@
-// Composition root for migrations: run once per deploy, before the new version starts.
+// Entry point for migrations: run once per deploy, before the new version starts.
 import { logger } from "@n8io/baseline-logger";
 import { postgresMigrate } from "@n8io/baseline-postgres";
 import { queueMigrate, queueSchedulesSync } from "@n8io/baseline-queue";

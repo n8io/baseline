@@ -7,7 +7,7 @@
 // The Pieces and the removal itself are in scripts/pieces.ts.
 import { argsParse, argsUsageFail } from "./args.ts";
 import {
-	pieceIs,
+	pieceIsKnown,
 	pieceRemove,
 	pieceRemoveRefusal,
 	pieceUsage,
@@ -24,7 +24,7 @@ const main = () => {
 	if (
 		piece === undefined ||
 		parsed.positionals.length !== 1 ||
-		!pieceIs(piece)
+		!pieceIsKnown(piece)
 	) {
 		argsUsageFail(pieceUsage);
 		return;

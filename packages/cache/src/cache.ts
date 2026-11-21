@@ -18,7 +18,7 @@ export type CacheKeyed<T> = Omit<Cache<T>, "set"> & {
 };
 
 /**
- * Where entries live: raw JSON strings by key, each with a TTL. A composition root picks one
+ * Where entries live: raw JSON strings by key, each with a TTL. An entry point picks one
  * (`cacheStoreRedisCreate`, `cacheStoreMemoryCreate`) and every cache is built on it.
  */
 export type CacheStore = {

@@ -26,6 +26,6 @@ export {
 } from "./postgres-transaction-run.ts";
 export {
 	type PostgresUniqueViolation,
-	postgresUniqueViolationIs,
+	postgresErrorIsUniqueViolation,
 	postgresUniqueViolationRead,
 } from "./postgres-unique-violation.ts";

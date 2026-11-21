@@ -24,22 +24,22 @@ A list pages by keyset: `cursorDecode` reads the cursor, `postgresKeysetCreate` 
 
 A transaction alone does not stop a lost write: two transactions can read the same row, and the later write undoes the earlier one. Under Postgres's READ COMMITTED:
 
-- Read a row you will write back through the repository's `findByIdForUpdate` (Drizzle `.for("update")`) inside the transaction, as the update and delete Use cases `pnpm aggregate-create` writes do. A concurrent write then waits until you commit. Lock several rows in id order (`.orderBy(asc(table.id)).for("update")`), so two transactions cannot deadlock.
-- A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<aggregate>:<owner id>")` first, then count and insert.
+- Read a row you will write back through the repository's `findByIdForUpdate` (Drizzle `.for("update")`) inside the transaction, as the update and delete Use cases `pnpm model-create` writes do. A concurrent write then waits until you commit. Lock several rows in id order (`.orderBy(asc(table.id)).for("update")`), so two transactions cannot deadlock.
+- A limit across rows (at most N per owner) has no row to lock: take `postgresAdvisoryLockTake(db, "<model>:<owner id>")` first, then count and insert.
 - Change a counter with one statement (``set({ count: sql`${table.count} + 1` })``), never read, add and write back.
-- A write that finds its row gone (deleted since the read) returns the Aggregate's NotFound error, never throws: the route answers 404, not 500.
+- A write that finds its row gone (deleted since the read) returns the Model's NotFound error, never throws: the route answers 404, not 500.
 - A repository error the Use case knows cannot happen (a save of an invoice's lines that changes no unique column) is a bug, not an outcome: `throw new Error(...)` directly under a one-line `// unreachable: <why>`, the one throw A27 allows. The request then fails with a 500 and an Event handler's Event retries and holds its key; an `err` would complete the Event with nothing changed.
 - Postgres takes at most 65,535 bind parameters per statement: chunk a fan-out insert (rows × columns) under it.
 - Two paths that lock the same rows in different orders deadlock, and Postgres aborts one: every path that locks them (Use cases, Event handlers, Schedules) locks in id order.
-- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<aggregate>-update.postgres.test.ts` that `pnpm aggregate-create` writes).
+- A race test forces the interleaving with `postgresTestInterleave` from `@n8io/baseline-postgres/testing` and fails with the lock removed; check that before you merge (copy the `<model>-update.postgres.test.ts` that `pnpm model-create` writes).
 
-## An Aggregate with a child table
+## A Model with a child table
 
-When an Aggregate owns a list (an invoice's lines), keep both tables in the Aggregate's one `adapters/outbound/<aggregate>-table.ts`. The root repository loads and saves the whole Aggregate: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Aggregate as one value, and the shared repository tests (`adapters/outbound/<aggregate>-repository.contract.ts`) check that the children round-trip on both adapters.
+When a Model owns a list (an invoice's lines), keep both tables in the Model's one `adapters/outbound/<model>-table.ts`. The root repository loads and saves the whole Model: `findById` reads the root row and its child rows, `update` writes the root and replaces or diffs the children in the same transaction, and no other port touches the child table. The memory adapter stores the Model as one value, and the shared repository tests (`adapters/outbound/<model>-repository.contract.ts`) check that the children round-trip on both adapters.
 
 ## Cached reads
 
-With the `cache` piece, an Aggregate's get Use case reads through its cache port and its update and delete Use cases clear the entry after commit ([pieces.md](pieces.md#the-cache)).
+With the `cache` piece, a Model's get Use case reads through its cache port and its update and delete Use cases clear the entry after commit ([pieces.md](pieces.md#the-cache)).
 
 - A cached read can be stale. When the clear is lost (Redis is down, or the process dies first) another process may serve the old value until the entry expires, 60 s by default. For a value that cannot be that stale, pass a shorter `ttlMs` to `cacheCreate` in `adapters/outbound/index.ts`, or leave it out of the cache.
 - A cache or live update that fails never fails the Use case: the Packages log and count it (`baseline.cache.store_errors`, `baseline.live.sends_failed`), so do not wrap those calls in a catch.

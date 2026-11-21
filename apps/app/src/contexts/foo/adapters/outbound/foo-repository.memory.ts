@@ -20,7 +20,7 @@ export const fooRepositoryMemoryCreate = (state: {
 	};
 
 	return {
-		// aggregate-create-start: schedule
+		// model-create-start: schedule
 		archiveStale: async (before, now) => {
 			const stale = [...state.foos.values()].filter(
 				(foo) => foo.archivedAt === null && foo.updatedAt < before,
@@ -30,7 +30,7 @@ export const fooRepositoryMemoryCreate = (state: {
 			}
 			return stale.length;
 		},
-		// aggregate-create-end: schedule
+		// model-create-end: schedule
 		delete: async (id) =>
 			state.foos.delete(id) ? ok(undefined) : err(new FooNotFoundError(id)),
 		findById,

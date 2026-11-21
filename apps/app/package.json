@@ -15,7 +15,7 @@
 		"#ui/*": "./src/ui/*"
 	},
 	"scripts": {
-		"aggregate-create": "node --import ./scripts/node-version-require.ts scripts/aggregate-create.ts",
+		"model-create": "node --import ./scripts/node-version-require.ts scripts/model-create.ts",
 		"api-check": "node --import ./scripts/node-version-require.ts scripts/api-check.ts",
 		"api-smoke": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts scripts/api-smoke.ts",
 		"blocked-keys": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts src/blocked-keys.ts",

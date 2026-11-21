@@ -31,37 +31,37 @@ Every request is one trace through each Event it publishes; `compose.yaml`'s `te
 
 ## Bounded contexts
 
-A bounded context is a folder in `src/contexts/` holding one or more Aggregates, each with its HTTP routes, Use cases, transitions, ports and adapters in the same layout, listed with its subdomain type in [CONTEXT-MAP.md](CONTEXT-MAP.md) and named by the terms in its own `CONTEXT.md`. The contexts are the folders there; a new Project starts with none. Agree the context and add its row to the map, then:
+A bounded context is a folder in `src/contexts/` holding one or more Models, each with its HTTP routes, Use cases, model functions, ports and adapters in the same layout, listed in [CONTEXT-MAP.md](CONTEXT-MAP.md) and named by the terms in its own `CONTEXT.md`. The contexts are the folders there; a new Project starts with none. Agree the context and add its row to the map, then:
 
 ```sh
 pnpm context-create invoice                 # then add **Invoice**: to src/contexts/invoice/CONTEXT.md
-pnpm aggregate-create invoice invoice --bare   # the core only; --help lists the parts
-pnpm codegen --name invoice_create  # its migration, after you shape the Aggregate root and its table
+pnpm model-create invoice invoice --bare   # the core only; --help lists the options
+pnpm codegen --name invoice_create  # its migration, after you shape the Model and its table
 ```
 
 ## Commands
 
-| I want to…                                    | Run                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------ |
-| run the app, the Worker and their services    | `pnpm dev`                                                                     |
-| wipe the local database and cache data        | `pnpm dev:reset`                                                               |
-| remove the dev instances of removed worktrees | `pnpm dev:prune` (`--dry-run` lists them)                                      |
-| lint, check formatting and typecheck          | `pnpm check`                                                                   |
-| format                                        | `pnpm format`                                                                  |
-| run the unit tests, on memory adapters        | `pnpm test`                                                                    |
-| run the integration tests (`pnpm dev` first)  | `pnpm test:integration`                                                        |
-| run most of CI before I push                  | `pnpm run ci`                                                                  |
-| add a context, then an Aggregate              | `pnpm context-create <context>`, `pnpm aggregate-create <context> <aggregate>` |
-| write a migration after a table change        | `pnpm codegen`                                                                 |
-| migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                                                    |
-| list or release a blocked Event key           | `pnpm blocked-keys`                                                            |
-| catch a breaking API change                   | `pnpm api-check`                                                               |
-| regenerate the SDK after a route change       | `pnpm sdk-generate`                                                            |
-| smoke-test the API of a running app           | `pnpm api-smoke`                                                               |
-| remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check`                                |
-| take a newer Template release                 | `pnpm template-upgrade`                                                        |
-| find glossary aliases                         | `pnpm glossary-check`                                                          |
-| build for production                          | `pnpm build`                                                                   |
+| I want to…                                    | Run                                                                    |
+| --------------------------------------------- | ---------------------------------------------------------------------- |
+| run the app, the Worker and their services    | `pnpm dev`                                                             |
+| wipe the local database and cache data        | `pnpm dev:reset`                                                       |
+| remove the dev instances of removed worktrees | `pnpm dev:prune` (`--dry-run` lists them)                              |
+| lint, check formatting and typecheck          | `pnpm check`                                                           |
+| format                                        | `pnpm format`                                                          |
+| run the unit tests, on memory adapters        | `pnpm test`                                                            |
+| run the integration tests (`pnpm dev` first)  | `pnpm test:integration`                                                |
+| run most of CI before I push                  | `pnpm run ci`                                                          |
+| add a context, then a Model                   | `pnpm context-create <context>`, `pnpm model-create <context> <model>` |
+| write a migration after a table change        | `pnpm codegen`                                                         |
+| migrate or seed by hand                       | `pnpm migrate`, `pnpm seed`                                            |
+| list or release a blocked Event key           | `pnpm blocked-keys`                                                    |
+| catch a breaking API change                   | `pnpm api-check`                                                       |
+| regenerate the SDK after a route change       | `pnpm sdk-generate`                                                    |
+| smoke-test the API of a running app           | `pnpm api-smoke`                                                       |
+| remove a piece, or prove each still comes out | `pnpm piece-remove <piece>`, `pnpm piece-check`                        |
+| take a newer Template release                 | `pnpm template-upgrade`                                                |
+| find glossary aliases                         | `pnpm glossary-check`                                                  |
+| build for production                          | `pnpm build`                                                           |
 
 ## For AI agents
 

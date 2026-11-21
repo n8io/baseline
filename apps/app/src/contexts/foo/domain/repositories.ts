@@ -23,10 +23,10 @@ export type FooRepository = FooReadRepository & {
 	// A row deleted since it was read answers FooNotFoundError, never a throw.
 	update(foo: Foo): Promise<Result<Foo, FooRepositoryUpdateError>>;
 	delete(id: Id<"foo">): Promise<Result<void, FooRepositoryDeleteError>>;
-	// aggregate-create-start: schedule
+	// model-create-start: schedule
 	// Archives every foo with updatedAt < before and archivedAt null; returns how many.
 	archiveStale(before: Date, now: Date): Promise<number>;
-	// aggregate-create-end: schedule
+	// model-create-end: schedule
 };
 // wiring: repositories
 

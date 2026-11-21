@@ -122,7 +122,7 @@ describe("foo events on Postgres", () => {
 		}).toEqual(before);
 	});
 
-	// The transaction is a seam with two adapters; its memory twin is in foo-repository.memory.test.ts.
+	// The transaction is a port with two adapters; its memory twin is in foo-repository.memory.test.ts.
 	it("publishes nothing when the transaction rolls back on err or a throw", async () => {
 		const fooTransaction = fooTransactionPostgresCreate(
 			pgPool,

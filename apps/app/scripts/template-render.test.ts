@@ -9,16 +9,16 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { contextsPairsFill } from "./aggregate-create.ts";
+import { contextsPairsFill } from "./model-create.ts";
 import {
 	clientManifestPin,
 	contextsPairsFind,
 	filesRead,
 	fooBlocksFind,
-	fooLineIs,
 	fooPathRename,
 	fooRename,
 	hostPortsCreate,
+	lineIsFoo,
 	linesRemove,
 	lockfileRender,
 	readmeRender,
@@ -129,9 +129,9 @@ describe("fooRename", () => {
 
 describe("fooBlocksFind", () => {
 	it("never matches a longer word such as Footer", () => {
-		expect(fooLineIs("<AlertDialogFooter>")).toBe(false);
-		expect(fooLineIs("const food = 1;")).toBe(false);
-		expect(fooLineIs("fooScopes,")).toBe(true);
+		expect(lineIsFoo("<AlertDialogFooter>")).toBe(false);
+		expect(lineIsFoo("const food = 1;")).toBe(false);
+		expect(lineIsFoo("fooScopes,")).toBe(true);
 	});
 
 	it("takes the whole statement a foo line belongs to", () => {
@@ -284,9 +284,9 @@ describe("templateFileRender", () => {
 		const text = [
 			"## Contexts",
 			"",
-			"| Context | Subdomain | Language                                                   |",
-			"| ------- | --------- | ---------------------------------------------------------- |",
-			"| `foo`   | core      | [src/contexts/foo/CONTEXT.md](src/contexts/foo/CONTEXT.md) |",
+			"| Context | Language                                                   |",
+			"| ------- | ---------------------------------------------------------- |",
+			"| `foo`   | [src/contexts/foo/CONTEXT.md](src/contexts/foo/CONTEXT.md) |",
 			"",
 			"## Relationships",
 			"",
@@ -611,7 +611,7 @@ describe.runIf(template)("the template's own files", () => {
 			.flatMap((f) =>
 				f.text
 					.split("\n")
-					.filter(fooLineIs)
+					.filter(lineIsFoo)
 					.map((line) => `${f.path}: ${line}`),
 			);
 

@@ -27,7 +27,7 @@ const bottomY = 222;
 
 const serverBoxes = [
 	{ label: "HTTP route", sublabel: "inbound adapter" },
-	{ label: "Use case", sublabel: "calls a transition" },
+	{ label: "Use case", sublabel: "calls a model function" },
 	{ label: "Repository", sublabel: "a port" },
 	{ label: "Postgres", sublabel: "outbound adapter" },
 	{ label: "Transaction", sublabel: "the row + its Event" },

@@ -191,7 +191,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 		});
 
 		// SDK methods and CLI commands take their names from operationId and tag, and their help from summary (docs/agents/api.md).
-		it("names every operation after its Use case, tags it with its Aggregate and gives it a summary", async () => {
+		it("names every operation after its Use case, tags it with its Model and gives it a summary", async () => {
 			const doc = (await (await request("/api/v1/openapi.json")).json()) as {
 				paths: Record<
 					string,
@@ -201,9 +201,9 @@ describe("server wiring", { timeout: 30_000 }, () => {
 					>
 				>;
 			};
-			// The Aggregates: every file in a context's domain/ but its errors and repository ports.
+			// The Models: every file in a context's domain/ but its errors and repository ports.
 			const folder = new URL("../../src/contexts/", import.meta.url);
-			const aggregates = (
+			const models = (
 				existsSync(folder) ? readdirSync(folder, { withFileTypes: true }) : []
 			)
 				.filter((entry) => entry.isDirectory())
@@ -228,7 +228,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 				expect(summary?.trim(), `${at}: summary`).toBeTruthy();
 				expect(tags, at).toHaveLength(1);
 				const tag = tags?.[0] ?? "";
-				expect(aggregates, at).toContain(tag);
+				expect(models, at).toContain(tag);
 				expect(operationId?.startsWith(tag), `${at}: ${operationId}`).toBe(
 					true,
 				);

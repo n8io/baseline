@@ -10,7 +10,7 @@ import { Foo } from "../../domain/foo.ts";
 import { fooErrorStatus } from "../../foo-error-status.ts";
 import { fooHttpErrorAnswer, fooHttpJsonCreate } from "./foo-http.ts";
 
-// The API's own schemas: Aggregate schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
+// The API's own schemas: Model schemas carry no OpenAPI metadata. Dates go out as RFC 3339 UTC strings.
 export const BarResponse = z
 	.object({
 		id: Bar.shape.id,
