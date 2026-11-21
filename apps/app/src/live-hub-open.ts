@@ -6,20 +6,30 @@ import {
 	liveHubRedisCreate,
 } from "@n8io/baseline-live";
 import type { RedisClient } from "@n8io/baseline-redis";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
-// `steps` closes the hub at shutdown, before what is already in it.
+// The steps it returns close the hub at shutdown, before what is already in them: with the
+// resources in the Worker, else with the intakes, since the hub streams out.
 export const liveHubOpen = ({
 	redis,
+	role,
 	steps,
 }: {
 	redis: RedisClient | "memory";
-	steps: ShutdownStep[];
-}): LiveHub => {
+	role: "publisher" | "worker";
+	steps: ShutdownSteps;
+}): { liveHub: LiveHub; steps: ShutdownSteps } => {
 	const liveHub =
 		redis === "memory"
 			? liveHubMemoryCreate()
 			: liveHubRedisCreate({ redisClient: redis });
-	steps.unshift({ close: () => liveHub.close(), name: "live" });
-	return liveHub;
+	return {
+		liveHub,
+		steps: shutdownStepAdd({
+			at: "first",
+			group: role === "worker" ? "resources" : "intakes",
+			step: { close: () => liveHub.close(), name: "live" },
+			steps,
+		}),
+	};
 };

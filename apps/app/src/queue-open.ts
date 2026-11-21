@@ -2,23 +2,27 @@
 // with a memory database. `pnpm piece-remove queue` deletes this file.
 import type { PostgresPool } from "@n8io/baseline-postgres";
 import { type Events, type Queue, queueCreate } from "@n8io/baseline-queue";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { eventsOpen } from "./events-open.ts";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
-// The queue closes at shutdown before what is already in its steps: the Worker's intakes, since it
-// brings work in there, else the resources.
+// The steps it returns close the queue at shutdown before what is already in them: the Worker's
+// intakes, since it brings work in there, else the resources.
 export const queueOpen = async ({
 	database,
-	intakes,
-	resources,
 	role,
+	steps,
 }: {
 	database: PostgresPool | "memory";
-	intakes: ShutdownStep[];
-	resources: ShutdownStep[];
 	role: "publisher" | "worker";
-}): Promise<{ events: Events | "memory"; queue: Queue | "memory" }> => {
-	if (database === "memory") return { events: "memory", queue: "memory" };
+	steps: ShutdownSteps;
+}): Promise<{
+	events: Events | "memory";
+	queue: Queue | "memory";
+	steps: ShutdownSteps;
+}> => {
+	if (database === "memory") {
+		return { events: "memory", queue: "memory", steps };
+	}
 	const queue = await queueCreate({
 		// A Worker runs this many Events and Schedule runs at once, across all its Event handlers. Each
 		// holds a pool connection while it runs, so one is kept free for the queue's own polls.
@@ -26,9 +30,14 @@ export const queueOpen = async ({
 		pgPool: database,
 		role,
 	});
-	(role === "worker" ? intakes : resources).unshift({
-		close: () => queue.close(),
-		name: "queue",
-	});
-	return { events: eventsOpen(queue), queue };
+	return {
+		events: eventsOpen(queue),
+		queue,
+		steps: shutdownStepAdd({
+			at: "first",
+			group: role === "worker" ? "intakes" : "resources",
+			step: { close: () => queue.close(), name: "queue" },
+			steps,
+		}),
+	};
 };

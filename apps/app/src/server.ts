@@ -125,6 +125,7 @@ app.use("/api/*", async (c, next) => {
 			method,
 			signal,
 		};
+		// mutates: Hono has no other way to give later handlers the replayed body
 		c.req.raw = new Request(url, init);
 	}
 	await next();

@@ -1,9 +1,11 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { logger } from "@n8io/baseline-logger";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
+import type { ShutdownSteps } from "./shutdown-step-add.ts";
+
+const steps: ShutdownSteps = { intakes: [], resources: [] };
 
 // The logger writes JSON lines to process.stdout; the errors this file logs on purpose would
 // otherwise show up as error-level lines in a green run. Returns what the logger wrote.
@@ -43,13 +45,10 @@ const ingestOpen = async () => {
 
 describe("errorTrackingOpen", () => {
 	it("reports nothing, with nothing to close, when there is no DSN", () => {
-		const steps: ShutdownStep[] = [];
-		errorTrackingOpen({ environment: "test", steps });
-		expect(steps).toEqual([]);
+		expect(errorTrackingOpen({ environment: "test", steps })).toEqual(steps);
 	});
 
 	it("reports each error the logger logs until shutdown, then closes", async () => {
-		const steps: ShutdownStep[] = [];
 		const written = stdoutCapture();
 		const { bodies, dsn } = await ingestOpen();
 		// .env.test sets LOG_LEVEL silent, and a level that is off reaches no listener.
@@ -59,13 +58,13 @@ describe("errorTrackingOpen", () => {
 		onTestFinished(() => {
 			writable.level = level;
 		});
-		errorTrackingOpen({ dsn, environment: "test", steps });
+		const opened = errorTrackingOpen({ dsn, environment: "test", steps });
 		class QueueFailure extends Error {}
 
 		logger.error({ err: new QueueFailure("boom") }, "Queue error");
 
-		expect(steps.map((s) => s.name)).toEqual(["error tracking"]);
-		await steps[0]?.close();
+		expect(opened.resources.map((s) => s.name)).toEqual(["error tracking"]);
+		await opened.resources[0]?.close();
 		expect(bodies).toHaveLength(1);
 		expect(bodies[0]).toContain("QueueFailure");
 

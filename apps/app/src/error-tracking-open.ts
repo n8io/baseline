@@ -3,9 +3,10 @@
 // this file.
 import { errorTrackingSentryCreate } from "@n8io/baseline-error-tracking";
 import { loggerErrorListen } from "@n8io/baseline-logger";
-import type { ShutdownStep } from "@n8io/baseline-shutdown";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
-// With Sentry, `steps` stops reporting and waits for the reports in flight at shutdown.
+// With Sentry, the steps it returns add one that stops reporting and waits for the reports in
+// flight at shutdown.
 export const errorTrackingOpen = ({
 	dsn,
 	environment,
@@ -13,16 +14,21 @@ export const errorTrackingOpen = ({
 }: {
 	dsn?: string | null;
 	environment: string;
-	steps: ShutdownStep[];
-}): void => {
-	if (!dsn) return;
+	steps: ShutdownSteps;
+}): ShutdownSteps => {
+	if (!dsn) return steps;
 	const errorTracking = errorTrackingSentryCreate({ dsn, environment });
 	const stop = loggerErrorListen((error) => errorTracking.report(error));
-	steps.push({
-		close: async () => {
-			stop();
-			await errorTracking.close();
+	return shutdownStepAdd({
+		at: "last",
+		group: "resources",
+		step: {
+			close: async () => {
+				stop();
+				await errorTracking.close();
+			},
+			name: "error tracking",
 		},
-		name: "error tracking",
+		steps,
 	});
 };

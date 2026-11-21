@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { init, parse } from "es-module-lexer";
-import { transformWithOxc } from "vite";
+import { parseAst, transformWithOxc } from "vite";
 
 export type ArchitectureImport = {
 	specifier: string;
@@ -102,6 +102,211 @@ export const architectureSrcRead = async (
 		),
 	);
 };
+
+// A30: what a function does to its inputs. A walk over the syntax tree (Vite's parser, which reads
+// TypeScript) finds a function that assigns to a property of a parameter, deletes one, or calls
+// push, pop, shift, unshift, splice, sort, reverse, fill or copyWithin on a parameter or one of its
+// properties, or hands a parameter to Object.assign. A parameter is any name a function's parameter
+// list declares, destructured ones too, and a closure inside the function counts. Map and Set
+// methods are not listed: ports use them on purpose.
+type AstNode = {
+	type: string;
+	start: number;
+	end: number;
+	argument?: unknown;
+	arguments?: unknown;
+	body?: unknown;
+	callee?: unknown;
+	computed?: unknown;
+	elements?: unknown;
+	expression?: unknown;
+	id?: unknown;
+	init?: unknown;
+	left?: unknown;
+	name?: unknown;
+	object?: unknown;
+	operator?: unknown;
+	parameter?: unknown;
+	params?: unknown;
+	properties?: unknown;
+	property?: unknown;
+	value?: unknown;
+	[key: string]: unknown;
+};
+const astNodeIs = (value: unknown): value is AstNode =>
+	typeof value === "object" &&
+	value !== null &&
+	typeof (value as { type?: unknown }).type === "string";
+const functionTypes = new Set([
+	"ArrowFunctionExpression",
+	"FunctionDeclaration",
+	"FunctionExpression",
+]);
+const mutatingMethods = new Set([
+	"copyWithin",
+	"fill",
+	"pop",
+	"push",
+	"reverse",
+	"shift",
+	"sort",
+	"splice",
+	"unshift",
+]);
+// The names a binding pattern declares: `a`, `{ a, b: [c] }`, `a = 1`, `...rest`.
+const patternNames = (node: unknown): string[] => {
+	if (!astNodeIs(node)) return [];
+	switch (node.type) {
+		case "Identifier":
+			return [String(node.name)];
+		case "AssignmentPattern":
+			return patternNames(node.left);
+		case "RestElement":
+			return patternNames(node.argument);
+		case "TSParameterProperty":
+			return patternNames(node.parameter);
+		case "ArrayPattern":
+			return (node.elements as unknown[]).flatMap(patternNames);
+		case "ObjectPattern":
+			return (node.properties as AstNode[]).flatMap((p) =>
+				patternNames(p.type === "Property" ? p.value : p),
+			);
+		default:
+			return [];
+	}
+};
+// `a.b[c].d` and `a?.b` lead back to `a`; anything else (a call, a literal) leads nowhere.
+const memberRoot = (node: unknown): string | undefined => {
+	if (!astNodeIs(node)) return undefined;
+	if (node.type === "ChainExpression") return memberRoot(node.expression);
+	if (
+		node.type === "TSNonNullExpression" ||
+		node.type === "TSAsExpression" ||
+		node.type === "TSSatisfiesExpression"
+	) {
+		return memberRoot(node.expression);
+	}
+	if (node.type !== "MemberExpression") return undefined;
+	let object: unknown = node.object;
+	while (astNodeIs(object)) {
+		if (object.type === "MemberExpression") object = object.object;
+		else if (object.type === "ChainExpression") object = object.expression;
+		else if (object.type === "TSNonNullExpression") object = object.expression;
+		else break;
+	}
+	return astNodeIs(object) && object.type === "Identifier"
+		? String(object.name)
+		: undefined;
+};
+// The names a function body declares itself (not its parameters), so a local that reuses a
+// parameter's name from an outer function is not mistaken for it. Nested functions are skipped.
+const localNames = (node: unknown): string[] => {
+	if (!astNodeIs(node)) return [];
+	if (node.type === "VariableDeclarator") {
+		return [...patternNames(node.id), ...localNames(node.init)];
+	}
+	if (functionTypes.has(node.type)) {
+		return node.type === "FunctionDeclaration" && astNodeIs(node.id)
+			? [String(node.id.name)]
+			: [];
+	}
+	return Object.values(node).flatMap((v) =>
+		Array.isArray(v) ? v.flatMap(localNames) : localNames(v),
+	);
+};
+
+type Mutation = { at: number; what: string };
+const mutationsFind = (root: unknown): Mutation[] => {
+	const found: Mutation[] = [];
+	const visit = (
+		node: unknown,
+		scopes: { locals: Set<string>; params: Set<string> }[],
+	): void => {
+		if (Array.isArray(node)) {
+			for (const child of node) visit(child, scopes);
+			return;
+		}
+		if (!astNodeIs(node)) return;
+		let inner = scopes;
+		if (functionTypes.has(node.type)) {
+			const params = new Set((node.params as unknown[]).flatMap(patternNames));
+			const locals = new Set(localNames(node.body));
+			for (const name of params) locals.delete(name);
+			inner = [...scopes, { locals, params }];
+		}
+		const isParam = (name: string | undefined): boolean => {
+			for (const scope of inner.toReversed()) {
+				if (name === undefined) return false;
+				if (scope.locals.has(name)) return false;
+				if (scope.params.has(name)) return true;
+			}
+			return false;
+		};
+		const report = (target: unknown, what: string) => {
+			const name = memberRoot(target);
+			if (name !== undefined && isParam(name)) {
+				found.push({
+					at: node.start,
+					what: `${what} of the parameter ${name}`,
+				});
+			}
+		};
+		if (
+			node.type === "AssignmentExpression" ||
+			node.type === "UpdateExpression"
+		) {
+			report(
+				node.type === "UpdateExpression" ? node.argument : node.left,
+				"assigns to a property",
+			);
+		} else if (node.type === "UnaryExpression" && node.operator === "delete") {
+			report(node.argument, "deletes a property");
+		} else if (node.type === "CallExpression") {
+			const callee = astNodeIs(node.callee) ? node.callee : undefined;
+			const target =
+				callee?.type === "ChainExpression" ? callee.expression : callee;
+			if (
+				astNodeIs(target) &&
+				target.type === "MemberExpression" &&
+				astNodeIs(target.property) &&
+				target.property.type === "Identifier" &&
+				target.computed !== true &&
+				mutatingMethods.has(String(target.property.name))
+			) {
+				const method = String(target.property.name);
+				const root = memberRoot(target);
+				if (root !== undefined && isParam(root)) {
+					found.push({
+						at: node.start,
+						what: `calls ${method}() on the parameter ${root}`,
+					});
+				}
+			}
+			const args = node.arguments as unknown[];
+			if (
+				astNodeIs(target) &&
+				target.type === "MemberExpression" &&
+				memberText(target) === "Object.assign" &&
+				isParam(memberRoot({ type: "MemberExpression", object: args[0] }))
+			) {
+				found.push({
+					at: node.start,
+					what: `calls Object.assign() on the parameter ${memberRoot({ type: "MemberExpression", object: args[0] })}`,
+				});
+			}
+		}
+		for (const value of Object.values(node)) visit(value, inner);
+	};
+	visit(root, []);
+	return found;
+};
+const memberText = (node: AstNode): string =>
+	astNodeIs(node.object) &&
+	node.object.type === "Identifier" &&
+	astNodeIs(node.property) &&
+	node.property.type === "Identifier"
+		? `${String(node.object.name)}.${String(node.property.name)}`
+		: "";
 
 // Where a path sits: its context, and the context-relative parts (`["domain", "bar.ts"]`).
 const contextOf = (p: string): string | undefined =>
@@ -1218,6 +1423,37 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						const line = code.slice(0, m.index).split("\n").length;
 						return `${f.path}:${line}: ${m[0].trim()} makes or changes a ${pascal} in a Use case; do it only through a transition in domain/${kebab}.ts that returns Result, so its invariants hold`;
 					});
+				});
+			}),
+
+	// A function that changes its input leaves every caller guessing what it changed, and an error
+	// shows only the state after it. Return a new value instead of editing the one passed in. A
+	// change that must happen (a Node server's setters, an OpenTelemetry attribute object) says why
+	// in a one-line `// mutates: <why, 3+ words>` right above it. Tests are exempt.
+	A30: (files) =>
+		files
+			.filter(
+				(f) =>
+					!testIs(f.path) &&
+					!f.path.endsWith(".d.ts") &&
+					!/(^|\/)test\//.test(f.path) &&
+					!/^\/\*\*\s*\n \* Generated by /.test(f.source),
+			)
+			.flatMap((f) => {
+				const lines = f.source.split("\n");
+				const ast = parseAst(f.source, {
+					lang: f.path.endsWith("x") ? "tsx" : "ts",
+				});
+				return mutationsFind(ast).flatMap(({ at, what }) => {
+					const line = f.source.slice(0, at).split("\n").length;
+					if (
+						/^\s*\/\/ mutates: \S+(\s+\S+){2,}\s*$/.test(lines[line - 2] ?? "")
+					) {
+						return [];
+					}
+					return [
+						`${f.path}:${line}: ${what}; return a new value instead, or say why under a one-line "// mutates: <why, 3+ words>"`,
+					];
 				});
 			}),
 };

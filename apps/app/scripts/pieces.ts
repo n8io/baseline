@@ -103,20 +103,29 @@ const textEdit = ({
 };
 
 type Manifest = {
-	dependencies?: Record<string, string>;
-	devDependencies?: Record<string, string>;
-	imports?: Record<string, string>;
+	dependencies?: Record<string, string> | undefined;
+	devDependencies?: Record<string, string> | undefined;
+	imports?: Record<string, string> | undefined;
 	scripts: Partial<Record<string, string>>;
 };
 
-const manifestEdit = (directory: string, edit: (m: Manifest) => void) =>
+// The record without the named keys; a missing record stays missing.
+const recordOmit = <Value>(
+	record: Record<string, Value> | undefined,
+	names: readonly string[],
+): Record<string, Value> | undefined =>
+	record &&
+	Object.fromEntries(
+		Object.entries(record).filter(([name]) => !names.includes(name)),
+	);
+
+const manifestEdit = (directory: string, edit: (m: Manifest) => Manifest) =>
 	textEdit({
 		directory,
 		path: "package.json",
 		edit: (text) => {
 			const manifest = JSON.parse(text) as Manifest;
-			edit(manifest);
-			return `${JSON.stringify(manifest, null, "\t")}\n`;
+			return `${JSON.stringify(edit(manifest), null, "\t")}\n`;
 		},
 	});
 
@@ -135,13 +144,13 @@ const dependenciesAllowedEdit = (
 // Drops the Piece's packages; without the UI, Hono serves itself through @hono/node-server.
 const dependenciesAllowedPieceRemove = (directory: string, piece: Piece) =>
 	dependenciesAllowedEdit(directory, (allowed) => {
-		for (const name of pieces[piece].packages) {
-			delete allowed[name];
-		}
-		if (piece !== "ui") return allowed;
-		allowed["@hono/node-server"] = "serves Hono on Node";
+		const kept = recordOmit(allowed, pieces[piece].packages) ?? {};
+		if (piece !== "ui") return kept;
 		return Object.fromEntries(
-			Object.entries(allowed).sort(([a], [b]) => (a < b ? -1 : 1)),
+			Object.entries({
+				...kept,
+				"@hono/node-server": "serves Hono on Node",
+			}).toSorted(([a], [b]) => (a < b ? -1 : 1)),
 		);
 	});
 
@@ -246,14 +255,18 @@ const uiEdit = (directory: string) => {
 				? text
 				: `${text.replace(/^import /m, `${nodeServerImport}import `)}${apiServeLines}`,
 	});
-	manifestEdit(directory, (manifest) => {
-		manifest.scripts["build"] = "vite build";
-		manifest.scripts["dev"] = manifest.scripts["dev"]?.replace(
-			pieceDevUi,
-			"node --watch --import ./src/preload.ts src/server.ts",
-		);
-		delete manifest.imports?.["#ui/*"];
-	});
+	manifestEdit(directory, (manifest) => ({
+		...manifest,
+		imports: recordOmit(manifest.imports, ["#ui/*"]),
+		scripts: {
+			...manifest.scripts,
+			build: "vite build",
+			dev: manifest.scripts["dev"]?.replace(
+				pieceDevUi,
+				"node --watch --import ./src/preload.ts src/server.ts",
+			),
+		},
+	}));
 };
 
 // Env files carry no markers: CACHE_URL and the comment lines above it.
@@ -324,13 +337,15 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 				path: ".env.schema",
 				edit: (text) => text.replace(pieceScheduleLines, ""),
 			});
-			manifestEdit(directory, (manifest) => {
-				manifest.scripts["dev"] = manifest.scripts["dev"]?.replace(
-					pieceDevWorker,
-					"$1",
-				);
-				delete manifest.scripts["blocked-keys"];
-			});
+			manifestEdit(directory, (manifest) => ({
+				...manifest,
+				scripts: {
+					...(recordOmit(manifest.scripts, [
+						"blocked-keys",
+					]) as Manifest["scripts"]),
+					dev: manifest.scripts["dev"]?.replace(pieceDevWorker, "$1"),
+				},
+			}));
 		},
 		paths: [
 			"src/blocked-keys.ts",
@@ -383,9 +398,12 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 	},
 	sdk: {
 		edit: (directory) =>
-			manifestEdit(directory, (manifest) => {
-				delete manifest.scripts?.["sdk-generate"];
-			}),
+			manifestEdit(directory, (manifest) => ({
+				...manifest,
+				scripts: recordOmit(manifest.scripts, [
+					"sdk-generate",
+				]) as Manifest["scripts"],
+			})),
 		paths: [
 			".github/workflows/clients-release.yml",
 			"clients/environments.json",
@@ -624,12 +642,11 @@ export const piecesRemoveFromTree = (directory: string, removed: Piece[]) => {
 	for (const piece of removed) {
 		filesRemove({ directory, filesList: filesWalk, piece });
 		const { packages } = pieces[piece];
-		manifestEdit(directory, (manifest) => {
-			for (const name of packages) {
-				delete manifest.dependencies?.[name];
-				delete manifest.devDependencies?.[name];
-			}
-		});
+		manifestEdit(directory, (manifest) => ({
+			...manifest,
+			dependencies: recordOmit(manifest.dependencies, packages),
+			devDependencies: recordOmit(manifest.devDependencies, packages),
+		}));
 		dependenciesAllowedPieceRemove(directory, piece);
 	}
 };

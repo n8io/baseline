@@ -70,15 +70,16 @@ One context per business area, holding its Aggregates (context-create.md).
   - Exceptions:
     - A Use case file exports the Use case by its business verb, not as a factory: `invoice-create.ts` exports `invoiceCreate(ports)`. So a new Aggregate comes from `invoiceNew`.
     - A conversion keeps `From` or `To` and no `Create`: `idFromUuid`, `actorFromClaims`.
-    - `ok` and `err` (result Package) take no prefix: every Use case and adapter returns them.
+    - `ok` and `err` (result Package) take no prefix.
     - Types and schemas are not functions: a schema that is its type is PascalCase (`Invoice`), any other camelCase (`invoiceCreated`, `invoiceCached`).
     - React hooks (`use…`), components, React Router's own export names (`loader`, `action`, `links`) and names a library spells are framework names.
 - Up to two positional inputs (the second strongly coupled, maybe optional); three or more take one typed object (`queueScheduleCreate({ cron, name, run })`), whose optional fields are `?: T | null`. A callback whose shape a library fixes takes a `biome-ignore` naming the library. Test helpers (`*.test.ts(x)`, `*-test-*.ts`) are exempt.
 - A read across contexts goes through an ACL in `adapters/outbound/`. A reaction is an Event.
 - UI pages live in `src/ui/`. They import contexts only through `index.ts`.
 - `domain/` imports only itself, Zod, `src/id-schema.ts`, the result Package and the authn and id types (A2).
-- A Use case reads the time from its clock port, never `new Date()` or `Date.now()` (A26).
+- A Use case reads the clock port, never `new Date()` or `Date.now()` (A26).
 - Use cases return `err()`; they and `domain/` never throw or catch (A27), but for a bug under `// unreachable:` (data.md).
+- A function never edits an input: return a new value, or explain under `// mutates: <why>` (A30).
 - A table column built with another context's id prefix (`postgresIdColumnCreate("order")`) needs that context's `deleted` Event handler (A14). `adapters/inbound/` never calls `.openapi(` on a schema it imports; build its own (A25).
 
 ### Stop and ask

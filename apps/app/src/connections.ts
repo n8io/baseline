@@ -12,6 +12,7 @@ import { errorTrackingOpen } from "./error-tracking-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis-open.ts";
+import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
 // process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
@@ -62,31 +63,54 @@ export const connectionsOpen = async ({
 		// is not checked again: its probes do not ask Postgres, so an outage never restarts it.
 		await database.query("SELECT 1");
 	}
-	const intakes: ShutdownStep[] = [];
-	const resources: ShutdownStep[] = [];
+	// Each opener returns the steps so far with its own added, in the order they close.
+	let steps: ShutdownSteps = { intakes: [], resources: [] };
 	// piece-start: error-tracking
 	// First, so it reports what the other connections log while they open. It closes first too.
-	errorTrackingOpen({
+	steps = errorTrackingOpen({
 		dsn: ENV.SENTRY_DSN ?? null,
 		environment: ENV.APP_ENV,
-		steps: resources,
+		steps,
 	});
 	// piece-end: error-tracking
 	if (database !== "memory") {
-		resources.push({ close: () => database.end(), name: "database" });
+		steps = shutdownStepAdd({
+			at: "last",
+			group: "resources",
+			step: { close: () => database.end(), name: "database" },
+			steps,
+		});
 	}
 	// piece-start: redis
-	const redis = await redisOpen({
-		steps: resources,
+	const redisOpened = await redisOpen({
+		steps,
 		url: urls?.cache ?? ENV.CACHE_URL,
 	});
+	const { redis } = redisOpened;
+	steps = redisOpened.steps;
 	// piece-end: redis
+	// piece-start: analytics
+	const analyticsOpened = analyticsOpen({
+		steps,
+		token: ENV.MIXPANEL_TOKEN ?? null,
+	});
+	steps = analyticsOpened.steps;
+	// piece-end: analytics
+	// piece-start: live
+	const liveHubOpened = liveHubOpen({ redis, role, steps });
+	steps = liveHubOpened.steps;
+	// piece-end: live
+	// piece-start: queue
+	const { steps: queueSteps, ...queueConnections } = await queueOpen({
+		database,
+		role,
+		steps,
+	});
+	steps = queueSteps;
+	// piece-end: queue
 	return {
 		// piece-start: analytics
-		analytics: analyticsOpen({
-			steps: resources,
-			token: ENV.MIXPANEL_TOKEN ?? null,
-		}),
+		analytics: analyticsOpened.analytics,
 		// piece-end: analytics
 		// piece-start: cache
 		cacheStore: cacheStoreOpen({ redis }),
@@ -94,22 +118,19 @@ export const connectionsOpen = async ({
 		// The time every context reads. A test replaces it with clockMemoryCreate to set the time.
 		clock: clockSystemCreate(),
 		database,
-		intakes,
+		intakes: steps.intakes,
 		// piece-start: live
-		liveHub: liveHubOpen({
-			redis,
-			steps: role === "worker" ? resources : intakes,
-		}),
+		liveHub: liveHubOpened.liveHub,
 		// piece-end: live
 		// piece-start: queue
 		// `events` and `queue`.
-		...(await queueOpen({ database, intakes, resources, role })),
+		...queueConnections,
 		// piece-end: queue
 		// piece-start: redis
 		// For a Project's own adapters. A bounded context's cache goes through cacheStore instead.
 		redis,
 		// piece-end: redis
-		resources,
+		resources: steps.resources,
 	};
 };
 

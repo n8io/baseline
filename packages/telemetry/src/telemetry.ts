@@ -146,6 +146,7 @@ const exportWatch = <
 	exporter: T,
 ): T => {
 	const exportOriginal = exporter.export.bind(exporter);
+	// mutates: OpenTelemetry keeps this exporter, so its export is replaced in place
 	exporter.export = (items, resultCallback) => {
 		exportOriginal(items, (result) => {
 			if (result.code !== exportSuccess) {

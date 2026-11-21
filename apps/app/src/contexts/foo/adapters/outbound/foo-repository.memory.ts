@@ -22,14 +22,13 @@ export const fooRepositoryMemoryCreate = (state: {
 	return {
 		// aggregate-create-start: schedule
 		archiveStale: async (before, now) => {
-			let archived = 0;
-			for (const foo of state.foos.values()) {
-				if (foo.archivedAt === null && foo.updatedAt < before) {
-					state.foos.set(foo.id, { ...foo, archivedAt: new Date(now) });
-					archived += 1;
-				}
+			const stale = [...state.foos.values()].filter(
+				(foo) => foo.archivedAt === null && foo.updatedAt < before,
+			);
+			for (const foo of stale) {
+				state.foos.set(foo.id, { ...foo, archivedAt: new Date(now) });
 			}
-			return archived;
+			return stale.length;
 		},
 		// aggregate-create-end: schedule
 		delete: async (id) =>
