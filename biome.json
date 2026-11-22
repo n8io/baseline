@@ -10,6 +10,16 @@
 	},
 	"overrides": [
 		{
+			"includes": [
+				"packages/**",
+				"scripts/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./apps/app/lint-plugins/max-params.grit"]
+		},
+		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
 			"linter": { "rules": { "complexity": { "useMaxParams": "off" } } }
 		}

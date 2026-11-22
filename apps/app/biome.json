@@ -20,6 +20,16 @@
 			"plugins": ["./lint-plugins/process-env.grit"]
 		},
 		{
+			"includes": [
+				"**",
+				"!clients/sdk/sdk.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./lint-plugins/max-params.grit"]
+		},
+		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
 			"plugins": ["./lint-plugins/no-mocks.grit"]
 		},
