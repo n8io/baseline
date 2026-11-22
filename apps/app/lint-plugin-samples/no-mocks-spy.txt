@@ -1,0 +1,6 @@
+// no-mocks: tests use no mocks, spies or fake timers
+// expect: No mocks, spies or fake timers
+// @file src/contexts/bar/application/bar-close.test.ts
+import { vi } from "vitest";
+
+vi.spyOn(console, "log");

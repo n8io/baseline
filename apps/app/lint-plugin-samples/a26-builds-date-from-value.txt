@@ -1,0 +1,7 @@
+// A26: building a Date from a value is allowed; only reading the system time is not
+// expect:
+// @file src/contexts/bar/application/bar-close.ts
+export const barClose = (ports: { barClock: { now(): Date } }) => ({
+	closedAt: ports.barClock.now(),
+	dueAt: new Date(ports.barClock.now().getTime() + 1),
+});

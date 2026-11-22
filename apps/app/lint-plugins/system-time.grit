@@ -1,0 +1,9 @@
+// A26: a Use case reads the time from its Clock port, never new Date() or Date.now().
+language js
+
+or {
+	`new Date()`,
+	`Date.now()`
+} as $time where {
+	register_diagnostic(span=$time, message="A26: this reads the system time in a Use case; read <context>Clock.now() from the ports, so a test sets the time", severity="error")
+}

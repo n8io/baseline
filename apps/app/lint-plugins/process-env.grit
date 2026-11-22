@@ -1,0 +1,6 @@
+// A22: process.env is read only through ENV from #env.
+language js
+
+`process.env` as $env where {
+	register_diagnostic(span=$env, message="A22: process.env is read only through ENV from #env (declare the item in .env.schema)", severity="error")
+}

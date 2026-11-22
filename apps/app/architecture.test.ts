@@ -531,14 +531,6 @@ describe("architecture", () => {
 		]);
 	});
 
-	it("A26 lets a Use case build a Date from a value", async () => {
-		const useCase = await architectureFileCreate(
-			"src/contexts/bar/application/bar-close.ts",
-			"export const barClose = (ports: { barClock: { now(): Date } }) => ({\n\tclosedAt: ports.barClock.now(),\n\tdueAt: new Date(ports.barClock.now().getTime() + 1),\n});\n",
-		);
-		expect(architectureRules["A26"]?.([useCase])).toEqual([]);
-	});
-
 	it("A27 skips comments, tests and adapters", async () => {
 		const files = await Promise.all([
 			architectureFileCreate(

@@ -3,6 +3,27 @@
 	"root": false,
 	"overrides": [
 		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!src/contexts/*/application/ports.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"plugins": ["./lint-plugins/system-time.grit"]
+		},
+		{
+			"includes": ["src/contexts/*/adapters/outbound/**"],
+			"plugins": ["./lint-plugins/sql-raw.grit"]
+		},
+		{
+			"includes": ["src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+			"plugins": ["./lint-plugins/process-env.grit"]
+		},
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"plugins": ["./lint-plugins/no-mocks.grit"]
+		},
+		{
 			"includes": ["clients/sdk/sdk.ts"],
 			"linter": { "enabled": false }
 		},

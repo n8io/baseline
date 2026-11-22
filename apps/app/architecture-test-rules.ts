@@ -1009,15 +1009,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			});
 	},
 
-	A15: (files) =>
-		textCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) === "adapters/outbound",
-			pattern: /\bsql\.raw\b/g,
-			reason: () =>
-				"sql.raw is banned in adapters/outbound/; build queries with Drizzle or the sql`` template, which binds parameters",
-		}),
-
 	A16: (files) =>
 		files
 			.filter((f) => applicationUseCaseIs(f.path))
@@ -1190,13 +1181,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: undefined;
 			},
 		}),
-		...textCheck({
-			files,
-			fileIs: (f) => !testIs(f.path),
-			pattern: /\bprocess\.env\b/g,
-			reason: () =>
-				"process.env is read only through ENV from #env (declare the item in .env.schema)",
-		}),
 	],
 
 	A23: (files) => [
@@ -1281,16 +1265,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 						`${f.path}: ${m[1]}.openapi( is called on a schema imported from domain/, which has no .openapi until @hono/zod-openapi loads; build the API's own schema (z.object({ id: ${m[1]}.shape.id }).openapi("<Name>"))`,
 				);
 			}),
-
-	// The time comes from the Clock port, so a test sets it instead of faking timers.
-	A26: (files) =>
-		textCheck({
-			files,
-			fileIs: (f) => applicationUseCaseIs(f.path),
-			pattern: /\bnew Date\(\s*\)|\bDate\.now\(\s*\)/g,
-			reason: (m) =>
-				`${m[0]} reads the system time in a Use case; read <context>Clock.now() from the ports, so a test sets the time`,
-		}),
 
 	// An expected outcome is part of the return type, so every caller sees it. Only adapters (adapters/outbound/,
 	// Packages) throw, for the unexpected, and telemetryUseCasesTrace records what they throw. A
