@@ -10,9 +10,11 @@
 	"scripts": {
 		"app-create": "node --import ./apps/app/scripts/node-version-require.ts scripts/app-create.ts",
 		"check": "biome check . && tsc --noEmit",
+		"ci:watch": "node --import ./apps/app/scripts/node-version-require.ts scripts/ci-watch.ts",
 		"format": "biome format --write .",
 		"knip": "knip",
 		"readme-svg": "node scripts/readme-svg-write.ts",
+		"release:verify": "node --import ./apps/app/scripts/node-version-require.ts scripts/release-verify.ts",
 		"test": "vitest run",
 		"test:unit": "turbo run test:unit",
 		"version": "changeset version && node scripts/ci-pin-write.ts && biome format --write ."
