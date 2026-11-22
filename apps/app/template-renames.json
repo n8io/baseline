@@ -1,0 +1,8 @@
+[
+	{
+		"release": "16.0.0",
+		"identifiers": {
+			"postgresUniqueViolationIs": "postgresErrorIsUniqueViolation"
+		}
+	}
+]
