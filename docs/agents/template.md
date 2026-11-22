@@ -83,4 +83,6 @@ A Template change that should ship needs an `app` changeset, beside one for each
 ## Maintainer scripts
 
 - `pnpm ci:watch <pull request number>` waits on a pull request's checks and prints a status line each minute. A check that was cancelled (a job over its time limit sends no event) counts as red, and its run is re-run once. Exit code 0 is green, 1 red, 2 gave up after an hour. It reads `GITHUB_TOKEN` or `gh auth token`.
+- `pnpm pre-pr` checks the branch against `origin/main` before the pull request opens: size (fails over 1,500 changed lines, lockfiles and changelogs excluded), a changeset when a Package's source changed (a warning), and whether a model review is worth running (skipped for Markdown-only diffs).
+- `pnpm kickoff <issue> --title <title> [--context <path>] [--owns <files>]` prints the kickoff for a ticket thread with the standing model rule and gates, so none of it is retyped.
 - `pnpm release:verify` checks that `app@<version>` and `v<major>` are on origin and that each Package's version is on npmjs with a provenance attestation, retrying a missing version because the registry lags.
