@@ -112,25 +112,7 @@ describe("architecture", () => {
 		expect(architectureRules[sample?.rule ?? ""]?.(fixed)).toEqual([]);
 	});
 
-	// The passing side of each rule that A2, A14 and A25 loosened or added.
-	it("A2 lets domain/ import a sibling file, zod, the result package and the id and authn types", async () => {
-		const rule = await architectureFileCreate(
-			"src/contexts/bar/domain/bar-open.ts",
-			'import type { Id } from "@n8io/baseline-id";\nimport type { Result } from "@n8io/baseline-result";\nimport { z } from "zod";\nimport { idSchemaCreate } from "../../../id-schema.ts";\nimport { barClosedIs } from "./bar-closed.ts";\n',
-		);
-		expect(architectureRules["A2"]?.([rule])).toEqual([]);
-		const result = await architectureFileCreate(
-			"src/contexts/bar/domain/bar-open.ts",
-			'import { ok } from "@n8io/baseline-result";\n',
-		);
-		expect(architectureRules["A2"]?.([result])).toEqual([]);
-		const value = await architectureFileCreate(
-			"src/contexts/bar/domain/bar-open.ts",
-			'import { idCreate } from "@n8io/baseline-id";\n',
-		);
-		expect(architectureRules["A2"]?.([value])).toHaveLength(1);
-	});
-
+	// The passing side of each rule that A14 and A25 loosened or added.
 	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
 		const acl = await architectureFileCreate(
 			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",

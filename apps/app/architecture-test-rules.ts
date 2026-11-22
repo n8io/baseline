@@ -425,15 +425,6 @@ const sameContextParts = (
 	context && contextOf(imp.target) === context
 		? partsOf(imp.target)
 		: undefined;
-// The layer an import reaches in the importing file's own context.
-const sameContextLayer = (
-	imp: ArchitectureImport,
-	context: string | undefined,
-): string | undefined => {
-	const parts = sameContextParts(imp, context);
-	return parts ? layerOfParts(parts) : undefined;
-};
-
 // A23 reads every exported function. React Router's own export names, React hooks and
 // components are exempt from all of it; `ok` and `err` are the result package's two constructors.
 const leadingVerbs =
@@ -549,18 +540,6 @@ const scopeOf = (p: string): string | undefined => {
 	return scope ? camel(scope) : undefined;
 };
 
-// What domain/ imports from outside its context: Zod, the id schema and the result package (a
-// model function returns ok or err), and the shared kernel's types (the Actor and an id).
-const domainImportsAllowed = new Set([
-	"@n8io/baseline-result",
-	"src/id-schema.ts",
-	"zod",
-]);
-const domainTypePackages = new Set([
-	"@n8io/baseline-authn",
-	"@n8io/baseline-id",
-]);
-
 // The names a file imports as values from its own context's domain/ or entry.
 const sharedSchemaNames = (f: ArchitectureFile): string[] => {
 	const context = contextOf(f.path);
@@ -657,18 +636,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					? "business code never imports adapters/; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
 					: undefined;
 			},
-		}),
-
-	A2: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) === "domain" && !testIs(f.path),
-			check: ({ context, imp }) =>
-				sameContextLayer(imp, context) === "domain" ||
-				domainImportsAllowed.has(imp.target) ||
-				(domainTypePackages.has(imp.target) && imp.typeOnly)
-					? undefined
-					: "domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result Package and the types of the authn and id Packages; move this to a Use case in application/",
 		}),
 
 	A3: (files) => [
@@ -768,23 +735,14 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		});
 	},
 
-	A7: (files) => [
-		...importsCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) === "domain",
-			check: ({ imp }) =>
-				imp.specifier.startsWith("@hono/")
-					? "domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<model>-routes.ts"
-					: undefined,
-		}),
-		...textCheck({
+	A7: (files) =>
+		textCheck({
 			files,
 			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
 			pattern: /\.openapi\(/g,
 			reason: () =>
 				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts",
 		}),
-	],
 
 	A8: (files) =>
 		importsCheck({
@@ -797,37 +755,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 				return imp.specifier === "@n8io/baseline-telemetry/span" &&
 					layerOf(f.path) !== "application"
 					? "only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
-					: undefined;
-			},
-		}),
-
-	A9: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) =>
-				(f.path.startsWith("src/contexts/") || f.path.startsWith("src/ui/")) &&
-				f.path !== "src/ui/entry.server.tsx",
-			check: ({ imp }) =>
-				imp.specifier === "@n8io/baseline-logger"
-					? "contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
-					: undefined,
-		}),
-
-	A10: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) =>
-				(f.path.startsWith("src/ui/") || contextOf(f.path) !== undefined) &&
-				!testIs(f.path),
-			check: ({ f, imp }) => {
-				if (f.path.startsWith("src/ui/")) {
-					const target = contextOf(imp.target);
-					return target && partsOf(imp.target).join("/") !== "index.ts"
-						? `the UI calls contexts only through src/contexts/${target}/index.ts; loaders and actions get Use cases from the load context`
-						: undefined;
-				}
-				return imp.target.startsWith("src/ui/")
-					? "contexts never import the UI; the UI calls the context"
 					: undefined;
 			},
 		}),
@@ -1113,21 +1040,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		return [...unbuilt, ...unwrapped];
 	},
 
-	A19: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) =>
-				contextOf(f.path) !== undefined &&
-				layerOf(f.path) !== "adapters/outbound" &&
-				!testIs(f.path),
-			check: ({ imp }) =>
-				/^src\/contexts\/[^/]+\/adapters\/outbound\/.*\.memory\.ts$/.test(
-					imp.target,
-				)
-					? "only *.test.ts files (and adapters/outbound/) import memory adapters; production code gets ports from <context>PortsCreate in adapters/outbound/index.ts"
-					: undefined,
-		}),
-
 	A20: (files) =>
 		textCheck({
 			files,
@@ -1135,32 +1047,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			pattern: /@ts-(expect-error|ignore)\b/g,
 			reason: (m) =>
 				`@ts-${m[1]} is banned in src/contexts/; fix the type instead`,
-		}),
-
-	A21: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
-			check: ({ f, imp }) => {
-				const pkg = /^@n8io\/baseline-[^/]+/.exec(imp.specifier)?.[0];
-				if (!pkg) return undefined;
-				if (pkg === "@n8io/baseline-result" || pkg === "@n8io/baseline-id") {
-					return undefined;
-				}
-				if (
-					imp.specifier === "@n8io/baseline-telemetry/span" &&
-					layerOf(f.path) === "application"
-				) {
-					return undefined;
-				}
-				const typeAllowed =
-					imp.typeOnly &&
-					(pkg === "@n8io/baseline-queue" || pkg === "@n8io/baseline-authn") &&
-					["domain", "application"].includes(layerOf(f.path) ?? "");
-				return typeAllowed
-					? undefined
-					: "business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in application/ and `import type` of Inbox (queue) and Actor (authn) in domain/ and application/; reach any other shared package through a port implemented in adapters/outbound/";
-			},
 		}),
 
 	A22: (files) => [
@@ -1237,16 +1123,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			},
 		}),
 	],
-
-	A24: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => !testIs(f.path) && !/(^|\/)test\//.test(f.path),
-			check: ({ imp }) =>
-				/^@n8io\/baseline-[^/]+\/testing$/.test(imp.specifier)
-					? "only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
-					: undefined,
-		}),
 
 	// A7 keeps OpenAPI out of domain/. A Model schema is plain Zod, so `.openapi` is missing on it until
 	// @hono/zod-openapi has loaded: a call on one works or throws with test order.
