@@ -1,0 +1,41 @@
+name: ci-recover
+
+# Runs after ci. A failed first attempt is re-run once for its failed jobs (a job that hit its time limit sends
+# no event, so nothing else would look). A failed second attempt of the nightly run opens or updates one issue
+# that lists the failed jobs, so nobody has to ask why it failed. A run cancelled by a newer push is left alone.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+jobs:
+  recover:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      EVENT: ${{ github.event.workflow_run.event }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+    steps:
+      - if: env.ATTEMPT == '1'
+        run: gh run rerun "$RUN_ID" --failed --repo "$REPO"
+      - if: env.ATTEMPT != '1' && env.EVENT == 'schedule'
+        run: |
+          failed=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | "- " + .name] | join("\n")')
+          body=$(printf 'The nightly run failed twice: %s\n\nFailed jobs:\n%s\n' "$RUN_URL" "$failed")
+          existing=$(gh issue list --repo "$REPO" --label nightly-red --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "$body"
+          else
+            gh label create nightly-red --repo "$REPO" --color B60205 --force
+            gh issue create --repo "$REPO" --label nightly-red --title "Nightly CI is red" --body "$body"
+          fi
