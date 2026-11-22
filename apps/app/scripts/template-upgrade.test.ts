@@ -408,8 +408,89 @@ describe("templateUpgradeRun", () => {
 			/<<<<<<< [^\n]*\nFOUR\n=======\n4\n>>>>>>> /,
 		);
 		expect(run.errors.join("\n")).toContain("conflicts in src/a.ts");
+		expect(run.errors.join("\n")).toContain("The merge is left staged");
+		expect(run.errors.join("\n")).toContain("then commit");
+		expect(run.errors.join("\n")).toContain("src/a.ts:\n    FOUR");
 		expect(run.scripts).toEqual(["exec biome format --write .template.json"]);
 		expect(run.errors.join("\n")).not.toContain("pnpm format");
+	});
+
+	it("follows the renames the release lists in the Project's own code", async () => {
+		const release = (identifier: string, extra: TemplateFile[]) => [
+			{ path: "CONTEXT.md", text: "# Template.\n" },
+			{ path: "package.json", text: releaseManifest },
+			{ path: "src/a.ts", text: `export const ${identifier} = 1;\n` },
+			...extra,
+		];
+		const renames: Record<string, TemplateFile[]> = {
+			"1.0.0": release("oldName", []),
+			"1.1.0": release("newName", [
+				{
+					path: "template-renames.json",
+					text: JSON.stringify([
+						{ release: "1.1.0", identifiers: { oldName: "newName" } },
+					]),
+				},
+			]),
+		};
+		using folder = projectCreate("export const oldName = 1;\n");
+		const app = folder.path;
+		writeFileSync(join(app, "src/own.ts"), "oldName();\n");
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "own"]);
+		const run = runCapture();
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				...run,
+				tools: { fetch: (v) => renames[v] ?? [], finish: () => {} },
+			}),
+		).toBe(0);
+		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("newName();\n");
+		expect(existsSync(join(app, "template-renames.json"))).toBe(false);
+		expect(run.logs.join("\n")).toContain("src/own.ts");
+	});
+
+	it("keeps the Project's contexts in CONTEXT-MAP.md when the Template changes its columns", async () => {
+		const table = (columns: string, rows: string) =>
+			`## Contexts\n\n${columns}\n| --- | --- |\n${rows}\n`;
+		const maps: Record<string, TemplateFile[]> = {
+			"1.0.0": [
+				{
+					path: "CONTEXT-MAP.md",
+					text: table("| Context | Language |", "| `foo` | `f.md` |"),
+				},
+			],
+			"1.1.0": [
+				{
+					path: "CONTEXT-MAP.md",
+					text: table("| Context | Docs |", "| `foo` | `f.md` |"),
+				},
+			],
+		};
+		using folder = projectCreate("x\n");
+		const app = folder.path;
+		writeFileSync(
+			join(app, "CONTEXT-MAP.md"),
+			table("| Context | Language |", "| `league` | `l.md` |"),
+		);
+		gitRun(app, ["add", "."]);
+		gitRun(app, ["commit", "--quiet", "-m", "map"]);
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.1.0",
+				...runCapture(),
+				tools: { fetch: (v) => maps[v] ?? [], finish: () => {} },
+			}),
+		).toBe(0);
+		const text = readFileSync(join(app, "CONTEXT-MAP.md"), "utf8");
+		expect(text).toContain("| Docs");
+		expect(text).toContain("`league`");
+		expect(text).not.toContain("`foo`");
 	});
 
 	it("asks for pnpm format when Biome cannot format .template.json on a conflict", async () => {

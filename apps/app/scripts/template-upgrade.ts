@@ -3,14 +3,18 @@
 // committing: a 3-way merge that leaves standard conflict markers and exits 1 on a conflict.
 import {
 	existsSync,
+	mkdirSync,
 	mkdtempDisposableSync,
 	readFileSync,
+	renameSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { argsParse } from "./args.ts";
+import { conflictOwnLines } from "./conflict-report.ts";
+import { contextMapKeep } from "./context-map-keep.ts";
 import { npmTarballsWait } from "./npm-tarballs-wait.ts";
 import {
 	type Piece,
@@ -20,6 +24,13 @@ import {
 	piecesRemoveFromTree,
 } from "./pieces.ts";
 import { gitRun, processRun } from "./process-run.ts";
+import {
+	releaseKey,
+	renameFilesPlan,
+	renameStepsApply,
+	renameStepsBetween,
+	renameStepsParse,
+} from "./template-renames.ts";
 import {
 	filesRead,
 	filesWrite,
@@ -149,11 +160,6 @@ export const changelogBetween = ({
 	from: string;
 	to: string;
 }): string => {
-	const versionKey = (v: string) =>
-		v
-			.split(".")
-			.map((n) => n.padStart(6, "0"))
-			.join(".");
 	const sections = changelog
 		.split(/^(?=## )/m)
 		.filter((s) => s.startsWith("## "));
@@ -161,8 +167,8 @@ export const changelogBetween = ({
 		.filter((section) => {
 			const version = /^## (\d+\.\d+\.\d+)/.exec(section)?.[1];
 			if (version === undefined) return false;
-			const key = versionKey(version);
-			return key > versionKey(from) && key <= versionKey(to);
+			const key = releaseKey(version);
+			return key > releaseKey(from) && key <= releaseKey(to);
 		})
 		.join("")
 		.trim();
@@ -327,6 +333,44 @@ const piecesRemovedWith = (removed: Piece[]): Piece[] => [
 	]),
 ];
 
+// Applies the renames the target release lists, after the merge, to the Project's own files:
+// moves its files, then renames the names and import paths its code uses.
+const renamesFollow = ({
+	appDirectory,
+	from,
+	text,
+	to,
+}: {
+	appDirectory: string;
+	from: string;
+	text: string;
+	to: string;
+}): string[] => {
+	const steps = renameStepsBetween({
+		from,
+		to,
+		steps: renameStepsParse(text),
+	});
+	if (steps.length === 0) return [];
+	const moves = renameFilesPlan({
+		has: (path) => existsSync(join(appDirectory, path)),
+		steps,
+	});
+	for (const { from: old, to: next } of moves) {
+		mkdirSync(dirname(join(appDirectory, next)), { recursive: true });
+		renameSync(join(appDirectory, old), join(appDirectory, next));
+	}
+	const changed = renameStepsApply({
+		files: filesRead(appDirectory),
+		steps,
+	});
+	for (const file of changed)
+		writeFileSync(join(appDirectory, file.path), file.text);
+	return [
+		...new Set([...moves.map((m) => m.to), ...changed.map((f) => f.path)]),
+	].sort();
+};
+
 export const templateUpgrade = async ({
 	appDirectory,
 	to,
@@ -339,6 +383,10 @@ export const templateUpgrade = async ({
 	conflicts: string[];
 	changelog: string;
 	dropped: DroppedImport[];
+	/** Per conflicted file, the lines only the Project's side has. */
+	lost: { lines: string[]; path: string }[];
+	/** The files the Template's renames changed in the Project's own code. */
+	renamed: string[];
 }> => {
 	const status = gitRun(appDirectory, ["status", "--porcelain"]);
 	if (status.trim() !== "") {
@@ -371,12 +419,20 @@ export const templateUpgrade = async ({
 			}),
 			project: glossary,
 		});
+	const contextMapPath = join(appDirectory, "CONTEXT-MAP.md");
+	const renders = contextMapKeep({
+		from: await kept(fromFiles),
+		to: await kept(toFiles),
+		project: existsSync(contextMapPath)
+			? readFileSync(contextMapPath, "utf8")
+			: "",
+	});
 	const manifestPath = join(appDirectory, "package.json");
 	const manifestBefore = readFileSync(manifestPath, "utf8");
 	const { conflicts } = templateMerge({
 		repository: appDirectory,
-		from: await kept(fromFiles),
-		to: await kept(toFiles),
+		from: renders.from,
+		to: renders.to,
 		tools,
 		removed: piecesRemovedWith(
 			piecesRemovedFind(appDirectory).filter(pieceInRelease(fromFiles)),
@@ -388,6 +444,12 @@ export const templateUpgrade = async ({
 		const text = readFileSync(workspace, "utf8");
 		writeFileSync(workspace, workspaceExcludesDedupe(text));
 	}
+	const renamed = renamesFollow({
+		appDirectory,
+		from: template.release,
+		text: toFiles.find((f) => f.path === "template-renames.json")?.text ?? "",
+		to,
+	});
 	const dropped =
 		conflicts.length === 0
 			? droppedImportsFind({
@@ -405,6 +467,14 @@ export const templateUpgrade = async ({
 		changelog: changelogBetween({ changelog, from: template.release, to }),
 		conflicts,
 		dropped,
+		lost: conflicts
+			.filter((path) => existsSync(join(appDirectory, path)))
+			.map((path) => ({
+				path,
+				lines: conflictOwnLines(readFileSync(join(appDirectory, path), "utf8")),
+			}))
+			.filter(({ lines }) => lines.length > 0),
+		renamed,
 	};
 };
 
@@ -444,6 +514,11 @@ export const templateUpgradeRun = async ({
 	log(
 		`Template changes up to ${to} (apply foo changes to your contexts by hand):\n\n${result.changelog || "(no changelog entries)"}\n`,
 	);
+	if (result.renamed.length > 0) {
+		log(
+			`template-upgrade: followed the Template's renames in ${result.renamed.length} of your files:\n${result.renamed.map((path) => `  ${path}`).join("\n")}\n`,
+		);
+	}
 	if (result.conflicts.length > 0) {
 		// The format step below never runs, so give .template.json Biome's layout now; the files
 		// with conflict markers cannot be formatted until they are resolved. A conflict in
@@ -454,8 +529,19 @@ export const templateUpgradeRun = async ({
 		} catch {
 			steps = "pnpm install, pnpm format, pnpm check and pnpm test";
 		}
+		const lost = result.lost
+			.map(
+				({ lines, path }) =>
+					`  ${path}:\n${lines
+						.slice(0, 8)
+						.map((line) => `    ${line.trim()}`)
+						.join(
+							"\n",
+						)}${lines.length > 8 ? `\n    (${lines.length - 8} more)` : ""}`,
+			)
+			.join("\n");
 		logError(
-			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. Resolve the markers, then run ${steps}. If the install answers 404 for an @n8io/baseline-* tarball, npm is still publishing the release: wait a few minutes and run it again.`,
+			`template-upgrade: conflicts in ${result.conflicts.join(", ")}. The merge is left staged in your working tree (nothing is committed, and .template.json has moved), so do not run template-upgrade again: resolve the markers in each file, then run ${steps}, then commit.${lost === "" ? "" : `\nYour side has these lines the Template's side lacks; keep each one you still want:\n${lost}\n`} If the install answers 404 for an @n8io/baseline-* tarball, npm is still publishing the release: wait a few minutes and run it again.`,
 		);
 		return 1;
 	}
