@@ -1,0 +1,6 @@
+// max-params: a default export with two inputs passes
+// expect:
+// @file src/ui/routes/bar-list.tsx
+export default function BarList(a: number, b: number) {
+	return a + b;
+}

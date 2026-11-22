@@ -1,0 +1,14 @@
+// Tests use no mocks, spies or fake timers; vi.waitFor and vi.waitUntil are fine.
+language js
+
+or {
+	`vi.$method` where {
+		$method <: not or {
+			`waitFor`,
+			`waitUntil`
+		}
+	},
+	`import { $names } from "vitest"` where { $names <: contains `vi` }
+} as $mock where {
+	register_diagnostic(span=$mock, message="No mocks, spies or fake timers: use a memory adapter or a hand-written double on a connection", severity="error")
+}

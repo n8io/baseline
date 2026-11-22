@@ -1,5 +1,5 @@
 // A10: src/ui/** imports contexts only through index.ts; nothing in src/contexts/** imports src/ui/**
-// expect: src/ui/routes/bar-list.tsx imports #contexts/bar/domain/bar.ts: the UI calls contexts only through src/contexts/bar/index.ts
+// expect: A10: the UI calls contexts only through
 // @file src/ui/routes/bar-list.tsx
 import { Bar } from "#contexts/bar/domain/bar.ts";
 

@@ -1,5 +1,5 @@
 // A15: sql.raw is banned in src/contexts/**/adapters/outbound/
-// expect: src/contexts/bar/adapters/outbound/bar-repository.postgres.ts: sql.raw is banned in adapters/outbound/
+// expect: A15: sql.raw is banned in adapters/outbound/
 // @file src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
 import { sql } from "drizzle-orm";
 

@@ -441,17 +441,7 @@ describe("test placement", () => {
 	});
 });
 
-// The Template's tests show the way, and a Project copies them: memory adapters are the fakes, a
-// collaborator is real, and output is captured. No module mocks, spies, call-recording functions
-// or fake clocks: no `vi` but vi.waitFor and vi.waitUntil.
-const mocksBanned =
-	/\bvi\.(?!waitFor\b|waitUntil\b)\w+|import\s*\{[^}]*\bvi\b[^}]*\}\s*from\s*"vitest"/;
-const mocksFind = (source: string): string[] =>
-	source
-		.split("\n")
-		.map((text, index) => ({ line: index + 1, text }))
-		.filter(({ text }) => mocksBanned.test(text))
-		.map(({ line, text }) => `line ${line}: ${text.trim()}`);
+// The Template's tests use no mocks, spies or fake timers (lint-plugins/no-mocks.grit, run by Biome).
 
 // architecture.test.ts runs A23 over src/; this runs it over the rest of the Project's code, so a
 // Project checks the names of its scripts, tests and clients too.
@@ -491,39 +481,6 @@ describe("inputs", () => {
 			}));
 		expect(files.length).toBeGreaterThan(10);
 		expect(architectureRules["A30"]?.(files)).toEqual([]);
-	});
-});
-
-describe("tests", () => {
-	it("use no mocks, spies or fake timers", () => {
-		const files = appFilesList(appRoot).filter((name) => /\.tsx?$/.test(name));
-		expect(files.length).toBeGreaterThan(10);
-		const found = files.flatMap((name) =>
-			mocksFind(readFileSync(new URL(name, appRoot), "utf8")).map(
-				(hit) =>
-					`${name}: no mocks (use a memory adapter or a hand-written double on a connection), ${hit}`,
-			),
-		);
-		expect(found).toEqual([]);
-	});
-
-	// Built from parts, so this file's own source holds no call the check would flag.
-	it.each([
-		["mock", '("./a.ts", () => ({}))'],
-		["fn", "()"],
-		["spyOn", '(console, "log")'],
-		["useFakeTimers", "()"],
-		["stubGlobal", '("window", {})'],
-		["setSystemTime", "(new Date())"],
-		["hoisted", "(() => ({}))"],
-		["doMock", '("varlock/env", () => ({}))'],
-	])("flags vi.%s", (name, args) => {
-		expect(mocksFind(`vi.${name}${args};`)).toHaveLength(1);
-	});
-
-	it("allows vi.waitFor and vi.waitUntil", () => {
-		expect(mocksFind("await vi.waitFor(() => true);")).toEqual([]);
-		expect(mocksFind("await vi.waitUntil(() => true);")).toEqual([]);
 	});
 });
 

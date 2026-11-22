@@ -79,3 +79,8 @@ A Template change that should ship needs an `app` changeset, beside one for each
 1. `node scripts/semgrep-rules-write.ts <semgrep-rules commit>` rewrites `rules.txt` from today's packs at that commit.
 2. Run `sh .github/semgrep/rules.sh .github/semgrep/rules.txt <folder>` and `semgrep scan --no-rewrite-rule-ids --config <folder>` on baseline's `packages scripts test`, a rendered Template and each known Project, before and after.
 3. Commit the new `rules.txt` with a changeset. A new pin that adds a finding is a new failing check: it ships with its fixes in the same release, or waits for the next major.
+
+## Maintainer scripts
+
+- `pnpm ci:watch <pull request number>` waits on a pull request's checks and prints a status line each minute. A check that was cancelled (a job over its time limit sends no event) counts as red, and its run is re-run once. Exit code 0 is green, 1 red, 2 gave up after an hour. It reads `GITHUB_TOKEN` or `gh auth token`.
+- `pnpm release:verify` checks that `app@<version>` and `v<major>` are on origin and that each Package's version is on npmjs with a provenance attestation, retrying a missing version because the registry lags.

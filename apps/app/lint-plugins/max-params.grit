@@ -1,0 +1,12 @@
+// Up to two positional inputs; three or more take one typed object. Biome's useMaxParams checks
+// functions and function types but misses default exports.
+language js
+
+or {
+	`export default function $_($a, $b, $c, $...) { $_ }`,
+	`export default function ($a, $b, $c, $...) { $_ }`,
+	`export default ($a, $b, $c, $...) => $_`,
+	`export default async ($a, $b, $c, $...) => $_`
+} as $fn where {
+	register_diagnostic(span=$fn, message="Three or more inputs take one typed object (queueScheduleCreate({ cron, name, run })); a library-fixed callback takes a biome-ignore naming the library", severity="error")
+}

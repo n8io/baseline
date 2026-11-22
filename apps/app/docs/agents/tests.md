@@ -31,3 +31,7 @@ Only three kinds of test reach behind `index.ts`:
 - An invariant no read can show, such as a Model's rows deleted with another's: drive it through the interface on Postgres, then look in the table.
 
 Delete a test that only repeats an interface test, such as a test of one model function or predicate whose cases a Use case test covers, or a unit test of a thin adapter. Move a case it has that no interface test covers into the Use case test first.
+
+## Rules Biome checks
+
+Biome GritQL plugins in `lint-plugins/`, attached by `overrides` in `biome.json`, check A15 (`sql.raw`), A26 (system time in a Use case), `process.env` (A22) and the mock, spy and fake-timer ban, and `noRestrictedImports` overrides check the import rules A2, A7 (`@hono`), A9, A10, A19, A21 and A24, so `pnpm check` shows them. The overrides skip test files and cannot tell `import type` from a value import, so A2 allows the id and authn Packages by name and A21 allows `Inbox` and `Actor` by name. Each rule has a sample in `lint-plugin-samples/` (same layout as `architecture-test-samples/`, run by `lint-plugins.test.ts`). A new plugin gets its sample and an `overrides` entry that scopes it by path.

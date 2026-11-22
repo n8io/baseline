@@ -1,0 +1,4 @@
+// A22: process.env is read only through ENV from #env
+// expect: A22: process.env is read only through ENV from #env
+// @file src/contexts/bar/application/bar-config.ts
+export const barRegion = () => process.env["REGION"];

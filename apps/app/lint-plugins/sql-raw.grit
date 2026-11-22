@@ -1,0 +1,6 @@
+// A15: sql.raw is banned in adapters/outbound/.
+language js
+
+`sql.raw($...)` as $raw where {
+	register_diagnostic(span=$raw, message="A15: sql.raw is banned in adapters/outbound/; build queries with Drizzle or the sql`` template, which binds parameters", severity="error")
+}

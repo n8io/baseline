@@ -1,0 +1,6 @@
+// max-params: a default export takes up to two inputs, like every other function
+// expect: Three or more inputs take one typed object
+// @file src/ui/routes/bar-list.tsx
+export default function BarList(a: number, b: number, c: number) {
+	return a + b + c;
+}

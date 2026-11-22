@@ -1,5 +1,5 @@
 // A24: only *.test.ts(x) files and files under test/ import @n8io/baseline-<package>/testing
-// expect: src/contexts/bar/adapters/inbound/bar-seed.ts imports @n8io/baseline-authn/testing: only *.test.ts(x) files and files under test/ import a Package's test helpers
+// expect: A24: only *.test.ts(x) files
 // @file src/contexts/bar/adapters/inbound/bar-seed.ts
 import { authnTestSignIn } from "@n8io/baseline-authn/testing";
 

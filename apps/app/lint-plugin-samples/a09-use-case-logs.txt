@@ -1,5 +1,5 @@
 // A9: @n8io/baseline-logger is not imported in src/contexts/** or src/ui/** (except src/ui/entry.server.tsx)
-// expect: src/contexts/bar/application/bar-get.ts imports @n8io/baseline-logger: contexts and the UI never log
+// expect: A9: contexts and the UI never log
 // @file src/contexts/bar/application/bar-get.ts
 import { logger } from "@n8io/baseline-logger";
 

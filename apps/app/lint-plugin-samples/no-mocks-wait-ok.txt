@@ -1,0 +1,4 @@
+// no-mocks: vi.waitFor and vi.waitUntil are allowed
+// expect:
+// @file src/contexts/bar/application/bar-close.test.ts
+await vi.waitFor(() => true);
