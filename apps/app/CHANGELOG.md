@@ -1,5 +1,18 @@
 # app
 
+## 16.1.0
+
+### Minor Changes
+
+- c1dee86: Four rules move from the Vitest architecture tests into Biome GritQL plugins under `lint-plugins/`, wired through `overrides` in `biome.json`, so `pnpm check` and the editor report them: A15 (`sql.raw` in `adapters/outbound/`), A26 (system time in a Use case), the `process.env` part of A22, and the ban on mocks, spies and fake timers in tests. Messages keep the A-number. `lint-plugin-samples/` holds one failing sample per plugin, run by `lint-plugins.test.ts`. To upgrade a Project: run `pnpm template-upgrade`; keep your own `biome.json` overrides next to the new ones.
+- c1dee86: The import rules A2 (domain imports), A7 (`@hono` in domain), A9 (logger), A10 (UI and contexts), A19 (memory adapters), A21 (shared Packages in business code) and A24 (Package `/testing` helpers) move from the architecture test to `noRestrictedImports` overrides in `biome.json`, so `pnpm check` and the editor report them. The overrides skip test files and cannot tell `import type` from a value import: A2 now allows the id and authn Packages by name, and A21 allows `Inbox` and `Actor` by name. Keep your own `noRestrictedImports` entries in the matching override when you upgrade.
+- c1dee86: A Biome plugin, `lint-plugins/max-params.grit`, fails a default-exported function with three or more inputs, which Biome's `useMaxParams` skips. It takes one typed object like every other function. Function types are already checked by `useMaxParams`; method signatures in types are still not.
+- 03cb19e: `pnpm template-upgrade` handles a big rename better. A release lists what it renamed in `template-renames.json` (names, import paths, files) and the upgrade applies it to your own code after the merge, naming the files it changed. In `CONTEXT-MAP.md` it keeps your rows when the Template changes a table's columns. On a conflict it says the merge is left staged (do not run it again) and lists, per file, the lines only your side has, so an import lost in a conflict block shows up. `docs/agents/template-upgrade.md` says the same. To upgrade a Project: nothing to do; these apply from the upgrade after the one that brings them.
+
+### Patch Changes
+
+- c1dee86: Baseline's own maintenance gains two scripts, `pnpm ci:watch <pr>` and `pnpm release:verify`; Projects are not affected.
+
 ## 16.0.0
 
 ### Major Changes
