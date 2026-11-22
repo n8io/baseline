@@ -14,7 +14,7 @@ export type RenameStep = {
 };
 
 export const releaseKey = (release: string): string =>
-	release
+	(release.split("-")[0] ?? release)
 		.split(".")
 		.map((n) => n.padStart(6, "0"))
 		.join(".");
@@ -53,6 +53,46 @@ const sourceIs = (path: string): boolean =>
 
 // The Project's source files with every step's identifiers and import paths renamed; only the
 // files that changed come back.
+const renameStepApply = ({
+	files,
+	step,
+}: {
+	files: TemplateFile[];
+	step: RenameStep;
+}): TemplateFile[] => {
+	const identifiers = step.identifiers ?? {};
+	const modules = step.modules ?? {};
+	const names = Object.keys(identifiers);
+	const paths = Object.keys(modules);
+	return files.map((file) => {
+		if (!sourceIs(file.path)) return file;
+		const named =
+			names.length === 0
+				? file.text
+				: file.text.replace(
+						new RegExp(
+							`(?<![\\w$])(${names.map(regexEscape).join("|")})(?![\\w$])`,
+							"g",
+						),
+						(name) => identifiers[name] ?? name,
+					);
+		const text =
+			paths.length === 0
+				? named
+				: named.replace(
+						new RegExp(`(["'])(${paths.map(regexEscape).join("|")})\\1`, "g"),
+						(whole) => {
+							const quote = whole.slice(0, 1);
+							const path = whole.slice(1, -1);
+							return `${quote}${modules[path] ?? path}${quote}`;
+						},
+					);
+		return { ...file, text };
+	});
+};
+
+// The Project's source files with each step's identifiers and import paths renamed, one step after
+// the other so a name renamed twice follows both; only the files that changed come back.
 export const renameStepsApply = ({
 	files,
 	steps,
@@ -60,41 +100,11 @@ export const renameStepsApply = ({
 	files: TemplateFile[];
 	steps: RenameStep[];
 }): TemplateFile[] => {
-	const identifiers = Object.assign(
-		{},
-		...steps.map((s) => s.identifiers ?? {}),
+	const renamed = steps.reduce(
+		(current, step) => renameStepApply({ files: current, step }),
+		files,
 	);
-	const modules = Object.assign({}, ...steps.map((s) => s.modules ?? {}));
-	const names = Object.keys(identifiers) as string[];
-	const paths = Object.keys(modules) as string[];
-	return files
-		.filter((file) => sourceIs(file.path))
-		.map((file) => {
-			const named =
-				names.length === 0
-					? file.text
-					: file.text.replace(
-							new RegExp(
-								`(?<![\\w$])(${names.map(regexEscape).join("|")})(?![\\w$])`,
-								"g",
-							),
-							(name) => identifiers[name] ?? name,
-						);
-			const text =
-				paths.length === 0
-					? named
-					: named.replace(
-							new RegExp(`(["'])(${paths.map(regexEscape).join("|")})\\1`, "g"),
-							(whole) => {
-								const quote = whole.slice(0, 1);
-								const path = whole.slice(1, -1);
-								return `${quote}${modules[path] ?? path}${quote}`;
-							},
-						);
-			return { before: file.text, file: { ...file, text } };
-		})
-		.filter(({ before, file }) => file.text !== before)
-		.map(({ file }) => file);
+	return renamed.filter((file, at) => file.text !== files[at]?.text);
 };
 
 // The file moves of every step, oldest first, for the paths the Project still has.
@@ -105,8 +115,13 @@ export const renameFilesPlan = ({
 	has: (path: string) => boolean;
 	steps: RenameStep[];
 }): { from: string; to: string }[] =>
-	steps.flatMap((step) =>
-		Object.entries(step.files ?? {})
-			.filter(([from, to]) => has(from) && !has(to))
-			.map(([from, to]) => ({ from, to })),
-	);
+	steps.reduce<{ from: string; to: string }[]>((moves, step) => {
+		const moved = new Set(moves.map((m) => m.from));
+		const present = (path: string) =>
+			moves.some((m) => m.to === path) || (has(path) && !moved.has(path));
+		return moves.concat(
+			Object.entries(step.files ?? {})
+				.filter(([from, to]) => present(from) && !present(to))
+				.map(([from, to]) => ({ from, to })),
+		);
+	}, []);

@@ -14,7 +14,7 @@ export const conflictOwnLines = (text: string): string[] => {
 			block = [];
 			theirs = [];
 		} else if (line.startsWith("|||||||") && side === "own") side = "base";
-		else if (line.startsWith("=======") && side !== "none") side = "theirs";
+		else if (/^=======\s*$/.test(line) && side !== "none") side = "theirs";
 		else if (line.startsWith(">>>>>>>") && side === "theirs") {
 			own.push(
 				...block.filter(

@@ -17,7 +17,7 @@ const cellsOf = (line: string): string[] =>
 		.trim()
 		.replace(/^\|/, "")
 		.replace(/\|$/, "")
-		.split("|")
+		.split(/(?<!\\)\|/)
 		.map((cell) => cell.trim());
 
 // The table under each `## ` heading, by heading.

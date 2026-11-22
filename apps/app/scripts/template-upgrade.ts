@@ -468,6 +468,7 @@ export const templateUpgrade = async ({
 		conflicts,
 		dropped,
 		lost: conflicts
+			.filter((path) => existsSync(join(appDirectory, path)))
 			.map((path) => ({
 				path,
 				lines: conflictOwnLines(readFileSync(join(appDirectory, path), "utf8")),

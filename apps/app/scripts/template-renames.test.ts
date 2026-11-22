@@ -62,6 +62,24 @@ describe("renameStepsApply", () => {
 	});
 });
 
+describe("renameStepsApply chains", () => {
+	it("follows a name renamed in two releases", () => {
+		const chain = [
+			{ release: "2.0.0", identifiers: { a: "b" } },
+			{ release: "3.0.0-beta.1", identifiers: { b: "c" } },
+		];
+		expect(
+			renameStepsApply({
+				steps: chain,
+				files: [{ path: "src/x.ts", text: "a();\n" }],
+			}),
+		).toEqual([{ path: "src/x.ts", text: "c();\n" }]);
+		expect(
+			renameStepsBetween({ steps: chain, from: "2.0.0", to: "3.0.0" }),
+		).toHaveLength(1);
+	});
+});
+
 describe("renameFilesPlan", () => {
 	it("moves a file the Project has to a path it does not", () => {
 		const has = (path: string) => path === "src/foo-specification.ts";
