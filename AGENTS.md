@@ -20,7 +20,6 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test in a Package: `pnpm test` runs every test; in cache, live, postgres, queue and redis it needs Docker, which only the files named `*.redis.test.ts` or `*.postgres.test.ts` use
 - unit tests with no Docker: `pnpm test:unit` (root runs it in every Package, or run it inside one)
 - dead code: `pnpm knip`
-- wait on a pull request's checks (re-runs a cancelled one once): `pnpm ci:watch <number>`; verify a release (tags, npmjs, provenance): `pnpm release:verify`
 - glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
 - CI's `packages` job: `pnpm exec turbo run check test build`; a Template change must also pass the other jobs ([docs/agents/template.md](docs/agents/template.md))
 - a change that should ship: `pnpm exec changeset`, for each Package it touches, plus `app` for a Template change

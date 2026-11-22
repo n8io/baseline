@@ -148,8 +148,9 @@ if (import.meta.main) {
 		process.exitCode = 1;
 	} else {
 		// biome-ignore lint/suspicious/noUndeclaredEnvVars: a script run by hand, outside any Turborepo task.
+		const fromEnv = process.env["GITHUB_TOKEN"];
 		const token =
-			process.env["GITHUB_TOKEN"] ??
+			fromEnv ??
 			execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
 		process.exitCode = await ciWatch({
 			api: ciWatchApiCreate(token),
