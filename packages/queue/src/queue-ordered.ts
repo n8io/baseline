@@ -283,6 +283,8 @@ export const queueOrderedBlockedKeysWatch = (
 				[queueOrderedName(entry.consumer), entry.id],
 			);
 			if (row.rows.length === 0) {
+				// Counted first, so a failing log call cannot lose the count.
+				expired.add(1, { "messaging.destination.name": entry.consumer });
 				logger.error(
 					{
 						deleteAt: entry.deleteAt,
@@ -293,7 +295,6 @@ export const queueOrderedBlockedKeysWatch = (
 					},
 					"Blocked Event was deleted unreleased; its key moved on without it",
 				);
-				expired.add(1, { "messaging.destination.name": entry.consumer });
 			}
 		}
 		for (const consumer of consumers) {
