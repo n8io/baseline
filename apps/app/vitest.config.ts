@@ -27,11 +27,12 @@ const integration: TestProjectConfiguration = {
 };
 
 // Unit tests run on memory adapters even where the shell exports real URLs, and every one that
-// opens connections keeps analytics and error tracking local.
+// opens connections keeps analytics, error tracking and feature flags local.
 const unitEnv = {
 	APP_ENV: "test",
 	CACHE_URL: "memory://",
 	DATABASE_URL: "memory://",
+	LAUNCHDARKLY_SDK_KEY: "",
 	MIXPANEL_TOKEN: "",
 	SENTRY_DSN: "",
 } as const;

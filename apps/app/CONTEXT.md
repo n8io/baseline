@@ -160,7 +160,7 @@ Moving a Project to a newer Template release with `pnpm template-upgrade` ([docs
 _Avoid_: template sync, template update, rebase onto the template, rebase on the template
 
 **Piece**:
-An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project will never remove (`piece-check` skips them) ([docs/agents/pieces.md](docs/agents/pieces.md)).
+An optional slice of the Template a Project can take out whole with `pnpm piece-remove <piece>`: `ui`, `live`, `cache`, `redis`, `queue`, `analytics`, `error-tracking`, `feature-flags`, `api-reference`, `sdk` or `cli`. Its code is whole files plus lines between `piece-start` and `piece-end` markers; `pnpm piece-check` proves each still comes out, and `.template.json`'s `piecesKept` lists the ones a Project will never remove (`piece-check` skips them) ([docs/agents/pieces.md](docs/agents/pieces.md)).
 _Avoid_: add-on, optional module
 
 **Option**:

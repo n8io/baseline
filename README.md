@@ -65,6 +65,7 @@ A Project starts with everything, and most Projects don't need all of it. A **pi
 | `queue`          | Events, Schedules and the Worker process                           | One long-running process; plain Postgres transactions                |
 | `analytics`      | Analytics events and `MIXPANEL_TOKEN`                              | Nothing sent to product analytics                                    |
 | `error-tracking` | Error reports and `SENTRY_DSN`                                     | Errors still logged                                                  |
+| `feature-flags`  | Feature flags and `LAUNCHDARKLY_SDK_KEY`                           | No flags; code that reads one is removed with it                     |
 | `cli`            | The Project's CLI in `clients/cli`                                 | The typed SDK for TypeScript callers                                 |
 | `sdk`            | The typed SDK in `clients/sdk` and its publishing (after cli)      | The API and its OpenAPI document                                     |
 

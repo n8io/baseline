@@ -27,7 +27,7 @@ pnpm dev
 | Cache    | The read-through cache, and the fan-out of live updates to every Server                                                                    | Redis 8            |
 | Clients  | A typed SDK (`clients/sdk`) with one function per API operation, and a CLI (`clients/cli`) built on it, published to GitHub Packages       | Node, browsers     |
 
-Every request is one trace through each Event it publishes; `compose.yaml`'s `telemetry` profile adds a local trace and log viewer on `localhost:3001` (how is at the top of that file). The UI pages, live updates, the cache, Redis, the queue, analytics, error reports, the API reference, the SDK and the CLI are pieces: `pnpm piece-remove <piece>` takes out one this Project does not use (then drop what this README says about it), and `pnpm piece-check` proves each still can.
+Every request is one trace through each Event it publishes; `compose.yaml`'s `telemetry` profile adds a local trace and log viewer on `localhost:3001` (how is at the top of that file). The UI pages, live updates, the cache, Redis, the queue, analytics, error reports, feature flags, the API reference, the SDK and the CLI are pieces: `pnpm piece-remove <piece>` takes out one this Project does not use (then drop what this README says about it), and `pnpm piece-check` proves each still can.
 
 ## Bounded contexts
 

@@ -1,5 +1,5 @@
 // The connections every entry point opens: Postgres, and Redis, the cache store, the queue, Events, the live hub,
-// analytics and error tracking while the Project has those pieces, and the clock. Each context's adapters/outbound/index.ts picks its adapters
+// analytics, error tracking and feature flags while the Project has those pieces, and the clock. Each context's adapters/outbound/index.ts picks its adapters
 // from them.
 // "memory" stands in for a connection whose URL is memory://.
 import { postgresPoolCreate } from "@n8io/baseline-postgres";
@@ -9,6 +9,7 @@ import { analyticsOpen } from "./analytics-open.ts";
 import { cacheStoreOpen } from "./cache-store-open.ts";
 import { clockSystemCreate } from "./clock.ts";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
+import { featureFlagsOpen } from "./feature-flags-open.ts";
 import { liveHubOpen } from "./live-hub-open.ts";
 import { queueOpen } from "./queue-open.ts";
 import { redisOpen } from "./redis-open.ts";
@@ -96,6 +97,13 @@ export const connectionsOpen = async ({
 	});
 	steps = analyticsOpened.steps;
 	// piece-end: analytics
+	// piece-start: feature-flags
+	const featureFlagsOpened = featureFlagsOpen({
+		sdkKey: ENV.LAUNCHDARKLY_SDK_KEY ?? null,
+		steps,
+	});
+	steps = featureFlagsOpened.steps;
+	// piece-end: feature-flags
 	// piece-start: live
 	const liveHubOpened = liveHubOpen({ redis, role, steps });
 	steps = liveHubOpened.steps;
@@ -118,6 +126,9 @@ export const connectionsOpen = async ({
 		// The time every context reads. A test replaces it with clockMemoryCreate to set the time.
 		clock: clockSystemCreate(),
 		database,
+		// piece-start: feature-flags
+		featureFlags: featureFlagsOpened.featureFlags,
+		// piece-end: feature-flags
 		intakes: steps.intakes,
 		// piece-start: live
 		liveHub: liveHubOpened.liveHub,

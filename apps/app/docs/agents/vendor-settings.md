@@ -20,15 +20,16 @@ postgresPoolCreate({
 });
 ```
 
-| Factory                              | `vendor` is                                     | Where to call it             |
-| ------------------------------------ | ----------------------------------------------- | ---------------------------- |
-| `postgresPoolCreate`                 | pg's pool settings                              | `src/connections.ts`         |
-| `postgresMigrate`                    | pg's client settings, for its own connection    | `src/migrate.ts`             |
-| `queueMigrate`, `queueSchedulesSync` | pg-boss's `ssl`, `application_name`, `options`  | `src/migrate.ts`             |
-| `queueCreate`                        | pg-boss's intervals, warnings and retention     | `src/queue-open.ts`          |
-| `analyticsMixpanelCreate`            | Mixpanel's settings (`host`)                    | `src/analytics-open.ts`      |
-| `errorTrackingSentryCreate`          | Sentry's init options (`release`, `sampleRate`) | `src/error-tracking-open.ts` |
-| `redisClientCreate`                  | node-redis's client settings (`socket.ca`)      | `src/redis-open.ts`          |
+| Factory                              | `vendor` is                                            | Where to call it             |
+| ------------------------------------ | ------------------------------------------------------ | ---------------------------- |
+| `postgresPoolCreate`                 | pg's pool settings                                     | `src/connections.ts`         |
+| `postgresMigrate`                    | pg's client settings, for its own connection           | `src/migrate.ts`             |
+| `queueMigrate`, `queueSchedulesSync` | pg-boss's `ssl`, `application_name`, `options`         | `src/migrate.ts`             |
+| `queueCreate`                        | pg-boss's intervals, warnings and retention            | `src/queue-open.ts`          |
+| `analyticsMixpanelCreate`            | Mixpanel's settings (`host`)                           | `src/analytics-open.ts`      |
+| `errorTrackingSentryCreate`          | Sentry's init options (`release`, `sampleRate`)        | `src/error-tracking-open.ts` |
+| `featureFlagsLaunchDarklyCreate`     | LaunchDarkly's SDK options (`baseUri`, `proxyOptions`) | `src/feature-flags-open.ts`  |
+| `redisClientCreate`                  | node-redis's client settings (`socket.ca`)             | `src/redis-open.ts`          |
 
 Rules:
 

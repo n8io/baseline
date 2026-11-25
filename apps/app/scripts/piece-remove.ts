@@ -1,5 +1,5 @@
 // pnpm piece-remove <piece>: removes a Piece of the stack from this Project (ui, live, cache,
-// redis, queue, analytics, error-tracking, api-reference, sdk or cli). It deletes the Piece's files and its `piece-start:` to `piece-end:`
+// redis, queue, analytics, error-tracking, feature-flags, api-reference, sdk or cli). It deletes the Piece's files and its `piece-start:` to `piece-end:`
 // blocks, removes its packages and the imports nothing uses any more, runs `pnpm check`, and never
 // commits. When the check fails it undoes the removal and lists the files that use the Piece outside
 // its markers. docs/agents/pieces.md says what each Piece is and how to take one back. Running it
