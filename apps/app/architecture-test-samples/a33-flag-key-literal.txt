@@ -1,0 +1,10 @@
+// A33: a flag key is written only in src/flags.ts
+// expect: writes the flag key "express-checkout" as a string literal
+// @file src/flags.ts
+import { featureFlagsDefine } from "@n8io/baseline-feature-flags";
+
+export const flagDefs = featureFlagsDefine({
+	express: { key: "express-checkout", fallback: false },
+});
+// @file src/contexts/bar/application/bar-checkout.ts
+export const barCheckoutKey = "express-checkout";

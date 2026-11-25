@@ -1,0 +1,11 @@
+// A31: only packages/feature-flags imports a flag vendor's SDK.
+language js
+
+or {
+	JsModuleSource() as $source,
+	`import($source)`,
+	`require($source)`
+} where {
+	$source <: r"[\"'](?:@openfeature/.*|@launchdarkly/.*|launchdarkly-.*)[\"']",
+	register_diagnostic(span=$source, message="A31: only @n8io/baseline-feature-flags imports a flag vendor's SDK (@openfeature/*, @launchdarkly/*, launchdarkly-*); declare flags with featureFlagsDefine in src/flags.ts and read them through the package", severity="error")
+}

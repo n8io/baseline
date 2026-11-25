@@ -475,7 +475,7 @@ const thingWords =
 // table), the generated SDK and files exporting only types, classes, components, hooks and
 // framework names. It reads `export const|let|function` lines, not `export { … }` lists.
 const exportedValue = /^export (?:const|let|(?:async )?function\*?) (\w+)/gm;
-const fileNameRoots = new Set([...roots, "src/preload.ts"]);
+const fileNameRoots = new Set([...roots, "src/flags.ts", "src/preload.ts"]);
 const fileNamesAllowed: Record<string, string> = {
 	"src/ui/context.ts":
 		"React Router's context keys, one per bounded context, beside the load context that fills them",
@@ -1275,6 +1275,71 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					});
 				});
 			}),
+
+	// A32: the flags are declared once. `featureFlagsDefine` is called only in src/flags.ts, so one
+	// file holds every flag's key, fallback and type. Tests are exempt (they may define a throwaway
+	// set). Text, not types: a call through an alias slips by.
+	A32: (files) =>
+		textCheck({
+			files,
+			fileIs: (f) => f.path !== "src/flags.ts" && !testIs(f.path),
+			pattern: /\bfeatureFlagsDefine\s*[(<]/g,
+			reason: () =>
+				"featureFlagsDefine is called only in src/flags.ts; add the flag there and import flagDefs",
+		}),
+
+	// A33: a flag's vendor key is written once, in src/flags.ts. Everywhere else code names the flag
+	// by its camelCase name (handle.get("heroCopy")), so renaming a key in the flag service is a
+	// one-line change. Reads the `key: "<string>"` entries of src/flags.ts and fails any other
+	// non-test file that writes one of them as a string literal.
+	A33: (files) => {
+		const flagsFile = files.find((f) => f.path === "src/flags.ts");
+		const keys = [
+			...(flagsFile?.source ?? "").matchAll(/\bkey:\s*(["'`])([^"'`]+)\1/g),
+		].map((m) => m[2] ?? "");
+		return files
+			.filter(
+				(f) =>
+					f.path !== "src/flags.ts" &&
+					!testIs(f.path) &&
+					!f.path.includes("-test-"),
+			)
+			.flatMap((f) =>
+				keys
+					.filter((key) =>
+						[`"${key}"`, `'${key}'`, `\`${key}\``].some((literal) =>
+							f.source.includes(literal),
+						),
+					)
+					.map(
+						(key) =>
+							`${f.path}: writes the flag key "${key}" as a string literal; read the flag by its name from src/flags.ts (handle.get("<name>")) and keep the key there`,
+					),
+			);
+	},
+
+	// A34: a flag's value arrives already typed (boolean, number, a values union, or its schema's
+	// output), so no `as` cast on one. A cast hides a flag declared with the wrong type; fix the
+	// declaration in src/flags.ts instead. Looks for a cast right after `get("<name>")` or
+	// `useFeatureFlag("<name>")`, where <name> is a flag declared in src/flags.ts.
+	A34: (files) => {
+		const flagsFile = files.find((f) => f.path === "src/flags.ts");
+		const names = [
+			...(flagsFile?.source ?? "").matchAll(/^\t(\w+):\s*\{/gm),
+		].map((m) => m[1] ?? "");
+		if (names.length === 0) return [];
+		const pattern = new RegExp(
+			`\\b(?:get|useFeatureFlag)\\(\\s*["'\`](?:${names.join("|")})["'\`]\\s*\\)\\)?\\s+as\\s+(?!const\\b)`,
+			"g",
+		);
+		return textCheck({
+			files,
+			fileIs: (f) => !testIs(f.path) && !f.path.includes("-test-"),
+			pattern,
+			reason: (match) =>
+				`${match[0].trim()} casts a flag value; its type comes from the declaration in src/flags.ts (change fallback, values or schema there)`,
+		});
+	},
 
 	// A function that changes its input leaves every caller guessing what it changed, and an error
 	// shows only the state after it. Return a new value instead of editing the one passed in. A

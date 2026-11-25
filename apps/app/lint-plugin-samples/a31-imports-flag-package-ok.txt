@@ -1,0 +1,8 @@
+// A31: the flags Package itself, and a file name that only looks like a vendor, are allowed
+// expect:
+// @file src/flags.ts
+import { featureFlagsDefine } from "@n8io/baseline-feature-flags";
+import { launchdarklyNote } from "./launchdarkly-note.ts";
+
+export const flagDefs = featureFlagsDefine({});
+export const note = launchdarklyNote;
