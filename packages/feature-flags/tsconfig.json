@@ -2,6 +2,7 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"declaration": true,
+		"lib": ["dom", "esnext"],
 		"isolatedDeclarations": true
 	},
 	"include": ["src"]
