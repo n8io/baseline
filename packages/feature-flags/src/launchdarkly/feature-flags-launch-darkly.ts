@@ -1,6 +1,7 @@
 import type { LDOptions } from "@launchdarkly/node-server-sdk";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { logger } from "@n8io/baseline-logger";
+import { telemetryFeatureFlagEvaluationRecord } from "@n8io/baseline-telemetry/feature-flag";
 import {
 	type EvaluationContext,
 	type EvaluationDetails,
@@ -11,6 +12,7 @@ import {
 import type { FeatureFlagKinds } from "../core/feature-flags-context.ts";
 import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
 import type {
+	FeatureFlagEvaluation,
 	FeatureFlagFallback,
 	FeatureFlagRead,
 	FeatureFlagsReadyStatus,
@@ -54,16 +56,78 @@ const fallbackLog = ({ flag, key, reason }: FeatureFlagFallback): void => {
 	logger.warn({ flag, key, reason }, "Feature flag fell back to its default");
 };
 
+const recoveredLog = (): void => {
+	logger.info("Feature flag service answers again");
+};
+
+// LaunchDarkly's reason kinds, and OpenFeature's, as the convention names them.
+const reasonsConvention: Readonly<Record<string, string>> = {
+	CACHED: "cached",
+	DEFAULT: "default",
+	DISABLED: "disabled",
+	ERROR: "error",
+	FALLTHROUGH: "default",
+	OFF: "disabled",
+	RULE_MATCH: "targeting_match",
+	SPLIT: "split",
+	STALE: "stale",
+	STATIC: "static",
+	TARGET_MATCH: "targeting_match",
+	TARGETING_MATCH: "targeting_match",
+};
+
+// The convention's error.type for each fallback. A read that failed is reason "error".
+const errorTypes: Readonly<Record<string, string>> = {
+	closed: "general",
+	notFound: "flag_not_found",
+	notInValues: "parse_error",
+	notReady: "provider_not_ready",
+	schemaFailed: "parse_error",
+	vendorError: "general",
+	wrongType: "type_mismatch",
+};
+
+// Records each evaluation as the OpenTelemetry `feature_flag.evaluation` event. Never the context.
+const evaluationRecord = ({
+	fallbackReason,
+	key,
+	reason,
+	value,
+	variant,
+}: FeatureFlagEvaluation): void => {
+	telemetryFeatureFlagEvaluationRecord({
+		errorType:
+			fallbackReason === null ? null : (errorTypes[fallbackReason] ?? null),
+		key,
+		providerName: "launchdarkly",
+		reason:
+			fallbackReason === null
+				? (reasonsConvention[reason ?? ""] ?? "unknown")
+				: "error",
+		value,
+		variant,
+	});
+};
+
 const readOf = ({
 	errorCode,
+	reason,
 	value,
+	variant,
 }: {
 	readonly errorCode?: EvaluationDetails<JsonValue>["errorCode"];
+	readonly reason?: string;
 	readonly value: unknown;
+	readonly variant?: string;
 }): FeatureFlagRead => {
 	switch (errorCode) {
 		case undefined:
-			return { found: true, value };
+			return {
+				found: true,
+				reason: reason ?? null,
+				value,
+				variant: variant ?? null,
+			};
 		case "FLAG_NOT_FOUND":
 			return { found: false, reason: "notFound" };
 		case "TYPE_MISMATCH":
@@ -165,7 +229,9 @@ export const featureFlagsLaunchDarklyCreate = <
 	};
 	return featureFlagsServerCreate<D, K>({
 		flags,
+		onEvaluation: evaluationRecord,
 		onFallback: onFallback ?? fallbackLog,
+		onRecovered: recoveredLog,
 		source,
 	});
 };

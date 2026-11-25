@@ -478,6 +478,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-telemetry':
+        specifier: workspace:^
+        version: link:../telemetry
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -503,6 +506,9 @@ importers:
       '@openfeature/web-sdk':
         specifier: ^1.10.0
         version: 1.10.0(@openfeature/core@1.12.0)
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
