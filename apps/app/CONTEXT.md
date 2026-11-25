@@ -119,6 +119,14 @@ _Avoid_: tracking event, product event, product metric
 An unexpected error sent to error tracking (Sentry) for triage: its class name, stack frames, cause chain and trace id, never its message. Every error the logger logs at error or fatal becomes one, so code reports an error by logging it.
 _Avoid_: crash report, Sentry issue
 
+**Feature flag**:
+A named value declared once in `src/flags.ts` that the flag service (LaunchDarkly) can change without a deploy: a boolean, a number, one of a listed set of strings, or an object a schema checks. Reading one never throws: when the service is slow, down or wrong, the read returns the flag's declared fallback and logs why.
+_Avoid_: feature toggle, feature switch
+
+**Flag kind**:
+A type of thing a feature flag can target (`actor`, `customer`, `worker`). A context holds one entry per kind, `{ id, attributes? }`, and is replaced whole, never merged. Each kind is declared required or optional where the flag service is opened, and needs a context kind of the same name in the flag service.
+_Avoid_: context type, flag target
+
 **Entry point**:
 A file that starts one process: it parses config, opens connections, builds each bounded context through `src/contexts.ts` and mounts what each one's interface returns (`src/server.ts`, `src/worker.ts`, `src/migrate.ts`, `src/seed.ts`, `src/blocked-keys.ts`). It imports no adapter (each context's `index.ts` picks its own) and holds no business logic.
 _Avoid_: composition root, DI container

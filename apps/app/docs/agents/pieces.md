@@ -113,6 +113,8 @@ Read a flag per request: `featureFlagsForActor({ actor, featureFlags: connection
 
 `LAUNCHDARKLY_SDK_KEY` is optional, so a new Project deploys before it has a LaunchDarkly project; until it is set, every flag answers its declared fallback and nothing connects. To use LaunchDarkly, add `LAUNCHDARKLY_SDK_KEY=infisical()` to `.env.production` and a `LAUNCHDARKLY_SDK_KEY` secret to the Infisical project, and create a context kind named `actor` in LaunchDarkly.
 
+Rules for reading flags, adding a flag or a kind, and the browser and React wiring are in [feature-flags.md](feature-flags.md).
+
 Add feature flags back: `git revert` the "Remove feature-flags" commit.
 
 ## API reference

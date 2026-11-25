@@ -4,7 +4,7 @@ Glossaries: [CONTEXT.md](CONTEXT.md), shared, and each context's own, listed in 
 
 @CONTEXT.md
 
-Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
+Run Node 26 (`.node-version`), pnpm from `packageManager`.
 
 ## Verify
 
@@ -25,7 +25,7 @@ Run with Node 26 (`.node-version`) and pnpm from `packageManager`.
 
 Dev, tests, the Worker, migrate and seed run TypeScript directly, erasable syntax only. Imports carry the `.ts` extension and use `#imports`, not path aliases.
 
-CI fails a command at its budget. Make the code faster or set a new budget on purpose, never quietly.
+CI fails a command at its budget. Make the code faster, or set a new budget on purpose.
 
 ## Tests
 
@@ -116,13 +116,12 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 
 ## Rules no tool checks
 
-- An action calls exactly one write Use case. A loader may call any number of read Use cases across contexts.
-- Do one write per Use case where possible.
-- Do not make slow outside calls inside a transaction. The 5 s timeout is the only guard.
+- An action calls exactly one write Use case. A loader may call any number of read Use cases across contexts. A Use case writes once if it can.
+- No slow outside calls inside a transaction; the 5 s timeout is the only guard.
 - Track an analytics event after commit, named like the Event for the same change (`invoice.created`). The Model's analytics port lists every name it sends.
 - A scheduled Use case handles everything due as of now, not a fixed batch: one run covers any number of missed ticks, and a repeat changes nothing.
 - Make cut-off work safe to redo. Delivery is at least once everywhere.
-- Reuse a shadcn component before making one; add one only with `pnpm exec shadcn add <name>`, never by hand.
+- Reuse a shadcn component; add one only with `pnpm exec shadcn add <name>`, never by hand.
 
 ## Env and secrets
 
@@ -159,8 +158,9 @@ Read the one that matches before you start.
 - A context's tests: [docs/agents/tests.md](docs/agents/tests.md)
 - An outside service (email, payments, a partner API): [docs/agents/ports.md](docs/agents/ports.md)
 - Passing a vendor-only setting (Postgres TLS, a Mixpanel region) to a Package: [docs/agents/vendor-settings.md](docs/agents/vendor-settings.md)
-- A script that calls the running app (flags, token, waiting, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
+- A script that calls the running app (flags, token, exit code): [docs/agents/scripts.md](docs/agents/scripts.md)
 - Removing, restoring or keeping (`piecesKept`) a piece, or writing code that uses one: [docs/agents/pieces.md](docs/agents/pieces.md)
 - Using, publishing or installing the SDK and CLI: [docs/agents/clients.md](docs/agents/clients.md)
 - Planning a build of several contexts: [docs/agents/planning.md](docs/agents/planning.md)
-- A fresh cloud machine (Node, Docker, image build behind a proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)
+- A feature flag or a flag kind: [docs/agents/feature-flags.md](docs/agents/feature-flags.md)
+- A fresh cloud machine (Node, Docker, proxy): [docs/agents/agent-setup.md](docs/agents/agent-setup.md)
