@@ -13,7 +13,7 @@ Read when you add, read, test or remove a feature flag, or add a flag kind (`cus
 7. Browser: `useFeatureFlag("x")` only; it is synchronous and re-renders when the flag changes.
 8. A context is whole: a changed identity is `await contextSet(full context)`. Contexts replace, never merge.
 9. Tests: `featureFlagsMemoryCreate` or `featureFlagsMemoryClientCreate` from `/testing`. Never mock the vendor.
-10. Reads never throw and fall back with a log line `{ flag, key, reason }`; do not wrap them in try/catch.
+10. Reads never throw and fall back to the declared value; the server logs `{ flag, key, reason }`, the browser logs nothing unless `onFallback` is passed. Do not wrap reads in try/catch.
 
 ## Add a flag
 
@@ -21,7 +21,7 @@ Add it to `flagDefs` in `src/flags.ts`, one tab deep as `name: { key: "...", fal
 
 ## Add a kind (customer, worker)
 
-1. Add it to `flagKinds` in `src/flags.ts`: `{ actor: "required", customer: "optional", worker: "optional" }`. Make required only a kind every context has.
+1. Add it to `flagKinds` in `src/flags.ts`: `{ actor: "required", customer: "optional", worker: "optional" }`. Make required only a kind every context has. Widen the type annotation on `flagKinds` to match, or it does not compile.
 2. Create a context kind of the same name in LaunchDarkly.
 3. Pass it where it applies: `featureFlags.context({ actor: { id }, customer: { id: customerId } })`, or `featureFlags.context({ worker: { id: jobId } })` in a job. `featureFlagsForActor` builds an actor-only context; write a sibling for another shape.
 
@@ -31,7 +31,7 @@ Add it to `flagDefs` in `src/flags.ts`, one tab deep as `name: { key: "...", fal
 
 ## Telemetry
 
-Each server evaluation is a `feature_flag.evaluation` log record (no span event, no context recorded); see [tracing.md](tracing.md). The browser client records none yet, and there is no evaluation counter.
+Each evaluation by the LaunchDarkly server adapter is a `feature_flag.evaluation` log record (no span event, no context recorded); see [tracing.md](tracing.md). The browser client records none yet, and there is no evaluation counter.
 
 ## Tests
 
