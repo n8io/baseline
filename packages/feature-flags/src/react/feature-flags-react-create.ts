@@ -15,6 +15,8 @@ import type {
 } from "../core/feature-flags-define.ts";
 import type { FeatureFlagsReadyStatus } from "../core/feature-flags-resolve.ts";
 
+type ProviderReady = Promise<FeatureFlagsReadyStatus> | FeatureFlagsReadyStatus;
+
 /** What `<FeatureFlagsProvider>` takes. */
 export type FeatureFlagsProviderProps<D extends FeatureFlagDefinitions> = {
 	readonly children?: ReactNode;
@@ -23,10 +25,12 @@ export type FeatureFlagsProviderProps<D extends FeatureFlagDefinitions> = {
 	/** The browser's `flags`, from the client the Project created. */
 	readonly flags: FeatureFlagsBrowser<D>;
 	/**
-	 * The client's `ready`. Children render once it settles, whatever the status, because reads
+	 * The client's `ready`, or the status it settled with: pass the status when the page already
+	 * awaited it (before hydrating) so the first render needs no wait. A promise must keep its
+	 * identity between renders. Children render once it settles, whatever the status, because reads
 	 * return fallbacks until the flags are in. Leave it out to render children at once.
 	 */
-	readonly ready?: Promise<FeatureFlagsReadyStatus> | null;
+	readonly ready?: ProviderReady | null;
 };
 
 /** The Provider and hook typed from the Project's flag declarations. */
@@ -36,6 +40,7 @@ export type FeatureFlagsReact<D extends FeatureFlagDefinitions> = {
 	useFeatureFlag<N extends keyof D & string>(flag: N): FlagValue<D[N]>;
 };
 
+// mutates: the record is ours, shared by every Provider of one promise, flipped when it settles
 type Settled = { done: boolean };
 
 /** What the Provider hands the hook: the client's reads and the declarations' fallbacks. */
@@ -62,8 +67,9 @@ const settledOf = (ready: Promise<unknown>): Settled => {
 	return settled;
 };
 
-// The server renders children with fallback values: its reads cannot be ready, and the browser
-// hydrates only after `ready` (the Template waits), so the first client render matches.
+// The server renders children with fallback values: its reads cannot be ready. The browser awaits
+// `ready` before hydrating and passes the status, which is settled on the first render, so the
+// first client render matches. A promise that settled earlier reads as pending for one microtask.
 const FlagsContext = createContext<FlagsContextValue | null>(null);
 
 const settledServerSnapshot = (): boolean => true;
@@ -72,7 +78,7 @@ type ProviderRenderProps = {
 	readonly children?: ReactNode;
 	readonly fallback?: ReactNode;
 	readonly flags: FeatureFlagsBrowser<FeatureFlagDefinitions>;
-	readonly ready?: Promise<FeatureFlagsReadyStatus> | null;
+	readonly ready?: ProviderReady | null;
 };
 
 // A component and a hook are bound to the declarations, not defined inside the factory: React
@@ -82,10 +88,12 @@ const providerRender = (
 	{ children, fallback, flags, ready }: ProviderRenderProps,
 ): ReactElement => {
 	const settled =
-		ready === null || ready === undefined ? null : settledOf(ready);
+		ready === null || ready === undefined || typeof ready === "string"
+			? null
+			: settledOf(ready);
 	const subscribe = useCallback(
 		(notify: () => void): (() => void) => {
-			if (ready === null || ready === undefined) {
+			if (ready === null || ready === undefined || typeof ready === "string") {
 				return () => undefined;
 			}
 			const state = { live: true };

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { act, createElement, type ReactElement } from "react";
-import { createRoot } from "react-dom/client";
+import { act, createElement, type ReactElement, useEffect } from "react";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import {
 	afterEach,
@@ -72,6 +72,15 @@ const Limit = ({ onRender }: Counted): ReactElement => {
 		{ id: "limit" },
 		String(useFeatureFlag("itemLimit")),
 	);
+};
+
+const Mounted = ({
+	onMount,
+}: {
+	readonly onMount: () => void;
+}): ReactElement => {
+	useEffect(onMount, [onMount]);
+	return createElement(Hero, {});
 };
 
 const Theme = ({
@@ -239,6 +248,30 @@ describe("FeatureFlagsProvider", () => {
 			createElement(FeatureFlagsProvider, { flags: client.flags }, "now"),
 		);
 		expect(container.textContent).toBe("now");
+	});
+});
+
+describe("hydration", () => {
+	it("keeps the children mounted when ready is a status the page already awaited", async () => {
+		const client = clientCreate({ heroCopy: "bold" });
+		const status = await client.ready;
+		const mounts = { count: 0 };
+		const element = createElement(
+			FeatureFlagsProvider,
+			{ fallback: "loading", flags: client.flags, ready: status },
+			createElement(Mounted, {
+				onMount: () => {
+					mounts.count += 1;
+				},
+			}),
+		);
+		const container = document.createElement("div");
+		container.innerHTML = renderToString(element);
+		await actRun(async () => {
+			roots.push(hydrateRoot(container, element));
+		});
+		expect(container.textContent).toBe("bold");
+		expect(mounts.count).toBe(1);
 	});
 });
 
