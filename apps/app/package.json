@@ -40,6 +40,7 @@
 	},
 	"dependencies": {
 		"@hono/zod-openapi": "^1.6.3",
+		"@launchdarkly/js-client-sdk": "^4.14.4",
 		"@launchdarkly/node-server-sdk": "^9.17.1",
 		"@launchdarkly/openfeature-node-server": "^2.1.12",
 		"@n8io/baseline-analytics": "workspace:^",
@@ -58,7 +59,10 @@
 		"@n8io/baseline-result": "workspace:^",
 		"@n8io/baseline-shutdown": "workspace:^",
 		"@n8io/baseline-telemetry": "workspace:^",
+		"@openfeature/core": "^1.12.0",
+		"@openfeature/launchdarkly-client-provider": "^0.4.0",
 		"@openfeature/server-sdk": "^1.23.0",
+		"@openfeature/web-sdk": "^1.10.0",
 		"@opentelemetry/api": "^1.10.0",
 		"@react-router/node": "^8.5.2",
 		"@varlock/infisical-plugin": "^2.1.3",

@@ -53,9 +53,13 @@ export const pieces: Record<Piece, PieceIdentity> = {
 	"feature-flags": {
 		packages: [
 			"@n8io/baseline-feature-flags",
+			"@launchdarkly/js-client-sdk",
 			"@launchdarkly/node-server-sdk",
 			"@launchdarkly/openfeature-node-server",
+			"@openfeature/core",
+			"@openfeature/launchdarkly-client-provider",
 			"@openfeature/server-sdk",
+			"@openfeature/web-sdk",
 		],
 	},
 	live: { packages: ["@n8io/baseline-live"] },
@@ -315,6 +319,9 @@ const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
 // LAUNCHDARKLY_SDK_KEY, its comment and its decorators.
 const launchDarklySdkKeyLines =
 	/^(# LaunchDarkly.*\n)?(# @.*\n)*LAUNCHDARKLY_SDK_KEY=.*\n/m;
+// LAUNCHDARKLY_CLIENT_SIDE_ID, its comment and its decorators.
+const launchDarklyClientSideIdLines =
+	/^(# LaunchDarkly.*\n)?(# @.*\n)*LAUNCHDARKLY_CLIENT_SIDE_ID=.*\n/m;
 // The SCHEDULE_* overrides and the marker model-create adds them at; model-create drops
 // them from a new context the same way.
 export const pieceScheduleLines =
@@ -372,7 +379,10 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 				textEdit({
 					directory,
 					path: `.env.${env}`,
-					edit: (text) => text.replace(launchDarklySdkKeyLines, ""),
+					edit: (text) =>
+						text
+							.replace(launchDarklySdkKeyLines, "")
+							.replace(launchDarklyClientSideIdLines, ""),
 				});
 			}
 		},
@@ -380,6 +390,13 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			"src/feature-flags-open.ts",
 			"src/feature-flags-open.test.ts",
 			"src/flags.ts",
+			"src/ui/entry.client.tsx",
+			"src/ui/feature-flag-example.tsx",
+			"src/ui/feature-flags-browser.test.tsx",
+			"src/ui/feature-flags-browser.tsx",
+			"src/ui/feature-flags-client-config.test.ts",
+			"src/ui/feature-flags-client-config.ts",
+			"src/ui/feature-flags.ts",
 		],
 	},
 	live: {

@@ -36,6 +36,7 @@ import {
 import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { uiLoadContextCreate } from "#ui/context.ts";
+import { featureFlagsClientSideIdContext } from "#ui/feature-flags-client-config.ts";
 import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
 import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
@@ -209,13 +210,21 @@ export default await createHonoServer({
 	},
 	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
 	defaultLogger: false,
-	getLoadContext: (c) =>
-		uiLoadContextCreate(
+	getLoadContext: (c) => {
+		const loadContext = uiLoadContextCreate(
 			c,
 			// wiring: contexts-start
 			contexts,
 			// wiring: contexts-end
-		),
+		);
+		// piece-start: feature-flags
+		loadContext.set(
+			featureFlagsClientSideIdContext,
+			ENV.LAUNCHDARKLY_CLIENT_SIDE_ID || null,
+		);
+		// piece-end: feature-flags
+		return loadContext;
+	},
 	listeningListener: serverListening,
 	onServe: (server) => {
 		// Development: Vite owns the server and Ctrl-C.

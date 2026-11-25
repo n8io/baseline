@@ -1,8 +1,12 @@
 {
 	"@hono/zod-openapi": "Hono routes with OpenAPI from Zod schemas",
+	"@launchdarkly/js-client-sdk": "LaunchDarkly's browser SDK, peer of the browser flag adapter (feature-flags)",
 	"@launchdarkly/node-server-sdk": "LaunchDarkly's Node SDK, peer of the flag adapter (feature-flags)",
 	"@launchdarkly/openfeature-node-server": "LaunchDarkly's OpenFeature provider for Node, peer of the flag adapter (feature-flags)",
+	"@openfeature/core": "the OpenFeature types both flag SDKs share, peer (feature-flags)",
+	"@openfeature/launchdarkly-client-provider": "LaunchDarkly's OpenFeature provider for the browser, peer of the browser flag adapter (feature-flags)",
 	"@openfeature/server-sdk": "the OpenFeature server SDK behind the flag adapter, peer (feature-flags)",
+	"@openfeature/web-sdk": "the OpenFeature browser SDK behind the flag adapter, peer (feature-flags)",
 	"@opentelemetry/api": "peer of the @n8io/baseline-* Packages; app code sets spans through telemetry (A8)",
 	"@react-router/node": "React Router on Node (ui)",
 	"@varlock/infisical-plugin": "varlock reads secrets from Infisical",
