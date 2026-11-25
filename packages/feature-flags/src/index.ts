@@ -1,4 +1,8 @@
 export type {
+	FeatureFlagsBrowser,
+	FeatureFlagsClient,
+} from "./core/feature-flags-client.ts";
+export type {
 	FeatureFlagAttributes,
 	FeatureFlagContext,
 	FeatureFlagContextEntry,
@@ -15,3 +19,7 @@ export type {
 	FeatureFlagFallbackReason,
 	FeatureFlagsReadyStatus,
 } from "./core/feature-flags-resolve.ts";
+export type {
+	FeatureFlags,
+	FeatureFlagsHandle,
+} from "./core/feature-flags-server.ts";
