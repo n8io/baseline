@@ -64,6 +64,24 @@ export const featureFlagsSchemaValidate = ({
 	}
 };
 
+/**
+ * Passes a fallback to the Project's logger. A logger that throws, or returns a rejected Promise,
+ * must not fail a read.
+ */
+export const featureFlagsFallbackReport = ({
+	fallback,
+	onFallback,
+}: {
+	fallback: FeatureFlagFallback;
+	onFallback: ((fallback: FeatureFlagFallback) => unknown) | null | undefined;
+}): void => {
+	try {
+		Promise.resolve(onFallback?.(fallback)).catch(() => undefined);
+	} catch {
+		// A logger that throws must not fail a read.
+	}
+};
+
 /** What a read returns: the value, and the reason it is the fallback when it is. */
 export type FeatureFlagResolved = {
 	readonly reason: FeatureFlagFallbackReason | null;

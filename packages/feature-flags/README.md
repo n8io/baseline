@@ -21,31 +21,34 @@ pnpm add @n8io/baseline-feature-flags
 ## Example
 
 ```ts
-import {
-	type FlagValue,
-	featureFlagsDefine,
-} from "@n8io/baseline-feature-flags";
+import { featureFlagsDefine } from "@n8io/baseline-feature-flags";
+import { featureFlagsMemoryCreate } from "@n8io/baseline-feature-flags/testing";
 
-export const flagDefs = featureFlagsDefine({
+const flags = featureFlagsDefine({
 	heroCopy: { key: "hero-copy", fallback: "plain", values: ["plain", "bold"] },
-	itemLimit: { key: "item-limit", fallback: 10 },
 });
-
-export type HeroCopy = FlagValue<typeof flagDefs.heroCopy>; // "plain" | "bold"
+const values = { heroCopy: "bold" } as const;
+await using featureFlags = featureFlagsMemoryCreate({ flags, values });
+await featureFlags.ready;
+await featureFlags.context({}).get("heroCopy"); // "bold"
 ```
 
-Flags are read through the server and browser clients, which land in the next release of this Package.
+The memory flags are the test stand-in: same types and fallback rules, values by flag name, no network. `featureFlagsMemoryClientCreate` is the browser one, with `subscribe`, `contextSet` and `valuesSet`.
 
 ## Reference
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                                                       | Does                                                                                                                                                                                                                                |
-| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `featureFlagsDefine({ name: { key, fallback, values?, schema? } })`, `FeatureFlagDefinition` | Declares the Project's flags. Returns them typed and frozen. Throws a `TypeError` for an empty or duplicate `key`, a reserved name, a fallback outside `values` or failing `schema`, `values` with `schema`, and an async `schema`. |
-| `FlagValue<D>`                                                                               | The type a flag reads as: `FlagValue<typeof flagDefs.heroCopy>`.                                                                                                                                                                    |
-| `FeatureFlagContext`, `FeatureFlagKinds`, `FeatureFlagContextEntry`                          | A context is `{ kind: { id, attributes? } }`. Kinds are declared `"required"` or `"optional"` where the adapter is created.                                                                                                         |
-| `FeatureFlagFallback`, `FeatureFlagFallbackReason`, `FeatureFlagsReadyStatus`                | What is reported when a read returns the fallback, and how `ready` settles.                                                                                                                                                         |
+| Export                                                                                                                             | Does                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `featureFlagsDefine({ name: { key, fallback, values?, schema? } })`, `FeatureFlagDefinition`                                       | Declares the Project's flags. Returns them typed and frozen. Throws a `TypeError` for an empty or duplicate `key`, a reserved name, a fallback outside `values` or failing `schema`, `values` with `schema`, and an async `schema`. |
+| `FlagValue<D>`                                                                                                                     | The type a flag reads as: `FlagValue<typeof flagDefs.heroCopy>`.                                                                                                                                                                    |
+| `FeatureFlags`, `FeatureFlagsHandle`                                                                                               | The server's flags: `context({ actor, customer })` returns a handle whose `get(name)` is async. `ready`, `close()` and `await using` sit beside the flags.                                                                          |
+| `FeatureFlagsClient`, `FeatureFlagsBrowser`                                                                                        | The browser's flags: `flags.get(name)` is synchronous, `flags.subscribe(name, listener)` fires only when that flag changed, and `contextSet(context)` replaces the whole context.                                                   |
+| `FeatureFlagContext`, `FeatureFlagKinds`, `FeatureFlagContextEntry`                                                                | A context is `{ kind: { id, attributes? } }`. Kinds are declared `"required"` or `"optional"` where the adapter is created.                                                                                                         |
+| `FeatureFlagFallback`, `FeatureFlagFallbackReason`, `FeatureFlagsReadyStatus`                                                      | What is reported when a read returns the fallback, and how `ready` settles.                                                                                                                                                         |
+| `@n8io/baseline-feature-flags/testing`: `featureFlagsMemoryCreate({ flags, kinds?, values?, ready?, onFallback? })`                | The server flags in memory. `values` is typed per flag, or a function of the context.                                                                                                                                               |
+| `@n8io/baseline-feature-flags/testing`: `featureFlagsMemoryClientCreate({ flags, kinds?, context, values?, ready?, onFallback? })` | The browser client in memory, with `valuesSet(values)` to push a change.                                                                                                                                                            |
 
 </details>
 
