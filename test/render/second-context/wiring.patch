@@ -172,10 +172,10 @@ index 9216f5a..dff255a 100644
  		],
  		schedules: [
 diff --git a/src/env.d.ts b/src/env.d.ts
-index 8df38c0..30a3198 100644
+index e35ca00..34cd30a 100644
 --- a/src/env.d.ts
 +++ b/src/env.d.ts
-@@ -185,13 +185,32 @@ export type CoercedEnvSchema = {
+@@ -192,13 +192,32 @@ export type CoercedEnvSchema = {
     */
    INFISICAL_CLIENT_ID?: string;
    
@@ -200,36 +200,36 @@ index 8df38c0..30a3198 100644
 +  
  };
  
--type _CoercedEnvSchema_a8354666 = CoercedEnvSchema;
-+type _CoercedEnvSchema_5df42021 = CoercedEnvSchema;
+-type _CoercedEnvSchema_69e47ae8 = CoercedEnvSchema;
++type _CoercedEnvSchema_441c8726 = CoercedEnvSchema;
  
  declare module 'varlock/env' {
--  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_a8354666> {}
--  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_a8354666, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'SHUTDOWN_DRAIN_DELAY_MS' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'COMPOSE_PROJECT_NAME' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'INFISICAL_PROJECT_ID' | 'INFISICAL_SITE_URL' | 'INFISICAL_CLIENT_ID'>> {}
-+  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_5df42021> {}
-+  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_5df42021, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'SHUTDOWN_DRAIN_DELAY_MS' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'COMPOSE_PROJECT_NAME' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'INFISICAL_PROJECT_ID' | 'INFISICAL_SITE_URL' | 'INFISICAL_CLIENT_ID' | 'SCHEDULE_PAYMENT_STALE_ARCHIVE' | 'SCHEDULE_VENDOR_STALE_ARCHIVE' | 'SCHEDULE_VENDOR_CONTACT_STALE_ARCHIVE'>> {}
+-  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_69e47ae8> {}
+-  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_69e47ae8, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'SHUTDOWN_DRAIN_DELAY_MS' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'COMPOSE_PROJECT_NAME' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'INFISICAL_PROJECT_ID' | 'INFISICAL_SITE_URL' | 'INFISICAL_CLIENT_ID'>> {}
++  export interface TypedEnvSchema extends Readonly<_CoercedEnvSchema_441c8726> {}
++  export interface PublicTypedEnvSchema extends Readonly<Pick<_CoercedEnvSchema_441c8726, 'APP_ENV' | 'PORT' | 'HEALTH_PORT' | 'SHUTDOWN_DRAIN_DELAY_MS' | 'POSTGRES_HOST_PORT' | 'REDIS_HOST_PORT' | 'SERVER_HOST_PORT' | 'HEALTH_HOST_PORT' | 'COMPOSE_PROJECT_NAME' | 'IMAGE_REGISTRY' | 'DATABASE_POOL_MAX' | 'AUTHN_ISSUER_URL' | 'AUTHN_CLIENT_ID' | 'AUTHN_AUDIENCE' | 'LOG_LEVEL' | 'OTEL_SERVICE_NAME' | 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'INFISICAL_PROJECT_ID' | 'INFISICAL_SITE_URL' | 'INFISICAL_CLIENT_ID' | 'SCHEDULE_PAYMENT_STALE_ARCHIVE' | 'SCHEDULE_VENDOR_STALE_ARCHIVE' | 'SCHEDULE_VENDOR_CONTACT_STALE_ARCHIVE'>> {}
  }
  
  
-@@ -201,17 +220,17 @@ export type EnvSchemaAsStrings = {
+@@ -208,17 +227,17 @@ export type EnvSchemaAsStrings = {
        : (NonNullable<CoercedEnvSchema[Property]> extends boolean ? ('true' | 'false') : string)
  };
  
--type _EnvSchemaAsStrings_a8354666 = EnvSchemaAsStrings;
-+type _EnvSchemaAsStrings_5df42021 = EnvSchemaAsStrings;
+-type _EnvSchemaAsStrings_69e47ae8 = EnvSchemaAsStrings;
++type _EnvSchemaAsStrings_441c8726 = EnvSchemaAsStrings;
  declare global {
  
    // add types for global import.meta.env
--  interface ImportMetaEnv extends _EnvSchemaAsStrings_a8354666 {}
-+  interface ImportMetaEnv extends _EnvSchemaAsStrings_5df42021 {}
+-  interface ImportMetaEnv extends _EnvSchemaAsStrings_69e47ae8 {}
++  interface ImportMetaEnv extends _EnvSchemaAsStrings_441c8726 {}
    interface ImportMeta {
      readonly env: ImportMetaEnv;
    }
  
    // add types for global process.env
    namespace NodeJS {
--    interface ProcessEnv extends _EnvSchemaAsStrings_a8354666 {}
-+    interface ProcessEnv extends _EnvSchemaAsStrings_5df42021 {}
+-    interface ProcessEnv extends _EnvSchemaAsStrings_69e47ae8 {}
++    interface ProcessEnv extends _EnvSchemaAsStrings_441c8726 {}
    }
  }
 \ No newline at end of file

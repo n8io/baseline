@@ -1,14 +1,14 @@
 // node test/render/api-only.ts <directory> [case]: renders this checkout's apps/app as app-create
 // does, with the customer context, and drives the rendered Project's own `pnpm piece-remove`:
-// - each of ui, live, cache, queue, analytics, error-tracking, api-reference and cli removed alone, and sdk
+// - each of ui, live, cache, queue, analytics, error-tracking, feature-flags, api-reference and cli removed alone, and sdk
 //   after cli, passes check, unit tests and build, and git revert of its commits gives back the starting tree;
 // - redis alone is refused, because the cache and live updates run on it, and sdk alone, because the cli runs on it;
-// - all ten removed together, each passing check, then reverted, give back the starting tree,
+// - all eleven removed together, each passing check, then reverted, give back the starting tree,
 //   which passes check unchanged;
-// - all ten removed, then invoice-line added with context-create and model-create, pass check, unit tests and build
+// - all eleven removed, then invoice-line added with context-create and model-create, pass check, unit tests and build
 //   and the built server serves the API with its security guards.
 // With no case, one render serves every check. CI runs one render per case so they run side by side:
-// alone-1 (ui, live, cache, queue), alone-2 (analytics, error-tracking, api-reference, cli then sdk) and
+// alone-1 (ui, live, cache, queue), alone-2 (analytics, error-tracking, feature-flags, api-reference, cli then sdk) and
 // all (the refusals, every piece together, and the served API). `pnpm piece-check` is not one of them:
 // render-and-test's `pieces` job runs it on the render that job checks.
 import { spawn, spawnSync } from "node:child_process";
@@ -57,6 +57,7 @@ type Piece =
 	| "cache"
 	| "cli"
 	| "error-tracking"
+	| "feature-flags"
 	| "live"
 	| "queue"
 	| "redis"
@@ -339,7 +340,12 @@ const main = async () => {
 	const alone = [
 		...(run("alone-1") ? (["ui", "live", "cache", "queue"] as const) : []),
 		...(run("alone-2")
-			? (["analytics", "error-tracking", "api-reference"] as const)
+			? ([
+					"analytics",
+					"error-tracking",
+					"feature-flags",
+					"api-reference",
+				] as const)
 			: []),
 	];
 	for (const piece of alone) {
@@ -394,6 +400,7 @@ const main = async () => {
 		"queue",
 		"analytics",
 		"error-tracking",
+		"feature-flags",
 		"api-reference",
 		"cli",
 		"sdk",
