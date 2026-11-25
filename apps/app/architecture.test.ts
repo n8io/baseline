@@ -112,6 +112,22 @@ describe("architecture", () => {
 		expect(architectureRules[sample?.rule ?? ""]?.(fixed)).toEqual([]);
 	});
 
+	// The passing side of the flag rules: no flags file, no key written elsewhere, a typed read.
+	it("A32 to A34 pass without flags, and for a typed read of a declared flag", async () => {
+		const flags = await architectureFileCreate(
+			"src/flags.ts",
+			'import { featureFlagsDefine } from "@n8io/baseline-feature-flags";\nexport const flagDefs = featureFlagsDefine({ express: { key: "express-checkout", fallback: false } });\n',
+		);
+		const use = await architectureFileCreate(
+			"src/contexts/bar/application/bar-checkout.ts",
+			'import type { FeatureFlagsHandle } from "@n8io/baseline-feature-flags";\nexport const barExpress = async (h: FeatureFlagsHandle<never>) => (await h.get("express")) satisfies boolean;\nexport const barConst = h.get("express") as const;\n',
+		);
+		for (const rule of ["A32", "A33", "A34"]) {
+			expect(architectureRules[rule]?.([])).toEqual([]);
+			expect(architectureRules[rule]?.([flags, use])).toEqual([]);
+		}
+	});
+
 	// The passing side of each rule that A14 and A25 loosened or added.
 	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
 		const acl = await architectureFileCreate(

@@ -20,6 +20,10 @@
 			"plugins": ["./apps/app/lint-plugins/max-params.grit"]
 		},
 		{
+			"includes": ["**", "!packages/feature-flags/**"],
+			"plugins": ["./apps/app/lint-plugins/feature-flags-vendor-imports.grit"]
+		},
+		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
 			"linter": { "rules": { "complexity": { "useMaxParams": "off" } } }
 		}

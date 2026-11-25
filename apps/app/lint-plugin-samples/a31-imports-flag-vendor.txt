@@ -1,0 +1,6 @@
+// A31: a flag vendor's SDK is imported only by packages/feature-flags
+// expect: A31: only @n8io/baseline-feature-flags imports a flag vendor's SDK
+// @file src/contexts/bar/application/bar-checkout.ts
+import { OpenFeature } from "@openfeature/server-sdk";
+
+export const barCheckout = () => OpenFeature;

@@ -344,6 +344,10 @@
 			"plugins": ["./lint-plugins/no-mocks.grit"]
 		},
 		{
+			"includes": ["**"],
+			"plugins": ["./lint-plugins/feature-flags-vendor-imports.grit"]
+		},
+		{
 			"includes": ["clients/sdk/sdk.ts"],
 			"linter": {
 				"enabled": false
