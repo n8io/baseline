@@ -111,6 +111,28 @@ describe("featureFlagsClientCreate with misbehaving subscribers and sources", ()
 		expect(listener).not.toHaveBeenCalled();
 	});
 
+	it("does not read the source when ready settles after close", async () => {
+		let settle: (status: "connected") => void = () => undefined;
+		const read = vi.fn(() => ({ found: true as const, value: 3 }));
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			source: {
+				close: () => Promise.resolve(),
+				contextSet: () => Promise.resolve(),
+				read,
+				ready: new Promise((resolve) => {
+					settle = resolve;
+				}),
+				subscribe: () => () => undefined,
+			},
+		});
+		client.flags.get("itemLimit");
+		await client.close();
+		settle("connected");
+		await client.ready;
+		expect(read).not.toHaveBeenCalled();
+	});
+
 	it("returns the fallback when the source throws, and keeps going", async () => {
 		const client = featureFlagsClientCreate({
 			flags: featureFlagsTestDefs,
