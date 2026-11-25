@@ -12,6 +12,7 @@ import {
 	type FeatureFlagFallback,
 	type FeatureFlagRead,
 	type FeatureFlagsReadyStatus,
+	featureFlagsFallbackReport,
 	featureFlagsResolve,
 } from "./feature-flags-resolve.ts";
 import { featureFlagsValueIsEqual } from "./feature-flags-value-is-equal.ts";
@@ -67,7 +68,7 @@ export type FeatureFlagsClientOptions<
 	readonly flags: D;
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, to log it. A throw is ignored. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => void) | null;
+	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
 	readonly source: FeatureFlagsClientSource;
 };
 
@@ -87,7 +88,7 @@ export const featureFlagsClientCreate = <
 	let settled = false;
 	let closing: Promise<void> | undefined;
 	const snapshots = new Map<string, unknown>();
-	const listeners = new Map<string, Set<() => void>>();
+	const listeners = new Map<string, Set<{ listener: () => void }>>();
 	const reported = new Map<string, string>();
 	const report = (fallback: FeatureFlagFallback | null, flag: string): void => {
 		const now = fallback?.reason ?? "";
@@ -98,10 +99,16 @@ export const featureFlagsClientCreate = <
 		if (fallback === null || fallback.reason === "notReady") {
 			return;
 		}
+		featureFlagsFallbackReport({ fallback, onFallback });
+	};
+	const sourceRead = (input: {
+		readonly fallback: unknown;
+		readonly key: string;
+	}): FeatureFlagRead => {
 		try {
-			onFallback?.(fallback);
+			return source.read(input);
 		} catch {
-			// A logger that throws must not fail a read.
+			return { found: false, reason: "vendorError" };
 		}
 	};
 	const compute = (flag: string): unknown => {
@@ -116,10 +123,7 @@ export const featureFlagsClientCreate = <
 		}
 		const resolved = featureFlagsResolve({
 			definition,
-			read: source.read({
-				fallback: definition.fallback,
-				key: definition.key,
-			}),
+			read: sourceRead({ fallback: definition.fallback, key: definition.key }),
 		});
 		report(
 			resolved.reason === null
@@ -129,13 +133,25 @@ export const featureFlagsClientCreate = <
 		);
 		return resolved.value;
 	};
+	// Every snapshot is replaced before any subscriber hears of it, and a subscriber that throws
+	// neither stops the others nor fails the caller.
 	const refresh = (): void => {
-		for (const [flag, before] of [...snapshots]) {
+		if (closing !== undefined) {
+			return;
+		}
+		const changed = [...snapshots].flatMap(([flag, before]) => {
 			const after = compute(flag);
-			if (!featureFlagsValueIsEqual(before, after)) {
-				snapshots.set(flag, after);
-				for (const listener of [...(listeners.get(flag) ?? [])]) {
-					listener();
+			return featureFlagsValueIsEqual(before, after) ? [] : [{ after, flag }];
+		});
+		for (const { after, flag } of changed) {
+			snapshots.set(flag, after);
+		}
+		for (const { flag } of changed) {
+			for (const entry of [...(listeners.get(flag) ?? [])]) {
+				try {
+					entry.listener();
+				} catch {
+					// A subscriber that throws must not fail a refresh.
 				}
 			}
 		}
@@ -157,7 +173,7 @@ export const featureFlagsClientCreate = <
 		closing ??= (async () => {
 			unsubscribe();
 			listeners.clear();
-			await source.close().catch(() => undefined);
+			await (async () => source.close())().catch(() => undefined);
 		})();
 		return closing;
 	};
@@ -167,9 +183,10 @@ export const featureFlagsClientCreate = <
 			if (closing !== undefined) {
 				return;
 			}
-			await source
-				.contextSet(featureFlagsContextFreeze(context))
-				.catch(() => undefined);
+			await (async () =>
+				source.contextSet(featureFlagsContextFreeze(context)))().catch(
+				() => undefined,
+			);
 			refresh();
 		},
 		flags: {
@@ -181,10 +198,15 @@ export const featureFlagsClientCreate = <
 				return snapshots.get(flag);
 			}) as FeatureFlagsBrowser<D>["get"],
 			subscribe: (flag, listener) => {
-				const set = listeners.get(flag) ?? new Set<() => void>();
-				listeners.set(flag, set.add(listener));
+				if (closing !== undefined) {
+					return () => undefined;
+				}
+				// An entry per subscription, so one function subscribed twice unsubscribes separately.
+				const entry = { listener };
+				const set = listeners.get(flag) ?? new Set<{ listener: () => void }>();
+				listeners.set(flag, set.add(entry));
 				return () => {
-					set.delete(listener);
+					set.delete(entry);
 				};
 			},
 		},

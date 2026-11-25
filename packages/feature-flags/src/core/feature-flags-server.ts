@@ -12,6 +12,7 @@ import {
 	type FeatureFlagFallback,
 	type FeatureFlagRead,
 	type FeatureFlagsReadyStatus,
+	featureFlagsFallbackReport,
 	featureFlagsResolve,
 } from "./feature-flags-resolve.ts";
 
@@ -58,7 +59,7 @@ export type FeatureFlagsServerOptions<
 	readonly flags: D;
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, to log it. A throw is ignored. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => void) | null;
+	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
 	readonly source: FeatureFlagsServerSource;
 };
 
@@ -100,11 +101,7 @@ export const featureFlagsServerCreate = <
 			}
 			notFoundReported.add(fallback.flag);
 		}
-		try {
-			onFallback?.(fallback);
-		} catch {
-			// A logger that throws must not fail a read.
-		}
+		featureFlagsFallbackReport({ fallback, onFallback });
 	};
 	const get = async (
 		flag: string,
@@ -125,16 +122,22 @@ export const featureFlagsServerCreate = <
 		if (!settled) {
 			return fallbackFor("notReady");
 		}
-		const read = await source
-			.read({ context, fallback: definition.fallback, key: definition.key })
-			.catch((): FeatureFlagRead => ({ found: false, reason: "vendorError" }));
+		// An async wrapper, so a source that throws before it returns a Promise is caught too.
+		const read = await (async () =>
+			source.read({
+				context,
+				fallback: definition.fallback,
+				key: definition.key,
+			}))().catch(
+			(): FeatureFlagRead => ({ found: false, reason: "vendorError" }),
+		);
 		const resolved = featureFlagsResolve({ definition, read });
 		return resolved.reason === null
 			? resolved.value
 			: fallbackFor(resolved.reason);
 	};
 	const close = (): Promise<void> => {
-		closing ??= source.close().catch(() => undefined);
+		closing ??= (async () => source.close())().catch(() => undefined);
 		return closing;
 	};
 	return {
