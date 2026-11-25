@@ -38,7 +38,7 @@
 	},
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
-		"@sentry/core": "^11.12.0"
+		"@sentry/core": "^11.14.0"
 	},
 	"devDependencies": {
 		"@opentelemetry/api": "^1.10.0",
