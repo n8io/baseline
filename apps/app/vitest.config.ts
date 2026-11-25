@@ -32,6 +32,7 @@ const unitEnv = {
 	APP_ENV: "test",
 	CACHE_URL: "memory://",
 	DATABASE_URL: "memory://",
+	LAUNCHDARKLY_CLIENT_SIDE_ID: "",
 	LAUNCHDARKLY_SDK_KEY: "",
 	MIXPANEL_TOKEN: "",
 	SENTRY_DSN: "",

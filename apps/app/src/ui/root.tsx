@@ -1,5 +1,8 @@
 import { authnRefreshClientMiddleware } from "@n8io/baseline-authn/client";
-import { authnExpiresAtContext } from "@n8io/baseline-authn/react-router";
+import {
+	actorContext,
+	authnExpiresAtContext,
+} from "@n8io/baseline-authn/react-router";
 import { type ReactNode, use } from "react";
 import {
 	isRouteErrorResponse,
@@ -9,10 +12,12 @@ import {
 	Scripts,
 	ScrollRestoration,
 } from "react-router";
+import { ENV } from "#env";
 import type { Route } from "./+types/root.ts";
 import appCss from "./app.css?url";
 import { assetReloadListen } from "./asset-reload-listen.ts";
 import { CspNonce } from "./csp-nonce.ts";
+import { featureFlagsClientConfigGet } from "./feature-flags-client-config.ts";
 
 export const links: Route.LinksFunction = () => [
 	{ href: appCss, rel: "stylesheet" },
@@ -21,6 +26,12 @@ export const links: Route.LinksFunction = () => [
 // authnRefreshClientMiddleware reads `authnExpiresAt` from this loader's data.
 export const loader = ({ context }: Route.LoaderArgs) => ({
 	authnExpiresAt: context.get(authnExpiresAtContext),
+	// piece-start: feature-flags
+	featureFlags: featureFlagsClientConfigGet({
+		actor: context.get(actorContext),
+		clientSideId: ENV.LAUNCHDARKLY_CLIENT_SIDE_ID,
+	}),
+	// piece-end: feature-flags
 });
 
 export const clientMiddleware: Route.ClientMiddlewareFunction[] = [
