@@ -204,6 +204,12 @@ importers:
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.19)(zod@4.6.7)
+      '@launchdarkly/node-server-sdk':
+        specifier: ^9.17.1
+        version: 9.17.1(supports-color@7.2.0)
+      '@launchdarkly/openfeature-node-server':
+        specifier: ^2.1.12
+        version: 2.1.12(@launchdarkly/node-server-sdk@9.17.1(supports-color@7.2.0))(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))
       '@n8io/baseline-analytics':
         specifier: workspace:^
         version: link:../../packages/analytics
@@ -216,6 +222,9 @@ importers:
       '@n8io/baseline-error-tracking':
         specifier: workspace:^
         version: link:../../packages/error-tracking
+      '@n8io/baseline-feature-flags':
+        specifier: workspace:^
+        version: link:../../packages/feature-flags
       '@n8io/baseline-health':
         specifier: workspace:^
         version: link:../../packages/health
@@ -249,6 +258,9 @@ importers:
       '@n8io/baseline-telemetry':
         specifier: workspace:^
         version: link:../../packages/telemetry
+      '@openfeature/server-sdk':
+        specifier: ^1.23.0
+        version: 1.23.0(@openfeature/core@1.12.0)
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0

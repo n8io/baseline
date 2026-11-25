@@ -21,6 +21,7 @@ export const pieceNames = [
 	"api-reference",
 	"cache",
 	"error-tracking",
+	"feature-flags",
 	"live",
 	"queue",
 	"redis",
@@ -49,6 +50,14 @@ export const pieces: Record<Piece, PieceIdentity> = {
 	"api-reference": { packages: ["swagger-ui-dist"] },
 	cache: { packages: ["@n8io/baseline-cache"] },
 	"error-tracking": { packages: ["@n8io/baseline-error-tracking"] },
+	"feature-flags": {
+		packages: [
+			"@n8io/baseline-feature-flags",
+			"@launchdarkly/node-server-sdk",
+			"@launchdarkly/openfeature-node-server",
+			"@openfeature/server-sdk",
+		],
+	},
 	live: { packages: ["@n8io/baseline-live"] },
 	queue: { packages: ["@n8io/baseline-queue"] },
 	redis: { after: ["cache", "live"], packages: ["@n8io/baseline-redis"] },
@@ -303,6 +312,9 @@ const cacheUrlLines = /^(#.*\n)*CACHE_URL=.*\n/m;
 const mixpanelTokenLines = /^(# Mixpanel.*\n)?(# @.*\n)*MIXPANEL_TOKEN=.*\n/m;
 // SENTRY_DSN, its comment and its decorators.
 const sentryDsnLines = /^(# Sentry.*\n)?(# @.*\n)*SENTRY_DSN=.*\n/m;
+// LAUNCHDARKLY_SDK_KEY, its comment and its decorators.
+const launchDarklySdkKeyLines =
+	/^(# LaunchDarkly.*\n)?(# @.*\n)*LAUNCHDARKLY_SDK_KEY=.*\n/m;
 // The SCHEDULE_* overrides and the marker model-create adds them at; model-create drops
 // them from a new context the same way.
 export const pieceScheduleLines =
@@ -353,6 +365,22 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			}
 		},
 		paths: ["src/error-tracking-open.ts", "src/error-tracking-open.test.ts"],
+	},
+	"feature-flags": {
+		edit: (directory) => {
+			for (const env of ["schema", "production"]) {
+				textEdit({
+					directory,
+					path: `.env.${env}`,
+					edit: (text) => text.replace(launchDarklySdkKeyLines, ""),
+				});
+			}
+		},
+		paths: [
+			"src/feature-flags-open.ts",
+			"src/feature-flags-open.test.ts",
+			"src/flags.ts",
+		],
 	},
 	live: {
 		paths: ["src/live-hub-open.ts"],

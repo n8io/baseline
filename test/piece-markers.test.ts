@@ -8,7 +8,7 @@ const markersMax = 91;
 const markersPerFileMax = 6;
 // It opens every piece, one block each.
 const markersPerFileAllowed: Record<string, number> = {
-	"apps/app/src/connections.ts": 10,
+	"apps/app/src/connections.ts": 12,
 };
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));

@@ -2,7 +2,7 @@
 
 Read when a Project should remove a piece of the stack it does not use, or take one back, or when writing code that uses a piece. Remove one with `pnpm piece-remove <piece>`.
 
-A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`; the API reference page is `src/api-reference.ts`), and each Model's piece behaviour is tested in a file of its own (`application/<model>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<model>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm model-create` see that a piece's package is gone and leave the piece out of every new context and Model.
+A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`, `src/feature-flags-open.ts`; the API reference page is `src/api-reference.ts`), and each Model's piece behaviour is tested in a file of its own (`application/<model>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<model>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm model-create` see that a piece's package is gone and leave the piece out of every new context and Model.
 
 ## How to remove a piece
 
@@ -102,6 +102,18 @@ It reports what is logged at error or fatal from the moment `src/connections.ts`
 `SENTRY_DSN` is optional, so a new Project deploys before it has a Sentry project; until it is set, errors are only logged. To report them, add `SENTRY_DSN=infisical()` to `.env.production` and a `SENTRY_DSN` secret to the Infisical project.
 
 Add error tracking back: `git revert` the "Remove error-tracking" commit.
+
+## Feature flags
+
+`pnpm piece-remove feature-flags`
+
+Feature flags read from LaunchDarkly (`@n8io/baseline-feature-flags`, `src/flags.ts`, `src/feature-flags-open.ts`) and `LAUNCHDARKLY_SDK_KEY` in `.env.schema` (and in `.env.production`, once you added it). Flags are declared once in `src/flags.ts`; `src/feature-flags-open.ts` is the one place the vendor is chosen, and `connections.featureFlags` is the instance every entry point shares. Code that reads a flag goes with the piece, so remove those reads first. Nothing else uses it, so it can go in any order.
+
+Read a flag per request: `featureFlagsForActor({ actor, featureFlags: connections.featureFlags }).get("exampleFlag")` builds a complete context for that Actor, and the handle is dropped with the request. Reads never throw: a slow or down LaunchDarkly, a missing flag or a value of the wrong type returns the flag's declared fallback and logs why.
+
+`LAUNCHDARKLY_SDK_KEY` is optional, so a new Project deploys before it has a LaunchDarkly project; until it is set, every flag answers its declared fallback and nothing connects. To use LaunchDarkly, add `LAUNCHDARKLY_SDK_KEY=infisical()` to `.env.production` and a `LAUNCHDARKLY_SDK_KEY` secret to the Infisical project, and create a context kind named `actor` in LaunchDarkly.
+
+Add feature flags back: `git revert` the "Remove feature-flags" commit.
 
 ## API reference
 

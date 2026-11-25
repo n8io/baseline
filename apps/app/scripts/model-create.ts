@@ -240,6 +240,8 @@ const piecesTemplate: Record<Piece, { lines?: RegExp; paths: RegExp[] }> = {
 	cli: { paths: [] },
 	// Owns no context file; listed so its blocks stay out once it is removed.
 	"error-tracking": { paths: [] },
+	// Owns no context file; listed so its blocks stay out once it is removed.
+	"feature-flags": { paths: [] },
 	live: {
 		paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
 	},
