@@ -449,6 +449,46 @@ importers:
         specifier: 3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
 
+  packages/feature-flags:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
+    devDependencies:
+      '@launchdarkly/js-client-sdk':
+        specifier: ^4.14.4
+        version: 4.14.4
+      '@launchdarkly/node-server-sdk':
+        specifier: ^9.17.1
+        version: 9.17.1(supports-color@7.2.0)
+      '@launchdarkly/openfeature-node-server':
+        specifier: ^2.1.12
+        version: 2.1.12(@launchdarkly/node-server-sdk@9.17.1(supports-color@7.2.0))(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))
+      '@openfeature/core':
+        specifier: ^1.12.0
+        version: 1.12.0
+      '@openfeature/launchdarkly-client-provider':
+        specifier: ^0.4.0
+        version: 0.4.0(@launchdarkly/js-client-sdk@4.14.4)(@openfeature/web-sdk@1.10.0(@openfeature/core@1.12.0))
+      '@openfeature/server-sdk':
+        specifier: ^1.23.0
+        version: 1.23.0(@openfeature/core@1.12.0)
+      '@openfeature/web-sdk':
+        specifier: ^1.10.0
+        version: 1.10.0(@openfeature/core@1.12.0)
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      fast-check:
+        specifier: ^4.10.3
+        version: 4.10.3
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+
   packages/health: {}
 
   packages/http:
@@ -1229,6 +1269,36 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
+  '@launchdarkly/eventsource@0.2.5':
+    resolution: {integrity: sha512-LXH/j6k3jg4vuppfpmSEaw6NgHZYVeNAEKo4o1aiAIJYY6PgNpEwIuCAnhHim6w0e/YKbMGgpaLBhOjOvU7EyQ==}
+
+  '@launchdarkly/js-client-sdk-common@1.35.4':
+    resolution: {integrity: sha512-NjYXio2hJ7rjeJJirDNTbUb4JwjiSMQhhAiqIVxm1hbVGgoyUS4hRqw57/nUkTFNEG272dcTMjmU/yGmEk7h9w==}
+
+  '@launchdarkly/js-client-sdk@4.14.4':
+    resolution: {integrity: sha512-zCRG4PfEmcWboUiNC+0KP2Nm/HSMmpcfXdMP0i8ITVMhA4+lczpiIW4FdRuhlqDn0nPPHdC1EFqUeTzqv1MKGw==}
+
+  '@launchdarkly/js-sdk-common@2.32.3':
+    resolution: {integrity: sha512-Z7C5wXFuvK9uFEg8Zbg18K7btqlDrcUgNFzFn/stVt3zEM9pZr58hJnhhWM854Ru0nFr325Wak7LS+v878mAYA==}
+
+  '@launchdarkly/js-server-sdk-common@2.26.8':
+    resolution: {integrity: sha512-5F6ocr5ZyIqfIR34xp5epC/vPxXulq5jI5rKW3Yw/1IIrsh1p4Q5npT7HmMd1phLv7+H377QzFEDjetcUyJ6ug==}
+
+  '@launchdarkly/node-server-sdk@9.17.1':
+    resolution: {integrity: sha512-htzxaCurBqTs9C3sNR+bKjmtmsV4gHunXj+2YHLDs1psAkDl89gI4mGKS1lQAxO9u9mrfpRFDEkQgqvc32PYCA==}
+
+  '@launchdarkly/openfeature-js-server-common@2.2.4':
+    resolution: {integrity: sha512-Xi06hx8QPzX56JDwvkfUd6A/KkSsBe42J0r5Hr2Q6DzVX/CopGGwTOg3P9ZiH2jt1JEL3qiHLYKLTM05Ii/0Cw==}
+    peerDependencies:
+      '@openfeature/server-sdk': ^1.16.0
+
+  '@launchdarkly/openfeature-node-server@2.1.12':
+    resolution: {integrity: sha512-Z3mMtm9Geq/lJGnUf+Y4TtdXDz7NNzMYL/Y2aOPyKHJ0dZkmulT2AhEKVrhwESBpzkZhOvUuTvs06Zy1ndVA+Q==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@launchdarkly/node-server-sdk': ^9.0.0
+      '@openfeature/server-sdk': ^1.16.0
+
   '@loaderkit/resolve@1.0.6':
     resolution: {integrity: sha512-G8FdIoF5CypfwmD9rl8BXod5HDn8JqB0CCNBXDTaRZ+yRYhARrrSToX1zg1zy9jX3zLqigsELwhT4gNtkdQAUg==}
 
@@ -1270,6 +1340,26 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openfeature/core@1.12.0':
+    resolution: {integrity: sha512-7PCPzyd1OC19begz30+CRknFB0ChtyaZUhk7YWrk+Bov1fpVw0HYkTXtoxxsvPfDZB9P9WsT7uixN+Z8f9+bcA==}
+
+  '@openfeature/launchdarkly-client-provider@0.4.0':
+    resolution: {integrity: sha512-Mhn0rCS5t1DbcQEP+/Ub25RkuYBTD91vXowzm9isynU4GRZ6WQze1xblmhAYKIMzi+GAnbwfhgVibjkq5LGibw==}
+    peerDependencies:
+      '@launchdarkly/js-client-sdk': ^4.7.0
+      '@openfeature/web-sdk': ^1.0.0
+
+  '@openfeature/server-sdk@1.23.0':
+    resolution: {integrity: sha512-JWeLvltJIV0AFgOfbw7hK9b9Rw/5wWq+RMhCIU9sJtAqarxr8hSPglG+JAGGhYdElAz3Qwe9W3ApWyPNkQEyqg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@openfeature/core': ^1.12.0
+
+  '@openfeature/web-sdk@1.10.0':
+    resolution: {integrity: sha512-qf+JmJSnaslhegNwoDDLn2Cf72P6cIobuAQPUb61MSkzJOZuVLU6f9pv/90FlLcK6UDtp6od//xZHW712rBrmg==}
+    peerDependencies:
+      '@openfeature/core': ^1.12.0
 
   '@opentelemetry/api@1.10.0':
     resolution: {integrity: sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==}
@@ -3250,6 +3340,10 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  agent-base@7.1.4:
+    resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
+    engines: {node: '>= 14'}
+
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
     peerDependencies:
@@ -3937,6 +4031,10 @@ packages:
   hookable@6.1.2:
     resolution: {integrity: sha512-+abwxtiEA52GCVIsQqut3S/uKTbUwYIp4Pe/vv+6py5XiXBCqMZHg6pA6Y5qhgLSEys0/cYuPbO0z1QFj5ZCmg==}
 
+  https-proxy-agent@7.0.6:
+    resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
+    engines: {node: '>= 14'}
+
   human-id@4.2.2:
     resolution: {integrity: sha512-Z+8unD6em/MJwyrkWQ2M3wygRGI1+MztbutiNwk1DCuEPXOZRWGjtcMPZYP1exY9iNZMhd7ZOSMQSo9WYtiQRw==}
     hasBin: true
@@ -4198,6 +4296,9 @@ packages:
   lodash.camelcase@4.3.0:
     resolution: {integrity: sha512-TwuEnCnxbc3rAvhf/LbG7tJUDzhqXyFnv3dtzLOPgCG/hODL7WFnsbwktkD7yUV0RrreP/l1PALq/YSg6VvjlA==}
 
+  lodash.isempty@4.4.0:
+    resolution: {integrity: sha512-oKMuF3xEeqDltrGMfDxAPGIVMSSRv8tbRSODbrs4KGsRRLEhrW8N8Rd4DRgB2+621hY8A8XwwrTVhXWpxFvMzg==}
+
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
@@ -4214,6 +4315,10 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lru-cache@6.0.0:
+    resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
+    engines: {node: '>=10'}
 
   luxon@3.7.2:
     resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
@@ -4751,6 +4856,11 @@ packages:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
 
+  semver@7.5.4:
+    resolution: {integrity: sha512-1bCSESV6Pv+i21Hvpxp3Dx+pSD8lIPt8uVjRrxAUt/nbswYc+tK6Y2btiULjd4+fnq15PX+nqQDC7Oft7WkwcA==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
     engines: {node: '>=10'}
@@ -5205,6 +5315,9 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  yallist@4.0.0:
+    resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
   yaml@2.9.1:
     resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
@@ -5841,6 +5954,44 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
+  '@launchdarkly/eventsource@0.2.5': {}
+
+  '@launchdarkly/js-client-sdk-common@1.35.4':
+    dependencies:
+      '@launchdarkly/js-sdk-common': 2.32.3
+
+  '@launchdarkly/js-client-sdk@4.14.4':
+    dependencies:
+      '@launchdarkly/js-client-sdk-common': 1.35.4
+    optionalDependencies:
+      '@launchdarkly/eventsource': 0.2.5
+
+  '@launchdarkly/js-sdk-common@2.32.3': {}
+
+  '@launchdarkly/js-server-sdk-common@2.26.8':
+    dependencies:
+      '@launchdarkly/js-sdk-common': 2.32.3
+      semver: 7.5.4
+
+  '@launchdarkly/node-server-sdk@9.17.1(supports-color@7.2.0)':
+    dependencies:
+      '@launchdarkly/eventsource': 0.2.5
+      '@launchdarkly/js-server-sdk-common': 2.26.8
+      https-proxy-agent: 7.0.6(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@launchdarkly/openfeature-js-server-common@2.2.4(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))':
+    dependencies:
+      '@launchdarkly/js-sdk-common': 2.32.3
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+
+  '@launchdarkly/openfeature-node-server@2.1.12(@launchdarkly/node-server-sdk@9.17.1(supports-color@7.2.0))(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))':
+    dependencies:
+      '@launchdarkly/node-server-sdk': 9.17.1(supports-color@7.2.0)
+      '@launchdarkly/openfeature-js-server-common': 2.2.4(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))
+      '@openfeature/server-sdk': 1.23.0(@openfeature/core@1.12.0)
+
   '@loaderkit/resolve@1.0.6':
     dependencies:
       '@braidai/lang': 1.1.2
@@ -5894,6 +6045,22 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
+
+  '@openfeature/core@1.12.0': {}
+
+  '@openfeature/launchdarkly-client-provider@0.4.0(@launchdarkly/js-client-sdk@4.14.4)(@openfeature/web-sdk@1.10.0(@openfeature/core@1.12.0))':
+    dependencies:
+      '@launchdarkly/js-client-sdk': 4.14.4
+      '@openfeature/web-sdk': 1.10.0(@openfeature/core@1.12.0)
+      lodash.isempty: 4.4.0
+
+  '@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0)':
+    dependencies:
+      '@openfeature/core': 1.12.0
+
+  '@openfeature/web-sdk@1.10.0(@openfeature/core@1.12.0)':
+    dependencies:
+      '@openfeature/core': 1.12.0
 
   '@opentelemetry/api@1.10.0': {}
 
@@ -7702,6 +7869,8 @@ snapshots:
 
   acorn@8.19.0: {}
 
+  agent-base@7.1.4: {}
+
   ajv-draft-04@1.0.0(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
@@ -8175,6 +8344,13 @@ snapshots:
 
   hookable@6.1.2: {}
 
+  https-proxy-agent@7.0.6(supports-color@7.2.0):
+    dependencies:
+      agent-base: 7.1.4
+      debug: 4.4.3(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
+
   human-id@4.2.2: {}
 
   human-signals@2.1.0: {}
@@ -8356,6 +8532,8 @@ snapshots:
 
   lodash.camelcase@4.3.0: {}
 
+  lodash.isempty@4.4.0: {}
+
   lodash@4.18.1: {}
 
   log-symbols@6.0.0:
@@ -8370,6 +8548,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lru-cache@6.0.0:
+    dependencies:
+      yallist: 4.0.0
 
   luxon@3.7.2: {}
 
@@ -9021,6 +9203,10 @@ snapshots:
 
   semver@6.3.1: {}
 
+  semver@7.5.4:
+    dependencies:
+      lru-cache: 6.0.0
+
   semver@7.8.5: {}
 
   serialize-error@13.0.2:
@@ -9401,6 +9587,8 @@ snapshots:
   y18n@5.0.8: {}
 
   yallist@3.1.1: {}
+
+  yallist@4.0.0: {}
 
   yaml@2.9.1: {}
 

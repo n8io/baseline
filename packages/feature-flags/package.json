@@ -1,0 +1,111 @@
+{
+	"name": "@n8io/baseline-feature-flags",
+	"version": "0.0.0",
+	"description": "Feature flags declared once in the Project, read with the type the declaration gives them, and falling back to a safe value when the flag service is slow or down.",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=26"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/n8io/baseline.git",
+		"directory": "packages/feature-flags"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./launchdarkly": "./src/launchdarkly/index.ts",
+		"./launchdarkly/client": "./src/launchdarkly-client/index.ts",
+		"./react": "./src/react/index.ts",
+		"./testing": "./src/testing.ts"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.js"
+			},
+			"./launchdarkly": {
+				"types": "./dist/launchdarkly.d.ts",
+				"default": "./dist/launchdarkly.js"
+			},
+			"./launchdarkly/client": {
+				"types": "./dist/launchdarkly/client.d.ts",
+				"default": "./dist/launchdarkly/client.js"
+			},
+			"./react": {
+				"types": "./dist/react.d.ts",
+				"default": "./dist/react.js"
+			},
+			"./testing": {
+				"types": "./dist/testing.d.ts",
+				"default": "./dist/testing.js"
+			}
+		},
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
+		"prepack": "tsdown",
+		"test": "vitest run",
+		"test:unit": "vitest run"
+	},
+	"dependencies": {
+		"@standard-schema/spec": "^1.1.0"
+	},
+	"devDependencies": {
+		"@launchdarkly/js-client-sdk": "^4.14.4",
+		"@launchdarkly/node-server-sdk": "^9.17.1",
+		"@launchdarkly/openfeature-node-server": "^2.1.12",
+		"@openfeature/core": "^1.12.0",
+		"@openfeature/launchdarkly-client-provider": "^0.4.0",
+		"@openfeature/server-sdk": "^1.23.0",
+		"@openfeature/web-sdk": "^1.10.0",
+		"@types/react": "^19.3.0",
+		"fast-check": "^4.10.3",
+		"react": "^19.3.1",
+		"zod": "^4.6.7"
+	},
+	"peerDependencies": {
+		"@launchdarkly/js-client-sdk": "^4.7.0",
+		"@launchdarkly/node-server-sdk": "^9.0.0",
+		"@launchdarkly/openfeature-node-server": "^2.1.12",
+		"@openfeature/core": "^1.12.0",
+		"@openfeature/launchdarkly-client-provider": "^0.4.0",
+		"@openfeature/server-sdk": "^1.23.0",
+		"@openfeature/web-sdk": "^1.10.0",
+		"react": "^19.3.1"
+	},
+	"peerDependenciesMeta": {
+		"@launchdarkly/js-client-sdk": {
+			"optional": true
+		},
+		"@launchdarkly/node-server-sdk": {
+			"optional": true
+		},
+		"@launchdarkly/openfeature-node-server": {
+			"optional": true
+		},
+		"@openfeature/core": {
+			"optional": true
+		},
+		"@openfeature/launchdarkly-client-provider": {
+			"optional": true
+		},
+		"@openfeature/server-sdk": {
+			"optional": true
+		},
+		"@openfeature/web-sdk": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		}
+	}
+}
