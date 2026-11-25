@@ -14,6 +14,7 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
+		"./feature-flag": "./src/telemetry-feature-flag.ts",
 		"./register": "./src/register.ts",
 		"./span": "./src/telemetry-span.ts"
 	},
@@ -27,6 +28,10 @@
 			".": {
 				"types": "./dist/index.d.ts",
 				"default": "./dist/index.js"
+			},
+			"./feature-flag": {
+				"types": "./dist/telemetry-feature-flag.d.ts",
+				"default": "./dist/telemetry-feature-flag.js"
 			},
 			"./register": {
 				"types": "./dist/register.d.ts",

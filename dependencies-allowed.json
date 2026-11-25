@@ -7,7 +7,7 @@
 	"@openfeature/launchdarkly-client-provider": "LaunchDarkly's OpenFeature provider for browsers, optional peer of the browser adapter (feature-flags)",
 	"@openfeature/server-sdk": "the OpenFeature server SDK behind the flag adapters, optional peer (feature-flags)",
 	"@openfeature/web-sdk": "the OpenFeature web SDK behind the browser flag adapter, optional peer (feature-flags)",
-	"@opentelemetry/api": "the tracing and metrics API: span attributes and context (authn, error-tracking, http, queue, telemetry) and counters (cache, live, queue, telemetry)",
+	"@opentelemetry/api": "the tracing, logs and metrics API: span attributes and context (authn, error-tracking, http, queue, telemetry), the feature flag evaluation event (feature-flags, tests only) and counters (cache, live, queue, telemetry)",
 	"@opentelemetry/core": "W3C trace context propagation for Events; pinned exactly, as OpenTelemetry's packages must match each other (queue)",
 	"@opentelemetry/exporter-logs-otlp-proto": "exports logs over OTLP; pinned exactly, as OpenTelemetry's packages must match each other (telemetry)",
 	"@opentelemetry/exporter-metrics-otlp-proto": "exports metrics over OTLP; pinned exactly, as OpenTelemetry's packages must match each other (telemetry)",

@@ -31,7 +31,7 @@ Never start a span:
 
 - for a model function, a helper, or anything that takes microseconds;
 - per loop iteration or per item. One span covers the loop and an attribute holds the count;
-- to mark a moment. Use an attribute. Do not add span events: exceptions are log records;
+- to mark a moment. Use an attribute. Do not add span events: exceptions are log records, and so is a feature flag evaluation (`feature_flag.evaluation`, the OpenTelemetry convention, recorded by `@n8io/baseline-feature-flags` through `@n8io/baseline-telemetry/feature-flag`; nothing for a Project to add);
 - for an error. Return an err; the Use case span records `error.type`;
 - in an outbound adapter. A call with no span means no instrumentation covers that library, and adding one is a stop-and-ask.
 

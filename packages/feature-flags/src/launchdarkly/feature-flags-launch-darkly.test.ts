@@ -1,6 +1,7 @@
 import { TestData } from "@launchdarkly/node-server-sdk/integrations";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { OpenFeature } from "@openfeature/server-sdk";
+import { type LogRecord, logs } from "@opentelemetry/api";
 import { describe, expect, it, vi } from "vitest";
 import { featureFlagsServerContractRun } from "../core/feature-flags-server.contract.ts";
 import {
@@ -36,6 +37,15 @@ featureFlagsServerContractRun({
 });
 
 const actor = { actor: { id: "a1" } } as const;
+
+// A global logger provider that keeps every record, as the telemetry preload would export them.
+const records: LogRecord[] = [];
+logs.setGlobalLoggerProvider({
+	getLogger: () => ({
+		emit: (record: LogRecord) => records.push(record),
+		enabled: () => true,
+	}),
+});
 
 describe("featureFlagsLaunchDarklyCreate", () => {
 	it("targets by kind: each kind's id and attributes reach the rules", async () => {
@@ -129,5 +139,42 @@ describe("featureFlagsLaunchDarklyCreate", () => {
 			expect(await featureFlags.context(actor).get("itemLimit")).toBe(3);
 		}
 		expect(OpenFeature.getClient().providerStatus).toBe(before);
+	});
+
+	it("records each read as a feature_flag.evaluation event, with no context in it", async () => {
+		records.length = 0;
+		const featureFlags = featureFlagsLaunchDarklyCreate({
+			flags: featureFlagsTestDefs,
+			kinds: featureFlagsTestKinds,
+			sdkKey: "sdk-test",
+			vendor: vendorOf(testDataCreate({ "item-limit": 3 })),
+		});
+		await featureFlags.ready;
+		const handle = featureFlags.context({
+			actor: { attributes: { email: "jane@example.com" }, id: "user_secret" },
+		});
+		await handle.get("itemLimit");
+		await handle.get("checkoutRedesign");
+		await featureFlags.close();
+		expect(records.map((record) => record.eventName)).toEqual([
+			"feature_flag.evaluation",
+			"feature_flag.evaluation",
+		]);
+		expect(records[0]?.attributes).toMatchObject({
+			"feature_flag.key": "item-limit",
+			"feature_flag.provider.name": "launchdarkly",
+			"feature_flag.result.reason": "default",
+		});
+		expect(records[0]?.attributes).toHaveProperty(
+			"feature_flag.result.variant",
+		);
+		expect(records[1]?.attributes).toMatchObject({
+			"error.type": "flag_not_found",
+			"feature_flag.key": "checkout-redesign",
+			"feature_flag.result.reason": "error",
+		});
+		const text = JSON.stringify(records);
+		expect(text).not.toContain("jane");
+		expect(text).not.toContain("user_secret");
 	});
 });

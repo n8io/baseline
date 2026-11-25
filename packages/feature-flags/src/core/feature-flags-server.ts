@@ -9,10 +9,13 @@ import type {
 	FlagValue,
 } from "./feature-flags-define.ts";
 import {
+	type FeatureFlagEvaluation,
 	type FeatureFlagFallback,
 	type FeatureFlagRead,
 	type FeatureFlagsReadyStatus,
+	featureFlagsEvaluationReport,
 	featureFlagsFallbackReport,
+	featureFlagsRecoveredReport,
 	featureFlagsResolve,
 } from "./feature-flags-resolve.ts";
 
@@ -58,8 +61,17 @@ export type FeatureFlagsServerOptions<
 > = {
 	readonly flags: D;
 	readonly kinds?: K | null;
-	/** Called with each fallback a read returns, to log it. A throw is ignored. */
+	/** Called after every read of a declared flag, to record it as telemetry. A throw is ignored. */
+	readonly onEvaluation?:
+		| ((evaluation: FeatureFlagEvaluation) => unknown)
+		| null;
+	/**
+	 * Called with each fallback a read returns, to log it. A flag service outage is called once,
+	 * when it starts, not on every read. A throw is ignored.
+	 */
 	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
+	/** Called once when reads succeed again after an outage was reported. A throw is ignored. */
+	readonly onRecovered?: (() => unknown) | null;
 	readonly source: FeatureFlagsServerSource;
 };
 
@@ -75,10 +87,15 @@ export const featureFlagsServerCreate = <
 	const K extends FeatureFlagKinds = Record<never, never>,
 >({
 	flags,
+	onEvaluation,
 	onFallback,
+	onRecovered,
 	source,
 }: FeatureFlagsServerOptions<D, K>): FeatureFlags<D, K> => {
 	let settled = false;
+	let down = false;
+	// Counts outage state changes, so a read that began before one cannot undo it when it ends.
+	let epoch = 0;
 	let closing: Promise<void> | undefined;
 	const notFoundReported = new Set<string>();
 	const ready = source.ready.then(
@@ -112,9 +129,55 @@ export const featureFlagsServerCreate = <
 			report({ flag, key: "", reason: "notFound" });
 			return undefined;
 		}
-		const fallbackFor = (reason: FeatureFlagFallback["reason"]): unknown => {
-			report({ flag, key: definition.key, reason });
-			return definition.fallback;
+		const evaluated = ({
+			fallbackReason,
+			read,
+			value,
+		}: {
+			fallbackReason: FeatureFlagFallback["reason"] | null;
+			read?: FeatureFlagRead | undefined;
+			value: unknown;
+		}): unknown => {
+			featureFlagsEvaluationReport({
+				evaluation: {
+					fallbackReason,
+					flag,
+					key: definition.key,
+					// A fallback was not the service's value, so its reason and variant do not describe it.
+					reason:
+						fallbackReason === null && read?.found
+							? (read.reason ?? null)
+							: null,
+					value,
+					variant:
+						fallbackReason === null && read?.found
+							? (read.variant ?? null)
+							: null,
+				},
+				onEvaluation,
+			});
+			return value;
+		};
+		const fallbackFor = (
+			reason: FeatureFlagFallback["reason"],
+			from?: { read: FeatureFlagRead; startEpoch: number },
+		): unknown => {
+			// An outage is reported when it starts. Each read in it still returns the fallback. A
+			// read that began before a state change, or finished after close(), changes nothing.
+			if (reason === "vendorError") {
+				if (closing === undefined && from?.startEpoch === epoch && !down) {
+					down = true;
+					epoch += 1;
+					report({ flag, key: definition.key, reason });
+				}
+			} else {
+				report({ flag, key: definition.key, reason });
+			}
+			return evaluated({
+				fallbackReason: reason,
+				read: from?.read,
+				value: definition.fallback,
+			});
 		};
 		if (closing !== undefined) {
 			return fallbackFor("closed");
@@ -122,6 +185,7 @@ export const featureFlagsServerCreate = <
 		if (!settled) {
 			return fallbackFor("notReady");
 		}
+		const startEpoch = epoch;
 		// An async wrapper, so a source that throws before it returns a Promise is caught too.
 		const read = await (async () =>
 			source.read({
@@ -131,10 +195,20 @@ export const featureFlagsServerCreate = <
 			}))().catch(
 			(): FeatureFlagRead => ({ found: false, reason: "vendorError" }),
 		);
+		if (
+			down &&
+			closing === undefined &&
+			startEpoch === epoch &&
+			(read.found || read.reason !== "vendorError")
+		) {
+			down = false;
+			epoch += 1;
+			featureFlagsRecoveredReport(onRecovered);
+		}
 		const resolved = featureFlagsResolve({ definition, read });
 		return resolved.reason === null
-			? resolved.value
-			: fallbackFor(resolved.reason);
+			? evaluated({ fallbackReason: null, read, value: resolved.value })
+			: fallbackFor(resolved.reason, { read, startEpoch });
 	};
 	const close = (): Promise<void> => {
 		closing ??= (async () => source.close())().catch(() => undefined);

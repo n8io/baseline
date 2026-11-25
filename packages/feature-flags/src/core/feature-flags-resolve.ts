@@ -20,7 +20,14 @@ export type FeatureFlagFallback = {
 
 /** What a flag service answered for one key: a value of any type, or why it has none. */
 export type FeatureFlagRead =
-	| { readonly found: true; readonly value: unknown }
+	| {
+			readonly found: true;
+			/** How the flag service decided the value, in its own words, for telemetry. Optional. */
+			readonly reason?: string | null;
+			readonly value: unknown;
+			/** The flag service's name for the value, for telemetry. Optional. */
+			readonly variant?: string | null;
+	  }
 	| {
 			readonly found: false;
 			readonly reason: "notFound" | "vendorError" | "wrongType";
@@ -64,6 +71,20 @@ export const featureFlagsSchemaValidate = ({
 	}
 };
 
+/** What an adapter hears of each evaluation of a declared flag, to record it as telemetry. */
+export type FeatureFlagEvaluation = {
+	/** Why the read returned the fallback. Null when it returned the flag service's value. */
+	readonly fallbackReason: FeatureFlagFallbackReason | null;
+	readonly flag: string;
+	readonly key: string;
+	/** The flag service's reason for its value, when it gave one. */
+	readonly reason: string | null;
+	/** The value the read returned. */
+	readonly value: unknown;
+	/** The flag service's name for its value, when it gave one. */
+	readonly variant: string | null;
+};
+
 /**
  * Passes a fallback to the Project's logger. A logger that throws, or returns a rejected Promise,
  * must not fail a read.
@@ -77,6 +98,35 @@ export const featureFlagsFallbackReport = ({
 }): void => {
 	try {
 		Promise.resolve(onFallback?.(fallback)).catch(() => undefined);
+	} catch {
+		// A logger that throws must not fail a read.
+	}
+};
+
+/** Passes an evaluation to telemetry. A recorder that throws must not fail a read. */
+export const featureFlagsEvaluationReport = ({
+	evaluation,
+	onEvaluation,
+}: {
+	evaluation: FeatureFlagEvaluation;
+	onEvaluation:
+		| ((evaluation: FeatureFlagEvaluation) => unknown)
+		| null
+		| undefined;
+}): void => {
+	try {
+		Promise.resolve(onEvaluation?.(evaluation)).catch(() => undefined);
+	} catch {
+		// A recorder that throws must not fail a read.
+	}
+};
+
+/** Tells the Project's logger an outage ended. A logger that throws must not fail a read. */
+export const featureFlagsRecoveredReport = (
+	onRecovered: (() => unknown) | null | undefined,
+): void => {
+	try {
+		Promise.resolve(onRecovered?.()).catch(() => undefined);
 	} catch {
 		// A logger that throws must not fail a read.
 	}
