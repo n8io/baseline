@@ -12,6 +12,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
 import { clockSystemCreate } from "../../../../clock.ts";
+import { featureFlagsOpen } from "../../../../feature-flags-open.ts";
 import { invoiceLineUseCasesCreate } from "../../application/invoice-line-use-cases.ts";
 import { invoiceLinePortsCreate } from "../outbound/index.ts";
 import { invoiceLineTestUpstreamCreate } from "../outbound/invoice-line-test-upstream.ts";
@@ -59,6 +60,11 @@ describe("the customer.deleted Event handler on Postgres", () => {
 				clock: clockSystemCreate(),
 				database: pgPool,
 				events: queueEventsCreate(queue),
+				// piece-start: feature-flags
+				featureFlags: featureFlagsOpen({
+					steps: { intakes: [], resources: [] },
+				}).featureFlags,
+				// piece-end: feature-flags
 				intakes: [],
 				// piece-start: live
 				liveHub: liveHubMemoryCreate(),
