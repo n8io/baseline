@@ -156,6 +156,58 @@ describe("featureFlagsServerCreate outage logging and evaluations", () => {
 		expect(JSON.stringify(evaluations)).not.toContain("jane");
 	});
 
+	it("drops the service's variant when the value it served was rejected", async () => {
+		const evaluations: FeatureFlagEvaluation[] = [];
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			onEvaluation: (evaluation) => evaluations.push(evaluation),
+			source: sourceOf([
+				{ found: true, reason: "targeting_match", value: "zzz", variant: "b" },
+			]),
+		});
+		await featureFlags.ready;
+		await featureFlags.context({}).get("itemLimit");
+		expect(evaluations[0]).toMatchObject({
+			fallbackReason: "wrongType",
+			reason: null,
+			variant: null,
+		});
+	});
+
+	it("does not log a late failure of a read that began before the outage ended, or any after close", async () => {
+		const events: string[] = [];
+		let failSlow: (read: FeatureFlagRead) => void = () => undefined;
+		const reads: Array<() => Promise<FeatureFlagRead>> = [
+			() => new Promise((resolve) => (failSlow = resolve)),
+			() => Promise.resolve({ found: false, reason: "vendorError" }),
+			() => Promise.resolve({ found: true, value: 4 }),
+			() => Promise.resolve({ found: false, reason: "vendorError" }),
+		];
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			onFallback: ({ reason }) => events.push(reason),
+			onRecovered: () => events.push("recovered"),
+			source: {
+				close: () => Promise.resolve(),
+				read: () =>
+					reads.shift()?.() ?? Promise.resolve({ found: true, value: 3 }),
+				ready: Promise.resolve("connected"),
+			},
+		});
+		await featureFlags.ready;
+		const handle = featureFlags.context({});
+		const slow = handle.get("itemLimit");
+		await handle.get("itemLimit"); // down
+		await handle.get("itemLimit"); // recovered
+		failSlow({ found: false, reason: "vendorError" });
+		await slow;
+		expect(events).toEqual(["vendorError", "recovered"]);
+		const late = handle.get("itemLimit");
+		await featureFlags.close();
+		await late;
+		expect(events).toEqual(["vendorError", "recovered"]);
+	});
+
 	it("survives a recorder and a recovered hook that throw", async () => {
 		const featureFlags = featureFlagsServerCreate({
 			flags: featureFlagsTestDefs,

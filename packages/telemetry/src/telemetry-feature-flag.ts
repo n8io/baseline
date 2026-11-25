@@ -1,8 +1,6 @@
 import { logs, SeverityNumber } from "@opentelemetry/api";
 import { telemetryScope } from "./telemetry-scope.ts";
 
-const resultValueLengthMax = 256;
-
 /**
  * One flag evaluation, in the words of the OpenTelemetry feature-flag conventions. Never holds a
  * context: an evaluation context may be personal data.
@@ -16,21 +14,15 @@ export type TelemetryFeatureFlagEvaluation = {
 	readonly reason?: string | null;
 	/** The flag's key in the flag service. */
 	readonly key: string;
-	/** The value returned. Recorded only when the flag service gave no variant, and only if small. */
+	/** The value returned. Recorded only when the flag service gave no variant, and only a boolean or a number. */
 	readonly value?: unknown;
 	/** The flag service's name for the value returned, such as `on`. */
 	readonly variant?: string | null;
 };
 
-const valueText = (value: unknown): string | null => {
-	if (typeof value === "boolean" || typeof value === "number") {
-		return String(value);
-	}
-	if (typeof value === "string") {
-		return value.length <= resultValueLengthMax ? value : null;
-	}
-	return null;
-};
+// Only a boolean or a number: a string flag's value may be derived from a person.
+const valueScalar = (value: unknown): boolean | number | null =>
+	typeof value === "boolean" || typeof value === "number" ? value : null;
 
 /**
  * Records one flag evaluation as the `feature_flag.evaluation` log record the OpenTelemetry
@@ -42,8 +34,8 @@ export const telemetryFeatureFlagEvaluationRecord = (
 ): void => {
 	try {
 		const text =
-			evaluation.variant == null ? valueText(evaluation.value) : null;
-		const attributes: Record<string, string> = {
+			evaluation.variant == null ? valueScalar(evaluation.value) : null;
+		const attributes: Record<string, boolean | number | string> = {
 			"feature_flag.key": evaluation.key,
 		};
 		const optional = {

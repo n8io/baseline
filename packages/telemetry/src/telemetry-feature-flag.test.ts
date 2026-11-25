@@ -27,7 +27,7 @@ describe("telemetryFeatureFlagEvaluationRecord", () => {
 			"feature_flag.key": "checkout-redesign",
 			"feature_flag.provider.name": "launchdarkly",
 			"feature_flag.result.reason": "targeting_match",
-			"feature_flag.result.value": "true",
+			"feature_flag.result.value": true,
 		});
 	});
 
@@ -43,9 +43,12 @@ describe("telemetryFeatureFlagEvaluationRecord", () => {
 		});
 	});
 
-	it("never records an object, or a string over 256 characters, as the value", () => {
+	it("never records an object or a string as the value", () => {
 		telemetryFeatureFlagEvaluationRecord({ key: "a", value: { big: true } });
-		telemetryFeatureFlagEvaluationRecord({ key: "b", value: "x".repeat(257) });
+		telemetryFeatureFlagEvaluationRecord({
+			key: "b",
+			value: "jane@example.com",
+		});
 		expect(recordsGet().map((record) => record.attributes)).toEqual([
 			{ "feature_flag.key": "a" },
 			{ "feature_flag.key": "b" },
