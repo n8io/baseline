@@ -1,0 +1,8 @@
+// A32: featureFlagsDefine is called in one file per app
+// expect: featureFlagsDefine is called only in src/flags.ts
+// @file src/contexts/bar/application/bar-checkout.ts
+import { featureFlagsDefine } from "@n8io/baseline-feature-flags";
+
+export const barFlags = featureFlagsDefine({
+	express: { key: "express-checkout", fallback: false },
+});

@@ -1,0 +1,4 @@
+// A31: a dynamic import of a vendor SDK counts too
+// expect: A31: only @n8io/baseline-feature-flags imports a flag vendor's SDK
+// @file src/ui/entry.client.tsx
+export const clientLoad = () => import("@launchdarkly/js-client-sdk");

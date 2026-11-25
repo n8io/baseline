@@ -1,0 +1,6 @@
+// A31: a default plus named import of a vendor SDK counts too
+// expect: A31: only @n8io/baseline-feature-flags imports a flag vendor's SDK
+// @file src/contexts/bar/application/bar-checkout.ts
+import OpenFeature, { type Client } from "@openfeature/server-sdk";
+
+export const barClient = (client: Client) => [OpenFeature, client];
