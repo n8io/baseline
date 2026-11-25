@@ -1,3 +1,4 @@
+import type { FeatureFlagsReadyStatus } from "@n8io/baseline-feature-flags";
 import { featureFlagsMemoryClientCreate } from "@n8io/baseline-feature-flags/testing";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -16,7 +17,7 @@ const clientCreate = ({
 	ready,
 }: {
 	exampleFlag?: boolean;
-	ready?: Promise<"connected">;
+	ready?: Promise<FeatureFlagsReadyStatus>;
 } = {}): AppFeatureFlagsClient => {
 	const client = featureFlagsMemoryClientCreate({
 		context: { actor: { id: "a1" } },
@@ -55,6 +56,17 @@ describe("featureFlagsBrowserWrap", () => {
 		await result;
 		expect(wrapped).toBe(true);
 	});
+
+	it.each(["failed", "timeout"] as const)(
+		"still returns the app when the flags settle %s",
+		async (status) => {
+			const tree = await featureFlagsBrowserWrap({
+				client: clientCreate({ ready: Promise.resolve(status) }),
+				tree: <ExampleReader />,
+			});
+			expect(renderToString(tree)).toBe("<p>false</p>");
+		},
+	);
 
 	// React hydrates with each hook's server snapshot, so a live value that differs from the
 	// fallback must not change the markup the first client render produces.

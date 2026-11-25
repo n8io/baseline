@@ -9,6 +9,8 @@ import {
 } from "./feature-flags-browser.tsx";
 import { featureFlagsClientConfigRead } from "./feature-flags-client-config.ts";
 
+// The client keeps the Actor the page loaded with: signing in or out is a full page load through
+// the server, so the page's Actor never changes under it.
 const tree = await featureFlagsBrowserWrap({
 	client: featureFlagsBrowserClientCreate(
 		featureFlagsClientConfigRead(Reflect.get(window, "__reactRouterContext")),
