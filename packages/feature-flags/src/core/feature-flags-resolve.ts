@@ -36,6 +36,13 @@ type SchemaResult =
 	| { readonly ok: true; readonly value: unknown }
 	| { readonly ok: false; readonly async: boolean };
 
+const featureFlagsIsThenable = (
+	result: unknown,
+): result is PromiseLike<unknown> =>
+	typeof result === "object" &&
+	result !== null &&
+	typeof (result as { then?: unknown }).then === "function";
+
 /** Runs a Standard Schema that must answer at once. A throw or a Promise is a failure. */
 export const featureFlagsSchemaValidate = ({
 	schema,
@@ -46,7 +53,7 @@ export const featureFlagsSchemaValidate = ({
 }): SchemaResult => {
 	try {
 		const result = schema["~standard"].validate(value);
-		if (result instanceof Promise) {
+		if (featureFlagsIsThenable(result)) {
 			return { async: true, ok: false };
 		}
 		return result.issues === undefined

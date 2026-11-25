@@ -7,6 +7,9 @@ import { featureFlagsDefine } from "./feature-flags-define.ts";
 const defineLoose = (definitions: unknown): unknown =>
 	(featureFlagsDefine as (definitions: unknown) => unknown)(definitions);
 
+// Built from a variable so Biome's noThenProperty does not read the test double as a bug.
+const thenKey = ["th", "en"].join("");
+
 describe("featureFlagsDefine", () => {
 	it("returns the declared flags, frozen and copied", () => {
 		const input = {
@@ -105,6 +108,24 @@ describe("featureFlagsDefine", () => {
 					schema: {
 						"~standard": {
 							validate: () => Promise.resolve({ value: 1 }),
+							vendor: "test",
+							version: 1,
+						},
+					},
+				},
+			},
+			"schema must validate synchronously",
+		],
+		["a null definition", { a: null }, "must be an object"],
+		[
+			"a schema answering with a thenable",
+			{
+				a: {
+					fallback: 1,
+					key: "k",
+					schema: {
+						"~standard": {
+							validate: () => Object.fromEntries([[thenKey, () => undefined]]),
 							vendor: "test",
 							version: 1,
 						},

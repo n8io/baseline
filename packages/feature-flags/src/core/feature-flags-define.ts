@@ -108,6 +108,9 @@ const problemOf = ({
 	keys: ReadonlySet<string>;
 	name: string;
 }): string | null => {
+	if (typeof definition !== "object" || definition === null) {
+		return "must be an object with a key and a fallback";
+	}
 	if (namesReserved.has(name)) {
 		return `${name} is a reserved name; pick another`;
 	}
@@ -129,7 +132,8 @@ const problemOf = ({
  * a fallback outside `values` or a fallback the schema rejects does not compile. Throws a
  * `TypeError` when the module loads for an empty or duplicate key, a reserved name (`__proto__`,
  * `constructor`, `then`, `toString` and the like), a fallback outside `values` or failing its
- * schema, and a schema that validates asynchronously. Keys are the same in every environment.
+ * schema, and a schema that validates asynchronously. The fallback is checked as the schema's
+ * input and read as its output, so a schema that transforms needs a fallback both accept. Keys are the same in every environment.
  *
  * @example
  * export const flagDefs = featureFlagsDefine({
