@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-feature-flags",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Feature flags declared once in the Project, read with the type the declaration gives them, and falling back to a safe value when the flag service is slow or down.",
 	"license": "MIT",
 	"type": "module",
