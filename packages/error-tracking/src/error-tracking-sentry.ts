@@ -27,9 +27,10 @@ const sendTimeoutMs = 5000;
 /**
  * Sentry's own settings, named as Sentry's SDK options name them. Outside this Package's contract:
  * moving off Sentry deletes it. Any other key throws, since it would do nothing here or send more
- * than an Error report carries.
+ * than an Error report carries. Not exported from the Package: write the object inline in
+ * `src/error-tracking-open.ts`, where `errorTrackingSentryCreate` takes it.
  */
-export type ErrorTrackingSentryVendorOptions = Pick<
+type ErrorTrackingSentryVendorOptions = Pick<
 	ServerRuntimeClientOptions,
 	"dist" | "release" | "sampleRate"
 >;

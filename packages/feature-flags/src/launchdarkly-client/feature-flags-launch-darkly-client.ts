@@ -19,7 +19,8 @@ import { featureFlagsLaunchDarklyClientSourceCreate } from "./feature-flags-laun
 /**
  * LaunchDarkly's own browser SDK options, named as its SDK names them. `streaming` is left out:
  * live updates need it, so it is always on. Outside this Package's contract: moving off
- * LaunchDarkly deletes it.
+ * LaunchDarkly deletes it. Not exported from the Package (only `featureFlagsLaunchDarklyClientOrigins`
+ * shares it inside): write the object inline where `featureFlagsLaunchDarklyClientCreate` takes it.
  */
 export type FeatureFlagsLaunchDarklyClientVendorOptions = Omit<
 	LDOptions,
