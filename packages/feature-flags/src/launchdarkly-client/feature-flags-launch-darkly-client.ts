@@ -1,21 +1,19 @@
 import type { LDOptions } from "@launchdarkly/js-client-sdk";
 import { LaunchDarklyClientProvider } from "@openfeature/launchdarkly-client-provider";
-import {
-	type FeatureFlagsClient,
-	featureFlagsClientCreate,
-} from "../core/feature-flags-client.ts";
+import { featureFlagsClientCreate } from "../core/feature-flags-client.ts";
+import type { FeatureFlagsClient } from "../core/feature-flags-client-types.ts";
 import {
 	type FeatureFlagContext,
 	type FeatureFlagKinds,
 	featureFlagsContextFreeze,
 } from "../core/feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
+import type { FeatureFlagDefinitions } from "../core/feature-flags-define-types.ts";
 import {
 	featureFlagsOptionsDomainCreate,
 	featureFlagsOptionsStringRequire,
 	featureFlagsOptionsTimeoutMsResolve,
 } from "../core/feature-flags-options.ts";
-import type { FeatureFlagsOnFallback } from "../core/feature-flags-resolve.ts";
+import type { FeatureFlagsOnFallback } from "../core/feature-flags-resolve-types.ts";
 import { featureFlagsLaunchDarklyClientSourceCreate } from "./feature-flags-launch-darkly-client-source.ts";
 
 /**

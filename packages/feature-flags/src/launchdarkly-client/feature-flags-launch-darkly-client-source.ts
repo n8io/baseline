@@ -11,12 +11,12 @@ import {
 	ProviderEvents,
 	ProviderStatus,
 } from "@openfeature/web-sdk";
-import type { FeatureFlagsClientSource } from "../core/feature-flags-client.ts";
+import type { FeatureFlagsClientSource } from "../core/feature-flags-client-types.ts";
 import type { FeatureFlagContextResolved } from "../core/feature-flags-context.ts";
 import type {
 	FeatureFlagRead,
 	FeatureFlagsReadyStatus,
-} from "../core/feature-flags-resolve.ts";
+} from "../core/feature-flags-resolve-types.ts";
 import { featureFlagsLaunchDarklyClientContextTranslate } from "./feature-flags-launch-darkly-client-context.ts";
 
 const events = [

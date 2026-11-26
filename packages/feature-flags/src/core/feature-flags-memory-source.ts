@@ -1,14 +1,14 @@
-import type { FeatureFlagsClientSource } from "./feature-flags-client.ts";
+import type { FeatureFlagsClientSource } from "./feature-flags-client-types.ts";
 import type { FeatureFlagContextResolved } from "./feature-flags-context.ts";
 import type {
 	FeatureFlagDefinitions,
 	FlagValue,
-} from "./feature-flags-define.ts";
+} from "./feature-flags-define-types.ts";
 import type {
 	FeatureFlagRead,
 	FeatureFlagsReadyStatus,
-} from "./feature-flags-resolve.ts";
-import type { FeatureFlagsServerSource } from "./feature-flags-server.ts";
+} from "./feature-flags-resolve-types.ts";
+import type { FeatureFlagsServerSource } from "./feature-flags-server-types.ts";
 
 /** Values for some flags, by the name code reads them with, each typed as its flag. */
 export type FeatureFlagMemoryValues<D extends FeatureFlagDefinitions> = {

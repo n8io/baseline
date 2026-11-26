@@ -8,12 +8,12 @@ import {
 	useMemo,
 	useSyncExternalStore,
 } from "react";
-import type { FeatureFlagsBrowser } from "../core/feature-flags-client.ts";
+import type { FeatureFlagsBrowser } from "../core/feature-flags-client-types.ts";
 import type {
 	FeatureFlagDefinitions,
 	FlagValue,
-} from "../core/feature-flags-define.ts";
-import type { FeatureFlagsReadyStatus } from "../core/feature-flags-resolve.ts";
+} from "../core/feature-flags-define-types.ts";
+import type { FeatureFlagsReadyStatus } from "../core/feature-flags-resolve-types.ts";
 
 type ProviderReady = Promise<FeatureFlagsReadyStatus> | FeatureFlagsReadyStatus;
 

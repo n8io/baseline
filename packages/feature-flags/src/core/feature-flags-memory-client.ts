@@ -1,13 +1,11 @@
-import {
-	type FeatureFlagsClient,
-	featureFlagsClientCreate,
-} from "./feature-flags-client.ts";
+import { featureFlagsClientCreate } from "./feature-flags-client.ts";
+import type { FeatureFlagsClient } from "./feature-flags-client-types.ts";
 import {
 	type FeatureFlagContext,
 	type FeatureFlagKinds,
 	featureFlagsContextFreeze,
 } from "./feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "./feature-flags-define.ts";
+import type { FeatureFlagDefinitions } from "./feature-flags-define-types.ts";
 import {
 	type FeatureFlagMemoryValues,
 	featureFlagsMemorySourceClientCreate,
@@ -16,7 +14,7 @@ import {
 import type {
 	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
-} from "./feature-flags-resolve.ts";
+} from "./feature-flags-resolve-types.ts";
 
 /** The values a memory client holds: typed per flag, or a function of the current context. */
 export type FeatureFlagsMemoryClientValues<
