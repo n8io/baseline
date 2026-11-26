@@ -1,11 +1,11 @@
-import { httpRouterCreate, httpSecureHeaders } from "@n8io/baseline-http";
+import { httpRouterCreate, httpSecureHeadersCreate } from "@n8io/baseline-http";
 import { describe, expect, it } from "vitest";
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 
 // The CSP comes from the same middleware the Server runs first.
 const appCreate = () => {
 	const app = httpRouterCreate();
-	app.use(httpSecureHeaders);
+	app.use(httpSecureHeadersCreate());
 	app.route("/", apiReferenceRoutesCreate());
 	return app;
 };

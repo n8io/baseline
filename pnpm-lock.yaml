@@ -481,9 +481,6 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
-      '@n8io/baseline-telemetry':
-        specifier: workspace:^
-        version: link:../telemetry
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -497,9 +494,6 @@ importers:
       '@launchdarkly/openfeature-node-server':
         specifier: ^2.1.12
         version: 2.1.12(@launchdarkly/node-server-sdk@9.17.1(supports-color@7.2.0))(@openfeature/server-sdk@1.23.0(@openfeature/core@1.12.0))
-      '@openfeature/core':
-        specifier: ^1.12.0
-        version: 1.12.0
       '@openfeature/launchdarkly-client-provider':
         specifier: ^0.4.0
         version: 0.4.0(@launchdarkly/js-client-sdk@4.14.4)(@openfeature/web-sdk@1.10.0(@openfeature/core@1.12.0))

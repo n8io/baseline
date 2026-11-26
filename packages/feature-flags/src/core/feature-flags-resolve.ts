@@ -85,6 +85,9 @@ export type FeatureFlagEvaluation = {
 	readonly variant: string | null;
 };
 
+/** Receives each fallback a read returns, to log it. A throw or a rejected Promise is ignored. */
+export type FeatureFlagsOnFallback = (fallback: FeatureFlagFallback) => unknown;
+
 /**
  * Passes a fallback to the Project's logger. A logger that throws, or returns a rejected Promise,
  * must not fail a read.
@@ -94,7 +97,7 @@ export const featureFlagsFallbackReport = ({
 	onFallback,
 }: {
 	fallback: FeatureFlagFallback;
-	onFallback: ((fallback: FeatureFlagFallback) => unknown) | null | undefined;
+	onFallback: FeatureFlagsOnFallback | null | undefined;
 }): void => {
 	try {
 		Promise.resolve(onFallback?.(fallback)).catch(() => undefined);

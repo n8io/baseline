@@ -1,4 +1,4 @@
-import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/client";
+import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/origins";
 import { Window } from "happy-dom";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { featureFlagsClientConfigRead } from "../../src/ui/feature-flags-client-config.ts";
