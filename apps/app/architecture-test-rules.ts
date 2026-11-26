@@ -655,15 +655,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 					: undefined,
 		}),
 
-	A7: (files) =>
-		textCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
-			pattern: /\.openapi\(/g,
-			reason: () =>
-				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts",
-		}),
-
 	A11: (files) =>
 		files
 			.filter((f) => aclOf(f.path) !== undefined && !testIs(f.path))
@@ -913,26 +904,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			reason: (m) =>
 				`@ts-${m[1]} is banned in src/contexts/; fix the type instead`,
 		}),
-
-	A22: (files) => [
-		...importsCheck({
-			files,
-			fileIs: (f) => !testIs(f.path),
-			check: ({ f, imp }) => {
-				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
-					return "only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts";
-				}
-				const rootsWithEnv = [
-					...roots,
-					// Opens every connection for the roots, so it reads their settings itself.
-					"src/connections.ts",
-				];
-				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
-					: undefined;
-			},
-		}),
-	],
 
 	A23: (files) => [
 		...architectureFileNamesCheck(files),
