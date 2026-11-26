@@ -170,11 +170,9 @@ jobs:
             echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
             exit 1
           fi
-      # Warnings only: it prints a ::warning annotation per glossary alias or other context's term in the added lines and exits 0.
-      # continue-on-error keeps a crash in the script from failing `check`.
+      # Blocking: it prints an annotation per glossary alias or other context's term in the added lines and exits 1 on any hit.
       - name: Glossary hits in added lines
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        continue-on-error: true
         run: pnpm glossary-check
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.

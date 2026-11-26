@@ -88,10 +88,9 @@ jobs:
       # that leaves the lockfile alone; this one reads every Package's package.json.
       - if: github.ref != 'refs/heads/main'
         run: pnpm exec vitest run test/dependencies-allowed.test.ts
-      # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
+      # Blocking like app-ci's: fails on root CONTEXT.md aliases in this PR's added lines.
       # On main there are no added lines to read.
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
-        continue-on-error: true
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
       - if: github.ref == 'refs/heads/main'
         run: find .turbo/cache -type f -mtime +7 -delete

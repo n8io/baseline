@@ -20,7 +20,7 @@ Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
 - test in a Package: `pnpm test` runs every test; cache, live, postgres, queue and redis need Docker for `*.redis.test.ts` and `*.postgres.test.ts` only
 - unit tests with no Docker: `pnpm test:unit` (root runs it in every Package, or run it inside one)
 - dead code: `pnpm knip`
-- glossary warnings (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
+- glossary check, fails on a hit (root `CONTEXT.md`): `node apps/app/scripts/glossary-check.ts CONTEXT.md .`
 - CI's `packages` job: `pnpm exec turbo run check test build`; a Template change also passes the other jobs ([docs/agents/template.md](docs/agents/template.md))
 - a change that should ship: `pnpm exec changeset` per Package it touches, plus `app` for the Template
 
