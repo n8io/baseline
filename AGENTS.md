@@ -10,13 +10,13 @@ The glossary is [CONTEXT.md](CONTEXT.md); use its terms for every name. This lin
 
 ## Verify
 
-Run with Node 26 (`fnm use`) and pnpm from `packageManager`.
+Run with the `.node-version` Node (`fnm use`), pnpm from `packageManager`. Bump: edit it, `pnpm node-version-sync`, then the Dockerfile digest its test names.
 
 - cloud setup (Node, pnpm, install, Docker): `bash apps/app/scripts/agent-setup.sh` ([apps/app/docs/agents/agent-setup.md](apps/app/docs/agents/agent-setup.md))
 - setup: `pnpm install`
 - format: `pnpm format`
 - lint + typecheck: `pnpm check`
-- test (root files): `pnpm test` (needs Docker: it starts the Postgres and Redis containers)
+- test (root files): `pnpm test` (starts Postgres and Redis in Docker)
 - test in a Package: `pnpm test` runs every test; cache, live, postgres, queue and redis need Docker for `*.redis.test.ts` and `*.postgres.test.ts` only
 - unit tests with no Docker: `pnpm test:unit` (root runs it in every Package, or run it inside one)
 - dead code: `pnpm knip`
@@ -45,7 +45,7 @@ As in [apps/app/AGENTS.md](apps/app/AGENTS.md): at most two positional inputs, t
 - A test that needs a real service names it before `.test` (`.postgres.test.ts`, `.redis.test.ts`).
 - Root `test/` checks the Template, its render, the docs and the Packages' metadata and names, and holds service setup the Packages share (`test/postgres/`, `test/redis/`). A Package has no `test/` folder.
 
-Tests assert with `expect()` only: `expect.requireAssertions` ignores chai `assert`, so Biome bans importing it.
+Tests assert with `expect()` only: `expect.requireAssertions` ignores chai `assert` (Biome bans it).
 
 ## Read when
 
