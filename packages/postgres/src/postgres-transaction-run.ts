@@ -1,7 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
 import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
-import type { PostgresClient, PostgresPool } from "./postgres-pool.ts";
+import type { PostgresClient } from "./postgres-pool.ts";
 
 // A client that throws on any use once its transaction has ended, so a callback that leaks it
 // (a stray promise, a closure kept for later) fails loudly instead of running outside it.
@@ -21,10 +21,15 @@ const clientGuard = (
 		},
 	});
 
+/** The pool `postgresTransactionRun` checks a client out of: a `PostgresPool` fits. */
+export type PostgresTransactionRunPool = {
+	connect(): Promise<PostgresClient>;
+};
+
 /** What `postgresTransactionRun` takes. */
 export type PostgresTransactionRunOptions<T, E> = {
 	/** The pool to check one client out of. */
-	pgPool: PostgresPool;
+	pgPool: PostgresTransactionRunPool;
 	/** How long the transaction may run before Postgres ends it. Default 5 s. */
 	timeoutMs?: number | null;
 	/** Runs on the transaction's client; an ok Result commits, an err Result rolls back. */
