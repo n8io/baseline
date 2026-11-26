@@ -24,7 +24,8 @@
 			"entry": [
 				"src/*-test-fixtures/**/*.ts",
 				"src/**/*.test.ts",
-				"src/**/*.contract.ts"
+				"src/**/*.contract.ts",
+				"vitest.mutation.config.ts"
 			]
 		}
 	},
