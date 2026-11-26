@@ -6,3 +6,7 @@
 build/
 dist/
 node_modules/
+
+# Stryker (mutation testing) leftovers
+.stryker-tmp/
+stryker-setup-*.js
