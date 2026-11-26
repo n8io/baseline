@@ -12,7 +12,7 @@ export const queueLoggerTestRecord = (
 	method: "debug" | "error" | "fatal" | "info" | "warn",
 	{ callThrough = false }: { callThrough?: boolean } = {},
 ): { calls: readonly LoggerTestCall[]; [Symbol.dispose]: () => void } => {
-	const calls: readonly LoggerTestCall[] = [];
+	const calls: LoggerTestCall[] = [];
 	const original = logger[method];
 	logger[method] = ((...args: LoggerTestCall) => {
 		calls.push(args);

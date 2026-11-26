@@ -10,7 +10,7 @@ export type LoggerTestCall = [fields: unknown, message?: string];
 export const postgresLoggerTestRecord = (
 	method: "debug" | "error" | "fatal" | "info" | "warn",
 ): { calls: readonly LoggerTestCall[]; [Symbol.dispose]: () => void } => {
-	const calls: readonly LoggerTestCall[] = [];
+	const calls: LoggerTestCall[] = [];
 	const original = logger[method];
 	logger[method] = ((...args: LoggerTestCall) => {
 		calls.push(args);
