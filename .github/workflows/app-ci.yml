@@ -32,7 +32,9 @@ on:
 # main, a dispatch, baseline's render) runs everything.
 jobs:
   # Whether the pull request changes anything but Markdown. If this job fails or is skipped (baseline's
-  # render passes an artifact), the jobs run anyway.
+  # render passes an artifact), the jobs run anyway. The checkout has every blob (no `filter: blob:none`):
+  # credentials are off, so a diff that needs a missing blob dies on "could not read Username" (a promisor
+  # fetch), which failed the job on any large diff.
   changes:
     if: ${{ !inputs.skip && inputs.artifact == '' }}
     runs-on: ubuntu-latest
@@ -45,7 +47,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          filter: blob:none
           persist-credentials: false
       - id: diff
         env:
