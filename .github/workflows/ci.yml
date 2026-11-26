@@ -88,12 +88,16 @@ jobs:
       # that leaves the lockfile alone; this one reads every Package's package.json.
       - if: github.ref != 'refs/heads/main'
         run: pnpm exec vitest run test/dependencies-allowed.test.ts
-      # Blocking like app-ci's: fails on root CONTEXT.md aliases in this PR's added lines.
-      # On main there are no added lines to read.
+      # Blocking: fails on glossary aliases in this PR's added lines, for the root CONTEXT.md and for
+      # the Template's apps/app glossaries. Runs here, not in app-ci's artifact path, because this job
+      # has the real checkout and so a real base. On main there are no added lines to read.
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
+      - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
+        working-directory: apps/app
+        run: pnpm glossary-check
       - if: github.ref == 'refs/heads/main'
         run: find .turbo/cache -type f -mtime +7 -delete
       - if: github.ref == 'refs/heads/main'
