@@ -1,0 +1,61 @@
+name: service-images
+
+# Re-resolves the digests CI pins for its service images (postgres, redis) and opens a pull request
+# when one moved. The PR merges itself once the main ruleset's checks pass, so a service image's
+# security fix reaches CI within a week without a person.
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+
+# contents: push the branch. pull-requests: open the PR. Pushes and PRs use the App token below,
+# since a GITHUB_TOKEN push starts no pull_request run and the PR would get no checks.
+permissions:
+  contents: read
+
+concurrency:
+  group: service-images
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - run: node scripts/service-images-bump.ts
+      - id: changed
+        run: |
+          if git diff --quiet -- .github/workflows; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.moved == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          permission-contents: write
+          permission-pull-requests: write
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - if: steps.changed.outputs.moved == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          branch="service-images/${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add .github/workflows
+          git commit -m "🔒 Bump the CI service image digests"
+          git push -u "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "🔒 Bump the CI service image digests" \
+            --body "The weekly job re-resolved the postgres and redis digests CI pins. Merges when the checks pass."
+          gh pr merge --auto --squash "$branch"
