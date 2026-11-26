@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { FeatureFlagsClient } from "./feature-flags-client.ts";
+import type { FeatureFlagsClient } from "./feature-flags-client-types.ts";
 import type { FeatureFlagContextResolved } from "./feature-flags-context.ts";
-import type { FeatureFlagFallback } from "./feature-flags-resolve.ts";
+import type { FeatureFlagFallback } from "./feature-flags-resolve-types.ts";
 import type {
 	featureFlagsTestDefs,
 	featureFlagsTestKinds,

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type {
 	FeatureFlagFallback,
 	FeatureFlagsReadyStatus,
-} from "./feature-flags-resolve.ts";
-import type { FeatureFlags } from "./feature-flags-server.ts";
+} from "./feature-flags-resolve-types.ts";
+import type { FeatureFlags } from "./feature-flags-server-types.ts";
 import type {
 	featureFlagsTestDefs,
 	featureFlagsTestKinds,

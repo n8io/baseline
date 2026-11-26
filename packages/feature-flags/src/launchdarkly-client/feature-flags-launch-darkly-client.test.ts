@@ -5,7 +5,7 @@ import { featureFlagsClientContractRun } from "../core/feature-flags-client.cont
 import { featureFlagsClientCreate } from "../core/feature-flags-client.ts";
 import { featureFlagsContextFreeze } from "../core/feature-flags-context.ts";
 import { featureFlagsDefine } from "../core/feature-flags-define.ts";
-import type { FeatureFlagFallback } from "../core/feature-flags-resolve.ts";
+import type { FeatureFlagFallback } from "../core/feature-flags-resolve-types.ts";
 import {
 	featureFlagsTestDefs,
 	featureFlagsTestKinds,

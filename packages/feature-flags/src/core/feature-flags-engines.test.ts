@@ -4,11 +4,9 @@ import { featureFlagsMemorySourceClientCreate } from "./feature-flags-memory-sou
 import type {
 	FeatureFlagEvaluation,
 	FeatureFlagRead,
-} from "./feature-flags-resolve.ts";
-import {
-	type FeatureFlagsServerSource,
-	featureFlagsServerCreate,
-} from "./feature-flags-server.ts";
+} from "./feature-flags-resolve-types.ts";
+import { featureFlagsServerCreate } from "./feature-flags-server.ts";
+import type { FeatureFlagsServerSource } from "./feature-flags-server-types.ts";
 import { featureFlagsTestDefs } from "./feature-flags-test-fixtures.ts";
 
 const clientOpen = () => {

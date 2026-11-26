@@ -2,7 +2,7 @@ import type {
 	FeatureFlagContext,
 	FeatureFlagKinds,
 } from "./feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "./feature-flags-define.ts";
+import type { FeatureFlagDefinitions } from "./feature-flags-define-types.ts";
 import {
 	type FeatureFlagMemoryValues,
 	featureFlagsMemorySourceServerCreate,
@@ -11,11 +11,9 @@ import {
 import type {
 	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
-} from "./feature-flags-resolve.ts";
-import {
-	type FeatureFlags,
-	featureFlagsServerCreate,
-} from "./feature-flags-server.ts";
+} from "./feature-flags-resolve-types.ts";
+import { featureFlagsServerCreate } from "./feature-flags-server.ts";
+import type { FeatureFlags } from "./feature-flags-server-types.ts";
 
 /** What `featureFlagsMemoryCreate` takes. */
 export type FeatureFlagsMemoryOptions<

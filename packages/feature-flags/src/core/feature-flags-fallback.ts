@@ -1,9 +1,7 @@
 import type { FeatureFlagKinds } from "./feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "./feature-flags-define.ts";
-import {
-	type FeatureFlags,
-	featureFlagsServerCreate,
-} from "./feature-flags-server.ts";
+import type { FeatureFlagDefinitions } from "./feature-flags-define-types.ts";
+import { featureFlagsServerCreate } from "./feature-flags-server.ts";
+import type { FeatureFlags } from "./feature-flags-server-types.ts";
 
 /** What `featureFlagsFallbackCreate` takes. */
 export type FeatureFlagsFallbackOptions<

@@ -1,4 +1,3 @@
-import type { LDOptions } from "@launchdarkly/node-server-sdk";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { sharedTimeRace } from "@n8io/baseline-shared";
 import {
@@ -9,7 +8,7 @@ import {
 	OpenFeature,
 } from "@openfeature/server-sdk";
 import type { FeatureFlagKinds } from "../core/feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
+import type { FeatureFlagDefinitions } from "../core/feature-flags-define-types.ts";
 import {
 	featureFlagsOptionsDomainCreate,
 	featureFlagsOptionsStringRequire,
@@ -19,44 +18,22 @@ import type {
 	FeatureFlagEvaluation,
 	FeatureFlagFallback,
 	FeatureFlagRead,
-	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
-} from "../core/feature-flags-resolve.ts";
-import {
-	type FeatureFlags,
-	type FeatureFlagsServerSource,
-	featureFlagsServerCreate,
-} from "../core/feature-flags-server.ts";
+} from "../core/feature-flags-resolve-types.ts";
+import { featureFlagsServerCreate } from "../core/feature-flags-server.ts";
+import type {
+	FeatureFlags,
+	FeatureFlagsServerSource,
+} from "../core/feature-flags-server-types.ts";
 import { featureFlagsLoggerDefault as logger } from "../feature-flags-logger-default.ts";
 import { featureFlagsLaunchDarklyContext } from "./feature-flags-launch-darkly-context.ts";
 import { featureFlagsLaunchDarklyEvaluationRecord } from "./feature-flags-launch-darkly-evaluation.ts";
+import { featureFlagsLaunchDarklyEvaluationReport } from "./feature-flags-launch-darkly-evaluation-report.ts";
+import { featureFlagsLaunchDarklyRead } from "./feature-flags-launch-darkly-read.ts";
+import type { FeatureFlagsLaunchDarklyOptions } from "./feature-flags-launch-darkly-types.ts";
 
 // Bounds close(), so shutdown never waits long on LaunchDarkly delivering its last events.
 const closeTimeoutMs = 2000;
-
-/**
- * LaunchDarkly's own SDK options, named as its SDK names them. Outside this Package's contract:
- * moving off LaunchDarkly deletes it. Examples: `baseUri`, `logger`, `proxyOptions`.
- */
-export type FeatureFlagsLaunchDarklyVendorOptions = LDOptions;
-
-/** What `featureFlagsLaunchDarklyCreate` takes. */
-export type FeatureFlagsLaunchDarklyOptions<
-	D extends FeatureFlagDefinitions,
-	K extends FeatureFlagKinds,
-> = {
-	readonly flags: D;
-	/** The kinds a context can hold. Each needs a context kind of the same name in LaunchDarkly. */
-	readonly kinds?: K | null;
-	/** Receives each fallback a read returns. Defaults to logging it as a warning. */
-	readonly onFallback?: FeatureFlagsOnFallback | null;
-	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. A value that is not a whole number of milliseconds from 1 up throws a `TypeError`. */
-	readonly readyTimeoutMs?: number | null;
-	/** The LaunchDarkly server SDK key, for the environment the process runs in. An empty one throws a `TypeError`. */
-	readonly sdkKey: string;
-	/** Settings only LaunchDarkly has, passed to its SDK. */
-	readonly vendor?: FeatureFlagsLaunchDarklyVendorOptions | null;
-};
 
 const fallbackLog = ({ flag, key, reason }: FeatureFlagFallback): void => {
 	logger.warn({ flag, key, reason }, "Feature flag fell back to its default");
@@ -94,7 +71,7 @@ const errorTypes: Readonly<Record<string, string>> = {
 };
 
 // Records each evaluation as the OpenTelemetry `feature_flag.evaluation` event. Never the context.
-const evaluationRecord = ({
+const _evaluationRecord = ({
 	fallbackReason,
 	key,
 	reason,
@@ -115,7 +92,7 @@ const evaluationRecord = ({
 	});
 };
 
-const readOf = ({
+const _readOf = ({
 	errorCode,
 	reason,
 	value,
@@ -206,19 +183,19 @@ export const featureFlagsLaunchDarklyCreate = <
 				featureFlagsLaunchDarklyContext(context);
 			switch (typeof fallback) {
 				case "boolean":
-					return readOf(
+					return featureFlagsLaunchDarklyRead(
 						await client.getBooleanDetails(key, fallback, evaluationContext),
 					);
 				case "number":
-					return readOf(
+					return featureFlagsLaunchDarklyRead(
 						await client.getNumberDetails(key, fallback, evaluationContext),
 					);
 				case "string":
-					return readOf(
+					return featureFlagsLaunchDarklyRead(
 						await client.getStringDetails(key, fallback, evaluationContext),
 					);
 				case "object":
-					return readOf(
+					return featureFlagsLaunchDarklyRead(
 						await client.getObjectDetails(
 							key,
 							// boundary: an object flag's fallback is JSON, as LaunchDarkly stores it
@@ -237,7 +214,7 @@ export const featureFlagsLaunchDarklyCreate = <
 	};
 	return featureFlagsServerCreate<D, K>({
 		flags,
-		onEvaluation: evaluationRecord,
+		onEvaluation: featureFlagsLaunchDarklyEvaluationReport,
 		onFallback: onFallback ?? fallbackLog,
 		onRecovered: recoveredLog,
 		source,

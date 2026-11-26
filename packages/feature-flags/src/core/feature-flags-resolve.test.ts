@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import type { FeatureFlagDefinition } from "./feature-flags-define.ts";
-import {
-	type FeatureFlagRead,
-	featureFlagsResolve,
-	featureFlagsSchemaValidate,
-} from "./feature-flags-resolve.ts";
+import type { FeatureFlagDefinition } from "./feature-flags-define-types.ts";
+import { featureFlagsResolve } from "./feature-flags-resolve.ts";
+import type { FeatureFlagRead } from "./feature-flags-resolve-types.ts";
+import { featureFlagsSchemaValidate } from "./feature-flags-schema-validate.ts";
 
 const found = (value: unknown): FeatureFlagRead => ({ found: true, value });
 const flag: FeatureFlagDefinition = { fallback: 10, key: "limit" };

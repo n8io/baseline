@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
-import { type FlagValue, featureFlagsDefine } from "./feature-flags-define.ts";
+import { featureFlagsDefine } from "./feature-flags-define.ts";
+import type { FlagValue } from "./feature-flags-define-types.ts";
 
 const flags = featureFlagsDefine({
 	copy: { fallback: "plain", key: "copy", values: ["plain", "bold"] },
