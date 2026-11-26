@@ -19,7 +19,6 @@ export { httpRouteName } from "./http-route-name.ts";
 export { httpRouterCreate } from "./http-router.ts";
 export {
 	type HttpSecureHeadersOptions,
-	httpSecureHeaders,
 	httpSecureHeadersCreate,
 } from "./http-secure-headers.ts";
 export { httpServerClose } from "./http-server-close.ts";

@@ -29,6 +29,3 @@ export const httpSecureHeadersCreate = ({
 			scriptSrc: ["'self'", NONCE],
 		},
 	});
-
-/** `app.use(httpSecureHeaders)`: `httpSecureHeadersCreate()` with no extra origins. */
-export const httpSecureHeaders: MiddlewareHandler = httpSecureHeadersCreate();

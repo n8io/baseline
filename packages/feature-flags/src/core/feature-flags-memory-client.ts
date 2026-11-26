@@ -14,7 +14,7 @@ import {
 	featureFlagsMemorySourceValuesByKey,
 } from "./feature-flags-memory-source.ts";
 import type {
-	FeatureFlagFallback,
+	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
 } from "./feature-flags-resolve.ts";
 
@@ -35,7 +35,7 @@ export type FeatureFlagsMemoryClientOptions<
 	readonly flags: D;
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, as the logger would be. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => void) | null;
+	readonly onFallback?: FeatureFlagsOnFallback | null;
 	/** How ready settles. Anything but `connected` makes every read a fallback, like an outage. */
 	readonly ready?: FeatureFlagsReadyStatus | null;
 	readonly values?: FeatureFlagsMemoryClientValues<D, K> | null;

@@ -21,6 +21,15 @@ describe("app-ci.yml pieces", () => {
 		expect(listed).toEqual([...pieceNames]);
 	});
 
+	it("skips the piece jobs on a pull request that cannot change a piece removal", () => {
+		expect(workflow).toMatch(
+			/^ {2}piece:\n[\s\S]*?if: .*needs\.changes\.outputs\.pieces != 'false'/m,
+		);
+		expect(workflow).toMatch(
+			/pieces: \$\{\{ steps\.diff\.outputs\.pieces \}\}/,
+		);
+	});
+
 	it("keeps `pieces` as the one aggregate job the ruleset requires", () => {
 		expect(workflow).toMatch(/^ {2}pieces:\n {4}needs: piece\n/m);
 	});

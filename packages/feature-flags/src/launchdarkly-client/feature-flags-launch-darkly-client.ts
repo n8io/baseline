@@ -10,28 +10,41 @@ import {
 	featureFlagsContextFreeze,
 } from "../core/feature-flags-context.ts";
 import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
-import type { FeatureFlagFallback } from "../core/feature-flags-resolve.ts";
+import {
+	featureFlagsOptionsDomainCreate,
+	featureFlagsOptionsStringRequire,
+	featureFlagsOptionsTimeoutMsResolve,
+} from "../core/feature-flags-options.ts";
+import type { FeatureFlagsOnFallback } from "../core/feature-flags-resolve.ts";
 import { featureFlagsLaunchDarklyClientSourceCreate } from "./feature-flags-launch-darkly-client-source.ts";
 
-const readyTimeoutMsDefault = 2000;
+/**
+ * LaunchDarkly's own browser SDK options, named as its SDK names them. `streaming` is left out:
+ * live updates need it, so it is always on. Outside this Package's contract: moving off
+ * LaunchDarkly deletes it.
+ */
+export type FeatureFlagsLaunchDarklyClientVendorOptions = Omit<
+	LDOptions,
+	"streaming"
+>;
 
 /** What `featureFlagsLaunchDarklyClientCreate` takes. */
 export type FeatureFlagsLaunchDarklyClientOptions<
 	D extends FeatureFlagDefinitions,
 	K extends FeatureFlagKinds,
 > = {
-	/** LaunchDarkly's client-side ID for the environment. It is public by design. */
+	/** LaunchDarkly's client-side ID for the environment. It is public by design. An empty one throws a `TypeError`. */
 	readonly clientSideId: string;
 	/** The one context this client starts with. Replace it whole with `contextSet`. */
 	readonly context: FeatureFlagContext<K>;
 	readonly flags: D;
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, to log it. A throw is ignored. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
-	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. */
+	readonly onFallback?: FeatureFlagsOnFallback | null;
+	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. A value that is not a whole number of milliseconds from 1 up throws a `TypeError`. */
 	readonly readyTimeoutMs?: number | null;
 	/** Extra options for LaunchDarkly's browser SDK. `streaming` is always on: live updates need it. */
-	readonly vendor?: Omit<LDOptions, "streaming"> | null;
+	readonly vendor?: FeatureFlagsLaunchDarklyClientVendorOptions | null;
 };
 
 /** The LaunchDarkly provider, with streaming forced on so its change events reach the flags. */
@@ -40,10 +53,7 @@ export const featureFlagsLaunchDarklyClientProviderCreate = ({
 	vendor,
 }: {
 	clientSideId: string;
-	vendor?: FeatureFlagsLaunchDarklyClientOptions<
-		FeatureFlagDefinitions,
-		FeatureFlagKinds
-	>["vendor"];
+	vendor?: FeatureFlagsLaunchDarklyClientVendorOptions | null;
 }): LaunchDarklyClientProvider =>
 	new LaunchDarklyClientProvider(clientSideId, { ...vendor, streaming: true });
 
@@ -62,17 +72,27 @@ export const featureFlagsLaunchDarklyClientCreate = <
 	onFallback,
 	readyTimeoutMs,
 	vendor,
-}: FeatureFlagsLaunchDarklyClientOptions<D, K>): FeatureFlagsClient<D, K> =>
-	featureFlagsClientCreate<D, K>({
+}: FeatureFlagsLaunchDarklyClientOptions<D, K>): FeatureFlagsClient<D, K> => {
+	featureFlagsOptionsStringRequire({
+		factory: "featureFlagsLaunchDarklyClientCreate",
+		name: "clientSideId",
+		value: clientSideId,
+	});
+	const timeoutMs = featureFlagsOptionsTimeoutMsResolve({
+		factory: "featureFlagsLaunchDarklyClientCreate",
+		readyTimeoutMs,
+	});
+	return featureFlagsClientCreate<D, K>({
 		flags,
 		onFallback: onFallback ?? null,
 		source: featureFlagsLaunchDarklyClientSourceCreate({
 			context: featureFlagsContextFreeze(context),
-			domain: `feature-flags-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+			domain: featureFlagsOptionsDomainCreate(),
 			provider: featureFlagsLaunchDarklyClientProviderCreate({
 				clientSideId,
-				vendor,
+				vendor: vendor ?? null,
 			}),
-			readyTimeoutMs: readyTimeoutMs ?? readyTimeoutMsDefault,
+			readyTimeoutMs: timeoutMs,
 		}),
 	});
+};

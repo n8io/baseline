@@ -21,3 +21,30 @@ export const shutdownStepAdd = ({
 	...steps,
 	[group]: at === "first" ? [step, ...steps[group]] : [...steps[group], step],
 });
+
+// A resource an entry point opened, added so shutdown closes it: `close` defaults to the
+// resource's own, and a resource that needs more than that passes it.
+export const resourceOpen = <Resource extends { close: () => unknown }>({
+	at,
+	close,
+	group,
+	name,
+	resource,
+	steps,
+}: {
+	at: "first" | "last";
+	close?: ((resource: Resource) => unknown) | null;
+	group: "intakes" | "resources";
+	name: string;
+	resource: Resource;
+	steps: ShutdownSteps;
+}): ShutdownSteps =>
+	shutdownStepAdd({
+		at,
+		group,
+		step: {
+			close: async () => void (await (close ?? ((r) => r.close()))(resource)),
+			name,
+		},
+		steps,
+	});

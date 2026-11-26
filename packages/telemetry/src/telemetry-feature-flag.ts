@@ -1,3 +1,4 @@
+// Copied to packages/feature-flags/src/launchdarkly/feature-flags-launch-darkly-evaluation.ts; keep the two in step.
 import { logs, SeverityNumber } from "@opentelemetry/api";
 import { telemetryScope } from "./telemetry-scope.ts";
 

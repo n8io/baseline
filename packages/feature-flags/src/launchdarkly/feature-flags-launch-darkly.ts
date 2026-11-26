@@ -1,7 +1,6 @@
 import type { LDOptions } from "@launchdarkly/node-server-sdk";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { logger } from "@n8io/baseline-logger";
-import { telemetryFeatureFlagEvaluationRecord } from "@n8io/baseline-telemetry/feature-flag";
 import {
 	type EvaluationContext,
 	type EvaluationDetails,
@@ -11,10 +10,16 @@ import {
 } from "@openfeature/server-sdk";
 import type { FeatureFlagKinds } from "../core/feature-flags-context.ts";
 import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
+import {
+	featureFlagsOptionsDomainCreate,
+	featureFlagsOptionsStringRequire,
+	featureFlagsOptionsTimeoutMsResolve,
+} from "../core/feature-flags-options.ts";
 import type {
 	FeatureFlagEvaluation,
 	FeatureFlagFallback,
 	FeatureFlagRead,
+	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
 } from "../core/feature-flags-resolve.ts";
 import {
@@ -23,8 +28,8 @@ import {
 	featureFlagsServerCreate,
 } from "../core/feature-flags-server.ts";
 import { featureFlagsLaunchDarklyContext } from "./feature-flags-launch-darkly-context.ts";
+import { featureFlagsLaunchDarklyEvaluationRecord } from "./feature-flags-launch-darkly-evaluation.ts";
 
-const readyTimeoutMsDefault = 2000;
 // Bounds close(), so shutdown never waits long on LaunchDarkly delivering its last events.
 const closeTimeoutMs = 2000;
 
@@ -43,10 +48,10 @@ export type FeatureFlagsLaunchDarklyOptions<
 	/** The kinds a context can hold. Each needs a context kind of the same name in LaunchDarkly. */
 	readonly kinds?: K | null;
 	/** Receives each fallback a read returns. Defaults to logging it as a warning. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
-	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. */
+	readonly onFallback?: FeatureFlagsOnFallback | null;
+	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. A value that is not a whole number of milliseconds from 1 up throws a `TypeError`. */
 	readonly readyTimeoutMs?: number | null;
-	/** The LaunchDarkly server SDK key, for the environment the process runs in. */
+	/** The LaunchDarkly server SDK key, for the environment the process runs in. An empty one throws a `TypeError`. */
 	readonly sdkKey: string;
 	/** Settings only LaunchDarkly has, passed to its SDK. */
 	readonly vendor?: FeatureFlagsLaunchDarklyVendorOptions | null;
@@ -95,7 +100,7 @@ const evaluationRecord = ({
 	value,
 	variant,
 }: FeatureFlagEvaluation): void => {
-	telemetryFeatureFlagEvaluationRecord({
+	featureFlagsLaunchDarklyEvaluationRecord({
 		errorType:
 			fallbackReason === null ? null : (errorTypes[fallbackReason] ?? null),
 		key,
@@ -177,7 +182,16 @@ export const featureFlagsLaunchDarklyCreate = <
 	sdkKey,
 	vendor,
 }: FeatureFlagsLaunchDarklyOptions<D, K>): FeatureFlags<D, K> => {
-	const domain = `feature-flags-launch-darkly-${crypto.randomUUID()}`;
+	featureFlagsOptionsStringRequire({
+		factory: "featureFlagsLaunchDarklyCreate",
+		name: "sdkKey",
+		value: sdkKey,
+	});
+	const timeoutMs = featureFlagsOptionsTimeoutMsResolve({
+		factory: "featureFlagsLaunchDarklyCreate",
+		readyTimeoutMs,
+	});
+	const domain = featureFlagsOptionsDomainCreate();
 	// Opens with an unbounded init wait: `ready` gives up on its own timer, and the SDK keeps
 	// trying, so a slow LaunchDarkly still connects later.
 	const provider = new LaunchDarklyProvider(sdkKey, vendor ?? {}, "forever");
@@ -224,7 +238,7 @@ export const featureFlagsLaunchDarklyCreate = <
 		},
 		ready: statusAfter({
 			pending: opened,
-			timeoutMs: readyTimeoutMs ?? readyTimeoutMsDefault,
+			timeoutMs,
 		}),
 	};
 	return featureFlagsServerCreate<D, K>({

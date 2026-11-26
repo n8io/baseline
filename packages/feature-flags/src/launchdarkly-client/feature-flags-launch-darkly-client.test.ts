@@ -12,8 +12,8 @@ import {
 } from "../core/feature-flags-test-fixtures.ts";
 import { featureFlagsLaunchDarklyClientProviderCreate } from "./feature-flags-launch-darkly-client.ts";
 import { featureFlagsLaunchDarklyClientContextTranslate } from "./feature-flags-launch-darkly-client-context.ts";
-import { FakeProvider } from "./feature-flags-launch-darkly-client-fake.ts";
 import { featureFlagsLaunchDarklyClientSourceCreate } from "./feature-flags-launch-darkly-client-source.ts";
+import { FakeProvider } from "./feature-flags-launch-darkly-client-test-provider.ts";
 
 const actorA = featureFlagsContextFreeze({ actor: { id: "a1" } });
 

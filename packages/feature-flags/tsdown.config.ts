@@ -8,6 +8,7 @@ export default defineConfig({
 		index: "src/index.ts",
 		launchdarkly: "src/launchdarkly/index.ts",
 		"launchdarkly/client": "src/launchdarkly-client/index.ts",
+		"launchdarkly/origins": "src/launchdarkly-origins/index.ts",
 		react: "src/react/index.ts",
 		testing: "src/testing.ts",
 	},

@@ -14,10 +14,14 @@ export {
 	type FlagValue,
 	featureFlagsDefine,
 } from "./core/feature-flags-define.ts";
-export { featureFlagsFallbackCreate } from "./core/feature-flags-fallback.ts";
+export {
+	type FeatureFlagsFallbackOptions,
+	featureFlagsFallbackCreate,
+} from "./core/feature-flags-fallback.ts";
 export type {
 	FeatureFlagFallback,
 	FeatureFlagFallbackReason,
+	FeatureFlagsOnFallback,
 	FeatureFlagsReadyStatus,
 } from "./core/feature-flags-resolve.ts";
 export type {
