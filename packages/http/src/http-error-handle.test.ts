@@ -1,10 +1,9 @@
-import { logger } from "@n8io/baseline-logger";
 import { context, TraceFlags, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { httpErrorHandle, httpNotFoundHandle } from "./index.ts";
+import { beforeEach, describe, expect, it } from "vitest";
+import { httpErrorHandleCreate, httpNotFoundHandle } from "./index.ts";
 
 const canary = "canary@example.com";
 
@@ -16,6 +15,21 @@ const requestSpanContext = {
 	traceFlags: TraceFlags.SAMPLED,
 	traceId: "0af7651916cd43dd8448eb211c80319c",
 };
+
+// What the handler logged at error level, as [fields, message].
+let logged: [unknown, string | undefined][] = [];
+
+beforeEach(() => {
+	logged = [];
+});
+
+const httpErrorHandle = httpErrorHandleCreate({
+	logger: {
+		error: (fields: unknown, message?: string) => {
+			logged.push([fields, message]);
+		},
+	},
+});
 
 class AuthnRequiredError extends Error {
 	readonly httpStatus = 401;
@@ -33,15 +47,8 @@ const appThrowing = (error: unknown) => {
 };
 
 describe("httpErrorHandle", () => {
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	it("answers any other thrown error 500 InternalError and logs it once", async () => {
 		const error = new TypeError(canary);
-		const logError = vi
-			.spyOn(logger, "error")
-			.mockImplementation(() => undefined);
 		const res = await appThrowing(error).request("/foos/foo_1");
 		const text = await res.text();
 
@@ -53,16 +60,15 @@ describe("httpErrorHandle", () => {
 			title: "Internal Server Error",
 		});
 		expect(text).not.toContain(canary);
-		expect(logError).toHaveBeenCalledExactlyOnceWith(
-			{ err: error, route: "/foos/:fooId", status: 500 },
-			"Request failed; answered 500 InternalError",
-		);
+		expect(logged).toStrictEqual([
+			[
+				{ err: error, route: "/foos/:fooId", status: 500 },
+				"Request failed; answered 500 InternalError",
+			],
+		]);
 	});
 
 	it("answers a thrown package error with its 4xx httpStatus and type, unlogged", async () => {
-		const logError = vi
-			.spyOn(logger, "error")
-			.mockImplementation(() => undefined);
 		const res = await appThrowing(new AuthnRequiredError(canary)).request(
 			"/foos/foo_1",
 		);
@@ -74,7 +80,7 @@ describe("httpErrorHandle", () => {
 			status: 401,
 			title: "Unauthorized",
 		});
-		expect(logError).not.toHaveBeenCalled();
+		expect(logged).toStrictEqual([]);
 	});
 
 	it.each([
@@ -84,22 +90,15 @@ describe("httpErrorHandle", () => {
 		["no type", { httpStatus: 401 }],
 	])("treats an error with %s as a 500", async (_, fields) => {
 		const error = Object.assign(new Error(canary), fields);
-		const logError = vi
-			.spyOn(logger, "error")
-			.mockImplementation(() => undefined);
 		const res = await appThrowing(error).request("/foos/foo_1");
 
 		expect(res.status).toBe(500);
 		expect(await res.json()).toMatchObject({ code: "InternalError" });
-		expect(logError).toHaveBeenCalledOnce();
+		expect(logged).toHaveLength(1);
 	});
 });
 
 describe("httpErrorHandle with Hono's HTTPException", () => {
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	it.each([
 		{ code: "ValidationFailed", status: 400, title: "Bad Request" },
 		{ code: "PayloadTooLarge", status: 413, title: "Payload Too Large" },
@@ -112,9 +111,6 @@ describe("httpErrorHandle with Hono's HTTPException", () => {
 	] as const)(
 		"answers a 4xx HTTPException $status with code $code, unlogged",
 		async ({ code, status, title }) => {
-			const logError = vi
-				.spyOn(logger, "error")
-				.mockImplementation(() => undefined);
 			const res = await appThrowing(
 				new HTTPException(status, { message: canary }),
 			).request("/foos/foo_1");
@@ -124,21 +120,18 @@ describe("httpErrorHandle with Hono's HTTPException", () => {
 			expect(res.headers.get("Content-Type")).toBe("application/problem+json");
 			expect(JSON.parse(text)).toStrictEqual({ code, status, title });
 			expect(text).not.toContain(canary);
-			expect(logError).not.toHaveBeenCalled();
+			expect(logged).toStrictEqual([]);
 		},
 	);
 
 	it("answers a 5xx HTTPException with a logged 500", async () => {
-		const logError = vi
-			.spyOn(logger, "error")
-			.mockImplementation(() => undefined);
 		const res = await appThrowing(new HTTPException(503)).request(
 			"/foos/foo_1",
 		);
 
 		expect(res.status).toBe(500);
 		expect(await res.json()).toMatchObject({ code: "InternalError" });
-		expect(logError).toHaveBeenCalledOnce();
+		expect(logged).toHaveLength(1);
 	});
 });
 
@@ -176,12 +169,7 @@ describe("problem traceId", () => {
 		return app;
 	};
 
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	it("carries the request's trace id on a 500, a 4xx and a 404", async () => {
-		vi.spyOn(logger, "error").mockImplementation(() => undefined);
 		const app = appTraced(new TypeError(canary));
 		const authn = appTraced(new AuthnRequiredError(canary));
 

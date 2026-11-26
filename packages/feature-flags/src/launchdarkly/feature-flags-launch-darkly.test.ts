@@ -2,7 +2,7 @@ import { TestData } from "@launchdarkly/node-server-sdk/integrations";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { OpenFeature } from "@openfeature/server-sdk";
 import { type LogRecord, logs } from "@opentelemetry/api";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { featureFlagsServerContractRun } from "../core/feature-flags-server.contract.ts";
 import {
 	featureFlagsTestDefs,
@@ -117,13 +117,22 @@ describe("featureFlagsLaunchDarklyCreate", () => {
 		const first = open();
 		const second = open();
 		await Promise.all([first.ready, second.ready]);
-		const close = vi.spyOn(LaunchDarklyProvider.prototype, "onClose");
-		await first.close();
-		expect(close).toHaveBeenCalled();
-		expect(await first.context(actor).get("itemLimit")).toBe(10);
-		expect(await second.context(actor).get("itemLimit")).toBe(3);
-		await second.close();
-		close.mockRestore();
+		// Counts the provider closes by hand, then puts the real method back.
+		const onClose = LaunchDarklyProvider.prototype.onClose;
+		let closes = 0;
+		LaunchDarklyProvider.prototype.onClose = function (...args) {
+			closes += 1;
+			return onClose.apply(this, args);
+		};
+		try {
+			await first.close();
+			expect(closes).toBeGreaterThan(0);
+			expect(await first.context(actor).get("itemLimit")).toBe(10);
+			expect(await second.context(actor).get("itemLimit")).toBe(3);
+			await second.close();
+		} finally {
+			LaunchDarklyProvider.prototype.onClose = onClose;
+		}
 	});
 
 	it("closes through await using, and leaves the default OpenFeature provider alone", async () => {

@@ -1,140 +1,154 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { authnRefreshClientMiddlewareCreate } from "./client.ts";
 
-type Middleware = typeof import("./client.ts").authnRefreshClientMiddleware;
+type Middleware = ReturnType<typeof authnRefreshClientMiddlewareCreate>;
 
 const args = {} as Parameters<Middleware>[0];
 const next = () => Promise.resolve({});
 
-// Each test gets a fresh module: the in-flight refresh and learned expiry are per tab.
-const middlewareLoad = async (): Promise<Middleware> => {
-	vi.resetModules();
-	return (await import("./client.ts")).authnRefreshClientMiddleware;
-};
+type FetchCall = { init: RequestInit | undefined; input: unknown };
 
-const rootExpiresAtSet = (authnExpiresAt: number | undefined) => {
-	vi.stubGlobal("__reactRouterDataRouter", {
-		state: { loaderData: { root: { authnExpiresAt } } },
+// A tab: the expiry the root loader returned, a recording fetch, and a middleware of its own.
+const tabCreate = ({
+	expiresAt,
+	fetch: fetchOverride,
+	lockRequest,
+}: {
+	expiresAt: number | undefined;
+	fetch?: (() => Promise<Response>) | null;
+	lockRequest?:
+		| ((name: string, run: () => Promise<void>) => Promise<void>)
+		| null;
+}) => {
+	const loader = { expiresAt };
+	const calls: FetchCall[] = [];
+	const middleware = authnRefreshClientMiddlewareCreate({
+		fetch: async (input, init) => {
+			calls.push({ init, input });
+			return fetchOverride
+				? fetchOverride()
+				: Response.json({ expiresAt: Date.now() + 15 * 60_000 });
+		},
+		// Without Web Locks the middleware runs the refresh itself.
+		lockRequest: lockRequest ?? null,
+		loaderExpiresAt: () => loader.expiresAt,
 	});
+	return { calls, loader, middleware };
 };
-
-let fetchMock: ReturnType<typeof vi.fn>;
-
-beforeEach(() => {
-	fetchMock = vi.fn(async () =>
-		Response.json({ expiresAt: Date.now() + 15 * 60_000 }),
-	);
-	vi.stubGlobal("fetch", fetchMock);
-});
-
-afterEach(() => {
-	vi.unstubAllGlobals();
-	vi.restoreAllMocks();
-});
 
 describe("authnRefreshClientMiddleware", () => {
 	it("does nothing while more than a minute remains", async () => {
-		rootExpiresAtSet(Date.now() + 5 * 60_000);
-		const middleware = await middlewareLoad();
+		const { calls, middleware } = tabCreate({
+			expiresAt: Date.now() + 5 * 60_000,
+		});
 		await middleware(args, next);
 
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(calls).toHaveLength(0);
 	});
 
 	it("does nothing when nobody is signed in", async () => {
-		rootExpiresAtSet(undefined);
-		const middleware = await middlewareLoad();
+		const { calls, middleware } = tabCreate({ expiresAt: undefined });
 		await middleware(args, next);
 
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(calls).toHaveLength(0);
 	});
 
 	it("refreshes with fetch when under a minute remains, then runs the navigation", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		const middleware = await middlewareLoad();
 		const order: string[] = [];
-		fetchMock.mockImplementation(async () => {
-			order.push("refresh");
-			return Response.json({ expiresAt: Date.now() + 15 * 60_000 });
+		const { calls, middleware } = tabCreate({
+			expiresAt: Date.now() + 30_000,
+			fetch: async () => {
+				order.push("refresh");
+				return Response.json({ expiresAt: Date.now() + 15 * 60_000 });
+			},
 		});
 		await middleware(args, async () => {
 			order.push("next");
 			return {};
 		});
 
-		expect(fetchMock).toHaveBeenCalledExactlyOnceWith("/auth/refresh", {
-			credentials: "same-origin",
-			headers: { Accept: "application/json" },
-		});
+		expect(calls).toStrictEqual([
+			{
+				init: {
+					credentials: "same-origin",
+					headers: { Accept: "application/json" },
+				},
+				input: "/auth/refresh",
+			},
+		]);
 		expect(order).toStrictEqual(["refresh", "next"]);
 	});
 
 	it("keeps one refresh in flight per tab, even without Web Locks", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		vi.stubGlobal("navigator", {});
-		const middleware = await middlewareLoad();
 		let release = () => {};
-		fetchMock.mockImplementation(
-			() =>
+		let started = () => {};
+		const fetchStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
+		const { calls, middleware } = tabCreate({
+			expiresAt: Date.now() + 30_000,
+			fetch: () =>
 				new Promise<Response>((resolve) => {
+					started();
 					release = () =>
 						resolve(Response.json({ expiresAt: Date.now() + 15 * 60_000 }));
 				}),
-		);
+		});
 		const runs = [
 			middleware(args, next),
 			middleware(args, next),
 			middleware(args, next),
 		];
-		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+		await fetchStarted;
 		release();
 		await Promise.all(runs);
 
-		expect(fetchMock).toHaveBeenCalledOnce();
+		expect(calls).toHaveLength(1);
 	});
 
 	it("remembers the refreshed expiry, so the next navigation does not refresh again", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		const middleware = await middlewareLoad();
+		const { calls, middleware } = tabCreate({
+			expiresAt: Date.now() + 30_000,
+		});
 		await middleware(args, next);
 		await middleware(args, next);
 
-		expect(fetchMock).toHaveBeenCalledOnce();
+		expect(calls).toHaveLength(1);
 	});
 
 	it("takes the lock across tabs with Web Locks", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		const request = vi.fn((_name: string, run: () => Promise<void>) => run());
-		vi.stubGlobal("navigator", { locks: { request } });
-		const middleware = await middlewareLoad();
+		const locks: string[] = [];
+		const { calls, middleware } = tabCreate({
+			expiresAt: Date.now() + 30_000,
+			lockRequest: (name, run) => {
+				locks.push(name);
+				return run();
+			},
+		});
 		await middleware(args, next);
 
-		expect(request).toHaveBeenCalledExactlyOnceWith(
-			"baseline-authn-refresh",
-			expect.any(Function),
-		);
-		expect(fetchMock).toHaveBeenCalledOnce();
+		expect(locks).toStrictEqual(["baseline-authn-refresh"]);
+		expect(calls).toHaveLength(1);
 	});
 
 	it("skips the fetch when a refresh landed in this tab while it waited for the lock", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		vi.stubGlobal("navigator", {
-			locks: {
-				request: (_name: string, run: () => Promise<void>) => {
-					rootExpiresAtSet(Date.now() + 15 * 60_000);
-					return run();
-				},
+		const tab = tabCreate({
+			expiresAt: Date.now() + 30_000,
+			lockRequest: (_name, run) => {
+				tab.loader.expiresAt = Date.now() + 15 * 60_000;
+				return run();
 			},
 		});
-		const middleware = await middlewareLoad();
-		await middleware(args, next);
+		await tab.middleware(args, next);
 
-		expect(fetchMock).not.toHaveBeenCalled();
+		expect(tab.calls).toHaveLength(0);
 	});
 
 	it("still navigates when the refresh fails", async () => {
-		rootExpiresAtSet(Date.now() + 30_000);
-		fetchMock.mockRejectedValue(new TypeError("offline"));
-		const middleware = await middlewareLoad();
+		const { middleware } = tabCreate({
+			expiresAt: Date.now() + 30_000,
+			fetch: () => Promise.reject(new TypeError("offline")),
+		});
 		const result = await middleware(
 			args,
 			async () => ({ root: { type: "data", result: 1 } }) as never,

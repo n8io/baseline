@@ -5,7 +5,19 @@ or {
 	`$_.setAttribute($_, $value)`,
 	`$_.setAttributes($value)`,
 	`telemetrySpanAttributesSet($value)`,
-	`$logger.$level($value, $...)` where { $logger <: or { `logger`, `log`, `ctx.logger` }, $level <: or { `error`, `warn`, `info`, `debug` } }
+	`$logger.$level($value, $...)` where {
+		$logger <: or {
+			`logger`,
+			`log`,
+			`ctx.logger`
+		},
+		$level <: or {
+			`error`,
+			`warn`,
+			`info`,
+			`debug`
+		}
+	}
 } as $call where {
 	$value <: contains `$_.message`,
 	register_diagnostic(span=$call, message="An error's message never goes on a span attribute or into a log's fields; log the error itself (logger.error({ err }, ...)) so the logger redacts it, or set a count or id", severity="error")

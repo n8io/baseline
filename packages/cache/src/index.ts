@@ -1,6 +1,5 @@
 export {
 	type Cache,
-	type CacheDeps,
 	type CacheKeyed,
 	type CacheKeyedOptions,
 	type CacheOptions,

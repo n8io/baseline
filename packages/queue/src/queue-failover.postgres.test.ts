@@ -1,9 +1,8 @@
 import { createServer, connect as netConnect, type Socket } from "node:net";
 import { setTimeout } from "node:timers/promises";
-import { logger } from "@n8io/baseline-logger";
 import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
 import { ok } from "@n8io/baseline-result";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
@@ -14,6 +13,8 @@ import {
 	queueMigrate,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
+import { queueLoggerTestRecord } from "./queue-logger-test-record.ts";
+import { queueWaitFor } from "./queue-wait-for.ts";
 
 // The tests are the caller here.
 const bossGet = (queue: Queue) => queueBossGet(queue, "test");
@@ -98,7 +99,7 @@ describe("a Postgres failover longer than the liveness window", () => {
 	it("keeps the worker alive while its polls fail, and Events flow again after it with no restart", {
 		timeout: 150_000,
 	}, async () => {
-		vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using _error = queueLoggerTestRecord("error");
 		const boss = bossGet(queue);
 		const handled: string[] = [];
 		await queueEventsCreate(queue).consumersStart([
@@ -119,7 +120,7 @@ describe("a Postgres failover longer than the liveness window", () => {
 				{ singletonKey: fooId },
 			);
 		await send("foo_before");
-		await vi.waitFor(() => expect(handled).toEqual(["foo_before"]), {
+		await queueWaitFor(() => expect(handled).toEqual(["foo_before"]), {
 			interval: 100,
 			timeout: 10_000,
 		});
@@ -141,13 +142,19 @@ describe("a Postgres failover longer than the liveness window", () => {
 		expect(queue.isAlive()).toBe(true);
 
 		proxy.unfreeze();
-		await vi.waitFor(async () => expect(await send("foo_after")).toBeTruthy(), {
-			interval: 500,
-			timeout: 20_000,
-		});
-		await vi.waitFor(
+		await queueWaitFor(
+			async () => expect(await send("foo_after")).toBeTruthy(),
+			{
+				interval: 500,
+				timeout: 20_000,
+			},
+		);
+		await queueWaitFor(
 			() => expect(handled).toEqual(["foo_before", "foo_after"]),
-			{ interval: 100, timeout: 30_000 },
+			{
+				interval: 100,
+				timeout: 30_000,
+			},
 		);
 		expect(queue.isAlive()).toBe(true);
 	});

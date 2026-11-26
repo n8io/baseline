@@ -1,7 +1,8 @@
 import { generateKeyPair, SignJWT } from "jose";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { authnCookieKey, authnCookieOpen } from "./authn-cookie.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
+import { authnTestCookieForge } from "./authn-test-forge.ts";
 import {
 	authnTestCookieJarCreate,
 	authnTestMemoryOptions,
@@ -29,10 +30,9 @@ const whoami = async (
 	return { body: (await res.json()) as { actor: Actor | null }, res };
 };
 
-afterEach(() => {
-	vi.useRealTimers();
-	vi.unstubAllGlobals();
-});
+// A Server's fetch: every sign-in goes to a fresh app with the same secret.
+const fetchApp = async (input: string | URL | Request, init?: RequestInit) =>
+	(await authnTestAppCreate()).app.request(new Request(input, init));
 
 describe("the memory issuer's key", () => {
 	it("is the same at every Server with the same secret, so each verifies the other's tokens", async () => {
@@ -50,19 +50,22 @@ describe("the memory issuer's key", () => {
 	});
 
 	it("refreshes at a second Server a session signed in at the first", async () => {
-		vi.stubGlobal("fetch", async (input: string, init?: RequestInit) =>
-			(await authnTestAppCreate()).app.request(new Request(input, init)),
-		);
 		const { cookie } = await authnTestSignIn({
+			fetch: fetchApp,
 			secret: authnTestSecret,
 			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
 		const { app } = await authnTestAppCreate();
-		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
+		// 20 minutes on, the access token has lapsed; the refresh cookie still holds.
+		const lapsed = await authnTestCookieForge({
+			actor: admin,
+			expiresInSeconds: -5 * 60,
+			keep: cookie,
+		});
 
 		const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
-			headers: { Cookie: cookie },
+			headers: { Cookie: lapsed },
 		});
 
 		expect(res.status).toBe(200);
@@ -70,15 +73,17 @@ describe("the memory issuer's key", () => {
 	});
 
 	it("refreshes with the user's current scopes, and not at all once the user is gone", async () => {
-		vi.stubGlobal("fetch", async (input: string, init?: RequestInit) =>
-			(await authnTestAppCreate()).app.request(new Request(input, init)),
-		);
 		const { cookie } = await authnTestSignIn({
+			fetch: fetchApp,
 			secret: authnTestSecret,
 			baseUrl: authnTestOrigin,
 			who: "dev-admin",
 		});
-		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
+		const lapsed = await authnTestCookieForge({
+			actor: admin,
+			expiresInSeconds: -5 * 60,
+			keep: cookie,
+		});
 		const refreshAt = async (memoryUsers: AuthnMemoryUser[]) => {
 			const jar = authnTestCookieJarCreate();
 			const { app } = await authnTestAppCreate({
@@ -86,7 +91,7 @@ describe("the memory issuer's key", () => {
 				memoryUsers,
 			});
 			const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
-				headers: { Cookie: cookie },
+				headers: { Cookie: lapsed },
 			});
 			jar.store(res);
 			const page = await app.request(`${authnTestOrigin}/foos`, {
@@ -107,10 +112,8 @@ describe("the memory issuer's key", () => {
 	});
 
 	it("never accepts a refresh token as an access token, even with audienceClaim client_id", async () => {
-		vi.stubGlobal("fetch", async (input: string, init?: RequestInit) =>
-			(await authnTestAppCreate()).app.request(new Request(input, init)),
-		);
 		const { cookie } = await authnTestSignIn({
+			fetch: fetchApp,
 			secret: authnTestSecret,
 			baseUrl: authnTestOrigin,
 			who: "dev-admin",

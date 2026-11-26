@@ -31,6 +31,10 @@ export type CacheStore = {
 export type CacheOptions<T> = {
 	/** Never set here: `CacheKeyedOptions` has it, and its absence picks this overload. */
 	keyOf?: undefined;
+	/** The logger for store failures. Defaults to the shared logger; a test passes its own. */
+	logger?: Pick<Logger, "warn">;
+	/** The clock, in ms. Defaults to `Date.now`; a test passes its own. */
+	now?: () => number;
 	/**
 	 * What a store error or timeout does. "miss" (the default) keeps the caller serving: a failed
 	 * get is a miss, and a failed set or delete is logged and counted. "throw" rejects the call.
@@ -48,12 +52,6 @@ export type CacheOptions<T> = {
 export type CacheKeyedOptions<T> = Omit<CacheOptions<T>, "keyOf"> & {
 	/** The id a value is stored under. */
 	keyOf: (value: T) => string;
-};
-
-/** What `cacheCreate` may be handed in place of the real clock and logger, so a test can drive them. */
-export type CacheDeps = {
-	logger?: Pick<Logger, "warn">;
-	now?: () => number;
 };
 
 const cacheTtlMsDefault = 60_000;
@@ -91,7 +89,6 @@ const cacheJsonParse = (json: string): unknown => {
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheKeyedOptions<T>,
-	deps?: CacheDeps,
 ): CacheKeyed<T>;
 /**
  * A cache for one kind of value on any store, whose `set` takes an id and a value: key
@@ -102,14 +99,12 @@ export function cacheCreate<T>(
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T>,
-	deps?: CacheDeps,
 ): Cache<T>;
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T> | CacheKeyedOptions<T>,
-	deps: CacheDeps = {},
 ): Cache<T> | CacheKeyed<T> {
-	const cache = cacheByIdCreate(store, options, deps);
+	const cache = cacheByIdCreate(store, options);
 	const { keyOf } = options;
 	if (keyOf === undefined) return cache;
 	return {
@@ -122,11 +117,10 @@ export function cacheCreate<T>(
 const cacheByIdCreate = <T>(
 	store: CacheStore,
 	options: Omit<CacheOptions<T>, "keyOf">,
-	deps: CacheDeps,
 ): Cache<T> => {
 	const { prefix, schema } = options;
-	const now = deps.now ?? Date.now;
-	const log = deps.logger ?? logger;
+	const now = options.now ?? Date.now;
+	const log = options.logger ?? logger;
 	const onStoreError = options.onStoreError ?? "miss";
 	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
 	if (prefix === "") {

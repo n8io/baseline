@@ -41,42 +41,53 @@ describe("cacheCreate on a failing store", () => {
 	it("get is a miss, and set and delete resolve", async () => {
 		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
-		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
+		const cache = cacheCreate(store, {
+			...deps,
+			prefix: "foo",
+			schema: z.string(),
+		});
 
 		expect(await cache.get("foo_1")).toBeUndefined();
 		expect(await cache.set("foo_1", "First")).toBeUndefined();
 		expect(await cache.delete("foo_1")).toBeUndefined();
-		expect(warn).toHaveBeenCalledExactlyOnceWith(
-			expect.objectContaining({
-				err: new Error("Store is down"),
-				operation: "get",
-				prefix: "foo",
-			}),
-			"Cache store failed; serving without the cache",
-		);
+		expect(warnings).toEqual([
+			[
+				expect.objectContaining({
+					err: new Error("Store is down"),
+					operation: "get",
+					prefix: "foo",
+				}),
+				"Cache store failed; serving without the cache",
+			],
+		]);
 	});
 
 	it("warns once per 30 s, with how many failures went unlogged", async () => {
-		const { deps, warnings } = depsCreate();
+		const { advance, deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["get"]);
-		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
+		const cache = cacheCreate(store, {
+			...deps,
+			prefix: "foo",
+			schema: z.string(),
+		});
 
 		for (let call = 0; call < 5; call += 1) await cache.get("foo_1");
-		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warnings).toHaveLength(1);
 
-		vi.advanceTimersByTime(30_000);
+		advance(30_000);
 		await cache.get("foo_1");
-		expect(warn).toHaveBeenCalledTimes(2);
-		expect(warn).toHaveBeenLastCalledWith(
+		expect(warnings).toHaveLength(2);
+		expect(warnings.at(-1)).toEqual([
 			expect.objectContaining({ unlogged: 4 }),
 			expect.any(String),
-		);
+		]);
 	});
 
 	it("after a failed delete this process reads a miss until the entry has expired", async () => {
 		const { advance, deps } = depsCreate();
 		const flaky = storeFlaky(["delete"]);
 		const cache = cacheCreate(flaky.store, {
+			...deps,
 			prefix: "foo",
 			schema: z.string(),
 			ttlMs: 1000,
@@ -94,17 +105,18 @@ describe("cacheCreate on a failing store", () => {
 
 		// Rewritten by this process after the delete: still not trusted before the mark ends.
 		await cache.set("foo_1", "New");
-		vi.advanceTimersByTime(999);
+		advance(999);
 		expect(await cache.get("foo_1")).toBeUndefined();
-		vi.advanceTimersByTime(1);
+		advance(1);
 		await cache.set("foo_1", "Newer");
 		expect(await cache.get("foo_1")).toBe("Newer");
 	});
 
 	it("after a failed set this process reads a miss, not the entry it meant to replace", async () => {
-		const { advance, deps } = depsCreate();
+		const { deps } = depsCreate();
 		const flaky = storeFlaky(["set"]);
 		const cache = cacheCreate(flaky.store, {
+			...deps,
 			prefix: "foo",
 			schema: z.string(),
 		});
@@ -122,6 +134,7 @@ describe("cacheCreate on a failing store", () => {
 		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
 		const cache = cacheCreate(store, {
+			...deps,
 			onStoreError: "throw",
 			prefix: "foo",
 			schema: z.string(),
@@ -130,7 +143,7 @@ describe("cacheCreate on a failing store", () => {
 		await expect(cache.get("foo_1")).rejects.toThrow("Store is down");
 		await expect(cache.set("foo_1", "First")).rejects.toThrow("Store is down");
 		await expect(cache.delete("foo_1")).rejects.toThrow("Store is down");
-		expect(warn).not.toHaveBeenCalled();
+		expect(warnings).toEqual([]);
 	});
 });
 

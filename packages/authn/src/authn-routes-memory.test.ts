@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
+import { authnTestCookieForge } from "./authn-test-forge.ts";
 import {
 	authnTestCookieJarCreate,
 	authnTestMemoryOptions,
@@ -41,10 +42,12 @@ const signIn = async (who: string, returnTo = "/foos") => {
 	return { app, authn, jar, page, res };
 };
 
-afterEach(() => {
-	vi.useRealTimers();
-	vi.unstubAllGlobals();
-});
+const dev: Actor = { id: "dev-user", kind: "user", scopes: [] };
+const admin: Actor = {
+	id: "dev-admin",
+	kind: "user",
+	scopes: ["foo:delete", "foo:update"],
+};
 
 describe("memory issuer sign-in", () => {
 	it("shows a dev page offering Dev user and Dev admin, keeping returnTo", async () => {
@@ -205,12 +208,13 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("redirects a page GET with an expiring token to /auth/refresh", async () => {
-		const { page } = await signIn("dev-user");
-		vi.useFakeTimers({
-			now: Date.now() + 15 * 60_000 - 5_000,
-			toFake: ["Date"],
+		const { app } = await authnTestAppCreate();
+		const res = await app.request(`${authnTestOrigin}/foos?page=2`, {
+			// A token with 5 s left, as one 15 minutes old would have.
+			headers: {
+				Cookie: await authnTestCookieForge({ actor: dev, expiresInSeconds: 5 }),
+			},
 		});
-		const res = await page("/foos?page=2");
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe(
@@ -219,18 +223,30 @@ describe("authnMiddlewareCreate with the cookie", () => {
 	});
 
 	it("redirects a page GET with an expired token to /auth/refresh", async () => {
-		const { page } = await signIn("dev-user");
-		vi.useFakeTimers({ now: Date.now() + 60 * 60_000, toFake: ["Date"] });
+		const { app } = await authnTestAppCreate();
+		const res = await app.request(`${authnTestOrigin}/foos`, {
+			headers: {
+				Cookie: await authnTestCookieForge({
+					actor: dev,
+					expiresInSeconds: -60,
+				}),
+			},
+		});
 
-		expect((await page("/foos")).headers.get("Location")).toBe(
-			"/auth/refresh?returnTo=%2Ffoos",
-		);
+		expect(res.headers.get("Location")).toBe("/auth/refresh?returnTo=%2Ffoos");
 	});
 
 	it("sends a post with an expired token to sign-in", async () => {
-		const { page } = await signIn("dev-user");
-		vi.useFakeTimers({ now: Date.now() + 60 * 60_000, toFake: ["Date"] });
-		const res = await page("/foos", { method: "POST" });
+		const { app } = await authnTestAppCreate();
+		const res = await app.request(`${authnTestOrigin}/foos`, {
+			headers: {
+				Cookie: await authnTestCookieForge({
+					actor: dev,
+					expiresInSeconds: -60,
+				}),
+			},
+			method: "POST",
+		});
 
 		expect(res.status).toBe(302);
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
@@ -249,9 +265,20 @@ describe("authnMiddlewareCreate with the cookie", () => {
 
 describe("/auth/refresh", () => {
 	it("refreshes both cookies and redirects back to returnTo", async () => {
-		const { jar, page } = await signIn("dev-admin");
-		vi.useFakeTimers({ now: Date.now() + 20 * 60_000, toFake: ["Date"] });
-		const res = await page("/auth/refresh?returnTo=%2Ffoos");
+		const { app, jar, page } = await signIn("dev-admin");
+		// The access token has lapsed; the refresh cookie still holds.
+		const res = await app.request(
+			`${authnTestOrigin}/auth/refresh?returnTo=%2Ffoos`,
+			{
+				headers: {
+					Cookie: await authnTestCookieForge({
+						actor: admin,
+						expiresInSeconds: -60,
+						keep: jar.header(),
+					}),
+				},
+			},
+		);
 		jar.store(res);
 
 		expect(res.status).toBe(302);

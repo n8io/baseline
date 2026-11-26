@@ -3,10 +3,15 @@ import {
 	errors,
 	type JWTPayload,
 	type JWTVerifyGetKey,
+	customFetch as joseCustomFetch,
 	jwtVerify,
 	SignJWT,
 } from "jose";
-import { type Configuration, discovery } from "openid-client";
+import {
+	type Configuration,
+	customFetch as clientCustomFetch,
+	discovery,
+} from "openid-client";
 import type { Actor } from "./actor.ts";
 import { actorSchema } from "./actor-schema.ts";
 import { authnCookieKey } from "./authn-cookie.ts";
@@ -50,6 +55,8 @@ export type AuthnOptions = {
 	memoryUsers?: readonly AuthnMemoryUser[] | null;
 	/** The machine clients the memory issuer's `POST /auth/token` serves; default none. */
 	memoryClients?: readonly AuthnMemoryClient[] | null;
+	/** Sends every request to an OIDC provider: discovery, key set, token, revocation. `null` means the global `fetch`. Unused with `memory://`. */
+	fetch?: typeof fetch | null;
 	/** Must be `true` for `issuerUrl: "memory://"`; pass it only in development and test. */
 	memoryIssuerAllowed?: boolean | null;
 };
@@ -337,10 +344,18 @@ const authnOidcIssuerCreate = async (
 	issuerId: string;
 	jwks: JWTVerifyGetKey;
 }> => {
+	const fetchOption = options.fetch ?? null;
 	const config = await discovery(
 		new URL(options.issuerUrl),
 		options.clientId,
 		options.clientSecret,
+		undefined,
+		fetchOption === null
+			? undefined
+			: {
+					[clientCustomFetch]: (url, init) =>
+						fetchOption(url, init as RequestInit),
+				},
 	);
 	const metadata = config.serverMetadata();
 	if (metadata.jwks_uri === undefined) {
@@ -353,7 +368,10 @@ const authnOidcIssuerCreate = async (
 			kind: "oidc",
 		},
 		issuerId: metadata.issuer,
-		jwks: createRemoteJWKSet(new URL(metadata.jwks_uri)),
+		jwks: createRemoteJWKSet(
+			new URL(metadata.jwks_uri),
+			fetchOption === null ? undefined : { [joseCustomFetch]: fetchOption },
+		),
 	};
 };
 

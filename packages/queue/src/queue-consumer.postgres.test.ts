@@ -11,7 +11,7 @@ import {
 	SimpleSpanProcessor,
 	TracerProvider,
 } from "@opentelemetry/sdk-trace";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
@@ -24,6 +24,7 @@ import {
 	queueMigrate,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
+import { queueWaitFor } from "./queue-wait-for.ts";
 
 // The tests are the caller here.
 const bossGet = (queue: Queue) => queueBossGet(queue, "test");
@@ -104,7 +105,7 @@ describe("consumersStart", () => {
 		]);
 
 		await publish({ fooId: "foo_1" });
-		await vi.waitFor(
+		await queueWaitFor(
 			async () => {
 				const [job] = await bossGet(queue).findJobs(
 					"billing.foo-created.ordered",
@@ -162,7 +163,7 @@ describe("consumersStart", () => {
 		await boss.updateQueue("billing.foo-archived.ordered", { retryLimit: 0 });
 		// The failed job is discarded, so its key moves on, and its dead-letter copy is redriven.
 		const discardedAndRedriven = async (): Promise<void> => {
-			await vi.waitFor(
+			await queueWaitFor(
 				async () => {
 					const dead = await boss.findJobs("billing.foo-archived.dead");
 					expect(dead).toHaveLength(1);
@@ -190,7 +191,7 @@ describe("consumersStart", () => {
 		});
 		await discardedAndRedriven();
 		await discardedAndRedriven();
-		await vi.waitFor(
+		await queueWaitFor(
 			async () => {
 				const jobs = await boss.findJobs("billing.foo-archived.ordered");
 				expect(jobs.map((job) => job.state)).toContain("completed");
@@ -212,7 +213,11 @@ describe("consumersStart", () => {
 	});
 
 	it("fails a job whose data does not match the schema, without echoing it", async () => {
-		const run = vi.fn(async () => ok(undefined));
+		const runCalls: unknown[][] = [];
+		const run = async (...args: unknown[]) => {
+			runCalls.push(args);
+			return ok(undefined);
+		};
 		await queueEventsCreate(queue).consumersStart([
 			queueConsumerCreate({
 				queueName: "audit.foo-created",
@@ -223,7 +228,7 @@ describe("consumersStart", () => {
 		]);
 
 		await publish({ fooId: 42, secret: "hunter2" });
-		await vi.waitFor(
+		await queueWaitFor(
 			async () => {
 				const [job] = await bossGet(queue).findJobs(
 					"audit.foo-created.ordered",
@@ -234,7 +239,7 @@ describe("consumersStart", () => {
 		);
 
 		const [job] = await bossGet(queue).findJobs("audit.foo-created.ordered");
-		expect(run).not.toHaveBeenCalled();
+		expect(runCalls).toEqual([]);
 		expect(JSON.stringify(job?.output)).toContain(
 			"Event failed validation for audit.foo-created",
 		);
@@ -277,7 +282,7 @@ describe("consumersStart trace context", () => {
 				return span.spanContext().traceId;
 			});
 
-		await vi.waitFor(() => expect(consumerTraceId).toBe(publisherTraceId), {
+		await queueWaitFor(() => expect(consumerTraceId).toBe(publisherTraceId), {
 			interval: 250,
 			timeout: 15_000,
 		});
@@ -320,7 +325,7 @@ describe("consumersStart trace context in a batch", () => {
 		// All three wait before the worker starts, so its first fetch takes them together.
 		await events.consumersStart([consumer]);
 
-		await vi.waitFor(() => expect(seen).toEqual(published), {
+		await queueWaitFor(() => expect(seen).toEqual(published), {
 			interval: 250,
 			timeout: 15_000,
 		});

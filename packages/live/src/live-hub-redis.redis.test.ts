@@ -1,7 +1,7 @@
 // The shared Redis global setup starts the Redis these tests use (vitest.config.ts).
 /// <reference path="../../../test/redis/redis-global-setup.ts" />
 import { createClient } from "redis";
-import { describe, expect, inject, it, onTestFinished, vi } from "vitest";
+import { describe, expect, inject, it, onTestFinished } from "vitest";
 import { liveHubRedisCreate } from "./index.ts";
 import { liveHubContract } from "./live-hub.contract.ts";
 import { liveTestAppCreate } from "./live-test-app.ts";
@@ -173,11 +173,14 @@ describe("liveHubRedisCreate", () => {
 		const redisClient = await liveTestRedisClientOpen();
 		await using liveHub = liveHubRedisCreate({ redisClient });
 		const app = liveTestAppCreate(liveHub);
-		const duplicate = vi
-			.spyOn(redisClient, "duplicate")
-			.mockImplementationOnce(() => {
-				throw new Error("Redis refused");
-			});
+		// The first duplicate (the hub's subscriber connection) is refused; later ones go through.
+		const duplicate = redisClient.duplicate.bind(redisClient);
+		let duplicates = 0;
+		redisClient.duplicate = ((...args: Parameters<typeof duplicate>) => {
+			duplicates += 1;
+			if (duplicates === 1) throw new Error("Redis refused");
+			return duplicate(...args);
+		}) as typeof redisClient.duplicate;
 
 		const failed = await liveTestSseRead({
 			response: await app.request("/live/foo/foo_1"),
@@ -188,6 +191,6 @@ describe("liveHubRedisCreate", () => {
 			response: await app.request("/live/foo/foo_1"),
 		});
 		expect(await sse.until("event: ready")).toBe("event: ready\ndata: \n\n");
-		expect(duplicate).toHaveBeenCalledTimes(2);
+		expect(duplicates).toBe(2);
 	});
 });

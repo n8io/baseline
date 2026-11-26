@@ -1,13 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { liveUpdatesOpen } from "./live-updates-open.ts";
 
 const eventSourceFake = () => {
 	const listeners = new Map<string, () => void>();
+	const closes: true[] = [];
 	const source = {
 		addEventListener: (type: string, listener: () => void) => {
 			listeners.set(type, listener);
 		},
-		close: vi.fn(),
+		close: () => {
+			closes.push(true);
+		},
+		closes,
 		emit: (type: string) => listeners.get(type)?.(),
 		url: "",
 	};
@@ -45,7 +49,11 @@ describe("liveUpdatesOpen", () => {
 	});
 
 	it("opens no stream for a null id, and its close does nothing", () => {
-		const create = vi.fn();
+		const creates: string[] = [];
+		const create = (url: string) => {
+			creates.push(url);
+			return eventSourceFake().source;
+		};
 		const close = liveUpdatesOpen({
 			channel: "foo",
 			eventSourceCreate: create,
@@ -53,7 +61,7 @@ describe("liveUpdatesOpen", () => {
 			onChange: () => {},
 		});
 
-		expect(create).not.toHaveBeenCalled();
+		expect(creates).toEqual([]);
 		expect(close()).toBeUndefined();
 	});
 
@@ -72,7 +80,10 @@ describe("liveUpdatesOpen", () => {
 
 	it("calls onChange on each (re)connect and each live update", () => {
 		const { create, source } = eventSourceFake();
-		const onChange = vi.fn();
+		let changes = 0;
+		const onChange = () => {
+			changes += 1;
+		};
 		liveUpdatesOpen({
 			channel: "foo",
 			eventSourceCreate: create,
@@ -85,7 +96,7 @@ describe("liveUpdatesOpen", () => {
 		source.emit("ready");
 		source.emit("error");
 
-		expect(onChange).toHaveBeenCalledTimes(3);
+		expect(changes).toBe(3);
 	});
 
 	it("returns the close", () => {
@@ -97,8 +108,8 @@ describe("liveUpdatesOpen", () => {
 			onChange: () => {},
 		});
 
-		expect(source.close).not.toHaveBeenCalled();
+		expect(source.closes).toHaveLength(0);
 		close();
-		expect(source.close).toHaveBeenCalledOnce();
+		expect(source.closes).toHaveLength(1);
 	});
 });

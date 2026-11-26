@@ -6,6 +6,19 @@ import { logger } from "@n8io/baseline-logger";
  */
 export type ShutdownStep = { name: string; close: () => Promise<void> };
 
+/**
+ * The process and clock a shutdown handle uses. Every member defaults to the real one; a test
+ * passes its own to drive the handle without signals, exits or waiting.
+ */
+export type ShutdownHost = {
+	/** Ends the process. Default `process.exit`. */
+	exit?: ((code: number) => void) | null;
+	/** Listens for a process event. Default `process.on`. */
+	on?: ((event: string, listener: (value: unknown) => void) => void) | null;
+	/** Resolves after `ms`. Default a `setTimeout`. */
+	sleep?: ((ms: number) => Promise<void>) | null;
+};
+
 /** What `shutdownHandleCreate` closes, and how long it may take. */
 export type ShutdownOptions = {
 	/**
@@ -19,6 +32,8 @@ export type ShutdownOptions = {
 	 * `SHUTDOWN_DRAIN_DELAY_MS` and sets 0 in development.
 	 */
 	drainDelayMs?: number | null;
+	/** The process and clock to use instead of the real ones. For tests. */
+	host?: ShutdownHost | null;
 	/** Closed together; each stops accepting, then waits for its active work. */
 	intakes: readonly ShutdownStep[];
 	/** Closed one by one, in order, after every intake is done; telemetry last. */
@@ -34,9 +49,9 @@ const resourceReserveMs = 5000;
 const timerMax = 2_147_483_647;
 const timedOut = Symbol("timedOut");
 
-const timeout = (ms: number): Promise<typeof timedOut> =>
+const sleepDefault = (ms: number): Promise<void> =>
 	new Promise((resolve) => {
-		setTimeout(() => resolve(timedOut), Math.max(0, ms));
+		setTimeout(resolve, Math.max(0, ms));
 	});
 
 const stepClose = async (
@@ -64,6 +79,7 @@ const drainDelayMsDefault = 5000;
 export const shutdownHandleCreate = ({
 	deadlineMs: deadlineMsGiven,
 	drainDelayMs: drainDelayMsGiven,
+	host,
 	intakes,
 	resources,
 }: ShutdownOptions): ShutdownHandle => {
@@ -90,6 +106,15 @@ export const shutdownHandleCreate = ({
 			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), found ${drainDelayMs}`,
 		);
 	}
+	const exit = host?.exit ?? ((code: number) => process.exit(code));
+	const on =
+		host?.on ??
+		((event: string, listener: (value: unknown) => void) => {
+			process.on(event, listener);
+		});
+	const sleep = host?.sleep ?? sleepDefault;
+	const timeout = (ms: number): Promise<typeof timedOut> =>
+		sleep(ms).then(() => timedOut);
 	let shuttingDown = false;
 	// Set by any crash, also one during a shutdown a signal started.
 	let crashed = false;
@@ -146,7 +171,7 @@ export const shutdownHandleCreate = ({
 		const clean = await shutdownRun(drainMs).catch(() => false);
 		const code = clean && !crashed ? 0 : 1;
 		logger.info({ code }, "Shutdown finished");
-		process.exit(code);
+		exit(code);
 	};
 
 	const start = (drainMs: number): boolean => {
@@ -170,10 +195,10 @@ export const shutdownHandleCreate = ({
 		start(0);
 	};
 
-	process.on("SIGTERM", onSignal);
-	process.on("SIGINT", onSignal);
-	process.on("uncaughtException", onCrash);
-	process.on("unhandledRejection", onCrash);
+	on("SIGTERM", (signal) => onSignal(signal as NodeJS.Signals));
+	on("SIGINT", (signal) => onSignal(signal as NodeJS.Signals));
+	on("uncaughtException", onCrash);
+	on("unhandledRejection", onCrash);
 
 	return { isShuttingDown: () => shuttingDown };
 };

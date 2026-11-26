@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import { authnTestOrigin, authnTestSecret } from "./authn-test-helpers.ts";
 import { authnTestSignIn } from "./testing.ts";
@@ -7,23 +7,23 @@ import { authnTestSignIn } from "./testing.ts";
 const appServe = async () => {
 	const { app } = await authnTestAppCreate();
 	const requests: Request[] = [];
-	vi.stubGlobal("fetch", async (input: string, init?: RequestInit) => {
+	const fetchApp = async (
+		input: string | URL | Request,
+		init?: RequestInit,
+	) => {
 		const request = new Request(input, init);
 		requests.push(request);
 		return app.request(request);
-	});
-	return { app, requests };
+	};
+	return { app, fetchApp, requests };
 };
-
-afterEach(() => {
-	vi.unstubAllGlobals();
-});
 
 describe("authnTestSignIn", () => {
 	it("signs in through the memory issuer's form and opens the access cookie", async () => {
-		const { app, requests } = await appServe();
+		const { app, fetchApp, requests } = await appServe();
 
 		const signedIn = await authnTestSignIn({
+			fetch: fetchApp,
 			secret: authnTestSecret,
 			baseUrl: authnTestOrigin,
 			who: "dev-admin",
@@ -51,9 +51,10 @@ describe("authnTestSignIn", () => {
 	});
 
 	it("signs in the dev user when asked", async () => {
-		const { app } = await appServe();
+		const { app, fetchApp } = await appServe();
 
 		const { authorization } = await authnTestSignIn({
+			fetch: fetchApp,
 			secret: authnTestSecret,
 			baseUrl: authnTestOrigin,
 			who: "dev-user",
@@ -66,10 +67,9 @@ describe("authnTestSignIn", () => {
 	});
 
 	it("throws with the status when the server does not sign in", async () => {
-		vi.stubGlobal("fetch", async () => new Response(null, { status: 403 }));
-
 		await expect(
 			authnTestSignIn({
+				fetch: async () => new Response(null, { status: 403 }),
 				secret: authnTestSecret,
 				baseUrl: authnTestOrigin,
 				who: "dev-user",
@@ -80,10 +80,11 @@ describe("authnTestSignIn", () => {
 	});
 
 	it("throws when the secret is not the server's", async () => {
-		await appServe();
+		const { fetchApp } = await appServe();
 
 		await expect(
 			authnTestSignIn({
+				fetch: fetchApp,
 				secret: Buffer.alloc(32, 9).toString("base64url"),
 				baseUrl: authnTestOrigin,
 				who: "dev-user",
