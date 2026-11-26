@@ -1,5 +1,11 @@
 # app
 
+## 17.0.2
+
+### Patch Changes
+
+- e8a042f: The `changes` job in `app-ci.yml` checks out every blob instead of a partial clone. On a large pull request diff, `git diff` needed a blob it did not have, tried to fetch it with no credentials, and failed with "could not read Username".
+
 ## 17.0.1
 
 ### Patch Changes
