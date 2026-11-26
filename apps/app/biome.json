@@ -601,11 +601,9 @@
 									{
 										"group": [
 											"../inbound/**",
-											"../../index.ts",
 											"../../application/**",
 											"!../../application/ports.ts",
-											"../../*.ts",
-											"!../../index.ts"
+											"../../*.ts"
 										],
 										"message": "A4: adapters/outbound/ implements ports: from its context it imports only domain/, adapters/outbound/ and application/ports.ts"
 									},
@@ -737,11 +735,9 @@
 									{
 										"group": [
 											"../inbound/**",
-											"../../index.ts",
 											"../../application/**",
 											"!../../application/ports.ts",
-											"../../*.ts",
-											"!../../index.ts"
+											"../../*.ts"
 										],
 										"message": "A4: adapters/outbound/ implements ports: from its context it imports only domain/, adapters/outbound/ and application/ports.ts"
 									},

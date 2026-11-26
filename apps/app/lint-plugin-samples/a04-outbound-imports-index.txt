@@ -1,0 +1,6 @@
+// A4: adapters/outbound/ never imports its context's index.ts
+// expect: A4: adapters/outbound/ implements ports
+// @file src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
+import { barScopes } from "../../index.ts";
+
+export const barSpan = () => barScopes;

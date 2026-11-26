@@ -2,12 +2,16 @@
 language js
 
 or {
-	`$_.setAttribute($key, $_)`,
-	`$_.setAttributes({ $keys })` where { $keys <: contains pair(key=$key) },
-	`telemetrySpanAttributesSet({ $keys })` where {
-		$keys <: contains pair(key=$key)
+	`$_.setAttribute($key, $_)` where {
+		$key <: not r"^[\"'`]baseline\.[a-z][a-z0-9_]*\.(?:id|[a-z][a-z0-9_]*_(?:id|count))[\"'`]$"
+	},
+	pair(key=$key) as $pair where {
+		$pair <: within or {
+			`telemetrySpanAttributesSet($_)`,
+			`$_.setAttributes($_)`
+		},
+		$key <: not r"^[\"'`]baseline\.[a-z][a-z0-9_]*\.(?:id|[a-z][a-z0-9_]*_(?:id|count))[\"'`]$"
 	}
-} as $call where {
-	$key <: not r"^[\"'`]baseline\.[a-z][a-z0-9_]*\.(?:id|[a-z][a-z0-9_]*_(?:id|count))[\"'`]$",
-	register_diagnostic(span=$key, message="A16: a span attribute is baseline.<context>.id, baseline.<context>.<thing>_id or baseline.<context>.<thing>_count; never put names or other personal data on spans", severity="error")
+} as $bad where {
+	register_diagnostic(span=$bad, message="A16: a span attribute is baseline.<context>.id, baseline.<context>.<thing>_id or baseline.<context>.<thing>_count; never put names or other personal data on spans", severity="error")
 }

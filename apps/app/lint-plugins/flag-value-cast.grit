@@ -3,7 +3,7 @@ language js
 
 `$value as $type` as $cast where {
 	$value <: contains or {
-		`$_.get($name)`,
+		`$recv.get($name)` where { $recv <: r"(?i)^(?:\w*flags?|handle|h)$" },
 		`useFeatureFlag($name)`
 	},
 	$name <: string(),
