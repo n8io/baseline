@@ -49,6 +49,11 @@ metrics.setGlobalMeterProvider({
 		({
 			createCounter: instrument,
 			createGauge: instrument,
+			createHistogram: instrument,
+			createObservableGauge: () => ({
+				addCallback: () => undefined,
+				removeCallback: () => undefined,
+			}),
 		}) as unknown as Meter,
 });
 
