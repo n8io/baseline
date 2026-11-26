@@ -1,3 +1,4 @@
+import { sharedTimeRace } from "@n8io/baseline-shared";
 import {
 	ClientProviderStatus,
 	ErrorCode,
@@ -87,16 +88,16 @@ export const featureFlagsLaunchDarklyClientSourceCreate = ({
 		() => (isReady() ? "connected" : "failed"),
 		() => "failed" as const,
 	);
-	const timer: { id?: ReturnType<typeof setTimeout> } = {};
-	const timeout = new Promise<FeatureFlagsReadyStatus>((resolve) => {
-		timer.id = setTimeout(() => resolve("timeout"), readyTimeoutMs);
-	});
-	const ready = Promise.race([connected, timeout]).finally(() => {
-		clearTimeout(timer.id);
+	const ready = sharedTimeRace<
+		FeatureFlagsReadyStatus,
+		FeatureFlagsReadyStatus
+	>({
+		ms: readyTimeoutMs,
+		value: "timeout",
+		work: connected,
 	});
 	return {
 		close: async () => {
-			clearTimeout(timer.id);
 			await OpenFeature.setProviderAndWait(domain, NOOP_PROVIDER).catch(
 				() => undefined,
 			);

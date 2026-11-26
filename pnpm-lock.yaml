@@ -437,6 +437,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -481,6 +484,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -528,13 +534,20 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
 
-  packages/health: {}
+  packages/health:
+    dependencies:
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
 
   packages/http:
     dependencies:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
     devDependencies:
       '@hono/zod-openapi':
         specifier: ^1.6.3
@@ -563,6 +576,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
     devDependencies:
       '@opentelemetry/api':
         specifier: ^1.10.0
@@ -600,6 +616,9 @@ importers:
       '@n8io/baseline-result':
         specifier: workspace:^
         version: link:../result
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
     devDependencies:
       '@types/pg':
         specifier: ^8.23.1
@@ -619,6 +638,9 @@ importers:
       '@n8io/baseline-result':
         specifier: workspace:^
         version: link:../result
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       '@opentelemetry/core':
         specifier: 3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
@@ -659,6 +681,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       redis:
         specifier: ^6.3.1
         version: 6.3.1(@opentelemetry/api@1.10.0)
@@ -667,6 +692,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       ky:
         specifier: 2.2.0
         version: 2.2.0
@@ -675,11 +703,16 @@ importers:
         specifier: workspace:^
         version: link:../telemetry
 
+  packages/shared: {}
+
   packages/shutdown:
     dependencies:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
 
   packages/telemetry:
     dependencies:

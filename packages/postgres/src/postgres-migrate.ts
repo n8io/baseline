@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
+import {
+	sharedConnectionUrlAssert,
+	sharedIntegerAssert,
+	sharedTimerMaxMs,
+} from "@n8io/baseline-shared";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import {
-	postgresDurationIsValid,
-	postgresDurationMessage,
-} from "./postgres-pool.ts";
-import { postgresUrlAssert } from "./postgres-url-assert.ts";
 import {
 	type PostgresVendorOwnedKey,
 	postgresVendorAssert,
@@ -56,24 +56,28 @@ export type PostgresMigrateOptions = {
 export const postgresMigrate = async (
 	options: PostgresMigrateOptions,
 ): Promise<void> => {
-	postgresUrlAssert(options.databaseUrl, "postgresMigrate");
+	sharedConnectionUrlAssert(options.databaseUrl, "postgresMigrate");
 	postgresVendorAssert({
 		caller: "postgresMigrate",
 		databaseUrl: options.databaseUrl,
 		vendor: options.vendor ?? {},
 	});
 	const connectTimeoutMs = options.connectTimeoutMs ?? 3_000;
-	if (!postgresDurationIsValid(connectTimeoutMs)) {
-		throw new TypeError(
-			`postgresMigrate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "postgresMigrate",
+		max: sharedTimerMaxMs,
+		min: 1,
+		name: "connectTimeoutMs",
+		value: connectTimeoutMs,
+	});
 	const lockWaitMs = options.lockWaitMs ?? 60_000;
-	if (!postgresDurationIsValid(lockWaitMs)) {
-		throw new TypeError(
-			`postgresMigrate: lockWaitMs must be ${postgresDurationMessage}, found ${lockWaitMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "postgresMigrate",
+		max: sharedTimerMaxMs,
+		min: 1,
+		name: "lockWaitMs",
+		value: lockWaitMs,
+	});
 	// @types/pg leaves out processID: the backend pid the server named at connect.
 	const pgClient: pg.Client & { processID?: number | null } = new pg.Client({
 		...options.vendor,

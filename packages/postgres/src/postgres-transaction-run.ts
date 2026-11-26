@@ -1,11 +1,7 @@
 import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
-import {
-	type PostgresClient,
-	type PostgresPool,
-	postgresDurationIsValid,
-	postgresDurationMessage,
-} from "./postgres-pool.ts";
+import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
+import type { PostgresClient, PostgresPool } from "./postgres-pool.ts";
 
 // A client that throws on any use once its transaction has ended, so a callback that leaks it
 // (a stray promise, a closure kept for later) fails loudly instead of running outside it.
@@ -47,11 +43,13 @@ export const postgresTransactionRun = async <T, E>({
 	work,
 }: PostgresTransactionRunOptions<T, E>): Promise<Result<T, E>> => {
 	const timeoutMs = timeoutMsGiven ?? 5_000;
-	if (!postgresDurationIsValid(timeoutMs)) {
-		throw new TypeError(
-			`postgresTransactionRun: timeoutMs must be ${postgresDurationMessage}, found ${timeoutMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "postgresTransactionRun",
+		max: sharedTimerMaxMs,
+		min: 1,
+		name: "timeoutMs",
+		value: timeoutMs,
+	});
 	const pgClient = await pgPool.connect();
 	let broken = false;
 	let open = true;

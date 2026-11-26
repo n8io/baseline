@@ -3,6 +3,7 @@
 // resolves `{ status, data, headers }` for every status and never throws on one; it rejects only
 // when no response came: a timeout (a DOMException named TimeoutError), a network failure (the
 // error fetch gave), or no environment to send it to.
+import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
 import ky, { isHTTPError, isNetworkError, isTimeoutError } from "ky";
 
 /** What one call, or every call of an instance, may set. `null` or a missing field means the default. */
@@ -37,25 +38,34 @@ export type SdkFetchOptions<E extends string = string> = {
 };
 
 // A bad retry or timeout throws a TypeError naming the function and the option, as every Package does.
-// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days).
-const timerMax = 2_147_483_647;
-
-// `prefix` is what the message starts with, such as "sdkFetch: " or "sdkFetchCreate: defaults.".
-const optionsCheck = (prefix: string, options: SdkOptions): void => {
+// `scope` is what the option name starts with, such as "defaults." for the factory's defaults.
+const optionsCheck = ({
+	caller,
+	options,
+	scope = "",
+}: {
+	caller: string;
+	options: SdkOptions;
+	scope?: string;
+}): void => {
 	const { retry, timeoutMs, totalTimeoutMs } = options;
-	if (retry != null && !(Number.isSafeInteger(retry) && retry >= 0)) {
-		throw new TypeError(
-			`${prefix}retry must be a whole number, 0 or more, found ${retry}`,
-		);
+	if (retry != null) {
+		sharedIntegerAssert({
+			caller,
+			min: 0,
+			name: `${scope}retry`,
+			value: retry,
+		});
 	}
-	for (const [option, value] of Object.entries({ timeoutMs, totalTimeoutMs })) {
-		if (
-			value != null &&
-			!(Number.isSafeInteger(value) && value > 0 && value <= timerMax)
-		) {
-			throw new TypeError(
-				`${prefix}${option} must be a positive integer, ${timerMax} at most, found ${value}`,
-			);
+	for (const [name, value] of Object.entries({ timeoutMs, totalTimeoutMs })) {
+		if (value != null) {
+			sharedIntegerAssert({
+				caller,
+				max: sharedTimerMaxMs,
+				min: 1,
+				name: `${scope}${name}`,
+				value,
+			});
 		}
 	}
 };
@@ -63,32 +73,6 @@ const optionsCheck = (prefix: string, options: SdkOptions): void => {
 // POST and PATCH are never retried: without an Idempotency-Key a retry could apply them twice.
 const methodsRetried = ["get", "head", "delete"];
 const statusesRetried = [408, 429, 500, 502, 503, 504];
-
-// ky's backoff, set here so the wait below matches it: 0.3 s, then doubling.
-const backoffMs = (retryCount: number): number => 300 * 2 ** (retryCount - 1);
-
-// The headers ky waits by, in its order: seconds, a Unix time (the reset ones), or an HTTP date.
-const timingHeaders = [
-	"retry-after",
-	"ratelimit-reset",
-	"x-ratelimit-retry-after",
-	"x-ratelimit-reset",
-	"x-rate-limit-reset",
-];
-
-// How long ky will wait before sending again after this response.
-const waitMs = (headers: Headers, retryCount: number): number => {
-	const value = timingHeaders
-		.map((name) => headers.get(name))
-		.find((found) => found !== null);
-	if (value == null) return backoffMs(retryCount);
-	if (/^\d+$/.test(value)) {
-		const seconds = Number(value);
-		return seconds >= 1e9 ? seconds * 1000 - Date.now() : seconds * 1000;
-	}
-	const date = Date.parse(value);
-	return Number.isNaN(date) ? backoffMs(retryCount) : date - Date.now();
-};
 
 const dataRead = (text: string, headers: Headers): unknown => {
 	if (text === "") return undefined;
@@ -108,7 +92,11 @@ const timeoutError = (): DOMException =>
 export const sdkFetchCreate = <E extends string = never>(
 	options?: SdkFetchOptions<E> | null,
 ): SdkFetch<E> => {
-	optionsCheck("sdkFetchCreate: defaults.", options?.defaults ?? {});
+	optionsCheck({
+		caller: "sdkFetchCreate",
+		options: options?.defaults ?? {},
+		scope: "defaults.",
+	});
 	let configured: SdkOptions<E> = { ...options?.defaults };
 	const environments: Partial<Record<string, string>> = {
 		...options?.environments,
@@ -145,7 +133,7 @@ export const sdkFetchCreate = <E extends string = never>(
 		url: string,
 		call: RequestInit & SdkOptions<E>,
 	): Promise<T> => {
-		optionsCheck("sdkFetch: ", call);
+		optionsCheck({ caller: "sdkFetch", options: call });
 		const baseUrl = baseUrlResolve(call);
 		const {
 			baseUrl: _baseUrl,
@@ -165,7 +153,6 @@ export const sdkFetchCreate = <E extends string = never>(
 		if (token != null) headers.set("authorization", `Bearer ${token}`);
 		const method = (init.method ?? "GET").toLowerCase();
 		// Bounds the body read too, which ky's own totalTimeout does not cover once it returns.
-		const deadline = Date.now() + totalTimeoutMs;
 		const totalSignal = AbortSignal.timeout(totalTimeoutMs);
 		const signal =
 			init.signal == null
@@ -180,17 +167,10 @@ export const sdkFetchCreate = <E extends string = never>(
 				parseJson: (text) => text,
 				retry: {
 					afterStatusCodes: statusesRetried,
-					delay: backoffMs,
 					// 0 for POST and PATCH, so ky does not copy a body it will never send again.
 					limit: methodsRetried.includes(method) ? retry : 0,
 					methods: methodsRetried,
 					retryOnTimeout: true,
-					// A response whose wait runs past the deadline resolves now instead of timing out.
-					shouldRetry: ({ error, retryCount }) =>
-						isHTTPError(error) &&
-						Date.now() + waitMs(error.response.headers, retryCount) >= deadline
-							? false
-							: undefined,
 					statusCodes: statusesRetried,
 				},
 				signal,
@@ -226,7 +206,7 @@ export const sdkFetchCreate = <E extends string = never>(
 
 	return {
 		sdkConfigure: (update) => {
-			optionsCheck("sdkConfigure: ", update);
+			optionsCheck({ caller: "sdkConfigure", options: update });
 			configured = { ...configured, ...update };
 		},
 		sdkFetch,

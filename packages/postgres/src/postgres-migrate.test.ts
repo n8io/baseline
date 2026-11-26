@@ -26,7 +26,7 @@ describe("postgresMigrate", () => {
 				}),
 			).rejects.toThrow(
 				new TypeError(
-					`postgresMigrate: lockWaitMs must be a positive integer, 2147483647 at most, found ${lockWaitMs}`,
+					`postgresMigrate: lockWaitMs must be a whole number from 1 to 2147483647, found ${lockWaitMs}`,
 				),
 			);
 		},
@@ -43,7 +43,7 @@ describe("postgresMigrate", () => {
 				}),
 			).rejects.toThrow(
 				new TypeError(
-					`postgresMigrate: connectTimeoutMs must be a positive integer, 2147483647 at most, found ${connectTimeoutMs}`,
+					`postgresMigrate: connectTimeoutMs must be a whole number from 1 to 2147483647, found ${connectTimeoutMs}`,
 				),
 			);
 		},

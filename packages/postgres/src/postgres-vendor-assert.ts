@@ -1,3 +1,5 @@
+import { sharedConnectionSslAssert } from "@n8io/baseline-shared";
+
 // The pg settings a `vendor` option may not carry, and the named option that sets each. pg lets
 // the URL win over these, so passing one would do nothing, silently.
 const postgresVendorOwnedKeys = {
@@ -12,28 +14,6 @@ const postgresVendorOwnedKeys = {
 
 /** The pg settings no `vendor` option may carry. */
 export type PostgresVendorOwnedKey = keyof typeof postgresVendorOwnedKeys;
-
-// Copied to packages/queue/src/queue-connection-assert.ts; keep the two in step.
-const postgresUrlSslParams = [
-	"ssl",
-	"sslcert",
-	"sslkey",
-	"sslmode",
-	"sslrootcert",
-];
-
-// Copied to packages/queue/src/queue-connection-assert.ts; keep the two in step.
-// Node's own error would carry the whole URL, password included.
-const postgresUrlParamsRead = (
-	databaseUrl: string,
-	caller: string,
-): URLSearchParams => {
-	try {
-		return new URL(databaseUrl).searchParams;
-	} catch {
-		throw new TypeError(`${caller}: databaseUrl is not a valid URL`);
-	}
-};
 
 /**
  * Throws on a vendor setting that a named option or the URL already decides. `caller` is the
@@ -60,11 +40,5 @@ export const postgresVendorAssert = ({
 			);
 		}
 	}
-	const urlParams = postgresUrlParamsRead(databaseUrl, caller);
-	const sslParam = postgresUrlSslParams.find((name) => urlParams.has(name));
-	if ("ssl" in vendor && sslParam !== undefined) {
-		throw new TypeError(
-			`${caller}: vendor.ssl is not allowed with ${sslParam} in databaseUrl: pg lets the URL win; set TLS in one place`,
-		);
-	}
+	sharedConnectionSslAssert({ caller, databaseUrl, vendor });
 };

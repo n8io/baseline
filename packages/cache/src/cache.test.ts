@@ -159,7 +159,7 @@ describe("cacheCreate options", () => {
 				}),
 			).toThrow(
 				new TypeError(
-					`cacheCreate: ttlMs must be a positive integer, found ${ttlMs}`,
+					`cacheCreate: ttlMs must be a whole number, 1 or more, found ${ttlMs}`,
 				),
 			);
 		},

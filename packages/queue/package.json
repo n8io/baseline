@@ -44,6 +44,7 @@
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
 		"@n8io/baseline-result": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^",
 		"@opentelemetry/core": "3.1.1",
 		"@standard-schema/spec": "^1.1.0",
 		"pg-boss": "^12.38.2"

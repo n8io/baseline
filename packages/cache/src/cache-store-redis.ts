@@ -1,3 +1,4 @@
+import { sharedTimeLimit } from "@n8io/baseline-shared";
 import type { CacheStore } from "./cache.ts";
 
 // The part of a connected node-redis client the store uses.
@@ -12,32 +13,6 @@ type CacheRedisClient = {
 };
 
 const cacheCommandTimeoutMs = 1000;
-
-// Copied from packages/live/src/live-hub-redis.ts (`liveTimeLimit`); keep the two in step, and the
-// inline race in packages/redis/src/redis-client.ts.
-// Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
-// node-redis's own command timeout stops once a command is sent.
-const cacheTimeLimit = async <T>({
-	message,
-	ms,
-	work,
-}: {
-	message: string;
-	ms: number;
-	work: Promise<T>;
-}): Promise<T> => {
-	let timer: NodeJS.Timeout | undefined;
-	const timedOut = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => {
-			reject(new DOMException(message, "TimeoutError"));
-		}, ms);
-	});
-	try {
-		return await Promise.race([work, timedOut]);
-	} finally {
-		clearTimeout(timer);
-	}
-};
 
 /** What `cacheStoreRedisCreate` takes. */
 export type CacheStoreRedisOptions = {
@@ -54,7 +29,7 @@ export const cacheStoreRedisCreate = ({
 	redisClient,
 }: CacheStoreRedisOptions): CacheStore => {
 	const limit = <R>(work: Promise<R>): Promise<R> =>
-		cacheTimeLimit({
+		sharedTimeLimit({
 			message: `Redis did not answer within ${cacheCommandTimeoutMs} ms`,
 			ms: cacheCommandTimeoutMs,
 			work,

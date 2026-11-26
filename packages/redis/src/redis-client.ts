@@ -1,4 +1,5 @@
 import { logger } from "@n8io/baseline-logger";
+import { sharedTimeLimit } from "@n8io/baseline-shared";
 import {
 	createClient,
 	type RedisClientOptions as NodeRedisClientOptions,
@@ -133,29 +134,17 @@ export const redisClientCreate = async ({
 		logger.error({ err }, "Redis client error");
 	});
 	// connectTimeout bounds only the TCP connect; this also bounds a server that accepts and never
-	// answers the handshake. The same race as `cacheTimeLimit` in packages/cache/src/cache-store-redis.ts
-	// and `liveTimeLimit` in packages/live/src/live-hub-redis.ts, inline; keep the three in step.
-	let timer: NodeJS.Timeout | undefined;
+	// answers the handshake.
 	try {
-		await Promise.race([
-			redisClient.connect(),
-			new Promise<never>((_, reject) => {
-				timer = setTimeout(() => {
-					reject(
-						new DOMException(
-							`Redis not ready within ${redisConnectTimeoutMs} ms`,
-							"TimeoutError",
-						),
-					);
-				}, redisConnectTimeoutMs);
-			}),
-		]);
+		await sharedTimeLimit({
+			message: `Redis not ready within ${redisConnectTimeoutMs} ms`,
+			ms: redisConnectTimeoutMs,
+			work: redisClient.connect(),
+		});
 	} catch (err) {
 		// A refused connect has closed the client already.
 		if (redisClient.isOpen) redisClient.destroy();
 		throw err;
-	} finally {
-		clearTimeout(timer);
 	}
 	connected = true;
 	return Object.assign(redisClient, {

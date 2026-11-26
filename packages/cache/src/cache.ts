@@ -1,4 +1,5 @@
 import { type Logger, logger } from "@n8io/baseline-logger";
+import { sharedIntegerAssert } from "@n8io/baseline-shared";
 import { type Counter, metrics } from "@opentelemetry/api";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -126,11 +127,12 @@ const cacheByIdCreate = <T>(
 	if (prefix === "") {
 		throw new TypeError("cacheCreate: prefix must not be empty");
 	}
-	if (!Number.isInteger(ttlMs) || ttlMs <= 0) {
-		throw new TypeError(
-			`cacheCreate: ttlMs must be a positive integer, found ${ttlMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "cacheCreate",
+		min: 1,
+		name: "ttlMs",
+		value: ttlMs,
+	});
 	if (onStoreError !== "miss" && onStoreError !== "throw") {
 		throw new TypeError(
 			`cacheCreate: onStoreError must be "miss" or "throw", found ${JSON.stringify(onStoreError)}`,

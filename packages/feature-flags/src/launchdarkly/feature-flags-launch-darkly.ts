@@ -1,6 +1,7 @@
 import type { LDOptions } from "@launchdarkly/node-server-sdk";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { logger } from "@n8io/baseline-logger";
+import { sharedTimeRace } from "@n8io/baseline-shared";
 import {
 	type EvaluationContext,
 	type EvaluationDetails,
@@ -149,22 +150,14 @@ const statusAfter = async ({
 	pending: Promise<unknown>;
 	timeoutMs: number;
 }): Promise<FeatureFlagsReadyStatus> => {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const timeout = new Promise<"timeout">((resolve) => {
-		timer = setTimeout(() => resolve("timeout"), timeoutMs);
-		timer.unref();
+	return sharedTimeRace({
+		ms: timeoutMs,
+		value: "timeout" as const,
+		work: pending.then(
+			() => "connected" as const,
+			() => "failed" as const,
+		),
 	});
-	try {
-		return await Promise.race([
-			pending.then(
-				() => "connected" as const,
-				() => "failed" as const,
-			),
-			timeout,
-		]);
-	} finally {
-		clearTimeout(timer);
-	}
 };
 
 /**
@@ -201,10 +194,11 @@ export const featureFlagsLaunchDarklyCreate = <
 		close: async () => {
 			// Only this instance's provider: the global OpenFeature.close() would close every other
 			// instance's too. Closing first lets the flush finish before the domain is unbound.
-			await Promise.race([
-				provider.onClose().catch(() => undefined),
-				new Promise((resolve) => setTimeout(resolve, closeTimeoutMs).unref()),
-			]);
+			await sharedTimeRace({
+				ms: closeTimeoutMs,
+				value: undefined,
+				work: provider.onClose().catch(() => undefined),
+			});
 			OpenFeature.setProvider(domain, NOOP_PROVIDER);
 		},
 		read: async ({ context, fallback, key }) => {

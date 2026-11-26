@@ -1,4 +1,5 @@
 import { logger } from "@n8io/baseline-logger";
+import { sharedIntegerAssert } from "@n8io/baseline-shared";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
@@ -192,11 +193,12 @@ export const queueCreate = async (options: QueueOptions): Promise<Queue> => {
 	}
 	const concurrency = options.concurrency ?? queueConcurrencyDefault;
 	const vendor = options.vendor ?? {};
-	if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-		throw new TypeError(
-			`queueCreate: concurrency must be a positive integer, found ${concurrency}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "queueCreate",
+		min: 1,
+		name: "concurrency",
+		value: concurrency,
+	});
 	for (const [key, reason] of Object.entries(queueOwnedKeys)) {
 		if (key in vendor) {
 			throw new TypeError(

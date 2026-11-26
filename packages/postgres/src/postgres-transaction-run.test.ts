@@ -121,7 +121,7 @@ describe("postgresTransactionRun client handling", () => {
 			}),
 		).rejects.toThrow(
 			new TypeError(
-				"postgresTransactionRun: timeoutMs must be a positive integer, 2147483647 at most, found 0",
+				"postgresTransactionRun: timeoutMs must be a whole number from 1 to 2147483647, found 0",
 			),
 		);
 		await expect(
@@ -132,7 +132,7 @@ describe("postgresTransactionRun client handling", () => {
 			}),
 		).rejects.toThrow(
 			new TypeError(
-				"postgresTransactionRun: timeoutMs must be a positive integer, 2147483647 at most, found 2147483648",
+				"postgresTransactionRun: timeoutMs must be a whole number from 1 to 2147483647, found 2147483648",
 			),
 		);
 		await expect(

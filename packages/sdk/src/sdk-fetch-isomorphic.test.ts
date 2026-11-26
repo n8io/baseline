@@ -22,7 +22,11 @@ it("ships source with no node: import and no Node global, so it runs in a browse
 			...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g),
 		]
 			.map((match) => match[1] ?? "")
-			.filter((specifier) => specifier !== "ky" && !specifier.startsWith("."));
+			.filter(
+				(specifier) =>
+					!["@n8io/baseline-shared", "ky"].includes(specifier) &&
+					!specifier.startsWith("."),
+			);
 		expect(imported, path).toEqual([]);
 		expect(source, path).not.toMatch(
 			/\b(process|Buffer|global|__dirname|__filename|require|setImmediate)\b/,

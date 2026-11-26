@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { sharedIntegerAssert, sharedKeepAlive } from "@n8io/baseline-shared";
 
 /** The probe server `healthServerCreate` starts. */
 export type HealthServer = {
@@ -29,15 +30,13 @@ export type HealthServerOptions = {
 export const healthServerCreate = (
 	options: HealthServerOptions,
 ): HealthServer => {
-	if (
-		!Number.isInteger(options.port) ||
-		options.port < 0 ||
-		options.port > 65_535
-	) {
-		throw new TypeError(
-			`healthServerCreate: port must be an integer from 0 to 65535, found ${options.port}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "healthServerCreate",
+		max: 65_535,
+		min: 0,
+		name: "port",
+		value: options.port,
+	});
 	let isReady = false;
 
 	const server = createServer((request, response) => {
@@ -62,9 +61,7 @@ export const healthServerCreate = (
 	});
 
 	// Longer than the 60 s a load balancer keeps an idle probe connection, like the Project's HTTP server.
-	// Copied from packages/http/src/http-server-keep-alive.ts; keep the two in step.
-	server.keepAliveTimeout = 65_000;
-	server.headersTimeout = 66_000;
+	sharedKeepAlive(server);
 	server.listen(options.port);
 
 	const close = (): Promise<void> =>

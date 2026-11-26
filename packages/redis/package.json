@@ -38,6 +38,7 @@
 	},
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^",
 		"redis": "^6.3.1"
 	}
 }

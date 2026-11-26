@@ -1,8 +1,7 @@
+import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
+
 /** How long `ready` waits for the flag service before it settles `timeout`, when none is given. */
 const readyTimeoutMsDefault = 2000;
-
-// The longest delay a timer takes: a larger one fires at once.
-const timeoutMsMax = 2_147_483_647;
 
 /** Throws a `TypeError` unless `value` is a non-empty string. */
 export const featureFlagsOptionsStringRequire = ({
@@ -35,15 +34,13 @@ export const featureFlagsOptionsTimeoutMsResolve = ({
 	if (readyTimeoutMs == null) {
 		return readyTimeoutMsDefault;
 	}
-	if (
-		!Number.isInteger(readyTimeoutMs) ||
-		readyTimeoutMs < 1 ||
-		readyTimeoutMs > timeoutMsMax
-	) {
-		throw new TypeError(
-			`${factory}: readyTimeoutMs must be a whole number of milliseconds from 1 to ${timeoutMsMax}, found ${readyTimeoutMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: factory,
+		max: sharedTimerMaxMs,
+		min: 1,
+		name: "readyTimeoutMs",
+		value: readyTimeoutMs,
+	});
 	return readyTimeoutMs;
 };
 
