@@ -20,6 +20,7 @@ import {
 	featureFlagsClientConfigGet,
 	featureFlagsClientSideIdContext,
 } from "./feature-flags-client-config.ts";
+import { FeatureFlagsConfigScript } from "./feature-flags-config-script.tsx";
 
 export const links: Route.LinksFunction = () => [
 	{ href: appCss, rel: "stylesheet" },
@@ -52,6 +53,11 @@ export const Layout = ({ children }: { children: ReactNode }) => (
 				nonce={use(CspNonce)}
 				suppressHydrationWarning
 			/>
+			{
+				// piece-start: feature-flags
+				<FeatureFlagsConfigScript />
+				// piece-end: feature-flags
+			}
 			<Meta />
 			<Links />
 		</head>

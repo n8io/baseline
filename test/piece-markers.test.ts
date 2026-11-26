@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 // Every `piece-start:` block is code a reader has to skip past, so the Template keeps few of them:
 // a piece prefers whole files, and the count has a budget. Raise a limit only on purpose.
-const markersMax = 93;
+const markersMax = 94;
 const markersPerFileMax = 6;
 // It opens every piece, one block each.
 const markersPerFileAllowed: Record<string, number> = {

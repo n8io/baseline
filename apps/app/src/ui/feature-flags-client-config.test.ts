@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+	type FeatureFlagsClientPage,
 	featureFlagsClientConfigGet,
 	featureFlagsClientConfigRead,
+	featureFlagsClientConfigScriptId,
 } from "./feature-flags-client-config.ts";
 
 const actor = { id: "a1", kind: "user", scopes: [] } as const;
@@ -23,24 +25,27 @@ describe("featureFlagsClientConfigGet", () => {
 	});
 });
 
+const pageWith = (textContent: string | null): FeatureFlagsClientPage => ({
+	getElementById: (id) =>
+		id === featureFlagsClientConfigScriptId && textContent !== null
+			? { textContent }
+			: null,
+});
+
 describe("featureFlagsClientConfigRead", () => {
-	it("reads the config from React Router's page data", () => {
+	it("reads the config from the page's JSON block", () => {
 		const config = { actorId: "a1", clientSideId: "c1" };
 		expect(
-			featureFlagsClientConfigRead({
-				state: { loaderData: { root: { featureFlags: config } } },
-			}),
+			featureFlagsClientConfigRead(pageWith(JSON.stringify(config))),
 		).toEqual(config);
 	});
 
 	it.each([
-		["nothing", undefined],
-		["a page without the config", { state: { loaderData: { root: {} } } }],
-		[
-			"a config of the wrong shape",
-			{ state: { loaderData: { root: { featureFlags: { actorId: 1 } } } } },
-		],
-	])("is null for %s", (_name, routerContext) => {
-		expect(featureFlagsClientConfigRead(routerContext)).toBeNull();
+		["no block", null],
+		["an empty block", ""],
+		["text that is not JSON", "{"],
+		["a config of the wrong shape", '{"actorId":1}'],
+	])("is null for %s", (_name, textContent) => {
+		expect(featureFlagsClientConfigRead(pageWith(textContent))).toBeNull();
 	});
 });

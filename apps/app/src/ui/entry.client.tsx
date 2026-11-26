@@ -13,7 +13,7 @@ import { featureFlagsClientConfigRead } from "./feature-flags-client-config.ts";
 // the server, so the page's Actor never changes under it.
 const tree = await featureFlagsBrowserWrap({
 	client: featureFlagsBrowserClientCreate(
-		featureFlagsClientConfigRead(Reflect.get(window, "__reactRouterContext")),
+		featureFlagsClientConfigRead(document),
 	),
 	tree: <HydratedRouter />,
 });
