@@ -1,5 +1,9 @@
 import { logger } from "@n8io/baseline-logger";
-import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
+import {
+	sharedIntegerAssert,
+	sharedTimerMaxMs,
+	sharedTimeTimer,
+} from "@n8io/baseline-shared";
 
 /**
  * One thing to close on shutdown: an intake (HTTP server, live streams, Event handlers) or a
@@ -47,11 +51,6 @@ export type ShutdownHandle = { isShuttingDown(): boolean };
 // The last 5 s before the deadline belong to the resources.
 const resourceReserveMs = 5000;
 const timedOut = Symbol("timedOut");
-
-const sleepDefault = (ms: number): Promise<void> =>
-	new Promise((resolve) => {
-		setTimeout(resolve, Math.max(0, ms));
-	});
 
 const stepClose = async (
 	kind: string,
@@ -110,15 +109,32 @@ export const shutdownHandleCreate = ({
 		((event: string, listener: (value: unknown) => void) => {
 			process.on(event, listener);
 		});
-	const sleep = host?.sleep ?? sleepDefault;
-	const timeout = (ms: number): Promise<typeof timedOut> =>
-		sleep(ms).then(() => timedOut);
 	let shuttingDown = false;
 	// Set by any crash, also one during a shutdown a signal started.
 	let crashed = false;
 
 	// Resolves true when every step closed in time.
 	const shutdownRun = async (drainMs: number): Promise<boolean> => {
+		// The default clock's timers, stopped when the run ends so none outlives it.
+		const clears: (() => void)[] = [];
+		const timeout = (ms: number): Promise<typeof timedOut> => {
+			if (host?.sleep) return host.sleep(ms).then(() => timedOut);
+			// Held open (`ref`) as `setTimeout` did: the process must not exit mid-shutdown.
+			const timer = sharedTimeTimer({ ms, ref: true, value: timedOut });
+			clears.push(timer.clear);
+			return timer.promise;
+		};
+		try {
+			return await shutdownRunTimed(drainMs, timeout);
+		} finally {
+			for (const clear of clears) clear();
+		}
+	};
+
+	const shutdownRunTimed = async (
+		drainMs: number,
+		timeout: (ms: number) => Promise<typeof timedOut>,
+	): Promise<boolean> => {
 		let clean = true;
 		const cutoff = timeout(deadlineMs - resourceReserveMs);
 		const deadline = timeout(deadlineMs);
