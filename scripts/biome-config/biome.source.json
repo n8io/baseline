@@ -1,0 +1,368 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"root": false,
+	"overrides": [
+		{
+			"includes": [
+				"src/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!src/contexts/**/*.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/ui/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!src/ui/entry.server.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A9", "$A10-ui"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/contexts/*/index.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A9", "$A10-contexts"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/*.ts",
+				"!src/contexts/*/index.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A9", "$A10-contexts", "$A19", "$A21"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/domain/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A19",
+									"$A7",
+									"$A2"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A19",
+									"$A21-application",
+									"$A21-queue",
+									"$A21-authn"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/inbound/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A9", "$A10-contexts", "$A19"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/outbound/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A9", "$A10-contexts"]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!src/contexts/*/application/ports.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"plugins": ["./lint-plugins/system-time.grit"]
+		},
+		{
+			"includes": ["src/contexts/*/adapters/outbound/**"],
+			"plugins": ["./lint-plugins/sql-raw.grit"]
+		},
+		{
+			"includes": ["src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+			"plugins": ["./lint-plugins/process-env.grit"]
+		},
+		{
+			"includes": [
+				"**",
+				"!clients/sdk/sdk.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./lint-plugins/max-params.grit"]
+		},
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"plugins": ["./lint-plugins/no-mocks.grit"]
+		},
+		{
+			"includes": ["**"],
+			"plugins": ["./lint-plugins/feature-flags-vendor-imports.grit"]
+		},
+		{
+			"includes": ["clients/sdk/sdk.ts"],
+			"linter": {
+				"enabled": false
+			}
+		},
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"useMaxParams": "off"
+					}
+				}
+			}
+		}
+	],
+	"linter": {
+		"rules": {
+			"preset": "recommended",
+			"complexity": {
+				"noAdjacentSpacesInRegex": "error",
+				"noArguments": "error",
+				"noBannedTypes": "error",
+				"noCommaOperator": "error",
+				"noEmptyTypeParameters": "error",
+				"noExtraBooleanCast": "error",
+				"noFlatMapIdentity": "error",
+				"noImportantStyles": "error",
+				"noStaticOnlyClass": "error",
+				"noThisInStatic": "error",
+				"noUselessCatch": "error",
+				"noUselessConstructor": "error",
+				"noUselessContinue": "error",
+				"noUselessEmptyExport": "error",
+				"noUselessEscapeInRegex": "error",
+				"noUselessFragments": "error",
+				"noUselessLabel": "error",
+				"noUselessLoneBlockStatements": "error",
+				"noUselessRename": "error",
+				"noUselessStringRaw": "error",
+				"noUselessSwitchCase": "error",
+				"noUselessTernary": "error",
+				"noUselessThisAlias": "error",
+				"noUselessTypeConstraint": "error",
+				"noUselessUndefinedInitialization": "error",
+				"useMaxParams": {
+					"level": "error",
+					"options": {
+						"max": 2
+					}
+				},
+				"useArrowFunction": "error",
+				"useDateNow": "error",
+				"useFlatMap": "error",
+				"useIndexOf": "error",
+				"useLiteralKeys": "off",
+				"useMathMinMax": "error",
+				"useNumericLiterals": "error",
+				"useOptionalChain": "error",
+				"useRegexLiterals": "error",
+				"useSimpleNumberKeys": "error"
+			},
+			"correctness": {
+				"noUnusedFunctionParameters": "error",
+				"noUnusedImports": "error",
+				"noUnusedLabels": "error",
+				"noUnusedPrivateClassMembers": "error",
+				"noUnusedVariables": "error",
+				"useParseIntRadix": "error"
+			},
+			"nursery": {
+				"noFloatingPromises": "error",
+				"noMisusedPromises": "error",
+				"useAwaitThenable": "error",
+				"useExhaustiveSwitchCases": "error"
+			},
+			"performance": {
+				"noAccumulatingSpread": "error",
+				"noDynamicNamespaceImportAccess": "error",
+				"useDomNodeTextContent": "error"
+			},
+			"style": {
+				"noDescendingSpecificity": "error",
+				"noNonNullAssertion": "error",
+				"useArrayLiterals": "error",
+				"useConst": "error",
+				"useDeprecatedReason": "error",
+				"useExponentiationOperator": "error",
+				"useExportType": "error",
+				"useImportType": "error",
+				"useLiteralEnumMembers": "error",
+				"useNodejsImportProtocol": "error",
+				"useShorthandFunctionType": "error",
+				"useTemplate": "error",
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"paths": {
+							"chai": "Assert with expect(); Vitest requireAssertions does not count chai assert calls.",
+							"vitest": {
+								"importNames": ["assert"],
+								"message": "Assert with expect(); Vitest requireAssertions does not count chai assert calls."
+							}
+						}
+					}
+				}
+			},
+			"suspicious": {
+				"noApproximativeNumericConstant": "error",
+				"noCatchAssign": "error",
+				"noConfusingLabels": "error",
+				"noConfusingVoidType": "error",
+				"noConstEnum": "error",
+				"noControlCharactersInRegex": "error",
+				"noDeprecatedMediaType": "error",
+				"noDocumentCookie": "error",
+				"noDuplicateEnumValues": "error",
+				"noDuplicateFields": "error",
+				"noEmptyBlock": "error",
+				"noExplicitAny": "error",
+				"noExtraNonNullAssertion": "error",
+				"noGlobalIsFinite": "error",
+				"noGlobalIsNan": "error",
+				"noIrregularWhitespace": "error",
+				"noOctalEscape": "error",
+				"noProto": "error",
+				"noPrototypeBuiltins": "error",
+				"noQuickfixBiome": "error",
+				"noRedundantUseStrict": "error",
+				"noSuspiciousSemicolonInJsx": "error",
+				"noTemplateCurlyInString": "error",
+				"noTsIgnore": "error",
+				"noUselessEscapeInString": "error",
+				"noUselessRegexBackrefs": "error",
+				"useAdjacentOverloadSignatures": "error",
+				"useBiomeIgnoreFolder": "error",
+				"useDefaultSwitchClauseLast": "error",
+				"useGoogleFontDisplay": "error",
+				"useIsArray": "error"
+			}
+		}
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!build",
+			"!migrations/*/snapshot.json",
+			"!src/env.d.ts",
+			"!.react-router"
+		]
+	},
+	"vcs": {
+		"clientKind": "git",
+		"enabled": true,
+		"useIgnoreFile": true
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	}
+}

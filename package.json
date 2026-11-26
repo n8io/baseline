@@ -9,6 +9,7 @@
 	"packageManager": "pnpm@12.17.0",
 	"scripts": {
 		"app-create": "node --import ./apps/app/scripts/node-version-require.ts scripts/app-create.ts",
+		"biome-generate": "node --import ./apps/app/scripts/node-version-require.ts scripts/biome-generate.ts && biome format --write apps/app/biome.json",
 		"check": "biome check . && tsc --noEmit",
 		"ci:watch": "node --import ./apps/app/scripts/node-version-require.ts scripts/ci-watch.ts",
 		"format": "biome format --write .",

@@ -1,0 +1,69 @@
+{
+	"A24": {
+		"group": ["@n8io/baseline-*/testing"],
+		"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+	},
+	"A9": {
+		"group": ["@n8io/baseline-logger"],
+		"message": "A9: contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
+	},
+	"A10-ui": {
+		"group": ["#contexts/*/**", "!#contexts/*/index.ts"],
+		"message": "A10: the UI calls contexts only through src/contexts/<context>/index.ts; loaders and actions get Use cases from the load context"
+	},
+	"A10-contexts": {
+		"group": ["#ui/**", "**/ui/**"],
+		"message": "A10: contexts never import the UI; the UI calls the context"
+	},
+	"A19": {
+		"group": ["**/*.memory.ts"],
+		"message": "A19: only *.test.ts files (and adapters/outbound/) import memory adapters; production code gets ports from <context>PortsCreate in adapters/outbound/index.ts"
+	},
+	"A21": {
+		"group": [
+			"@n8io/baseline-*",
+			"!@n8io/baseline-result",
+			"!@n8io/baseline-id"
+		],
+		"message": "A21: business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in application/ and the types Inbox (queue) and Actor (authn) in domain/ and application/; reach any other shared package through a port implemented in adapters/outbound/"
+	},
+	"A7": {
+		"group": ["@hono/*"],
+		"message": "A7: domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<model>-routes.ts"
+	},
+	"A2": {
+		"group": [
+			"**",
+			"!./**",
+			"!zod",
+			"!@n8io/baseline-result",
+			"!@n8io/baseline-id",
+			"!@n8io/baseline-authn",
+			"!../../../id-schema.ts"
+		],
+		"message": "A2: domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result Package and the types of the authn and id Packages; move this to a Use case in application/"
+	},
+	"A21-application": {
+		"group": [
+			"@n8io/baseline-*",
+			"!@n8io/baseline-result",
+			"!@n8io/baseline-id",
+			"!@n8io/baseline-telemetry/span",
+			"!@n8io/baseline-queue",
+			"!@n8io/baseline-authn"
+		],
+		"message": "A21: business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in application/ and the types Inbox (queue) and Actor (authn) in domain/ and application/; reach any other shared package through a port implemented in adapters/outbound/"
+	},
+	"A21-queue": {
+		"group": ["@n8io/baseline-queue"],
+		"importNamePattern": "Inbox",
+		"invertImportNamePattern": true,
+		"message": "A21: business code imports only the Inbox type from @n8io/baseline-queue"
+	},
+	"A21-authn": {
+		"group": ["@n8io/baseline-authn"],
+		"importNamePattern": "Actor",
+		"invertImportNamePattern": true,
+		"message": "A21: business code imports only the Actor type from @n8io/baseline-authn"
+	}
+}
