@@ -49,9 +49,9 @@ export type FeatureFlagsLaunchDarklyOptions<
 	readonly kinds?: K | null;
 	/** Receives each fallback a read returns. Defaults to logging it as a warning. */
 	readonly onFallback?: FeatureFlagsOnFallback | null;
-	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. */
+	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. A value that is not a whole number of milliseconds from 1 up throws a `TypeError`. */
 	readonly readyTimeoutMs?: number | null;
-	/** The LaunchDarkly server SDK key, for the environment the process runs in. */
+	/** The LaunchDarkly server SDK key, for the environment the process runs in. An empty one throws a `TypeError`. */
 	readonly sdkKey: string;
 	/** Settings only LaunchDarkly has, passed to its SDK. */
 	readonly vendor?: FeatureFlagsLaunchDarklyVendorOptions | null;
@@ -182,8 +182,15 @@ export const featureFlagsLaunchDarklyCreate = <
 	sdkKey,
 	vendor,
 }: FeatureFlagsLaunchDarklyOptions<D, K>): FeatureFlags<D, K> => {
-	featureFlagsOptionsStringRequire({ name: "sdkKey", value: sdkKey });
-	const timeoutMs = featureFlagsOptionsTimeoutMsResolve(readyTimeoutMs);
+	featureFlagsOptionsStringRequire({
+		factory: "featureFlagsLaunchDarklyCreate",
+		name: "sdkKey",
+		value: sdkKey,
+	});
+	const timeoutMs = featureFlagsOptionsTimeoutMsResolve({
+		factory: "featureFlagsLaunchDarklyCreate",
+		readyTimeoutMs,
+	});
 	const domain = featureFlagsOptionsDomainCreate();
 	// Opens with an unbounded init wait: `ready` gives up on its own timer, and the SDK keeps
 	// trying, so a slow LaunchDarkly still connects later.

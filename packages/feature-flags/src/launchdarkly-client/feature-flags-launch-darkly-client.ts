@@ -33,7 +33,7 @@ export type FeatureFlagsLaunchDarklyClientOptions<
 	D extends FeatureFlagDefinitions,
 	K extends FeatureFlagKinds,
 > = {
-	/** LaunchDarkly's client-side ID for the environment. It is public by design. */
+	/** LaunchDarkly's client-side ID for the environment. It is public by design. An empty one throws a `TypeError`. */
 	readonly clientSideId: string;
 	/** The one context this client starts with. Replace it whole with `contextSet`. */
 	readonly context: FeatureFlagContext<K>;
@@ -41,7 +41,7 @@ export type FeatureFlagsLaunchDarklyClientOptions<
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, to log it. A throw is ignored. */
 	readonly onFallback?: FeatureFlagsOnFallback | null;
-	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. */
+	/** How long `ready` waits for LaunchDarkly before it settles `timeout`. Default 2000. A value that is not a whole number of milliseconds from 1 up throws a `TypeError`. */
 	readonly readyTimeoutMs?: number | null;
 	/** Extra options for LaunchDarkly's browser SDK. `streaming` is always on: live updates need it. */
 	readonly vendor?: FeatureFlagsLaunchDarklyClientVendorOptions | null;
@@ -77,7 +77,10 @@ export const featureFlagsLaunchDarklyClientCreate = <
 		name: "clientSideId",
 		value: clientSideId,
 	});
-	const timeoutMs = featureFlagsOptionsTimeoutMsResolve(readyTimeoutMs);
+	const timeoutMs = featureFlagsOptionsTimeoutMsResolve({
+		factory: "featureFlagsLaunchDarklyClientCreate",
+		readyTimeoutMs,
+	});
 	return featureFlagsClientCreate<D, K>({
 		flags,
 		onFallback: onFallback ?? null,

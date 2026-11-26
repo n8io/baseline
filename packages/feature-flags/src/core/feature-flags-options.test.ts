@@ -10,23 +10,41 @@ import { featureFlagsTestDefs } from "./feature-flags-test-fixtures.ts";
 
 describe("featureFlagsOptionsTimeoutMsResolve", () => {
 	it("defaults to 2000 when left out", () => {
-		expect(featureFlagsOptionsTimeoutMsResolve(undefined)).toBe(2000);
-		expect(featureFlagsOptionsTimeoutMsResolve(null)).toBe(2000);
+		expect(
+			featureFlagsOptionsTimeoutMsResolve({
+				factory: "f",
+				readyTimeoutMs: undefined,
+			}),
+		).toBe(2000);
+		expect(
+			featureFlagsOptionsTimeoutMsResolve({
+				factory: "f",
+				readyTimeoutMs: null,
+			}),
+		).toBe(2000);
 	});
 
 	it("passes a whole number of milliseconds through", () => {
-		expect(featureFlagsOptionsTimeoutMsResolve(1)).toBe(1);
-		expect(featureFlagsOptionsTimeoutMsResolve(2_147_483_647)).toBe(
-			2_147_483_647,
-		);
+		expect(
+			featureFlagsOptionsTimeoutMsResolve({ factory: "f", readyTimeoutMs: 1 }),
+		).toBe(1);
+		expect(
+			featureFlagsOptionsTimeoutMsResolve({
+				factory: "f",
+				readyTimeoutMs: 2_147_483_647,
+			}),
+		).toBe(2_147_483_647);
 	});
 
 	it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2_147_483_648])(
 		"throws a TypeError on %s",
 		(value) => {
-			expect(() => featureFlagsOptionsTimeoutMsResolve(value)).toThrow(
-				TypeError,
-			);
+			expect(() =>
+				featureFlagsOptionsTimeoutMsResolve({
+					factory: "f",
+					readyTimeoutMs: value,
+				}),
+			).toThrow(TypeError);
 		},
 	);
 });
@@ -34,16 +52,28 @@ describe("featureFlagsOptionsTimeoutMsResolve", () => {
 describe("featureFlagsOptionsStringRequire", () => {
 	it("throws a TypeError naming the option on an empty or blank string", () => {
 		expect(() =>
-			featureFlagsOptionsStringRequire({ name: "sdkKey", value: "" }),
-		).toThrow(new TypeError("sdkKey must be a non-empty string"));
+			featureFlagsOptionsStringRequire({
+				factory: "f",
+				name: "sdkKey",
+				value: "",
+			}),
+		).toThrow(new TypeError("f: sdkKey must be a non-empty string"));
 		expect(() =>
-			featureFlagsOptionsStringRequire({ name: "sdkKey", value: " " }),
+			featureFlagsOptionsStringRequire({
+				factory: "f",
+				name: "sdkKey",
+				value: " ",
+			}),
 		).toThrow(TypeError);
 	});
 
 	it("accepts a string", () => {
 		expect(() =>
-			featureFlagsOptionsStringRequire({ name: "sdkKey", value: "sdk-1" }),
+			featureFlagsOptionsStringRequire({
+				factory: "f",
+				name: "sdkKey",
+				value: "sdk-1",
+			}),
 		).not.toThrow();
 	});
 });

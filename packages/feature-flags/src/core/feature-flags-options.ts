@@ -6,14 +6,17 @@ const timeoutMsMax = 2_147_483_647;
 
 /** Throws a `TypeError` unless `value` is a non-empty string. */
 export const featureFlagsOptionsStringRequire = ({
+	factory,
 	name,
 	value,
 }: {
+	factory: string;
 	name: string;
 	value: unknown;
 }): void => {
+	// The value is a secret key, so the message never echoes it.
 	if (typeof value !== "string" || value.trim() === "") {
-		throw new TypeError(`${name} must be a non-empty string`);
+		throw new TypeError(`${factory}: ${name} must be a non-empty string`);
 	}
 };
 
@@ -22,9 +25,13 @@ export const featureFlagsOptionsStringRequire = ({
  * milliseconds from 1 up. Throws a `TypeError` on anything else, since NaN or a huge value would
  * fire the timer at once.
  */
-export const featureFlagsOptionsTimeoutMsResolve = (
-	readyTimeoutMs: number | null | undefined,
-): number => {
+export const featureFlagsOptionsTimeoutMsResolve = ({
+	factory,
+	readyTimeoutMs,
+}: {
+	factory: string;
+	readyTimeoutMs: number | null | undefined;
+}): number => {
 	if (readyTimeoutMs == null) {
 		return readyTimeoutMsDefault;
 	}
@@ -34,12 +41,16 @@ export const featureFlagsOptionsTimeoutMsResolve = (
 		readyTimeoutMs > timeoutMsMax
 	) {
 		throw new TypeError(
-			`readyTimeoutMs must be a whole number of milliseconds from 1 to ${timeoutMsMax}`,
+			`${factory}: readyTimeoutMs must be a whole number of milliseconds from 1 to ${timeoutMsMax}, found ${readyTimeoutMs}`,
 		);
 	}
 	return readyTimeoutMs;
 };
 
+let domainCount = 0;
+
 /** A name for one instance's own OpenFeature domain, so instances never share a context. */
-export const featureFlagsOptionsDomainCreate = (): string =>
-	`feature-flags-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+export const featureFlagsOptionsDomainCreate = (): string => {
+	domainCount += 1;
+	return `feature-flags-${Date.now().toString(36)}-${domainCount.toString(36)}-${Math.random().toString(36).slice(2)}`;
+};

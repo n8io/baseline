@@ -1,3 +1,4 @@
+// Copied from packages/telemetry/src/telemetry-feature-flag.ts; keep the two in step.
 import { logs, SeverityNumber } from "@opentelemetry/api";
 
 /**
