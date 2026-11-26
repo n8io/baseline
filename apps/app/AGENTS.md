@@ -31,7 +31,7 @@ CI fails a command at its budget. Make the code faster, or set a new budget on p
 
 - A unit test sits beside the file it covers in `src/` or `scripts/`, as `<name>.test.ts` or `<name>-<aspect>.test.ts` (`src/env-memory.test.ts`).
 - A test that needs Postgres or Redis names it before `.test` (`invoice-repository.postgres.test.ts`) and runs with `pnpm test:integration`.
-- A test that boots a process or spans many modules goes in `test/integration/`, or in `test/e2e/` when it drives a real browser (`pnpm test:e2e`), with its setup and fixtures.
+- A test that boots a process or spans many modules goes in `test/integration/` or `test/e2e/` (browser).
 - A whole-app check sits at the app root (`architecture.test.ts`).
 - A test helper sits beside its tests with `test` in its name (`src/ui/routes/router-test-context.ts`).
 - A Package's test helpers come from `@n8io/baseline-<package>/testing`, imported only by `*.test.ts(x)` and `test/` files (A24). Use them and its memory adapter; never copy its internals.
