@@ -2,9 +2,6 @@ import { setTimeout } from "node:timers/promises";
 import { logger } from "@n8io/baseline-logger";
 import type { PgBoss } from "pg-boss";
 
-/** How long `queueMigrate` waits for pg-boss's index builds before it throws: 10 minutes. */
-export const queueMigrateIndexesDeadlineMsDefault = 600_000;
-
 /** The part of pg-boss that the wait reads. */
 export type QueueMigrateIndexesBoss = Pick<
 	PgBoss,
@@ -15,7 +12,8 @@ export type QueueMigrateIndexesBoss = Pick<
  * Waits for pg-boss's background index builds (bam) to finish, polling every `pollMs` (default
  * 1000). A build that failed, in this run or an earlier one, is retried by the next migrate run;
  * the schema version is already current, so it only costs speed, and boot goes on with a warning.
- * Throws an `Error` that starts `queueMigrate:` when the builds are still busy after `deadlineMs`.
+ * With `deadlineMs` set, throws an `Error` that starts `queueMigrate:` when the builds are still busy
+ * after it; without one, waits as long as the builds take.
  */
 export const queueMigrateIndexesWait = async ({
 	boss,
@@ -24,7 +22,8 @@ export const queueMigrateIndexesWait = async ({
 	startMs,
 }: {
 	boss: QueueMigrateIndexesBoss;
-	deadlineMs: number;
+	/** Give up after this many ms. Default: wait for as long as the builds take. */
+	deadlineMs?: number | null;
 	pollMs?: number | null;
 	/** How long to wait before the first poll. Default 100. */
 	startMs?: number | null;
@@ -47,7 +46,7 @@ export const queueMigrateIndexesWait = async ({
 			}
 			return;
 		}
-		if (Date.now() - startedAt >= deadlineMs) {
+		if (deadlineMs != null && Date.now() - startedAt >= deadlineMs) {
 			throw new Error(
 				`queueMigrate: index builds still running after ${deadlineMs} ms`,
 			);

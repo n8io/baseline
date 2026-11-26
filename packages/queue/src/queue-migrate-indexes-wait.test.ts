@@ -50,4 +50,23 @@ describe("queueMigrateIndexesWait", () => {
 		);
 		expect(boss.polls()).toBeGreaterThan(1);
 	});
+
+	it.each([{}, { deadlineMs: null }])(
+		"waits without limit when the deadline is unset: %o",
+		async (deadline) => {
+			const boss = bossCreate([
+				...Array.from({ length: 30 }, () => "in_progress" as const),
+				"completed",
+			]);
+
+			await queueMigrateIndexesWait({
+				boss,
+				pollMs: 5,
+				startMs: 0,
+				...deadline,
+			});
+
+			expect(boss.polls()).toBe(31);
+		},
+	);
 });

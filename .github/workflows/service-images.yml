@@ -43,6 +43,7 @@ jobs:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           permission-contents: write
           permission-pull-requests: write
+          permission-workflows: write
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - if: steps.changed.outputs.moved == 'true'
         env:
