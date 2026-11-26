@@ -172,6 +172,10 @@ jobs:
           fi
       # Warnings only: it prints a ::warning annotation per glossary alias or other context's term in the added lines and exits 0.
       # continue-on-error keeps a crash in the script from failing `check`.
+      # The diff is against origin/main; a merge ref's checkout can carry an older main, so fetch its tip first.
+      - name: Fetch main for the glossary diff
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: Glossary hits in added lines
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         continue-on-error: true
