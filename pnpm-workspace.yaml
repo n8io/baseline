@@ -29,3 +29,7 @@ packageExtensions:
       vite:
         optional: true
 # piece-end: ui
+# Dependabot security alerts: force patched releases of transitive dependencies.
+overrides:
+  minimatch: ">=11.0.1"
+  "@hono/node-server": ">=2.1.3"
