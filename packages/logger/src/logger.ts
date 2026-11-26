@@ -25,8 +25,35 @@ export type Logger = {
 	trace: LoggerMethod;
 };
 
-/** The one logger: JSON to stdout, level from `LOG_LEVEL` (default `info`). A
- * `LOG_LEVEL` that is not a level throws a `TypeError` on import. */
-export const logger: Logger = pino(
-	loggerOptionsCreate(loggerLevelAssert(process.env["LOG_LEVEL"] || "info")),
-);
+/** What `loggerCreate` takes. */
+export type LoggerCreateOptions = {
+	/** One of fatal, error, warn, info, debug, trace or silent. Defaults to `LOG_LEVEL`, then `info`. */
+	level?: string | null;
+};
+
+/**
+ * Creates a logger: JSON to stdout, credentials redacted. The level is `options.level`, else
+ * `LOG_LEVEL` read now, else `info`. A level that is not one throws a `TypeError` naming the valid
+ * levels, here at the call and never at import.
+ */
+export const loggerCreate = (options: LoggerCreateOptions = {}): Logger =>
+	pino(
+		loggerOptionsCreate(
+			loggerLevelAssert(options.level || process.env["LOG_LEVEL"] || "info"),
+		),
+	);
+
+const loggerDefaultCreate = (): Logger => {
+	try {
+		return loggerCreate();
+	} catch {
+		// A bad `LOG_LEVEL` must not stop an import; the default logger runs at `info`.
+		return loggerCreate({ level: "info" });
+	}
+};
+
+/**
+ * The default logger, for a caller that has no place to build one: `loggerCreate()` with
+ * `LOG_LEVEL`, falling back to `info` when `LOG_LEVEL` is not a level. Never throws on import.
+ */
+export const logger: Logger = loggerDefaultCreate();
