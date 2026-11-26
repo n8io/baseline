@@ -1,5 +1,49 @@
 # app
 
+## 17.0.0
+
+### Major Changes
+
+- da3de3f: Move rules from prose and the architecture test into Biome. Breaking for a Project: its `pnpm check` can now fail on code that passed before.
+  - `noRestrictedImports` overrides now check A1, A3 to A6, A7, A8 and A22 (the import boundaries between layers and contexts, `@hono/*` and OpenTelemetry, `varlock/env` and `#env`). A6 no longer checks that an ACL imports only the upstream named in its file name (A11 still checks the ACL's calls), and a seed may import values from another context's `index.ts`. `architecture-test-rules.ts` keeps what Biome cannot see: a value import of an `application/` file in `adapters/inbound/`, a value import of `src/contexts.ts` or `src/connections.ts` in a context, and a domain function reached from an adapter.
+  - Grit plugins check A16 (span attribute keys; the check that the key names the Use case's own context or Model is gone), A34 (a cast on a flag value), `test()` instead of `it()`, a span started outside `@n8io/baseline-telemetry`, `Math.random()` and `crypto.randomUUID()` in a Use case, and an error's `.message` on a span or in a log.
+  - `noRestrictedGlobals` bans `fetch`, `setTimeout` and `setInterval` in a Use case (A26).
+  - `noConsole` (not in `scripts/`, `test/` and `src/blocked-keys.ts`), `noParameterAssign`, `useNamingConvention` and `useFilenamingConvention` are on.
+  - The mock, spy and fake-timer ban also covers the test files of `packages/`.
+- b72ecfb: Faster path from a new Project to production. `pnpm app-create --without a,b` removes Pieces at create time. The Template adds an optional `image-publish.yml` (pushes the image to ghcr.io on a `v*` tag) and `deploy/kubernetes.yaml`. Breaking for the shared CI: on a pull request, the eleven `piece (...)` jobs now run only when the diff touches a manifest, the piece tooling or a piece marker (and still on every nightly, dispatch and non-pull-request run), so the `pieces` check can pass without them. The Template's allowlist now records why drizzle is on a release candidate (with an exit) and why react-router-hono-server stays.
+
+### Patch Changes
+
+- 71a6dd8: The entry points' `*-open.ts` files add their shutdown step through one `resourceOpen` helper in `src/shutdown-step-add.ts`, instead of each spelling out the same step. No behaviour changes.
+- 64b75db: Share the helpers the Packages each wrote their own copy of, through the new `@n8io/baseline-shared`.
+  - shared: new Package with the timeout race (`sharedTimeLimit`, `sharedTimeRace`), the integer option check (`sharedIntegerAssert`), the 2147483647 timer limit, the server keep-alive timeouts and the Postgres connection checks. It has no dependencies and is for the Packages, not for a Project.
+  - redis, cache, live, feature-flags: use the one timeout race instead of six hand-written ones.
+  - cache, feature-flags, health, queue, postgres, shutdown, sdk: option errors now come from one formatter, so a bad number reads `<function>: <option> must be a whole number from 1 to N, found X` (or `, N or more`); the same inputs still throw a `TypeError`.
+  - health, http: one owner for the 65 s keep-alive; `httpServerKeepAlive` is unchanged.
+  - queue, postgres: one copy of the Postgres URL and TLS checks.
+  - sdk: ky does the waiting on `Retry-After` and rate-limit headers; the hand-written backoff and header parsing are gone. A wait that runs past `totalTimeoutMs` now ends in the `TimeoutError` instead of resolving the 429 or 503 at once.
+- 8745155: Tidy feature flags and secure headers.
+  - http: remove the `httpSecureHeaders` constant. Use `httpSecureHeadersCreate()` (same headers, no extra origins).
+  - feature-flags: drop the unused `@openfeature/core` peer and the `@n8io/baseline-telemetry` dependency (the evaluation log record now goes through `@opentelemetry/api`, an optional peer of the server adapter); add the `/launchdarkly/origins` entry so a server loads the CSP origins without the browser SDKs (`/launchdarkly/client` still re-exports it); throw a `TypeError` from both factories on an empty key or a `readyTimeoutMs` that is not a whole number of milliseconds from 1 to 2147483647 (0, negative and fractional values were accepted before, and now fail at boot); record evaluations under the instrumentation scope `@n8io/baseline-feature-flags` instead of `@n8io/baseline-telemetry`; export `FeatureFlagsFallbackOptions`, `FeatureFlagsOnFallback` and `FeatureFlagsLaunchDarklyClientVendorOptions`.
+  - feature-flags, sdk, live, authn: add `sideEffects: false` so bundlers can tree-shake them.
+- Updated dependencies [da3de3f]
+- Updated dependencies [da3de3f]
+- Updated dependencies [da3de3f]
+- Updated dependencies [da3de3f]
+- Updated dependencies [64b75db]
+- Updated dependencies [da3de3f]
+- Updated dependencies [8745155]
+  - @n8io/baseline-authn@7.2.0
+  - @n8io/baseline-cache@6.4.0
+  - @n8io/baseline-http@4.0.0
+  - @n8io/baseline-live@7.4.0
+  - @n8io/baseline-feature-flags@1.1.0
+  - @n8io/baseline-health@2.1.2
+  - @n8io/baseline-postgres@6.0.1
+  - @n8io/baseline-queue@9.1.1
+  - @n8io/baseline-redis@1.1.2
+  - @n8io/baseline-shutdown@3.3.0
+
 ## 16.2.2
 
 ### Patch Changes
