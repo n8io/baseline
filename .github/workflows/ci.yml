@@ -253,7 +253,19 @@ jobs:
 
   automerge:
     if: github.event_name == 'pull_request'
-    needs: [api-only, integration, packages, render, render-and-test, sast]
+    # Every job that gates a merge; test/ci-automerge-needs.test.ts fails when a job is missing.
+    # render-and-test is app-ci.yml's check, unit, integration, piece, pieces, image and sast jobs.
+    needs:
+      [
+        api-only,
+        api-only-case,
+        changes,
+        integration,
+        packages,
+        render,
+        render-and-test,
+        sast,
+      ]
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
       contents: write
