@@ -1,4 +1,5 @@
 import { logger } from "@n8io/baseline-logger";
+import { sharedTimeLimit } from "@n8io/baseline-shared";
 import { type LiveHub, liveHubCreate } from "./live-hub.ts";
 
 // The part of a connected node-redis client the hub uses.
@@ -21,31 +22,6 @@ type LiveRedisClient = {
 
 const liveConnectTimeoutMs = 3000;
 const liveCommandTimeoutMs = 1000;
-
-// Copied from packages/cache/src/cache-store-redis.ts (`cacheTimeLimit`); keep the two in step, and the
-// inline race in packages/redis/src/redis-client.ts.
-// Settles like `work`, or rejects with a TimeoutError once `ms` passes first.
-const liveTimeLimit = async <T>({
-	message,
-	ms,
-	work,
-}: {
-	message: string;
-	ms: number;
-	work: Promise<T>;
-}): Promise<T> => {
-	let timer: NodeJS.Timeout | undefined;
-	const timedOut = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => {
-			reject(new DOMException(message, "TimeoutError"));
-		}, ms);
-	});
-	try {
-		return await Promise.race([work, timedOut]);
-	} finally {
-		clearTimeout(timer);
-	}
-};
 
 /** What `liveHubRedisCreate` takes. */
 export type LiveHubRedisOptions = {
@@ -73,7 +49,7 @@ export const liveHubRedisCreate = ({
 			logger.error({ err }, "Redis live subscriber error");
 		});
 		try {
-			await liveTimeLimit({
+			await sharedTimeLimit({
 				message: `Redis not reachable within ${liveConnectTimeoutMs} ms`,
 				ms: liveConnectTimeoutMs,
 				work: connection.connect(),
@@ -110,7 +86,7 @@ export const liveHubRedisCreate = ({
 			resync = listener;
 		},
 		publish: async (channel, message) => {
-			await liveTimeLimit({
+			await sharedTimeLimit({
 				message: `Redis did not answer within ${liveCommandTimeoutMs} ms`,
 				ms: liveCommandTimeoutMs,
 				work: redisClient.publish(`live:${channel}`, message),
@@ -119,7 +95,7 @@ export const liveHubRedisCreate = ({
 		subscribe: async (channel, deliver) => {
 			const connection = await subscriberGet();
 			try {
-				await liveTimeLimit({
+				await sharedTimeLimit({
 					message: `Redis did not answer within ${liveCommandTimeoutMs} ms`,
 					ms: liveCommandTimeoutMs,
 					work: connection.subscribe(`live:${channel}`, deliver),

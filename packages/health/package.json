@@ -35,5 +35,8 @@
 		"prepack": "tsdown",
 		"test": "vitest run",
 		"test:unit": "vitest run"
+	},
+	"dependencies": {
+		"@n8io/baseline-shared": "workspace:^"
 	}
 }

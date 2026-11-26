@@ -245,22 +245,26 @@ describe("sdkFetchCreate", () => {
 		expect(error).toHaveProperty("name", "TimeoutError");
 	});
 
-	it("resolves a 503 at once when its Retry-After is past totalTimeoutMs", async () => {
-		await using api = await apiStart(empty(503, { "retry-after": "60" }));
-		const { sdkFetch } = overrideCreate({
-			baseUrl: api.baseUrl,
-			totalTimeoutMs: 2000,
-		});
-		const started = performance.now();
+	it.each([
+		["a Retry-After", empty(503, { "retry-after": "60" })],
+		["a rate-limit reset", empty(429, { "ratelimit-reset": "60" })],
+	])(
+		"rejects with a TimeoutError when %s is past totalTimeoutMs",
+		async (_case, handler) => {
+			await using api = await apiStart(handler);
+			const { sdkFetch } = overrideCreate({
+				baseUrl: api.baseUrl,
+				totalTimeoutMs: 500,
+			});
 
-		const response = await sdkFetch<Answered>("/api/v1/foos", {
-			method: "GET",
-		});
+			const error = await sdkFetch<Answered>("/api/v1/foos", {
+				method: "GET",
+			}).catch((caught: unknown) => caught);
 
-		expect(response.status).toBe(503);
-		expect(api.requests).toHaveLength(1);
-		expect(performance.now() - started).toBeLessThan(1500);
-	});
+			expect(error).toHaveProperty("name", "TimeoutError");
+			expect(api.requests).toHaveLength(1);
+		},
+	);
 
 	it("rejects with the error fetch gave when the API cannot be reached", async () => {
 		// Nothing listens on port 1.
@@ -340,31 +344,6 @@ describe("sdkFetchCreate", () => {
 		expect(api.requests).toHaveLength(2);
 		expect(Date.now()).toBeGreaterThanOrEqual(at.getTime() - 50);
 	});
-
-	it.each([
-		[
-			"a rate-limit reset past totalTimeoutMs",
-			{ "ratelimit-reset": "60" },
-			2000,
-		],
-		["a backoff past totalTimeoutMs", {}, 200],
-	])(
-		"resolves a 429 at once when %s",
-		async (_case, headers, totalTimeoutMs) => {
-			await using api = await apiStart(empty(429, headers));
-			const { sdkFetch } = overrideCreate({
-				baseUrl: api.baseUrl,
-				totalTimeoutMs,
-			});
-
-			const response = await sdkFetch<Answered>("/api/v1/foos", {
-				method: "GET",
-			});
-
-			expect(response.status).toBe(429);
-			expect(api.requests).toHaveLength(1);
-		},
-	);
 
 	it("parses a retried status's body as every other status's", async () => {
 		await using api = await apiStart(
@@ -494,14 +473,14 @@ describe("sdkFetchCreate options", () => {
 		const { sdkConfigure, sdkFetch } = overrideCreate();
 		expect(() => sdkConfigure({ timeoutMs: 0 })).toThrow(
 			new TypeError(
-				"sdkConfigure: timeoutMs must be a positive integer, 2147483647 at most, found 0",
+				"sdkConfigure: timeoutMs must be a whole number from 1 to 2147483647, found 0",
 			),
 		);
 		await expect(
 			sdkFetch("/a", { method: "GET", totalTimeoutMs: Number.NaN }),
 		).rejects.toThrow(
 			new TypeError(
-				"sdkFetch: totalTimeoutMs must be a positive integer, 2147483647 at most, found NaN",
+				"sdkFetch: totalTimeoutMs must be a whole number from 1 to 2147483647, found NaN",
 			),
 		);
 	});

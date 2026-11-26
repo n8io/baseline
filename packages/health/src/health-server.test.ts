@@ -178,7 +178,7 @@ describe("healthServerCreate", () => {
 				}),
 			).toThrow(
 				new TypeError(
-					`healthServerCreate: port must be an integer from 0 to 65535, found ${port}`,
+					`healthServerCreate: port must be a whole number from 0 to 65535, found ${port}`,
 				),
 			);
 		},

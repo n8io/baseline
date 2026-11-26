@@ -37,6 +37,7 @@
 		"test:unit": "vitest run"
 	},
 	"dependencies": {
-		"@n8io/baseline-logger": "workspace:^"
+		"@n8io/baseline-logger": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^"
 	}
 }

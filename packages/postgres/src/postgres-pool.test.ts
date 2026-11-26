@@ -100,7 +100,7 @@ describe("postgresPoolCreate", () => {
 					}),
 				).toThrow(
 					new TypeError(
-						`postgresPoolCreate: ${option} must be a positive integer${option === "max" ? "" : ", 2147483647 at most"}${option === "queryTimeoutMs" ? " or null" : ""}, found ${value}`,
+						`postgresPoolCreate: ${option} must be a whole number${option === "max" ? ", 1 or more" : " from 1 to 2147483647"}, found ${value}`,
 					),
 				);
 			}
@@ -117,7 +117,7 @@ describe("postgresPoolCreate", () => {
 				}),
 			).toThrow(
 				new TypeError(
-					`postgresPoolCreate: ${option} must be a positive integer, 2147483647 at most${option === "queryTimeoutMs" ? " or null" : ""}, found 2147483648`,
+					`postgresPoolCreate: ${option} must be a whole number from 1 to 2147483647, found 2147483648`,
 				),
 			);
 		},

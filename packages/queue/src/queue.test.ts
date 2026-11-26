@@ -38,7 +38,7 @@ describe("queueCreate", () => {
 			queueCreate({ concurrency, pgPool, role: "worker" }),
 		).rejects.toThrow(
 			new TypeError(
-				`queueCreate: concurrency must be a positive integer, found ${concurrency}`,
+				`queueCreate: concurrency must be a whole number, 1 or more, found ${concurrency}`,
 			),
 		);
 	});

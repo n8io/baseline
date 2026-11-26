@@ -44,7 +44,8 @@
 	"dependencies": {
 		"@n8io/baseline-id": "workspace:^",
 		"@n8io/baseline-logger": "workspace:^",
-		"@n8io/baseline-result": "workspace:^"
+		"@n8io/baseline-result": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^"
 	},
 	"devDependencies": {
 		"@types/pg": "^8.23.1",

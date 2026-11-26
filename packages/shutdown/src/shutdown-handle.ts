@@ -1,4 +1,5 @@
 import { logger } from "@n8io/baseline-logger";
+import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
 
 /**
  * One thing to close on shutdown: an intake (HTTP server, live streams, Event handlers) or a
@@ -30,10 +31,9 @@ export type ShutdownHandle = { isShuttingDown(): boolean };
 
 // The last 5 s before the deadline belong to the resources.
 const resourceReserveMs = 5000;
-// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days).
-const timerMax = 2_147_483_647;
 const timedOut = Symbol("timedOut");
 
+// Not `sharedTimeRace`: this timer must keep the process alive until the cutoff.
 const timeout = (ms: number): Promise<typeof timedOut> =>
 	new Promise((resolve) => {
 		setTimeout(() => resolve(timedOut), Math.max(0, ms));
@@ -71,20 +71,19 @@ export const shutdownHandleCreate = ({
 	const drainDelayMs = drainDelayMsGiven ?? drainDelayMsDefault;
 	// At or under the reserve, or with the drain reaching the cutoff, the intakes would get no
 	// time: every one would be cut at once.
-	if (
-		!Number.isInteger(deadlineMs) ||
-		deadlineMs <= resourceReserveMs ||
-		deadlineMs > timerMax
-	) {
-		throw new TypeError(
-			`shutdownHandleCreate: deadlineMs must be an integer over ${resourceReserveMs}, ${timerMax} at most, found ${deadlineMs}`,
-		);
-	}
-	if (!Number.isInteger(drainDelayMs) || drainDelayMs < 0) {
-		throw new TypeError(
-			`shutdownHandleCreate: drainDelayMs must be a whole number, found ${drainDelayMs}`,
-		);
-	}
+	sharedIntegerAssert({
+		caller: "shutdownHandleCreate",
+		max: sharedTimerMaxMs,
+		min: resourceReserveMs + 1,
+		name: "deadlineMs",
+		value: deadlineMs,
+	});
+	sharedIntegerAssert({
+		caller: "shutdownHandleCreate",
+		min: 0,
+		name: "drainDelayMs",
+		value: drainDelayMs,
+	});
 	if (drainDelayMs >= deadlineMs - resourceReserveMs) {
 		throw new TypeError(
 			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), found ${drainDelayMs}`,

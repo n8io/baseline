@@ -1,6 +1,10 @@
 import { logger } from "@n8io/baseline-logger";
+import {
+	sharedConnectionUrlAssert,
+	sharedIntegerAssert,
+	sharedTimerMaxMs,
+} from "@n8io/baseline-shared";
 import pg from "pg";
-import { postgresUrlAssert } from "./postgres-url-assert.ts";
 import {
 	type PostgresVendorOwnedKey,
 	postgresVendorAssert,
@@ -43,22 +47,6 @@ export type PostgresPoolOptions = {
 	vendor?: PostgresPoolVendorOptions | null;
 };
 
-// The longest wait a timer takes (2^31 - 1 ms, about 24.8 days); Postgres refuses a longer one too.
-const postgresDurationMax = 2_147_483_647;
-
-/**
- * Whether a duration in milliseconds is a positive integer a timer or a Postgres setting can hold.
- * For the other modules of this Package only.
- */
-export const postgresDurationIsValid = (value: number): boolean =>
-	Number.isSafeInteger(value) && value > 0 && value <= postgresDurationMax;
-
-/** The limit `postgresDurationIsValid` applies, for the messages that name it. */
-export const postgresDurationMessage: string = `a positive integer, ${postgresDurationMax} at most`;
-
-const postgresPositiveIntegerIs = (value: number): boolean =>
-	Number.isSafeInteger(value) && value > 0;
-
 /**
  * The process's one Postgres pool. pg 8.23 ignores `?connect_timeout=` in the URL, so the
  * settings live here. Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL,
@@ -72,27 +60,34 @@ export const postgresPoolCreate = (
 	const connectTimeoutMs = options.connectTimeoutMs ?? 3_000;
 	const max = options.max ?? 10;
 	const vendor = options.vendor ?? {};
-	postgresUrlAssert(databaseUrl, "postgresPoolCreate");
+	sharedConnectionUrlAssert(databaseUrl, "postgresPoolCreate");
 	postgresVendorAssert({
 		caller: "postgresPoolCreate",
 		databaseUrl,
 		owned: { max: "max", query_timeout: "queryTimeoutMs" },
 		vendor,
 	});
-	if (!postgresDurationIsValid(connectTimeoutMs)) {
-		throw new TypeError(
-			`postgresPoolCreate: connectTimeoutMs must be ${postgresDurationMessage}, found ${connectTimeoutMs}`,
-		);
-	}
-	if (!postgresPositiveIntegerIs(max)) {
-		throw new TypeError(
-			`postgresPoolCreate: max must be a positive integer, found ${max}`,
-		);
-	}
-	if (queryTimeoutMs !== null && !postgresDurationIsValid(queryTimeoutMs)) {
-		throw new TypeError(
-			`postgresPoolCreate: queryTimeoutMs must be ${postgresDurationMessage} or null, found ${queryTimeoutMs}`,
-		);
+	sharedIntegerAssert({
+		caller: "postgresPoolCreate",
+		max: sharedTimerMaxMs,
+		min: 1,
+		name: "connectTimeoutMs",
+		value: connectTimeoutMs,
+	});
+	sharedIntegerAssert({
+		caller: "postgresPoolCreate",
+		min: 1,
+		name: "max",
+		value: max,
+	});
+	if (queryTimeoutMs !== null) {
+		sharedIntegerAssert({
+			caller: "postgresPoolCreate",
+			max: sharedTimerMaxMs,
+			min: 1,
+			name: "queryTimeoutMs",
+			value: queryTimeoutMs,
+		});
 	}
 	const pgPool = new pg.Pool({
 		// Probe an idle connection after 10 s, not the OS default of about 2 hours, so a dead peer shows.

@@ -48,7 +48,8 @@
 		"test:unit": "vitest run --project unit"
 	},
 	"dependencies": {
-		"@n8io/baseline-logger": "workspace:^"
+		"@n8io/baseline-logger": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^"
 	},
 	"devDependencies": {
 		"@opentelemetry/api": "^1.10.0",
