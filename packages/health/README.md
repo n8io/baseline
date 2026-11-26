@@ -12,7 +12,7 @@ pnpm add @n8io/baseline-health
 
 | You get                                     | How                                                                                                                                                                           |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Never ready too early**                   | `/readyz` is 503 until you call `ready()`, once every intake listens.                                                                                                         |
+| **Never ready too early**                   | `/readyz` is 503 until you call `ready()`, once every intake (HTTP server, live streams, Event handlers) listens.                                                             |
 | **Out of rotation before it stops serving** | `/readyz` is 503 again as soon as `isShuttingDown()` is true, while open requests still finish.                                                                               |
 | **Liveness you decide**                     | `/livez` asks only your `isAlive()`, so a database outage restarts nothing unless you say so.                                                                                 |
 | **Its own port**                            | Plain `node:http`, apart from the Project's HTTP server: a slow route or a saturated server never hides a probe. It shares the event loop, so CPU-bound work still delays it. |

@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, normalize, resolve } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	readmeSvgDirectory,
@@ -350,5 +350,81 @@ describe("Package READMEs in the Blueprint shape", () => {
 			"packages/queue/README.md leaves a blank line before each </details>",
 			"packages/queue/README.md ends on **Needs**",
 		]);
+	});
+});
+
+// Every Package folder has a row in the root README's Packages table, and every name a Package
+// exports is written in its README (docs/agents/packages.md, "New Package").
+const packageNames = (): string[] =>
+	readdirSync(join(root, "packages")).filter((name) =>
+		existsSync(join(root, "packages", name, "package.json")),
+	);
+
+const commentsStrip = (source: string): string =>
+	source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const exportItemNames = (items: string): string[] =>
+	items
+		.split(",")
+		.map((item) => item.trim().replace(/^type\s+/, ""))
+		.filter((item) => item !== "")
+		.map((item) => item.split(/\s+as\s+/).at(-1) ?? item);
+
+// The names a file exports, following `export ... from` into the files it re-exports.
+const exportNamesRead = (file: string, seen = new Set<string>()): string[] => {
+	if (seen.has(file) || !existsSync(file)) {
+		return [];
+	}
+	seen.add(file);
+	const source = commentsStrip(readFileSync(file, "utf8"));
+	return [
+		...[...source.matchAll(/^export\s+(?:type\s+)?\{([^}]*)\}/gm)].flatMap(
+			(match) => exportItemNames(match[1] ?? ""),
+		),
+		...[
+			...source.matchAll(
+				/^export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|function\*?|class|type|interface|enum)\s+(\w+)/gm,
+			),
+		].map((match) => match[1] ?? ""),
+		...[...source.matchAll(/^export\s+\*\s+as\s+(\w+)\s+from/gm)].map(
+			(match) => match[1] ?? "",
+		),
+		...[...source.matchAll(/^export\s+\*\s+from\s+"([^"]+)"/gm)].flatMap(
+			(match) => exportNamesRead(resolve(dirname(file), match[1] ?? ""), seen),
+		),
+	];
+};
+
+const packageExports = (name: string): string[] => {
+	const manifest: { exports: Record<string, string> } = JSON.parse(
+		readFileSync(join(root, "packages", name, "package.json"), "utf8"),
+	);
+	return [
+		...new Set(
+			Object.values(manifest.exports).flatMap((entry) =>
+				exportNamesRead(resolve(root, "packages", name, entry)),
+			),
+		),
+	].sort();
+};
+
+describe("Package docs list every Package and export", () => {
+	it("has a row in the root README for every Package folder", () => {
+		const readme = readFileSync(join(root, "README.md"), "utf8");
+		expect(
+			packageNames().filter((name) => !readme.includes(`](packages/${name})`)),
+		).toEqual([]);
+	});
+
+	it.each(packageNames())("names every export of %s in its README", (name) => {
+		const readme = readFileSync(
+			join(root, "packages", name, "README.md"),
+			"utf8",
+		);
+		expect(
+			packageExports(name).filter(
+				(exported) => !new RegExp(`\\b${exported}\\b`).test(readme),
+			),
+		).toEqual([]);
 	});
 });

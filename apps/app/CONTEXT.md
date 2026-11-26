@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The standard DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`:
+The DDD and hexagonal terms ([ADR 0001](https://github.com/n8io/baseline/blob/main/docs/adr/0001-standard-ddd-terms.md), in the plain words of [ADR 0012](https://github.com/n8io/baseline/blob/main/docs/adr/0012-plain-terms.md)), shared by every bounded context. Each context's own terms live in its `src/contexts/<context>/CONTEXT.md`, listed in `CONTEXT-MAP.md`:
 
 **Bounded context**:
 The scope of one language, holding one or more Models grouped by business capability. In code and paths it is `context` (`src/contexts/<context>/`), split into `domain/`, `application/`, `adapters/inbound/` and `adapters/outbound/`, with dependencies pointing inward. Its `index.ts` is its one entry: `<context>ContextCreate(...)` and its Public contract. Outside code imports nothing else from a context, and Use case tests go through it.
@@ -160,7 +160,7 @@ The starter app in baseline's `apps/app`, released as `app@<version>`. A Project
 _Avoid_: boilerplate, scaffold, skeleton
 
 **Package**:
-One of baseline's `@n8io/baseline-*` npm libraries (queue, authn, cache and the rest), which a Project depends on like any library. A change to one ships as a new version, not through a Template upgrade.
+One of baseline's `@n8io/baseline-*` npm libraries (queue, authn, cache and the rest), which a Project depends on like any library. Each wraps one concern and holds no business rules. A change to one ships as a new version, not through a Template upgrade.
 _Avoid_: shared lib, shared module, shared code
 
 **Template upgrade**:
