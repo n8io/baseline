@@ -1,4 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import {
 	type LoggerErr,
 	loggerErrSerialize,
@@ -41,6 +41,8 @@ export type ErrorTrackingSentryOptions = {
 	dsn: string;
 	/** Which deployment reported it: `production`, `development`. */
 	environment: string;
+	/** Where it warns: anything with a `warn` method, such as the Package logger. Default the Package logger. */
+	logger?: Pick<Logger, "warn"> | null;
 	/** Settings only Sentry has: `release`, `dist`, `sampleRate`. */
 	vendor?: ErrorTrackingSentryVendorOptions | null;
 };
@@ -103,8 +105,10 @@ const eventAllowlist = (event: ErrorEvent): ErrorEvent => ({
 export const errorTrackingSentryCreate = ({
 	dsn,
 	environment,
+	logger: loggerGiven,
 	vendor,
 }: ErrorTrackingSentryOptions): ErrorTracking => {
+	const out = loggerGiven ?? logger;
 	for (const key of Object.keys(vendor ?? {})) {
 		if (!vendorKeys.has(key)) {
 			throw new TypeError(
@@ -131,7 +135,7 @@ export const errorTrackingSentryCreate = ({
 				});
 				await response.body?.cancel();
 				if (!response.ok) {
-					logger.warn(
+					out.warn(
 						{ status: response.status },
 						"Sentry refused an error report",
 					);
@@ -156,7 +160,7 @@ export const errorTrackingSentryCreate = ({
 	const close = async (): Promise<void> => {
 		const flushed = await client.close(closeTimeoutMs);
 		if (!flushed) {
-			logger.warn("Error reports still unsent at close");
+			out.warn("Error reports still unsent at close");
 		}
 	};
 	return {
@@ -187,7 +191,7 @@ export const errorTrackingSentryCreate = ({
 					},
 				});
 			} catch (reportError) {
-				logger.warn({ err: reportError }, "Dropped an error report");
+				out.warn({ err: reportError }, "Dropped an error report");
 			}
 		},
 	};

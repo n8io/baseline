@@ -1,4 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import {
 	sharedIntegerAssert,
 	sharedTimerMaxMs,
@@ -16,6 +16,8 @@ export type ShutdownStep = { name: string; close: () => Promise<void> };
  * passes its own to drive the handle without signals, exits or waiting.
  */
 export type ShutdownHost = {
+	/** Where it logs: anything with these methods, such as the Package logger. Default the Package logger. */
+	logger?: Pick<Logger, "error" | "fatal" | "info" | "warn"> | null;
 	/** Ends the process. Default `process.exit`. */
 	exit?: ((code: number) => void) | null;
 	/** Listens for a process event. Default `process.on`. */
@@ -52,15 +54,20 @@ export type ShutdownHandle = { isShuttingDown(): boolean };
 const resourceReserveMs = 5000;
 const timedOut = Symbol("timedOut");
 
-const stepClose = async (
-	kind: string,
-	step: ShutdownStep,
-): Promise<boolean> => {
+const stepClose = async ({
+	kind,
+	out,
+	step,
+}: {
+	kind: string;
+	out: Pick<Logger, "error">;
+	step: ShutdownStep;
+}): Promise<boolean> => {
 	try {
 		await step.close();
 		return true;
 	} catch (error) {
-		logger.error({ err: error }, `${kind} ${step.name} failed to close`);
+		out.error({ err: error }, `${kind} ${step.name} failed to close`);
 		return false;
 	}
 };
@@ -103,6 +110,7 @@ export const shutdownHandleCreate = ({
 			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), found ${drainDelayMs}`,
 		);
 	}
+	const out = host?.logger ?? logger;
 	const exit = host?.exit ?? ((code: number) => process.exit(code));
 	const on =
 		host?.on ??
@@ -150,7 +158,7 @@ export const shutdownHandleCreate = ({
 		const open = new Set(intakes);
 		const intakesDone = Promise.all(
 			intakes.map(async (intake) => {
-				const closed = await stepClose("Intake", intake);
+				const closed = await stepClose({ kind: "Intake", out, step: intake });
 				open.delete(intake);
 				return closed;
 			}),
@@ -159,7 +167,7 @@ export const shutdownHandleCreate = ({
 		if (intakeResult === timedOut) {
 			clean = false;
 			for (const intake of open) {
-				logger.warn(`Intake ${intake.name} still open at the cutoff`);
+				out.warn(`Intake ${intake.name} still open at the cutoff`);
 			}
 		} else if (intakeResult.includes(false)) {
 			clean = false;
@@ -167,13 +175,13 @@ export const shutdownHandleCreate = ({
 
 		for (const [index, resource] of resources.entries()) {
 			const closed = await Promise.race([
-				stepClose("Resource", resource),
+				stepClose({ kind: "Resource", out, step: resource }),
 				deadline,
 			]);
 			if (closed === timedOut) {
 				clean = false;
 				for (const left of resources.slice(index)) {
-					logger.error(`Resource ${left.name} still open at the deadline`);
+					out.error(`Resource ${left.name} still open at the deadline`);
 				}
 				break;
 			}
@@ -189,7 +197,7 @@ export const shutdownHandleCreate = ({
 	const shutdownExit = async (drainMs: number): Promise<void> => {
 		const clean = await shutdownRun(drainMs).catch(() => false);
 		const code = clean && !crashed ? 0 : 1;
-		logger.info({ code }, "Shutdown finished");
+		out.info({ code }, "Shutdown finished");
 		exit(code);
 	};
 
@@ -204,12 +212,12 @@ export const shutdownHandleCreate = ({
 
 	const onSignal = (signal: NodeJS.Signals) => {
 		if (start(drainDelayMs)) {
-			logger.info(`Shutdown started on ${signal}`);
+			out.info(`Shutdown started on ${signal}`);
 		}
 	};
 
 	const onCrash = (error: unknown) => {
-		logger.fatal({ err: error }, "Crashed, shutting down");
+		out.fatal({ err: error }, "Crashed, shutting down");
 		crashed = true;
 		start(0);
 	};

@@ -1,0 +1,6 @@
+// no-mocks: reassigning a method of an imported module is a hand-rolled spy
+// expect: No mocks, spies or fake timers
+// @file src/contexts/bar/application/bar-close.test.ts
+import { logger } from "../../../logger.ts";
+
+logger.debug = () => {};
