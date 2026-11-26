@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-shared",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "The small helpers the other Baseline Packages share: a timeout race, option checks, keep-alive timeouts and Postgres connection checks. Not meant to be called from a Project.",
 	"license": "MIT",
 	"type": "module",

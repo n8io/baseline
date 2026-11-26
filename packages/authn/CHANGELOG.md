@@ -1,5 +1,18 @@
 # @n8io/baseline-authn
 
+## 7.2.0
+
+### Minor Changes
+
+- da3de3f: Add optional `fetch` and `now` options to `authnMemoryTokenFetch` and `authnMemoryAuthorizationCreate`, a `fetch` option to `authnTestSignIn` and `AuthnOptions`, and `authnRefreshClientMiddlewareCreate`, so tests pass a fetch function or a clock instead of stubbing globals. Defaults are unchanged.
+
+### Patch Changes
+
+- 8745155: Tidy feature flags and secure headers.
+  - http: remove the `httpSecureHeaders` constant. Use `httpSecureHeadersCreate()` (same headers, no extra origins).
+  - feature-flags: drop the unused `@openfeature/core` peer and the `@n8io/baseline-telemetry` dependency (the evaluation log record now goes through `@opentelemetry/api`, an optional peer of the server adapter); add the `/launchdarkly/origins` entry so a server loads the CSP origins without the browser SDKs (`/launchdarkly/client` still re-exports it); throw a `TypeError` from both factories on an empty key or a `readyTimeoutMs` that is not a whole number of milliseconds from 1 to 2147483647 (0, negative and fractional values were accepted before, and now fail at boot); record evaluations under the instrumentation scope `@n8io/baseline-feature-flags` instead of `@n8io/baseline-telemetry`; export `FeatureFlagsFallbackOptions`, `FeatureFlagsOnFallback` and `FeatureFlagsLaunchDarklyClientVendorOptions`.
+  - feature-flags, sdk, live, authn: add `sideEffects: false` so bundlers can tree-shake them.
+
 ## 7.1.0
 
 ### Minor Changes
