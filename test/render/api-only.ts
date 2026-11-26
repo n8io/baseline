@@ -223,7 +223,49 @@ const apiGuardsRequire = async ({
 	}
 };
 
-// Serves build/server/index.js on memory adapters, asks for the OpenAPI document and checks the
+const readinessTimeoutMs = 120_000;
+const readinessIntervalMs = 250;
+const readinessRequestTimeoutMs = 5_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Polls the OpenAPI document until the built server answers 200: real readiness, not a fixed boot
+// time. The timeout only bounds a server that never comes up; a failure carries the server's own
+// stdout and stderr, and stops at once when the server exits.
+const openapiAwait = async ({
+	output,
+	port,
+	server,
+}: {
+	output: () => string;
+	port: number;
+	server: ReturnType<typeof spawn>;
+}): Promise<Response> => {
+	const deadline = Date.now() + readinessTimeoutMs;
+	const failure = (reason: string) =>
+		new Error(
+			`the built server never served /api/v1/openapi.json (${reason}). Server output:\n${output() || "(none)"}`,
+		);
+	for (;;) {
+		const res = await fetch(`http://127.0.0.1:${port}/api/v1/openapi.json`, {
+			signal: AbortSignal.timeout(readinessRequestTimeoutMs),
+		}).catch(() => undefined);
+		if (res?.status === 200) return res;
+		if (server.exitCode !== null || server.signalCode !== null) {
+			throw failure(
+				`the server exited with ${server.exitCode ?? server.signalCode}`,
+			);
+		}
+		if (Date.now() > deadline) {
+			throw failure(
+				`no 200 within ${readinessTimeoutMs}ms, last status ${res?.status ?? "none"}`,
+			);
+		}
+		await sleep(readinessIntervalMs);
+	}
+};
+
+// Serves build/server/index.js on memory adapters, waits for the OpenAPI document and checks the
 // guards on what it serves.
 const apiServe = async (directory: string) => {
 	const port = 3_100 + Math.floor(Math.random() * 800);
@@ -238,32 +280,26 @@ const apiServe = async (directory: string) => {
 				HEALTH_PORT: String(port + 1),
 				PORT: String(port),
 			},
-			stdio: "inherit",
+			stdio: ["ignore", "pipe", "pipe"],
 		},
 	);
+	const chunks: string[] = [];
+	for (const stream of [server.stdout, server.stderr]) {
+		stream?.setEncoding("utf8");
+		stream?.on("data", (chunk: string) => chunks.push(chunk));
+	}
+	const output = () => chunks.join("");
 	try {
-		const deadline = Date.now() + 20_000;
-		for (;;) {
-			const res = await fetch(
-				`http://127.0.0.1:${port}/api/v1/openapi.json`,
-			).catch(() => undefined);
-			if (res?.status === 200) {
-				const doc = (await res.json()) as OpenApiDocument;
-				if (!("/api/v1/invoice-lines" in doc.paths)) {
-					throw new Error("the served API has no /api/v1/invoice-lines");
-				}
-				await apiGuardsRequire({
-					doc,
-					openapi: res,
-					url: `http://127.0.0.1:${port}`,
-				});
-				return;
-			}
-			if (Date.now() > deadline || server.exitCode !== null) {
-				throw new Error("the built server never served /api/v1/openapi.json");
-			}
-			await new Promise((r) => setTimeout(r, 200));
+		const res = await openapiAwait({ output, port, server });
+		const doc = (await res.json()) as OpenApiDocument;
+		if (!("/api/v1/invoice-lines" in doc.paths)) {
+			throw new Error("the served API has no /api/v1/invoice-lines");
 		}
+		await apiGuardsRequire({
+			doc,
+			openapi: res,
+			url: `http://127.0.0.1:${port}`,
+		});
 	} finally {
 		server.kill("SIGTERM");
 		if (server.exitCode === null) await once(server, "exit");
