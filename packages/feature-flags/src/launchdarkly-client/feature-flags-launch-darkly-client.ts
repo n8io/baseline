@@ -74,6 +74,7 @@ export const featureFlagsLaunchDarklyClientCreate = <
 	vendor,
 }: FeatureFlagsLaunchDarklyClientOptions<D, K>): FeatureFlagsClient<D, K> => {
 	featureFlagsOptionsStringRequire({
+		factory: "featureFlagsLaunchDarklyClientCreate",
 		name: "clientSideId",
 		value: clientSideId,
 	});
