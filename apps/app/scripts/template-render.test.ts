@@ -707,27 +707,42 @@ describe("templateFinish", () => {
 	});
 });
 
-// template-upgrade writes a release's template-render.ts alone into a folder and imports it
-// (releaseRender), so the file imports nothing local, and its copy of processRun stays the same.
-describe("template-render.ts on its own", () => {
+// template-upgrade writes a release's template-render.ts and template-render-*.ts modules alone
+// into a folder and imports them (releaseRender), so they import only node: builtins and each
+// other, and the copy of processRun stays the same.
+describe("template-render modules on their own", () => {
 	const read = (name: string) =>
 		readFileSync(new URL(name, import.meta.url), "utf8");
+	const modules = [
+		"./template-render.ts",
+		...readdirSync(new URL(".", import.meta.url))
+			.filter((name) => /^template-render-[a-z]+\.ts$/.test(name))
+			.map((name) => `./${name}`),
+	];
 
-	it("imports only node: builtins", () => {
-		const specifiers = [
-			...read("./template-render.ts").matchAll(
-				/^(?:import|export)\b[^;]*?from "([^"]+)";/gms,
-			),
-		].map((m) => m[1]);
+	it("import only node: builtins and each other", () => {
+		const specifiers = modules.flatMap((name) =>
+			[
+				...read(name).matchAll(/^(?:import|export)\b[^;]*?from "([^"]+)";/gms),
+			].map((m) => m[1]),
+		);
 		expect(specifiers.length).toBeGreaterThan(0);
-		expect(specifiers.filter((s) => !s?.startsWith("node:"))).toEqual([]);
+		expect(
+			specifiers.filter(
+				(s) =>
+					!(
+						s?.startsWith("node:") ||
+						/^\.\/template-render(-[a-z]+)?\.ts$/.test(s ?? "")
+					),
+			),
+		).toEqual([]);
 	});
 
-	it("keeps its processRun the same as process-run.ts's", () => {
+	it("keeps their processRun the same as process-run.ts's", () => {
 		const body = (text: string) =>
 			/const processRun = (\(\{[\s\S]*?\?\? "";)/.exec(text)?.[1];
-		expect(body(read("./template-render.ts"))).toBeDefined();
-		expect(body(read("./template-render.ts"))).toBe(
+		expect(body(read("./template-render-process.ts"))).toBeDefined();
+		expect(body(read("./template-render-process.ts"))).toBe(
 			body(read("./process-run.ts")),
 		);
 	});
