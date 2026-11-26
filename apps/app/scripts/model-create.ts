@@ -54,7 +54,7 @@ import {
 	filesFormat,
 	filesWriteAll,
 	modelChecksRun,
-	modelMigrationHas,
+	modelHasMigration,
 	modelNextStepsText,
 	modelOptionsRefusal,
 	optionsAvailableFind,
@@ -159,7 +159,7 @@ const main = () => {
 			{
 				model,
 				context,
-				migrated: modelMigrationHas({ model, appDirectory, context }),
+				migrated: modelHasMigration({ model, appDirectory, context }),
 				options: options ?? optionsAvailableFind(appDirectory),
 			},
 		)}`,

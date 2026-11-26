@@ -135,7 +135,7 @@ export const modelNextStepsText = ({
 };
 
 // Whether a migration in migrations/ already creates the Model's table.
-export const modelMigrationHas = ({
+export const modelHasMigration = ({
 	model,
 	appDirectory,
 	context,
