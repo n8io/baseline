@@ -253,6 +253,89 @@ jobs:
           exit "$status"
 
   # Each installed piece is removed on a throwaway worktree; check and unit tests must pass without it.
+  # A Project that keeps a piece lists it in .template.json `piecesKept`. One job per piece, so the
+  # check stays fast as pieces are added; test/app-ci-pieces.test.ts keeps the list equal to pieceNames.
+  # The unmodified tree is not checked here: the `check` and `unit` jobs already run on HEAD.
+  piece:
+    name: piece (${{ matrix.piece }})
+    needs: changes
+    if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        piece:
+          - analytics
+          - api-reference
+          - cache
+          - error-tracking
+          - feature-flags
+          - live
+          - queue
+          - redis
+          - cli
+          - sdk
+          - ui
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      - run: pnpm piece-check --skip-tree ${{ matrix.piece }}
+
+  # The one required check for the pieces, as before: it passes when every piece job passed or
+  # was skipped (a Markdown-only diff, `skip`), so the ruleset never names a piece.
+  pieces:
+    needs: piece
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULT: ${{ needs.piece.result }}
+        run: |
+          case "$RESULT" in
+            success|skipped) ;;
+            *) echo "::error::The piece jobs ended $RESULT. Look at the failed piece (...) check."; exit 1 ;;
+          esac
+
+  image: postgres:18
+        env:
+          POSTGRES_DB: baseline
+          POSTGRES_PASSWORD: baseline
+          POSTGRES_USER: baseline
+        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
+        options: >-
+          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["5432:5432"]
+      redis:
+        image: redis:8
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["6379:6379"]
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      # CI enforces the budget on the command, the job limit is only a backstop.
+      - env:
+          INTEGRATION_CACHE_URL: redis://localhost:6379
+          INTEGRATION_DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
+        run: |
+          status=0
+          timeout 4m pnpm test:integration || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          exit "$status"
+
+  # Each installed piece is removed on a throwaway worktree; check and unit tests must pass without it.
   # A Project that keeps a piece lists it in .template.json `piecesKept`.
   pieces:
     needs: changes
