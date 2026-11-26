@@ -713,7 +713,14 @@ importers:
         specifier: workspace:^
         version: link:../telemetry
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/shutdown:
     dependencies:
