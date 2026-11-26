@@ -1,3 +1,4 @@
+// Maintainer script: part of baseline's own agent workflow, never rendered into a Project.
 // Checks a branch before its pull request opens, with no model: size, changeset and whether a model review is
 // worth running. Usage: node scripts/pre-pr.ts [--base origin/main]
 // Exit code 0: nothing failed (read the lines for warnings), 1: a check failed.

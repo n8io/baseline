@@ -27,7 +27,8 @@ on:
         type: boolean
 
 # On a pull request, unit runs only the tests its diff reaches (`pnpm test --changed`), and a diff of
-# Markdown alone skips integration, pieces and image. Every other run (the Template's nightly run on
+# Markdown alone skips integration, pieces and image, and a diff with no manifest, piece tooling or piece
+# marker change skips the piece jobs (the `changes` job says when). Every other run (the Template's nightly run on
 # main, a dispatch, baseline's render) runs everything.
 jobs:
   # Whether the pull request changes anything but Markdown. If this job fails or is skipped (baseline's
@@ -38,6 +39,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      pieces: ${{ steps.diff.outputs.pieces }}
     steps:
       - if: github.event_name == 'pull_request'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,12 +52,23 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
         run: |
           code=true
+          pieces=true
           if [ -n "$BASE" ]; then
             # Its own line, so a failed diff fails the job (and the jobs run) instead of reading as empty.
             files=$(git diff --name-only --no-renames "$BASE...HEAD")
             if ! grep -qv '\.md$' <<< "$files"; then code=false; fi
+            # The piece jobs (11 of them) run on a pull request only when its diff can change what a
+            # piece removal touches: a manifest, the piece tooling, or a piece marker line. Every
+            # other run (the nightly run on main, a dispatch, baseline's render) runs them all.
+            pieces=false
+            patch=$(git diff --unified=0 --no-renames "$BASE...HEAD")
+            if grep -qE '(^|/)(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$|^scripts/piece' <<< "$files" \
+              || grep -qE '^[+-][[:space:]]*(//|#) piece-(start|end): ' <<< "$patch"; then
+              pieces=true
+            fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "pieces=$pieces" >> "$GITHUB_OUTPUT"
 
   # Every check that needs the install and finishes in seconds, in one job: each job bills at least
   # a minute and spends about 25 s on setup. Lint, types and format, then migrations, then oasdiff.
@@ -259,7 +272,7 @@ jobs:
   piece:
     name: piece (${{ matrix.piece }})
     needs: changes
-    if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' && needs.changes.outputs.pieces != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:

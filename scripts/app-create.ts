@@ -3,6 +3,7 @@
 // GitHub repository, the CI ruleset, squash-only merging and Dependabot security updates, and runs CI once on main.
 // --no-github stops after the commit; --github-only does the GitHub half inside an existing render.
 // Flags skip the questions: --name --description [--owner]. docs/agents/project-create.md.
+// --without a,b removes those Pieces (apps/app/scripts/pieces.ts) from the new Project right after its first commit.
 import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -10,6 +11,12 @@ import { createInterface } from "node:readline/promises";
 import { setTimeout } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { npmTarballsWait } from "../apps/app/scripts/npm-tarballs-wait.ts";
+import {
+	type Piece,
+	pieceIsKnown,
+	pieceNames,
+	pieces,
+} from "../apps/app/scripts/pieces.ts";
 import { processRun } from "../apps/app/scripts/process-run.ts";
 import {
 	filesWrite,
@@ -345,12 +352,33 @@ const startDirectory = (): string =>
 	// biome-ignore lint/suspicious/noUndeclaredEnvVars: pnpm sets it; turbo never runs app-create
 	process.env["INIT_CWD"] ?? process.cwd();
 
+// The Pieces in an order piece-remove accepts: a Piece goes after the ones its `after` names
+// (redis after cache and live, sdk after cli), whatever order they were asked for.
+export const piecesRemovalOrder = (asked: string[]): string[] => {
+	const ordered: string[] = [];
+	let rest = asked.filter(pieceIsKnown);
+	while (rest.length > 0) {
+		const ready = rest.filter((name) =>
+			(pieces[name as Piece].after ?? []).every(
+				(later) => !rest.includes(later),
+			),
+		);
+		// A cycle cannot happen (the removals are a fixed list); take the rest as given if it did.
+		const next = ready.length > 0 ? ready : rest;
+		ordered.push(...next);
+		rest = rest.filter((name) => !next.includes(name));
+	}
+	return ordered;
+};
+
 export type AppCreateArgs = {
 	description: string | null;
 	// all: render, then GitHub. render: --no-github. github: --github-only.
 	mode: "all" | "github" | "render";
 	name: string | null;
 	owner: string | null;
+	// Pieces to remove at create time, in the order given, with no repeats.
+	without: string[];
 };
 
 export const appCreateArgsRead = (args: string[]): AppCreateArgs => {
@@ -363,10 +391,31 @@ export const appCreateArgsRead = (args: string[]): AppCreateArgs => {
 			"github-only": { default: false, type: "boolean" },
 			name: { type: "string" },
 			owner: { type: "string" },
+			without: { type: "string" },
 		},
 	});
+	const without = [
+		...new Set(
+			(values.without ?? "")
+				.split(",")
+				.map((name) => name.trim())
+				.filter((name) => name !== ""),
+		),
+	];
+	const unknown = without.filter((name) => !pieceIsKnown(name));
+	if (unknown.length > 0) {
+		throw new Error(
+			`--without names ${unknown.join(", ")}, which is not a Piece; the Pieces are ${pieceNames.join(", ")}`,
+		);
+	}
 	if (values["github-only"] && !values.github) {
 		throw new Error("--github-only and --no-github cannot go together");
+	}
+	if (values.without === "") throw new Error("--without needs Piece names");
+	if (values["github-only"] && values.without !== undefined) {
+		throw new Error(
+			"--github-only renders nothing, so --without has no effect",
+		);
 	}
 	if (
 		values["github-only"] &&
@@ -381,6 +430,7 @@ export const appCreateArgsRead = (args: string[]): AppCreateArgs => {
 		mode: values["github-only"] ? "github" : values.github ? "all" : "render",
 		name: values.name ?? null,
 		owner: values.owner ?? null,
+		without,
 	};
 };
 
@@ -531,7 +581,10 @@ const answersAsk = async (
 	}
 };
 
-const projectRender = async (answers: TemplateAnswers): Promise<string> => {
+const projectRender = async (
+	answers: TemplateAnswers,
+	without: string[],
+): Promise<string> => {
 	const directory = resolve(startDirectory(), answers.name);
 	if (existsSync(directory)) throw new Error(`${directory} already exists`);
 	const release = releaseLatest();
@@ -560,6 +613,12 @@ const projectRender = async (answers: TemplateAnswers): Promise<string> => {
 		await npmTarballsWait({ directory });
 		pnpmInheritRun(directory, ["install", "--no-frozen-lockfile"]);
 		gitCommitAll(directory, `🎉 Create ${answers.name} from app@${release}`);
+		// One at a time, each its own commit: piece-remove wants a clean tree, runs the Project's check
+		// and undoes itself when it fails.
+		for (const piece of piecesRemovalOrder(without)) {
+			pnpmInheritRun(directory, ["piece-remove", piece]);
+			gitCommitAll(directory, `➖ Remove ${piece}`);
+		}
 	} catch (error) {
 		console.error(
 			`app-create: stopped before creating the repository; ${directory} holds the partial render`,
@@ -738,7 +797,7 @@ const main = async () => {
 		return;
 	}
 	const answers = await answersAsk(args);
-	const directory = await projectRender(answers);
+	const directory = await projectRender(answers, args.without);
 	if (args.mode === "render") {
 		console.log(
 			`Rendered and committed ${directory}; nothing exists on GitHub yet.`,

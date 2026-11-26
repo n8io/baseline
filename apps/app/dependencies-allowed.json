@@ -12,7 +12,7 @@
 	"@varlock/infisical-plugin": "varlock reads secrets from Infisical",
 	"class-variance-authority": "variants for shadcn/ui components (ui)",
 	"cn": "merges Tailwind class names for shadcn/ui components (ui)",
-	"drizzle-orm": "SQL queries and table schemas on Postgres",
+	"drizzle-orm": "SQL queries and table schemas on Postgres; drizzle-orm and drizzle-kit are pinned exactly to a 1.0 release candidate, because the 1.0 query and migration API is what the Template is written against and no stable release has it. Exit: when 1.0.0 is published, move both to ^1.0.0 and delete this clause. Until then take each rc bump (rc.6 exists) by hand, with drizzle-kit check and generate passing",
 	"hono": "the HTTP framework",
 	"import-in-the-middle": "lets OpenTelemetry patch ES modules (src/preload.ts)",
 	"pg": "the Postgres driver, peer of @n8io/baseline-postgres",
@@ -20,7 +20,7 @@
 	"react": "renders the UI (ui)",
 	"react-dom": "renders the UI in the browser (ui)",
 	"react-router": "routes, loaders and server rendering (ui)",
-	"react-router-hono-server": "serves React Router from Hono (ui)",
+	"react-router-hono-server": "serves React Router from Hono: its Vite plugin runs the dev server and its createHonoServer builds the production entry (ui). Pinned exactly, and its isbot dependency needs a knip ignore. It stays because the standard replacement (React Router's request handler on @hono/node-server) means owning that dev-server and build glue in every Project; swap only if the plugin goes unmaintained",
 	"swagger-ui-dist": "Swagger UI at /api/v1/docs (api-reference)",
 	"varlock": "the env schema, its checks and secret loading",
 	"zod": "schemas for routes, env and Use case input"

@@ -1,0 +1,100 @@
+# The smallest way to run this Project on Kubernetes: a migrate Job, a Server behind a Service and a
+# Worker. Replace ghcr.io/OWNER/PROJECT:TAG with the image image-publish.yml pushed (every use below),
+# and create the Secret `app-env` holding the variables .env.production names (or the INFISICAL_* ones).
+# Run the migrate Job to the end before the Deployments roll: `kubectl apply -f` the Job, wait for it,
+# then apply the rest. A Job cannot change once made: delete app-migrate (or rename it per release) first. Probes, pool sizing and rollouts: docs/agents/deploy-kubernetes.md.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-migrate
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: migrate
+          image: ghcr.io/OWNER/PROJECT:TAG
+          command: ["node", "src/migrate.ts"]
+          envFrom: [{ secretRef: { name: app-env } }]
+          securityContext:
+            { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: app-server }
+  template:
+    metadata:
+      labels: { app: app-server }
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: server
+          image: ghcr.io/OWNER/PROJECT:TAG
+          envFrom: [{ secretRef: { name: app-env } }]
+          ports:
+            - { containerPort: 3000, name: http }
+          startupProbe:
+            httpGet: { path: /livez, port: 9000 }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /readyz, port: 9000 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /livez, port: 9000 }
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-server
+spec:
+  selector: { app: app-server }
+  ports:
+    - { port: 80, targetPort: http }
+# piece-start: queue
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: app-worker }
+  template:
+    metadata:
+      labels: { app: app-worker }
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: worker
+          image: ghcr.io/OWNER/PROJECT:TAG
+          command: ["node", "src/worker.ts"]
+          envFrom: [{ secretRef: { name: app-env } }]
+          startupProbe:
+            httpGet: { path: /livez, port: 9000 }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /readyz, port: 9000 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /livez, port: 9000 }
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+# piece-end: queue

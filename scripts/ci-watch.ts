@@ -1,3 +1,4 @@
+// Maintainer script: part of baseline's own agent workflow, never rendered into a Project.
 // Waits on a pull request's checks and says what they are doing. A check that was cancelled (a job that
 // hit its time limit sends no event) counts as red; the first time it shows up, its run is re-run once.
 // Usage: node scripts/ci-watch.ts <pull request number> [--repo owner/name] [--every <seconds>]

@@ -1,3 +1,4 @@
+// Maintainer script: part of baseline's own agent workflow, never rendered into a Project.
 // Prints the kickoff for a ticket thread, so the standing text is never retyped.
 // Usage: node scripts/kickoff.ts <issue number> --title <title> [--repo owner/name] [--context <path>]
 //   [--owns <files>] [--gates <text>] [--size <lines>]
