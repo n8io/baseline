@@ -10,7 +10,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { argsParse } from "./args.ts";
 import { conflictOwnLines } from "./conflict-report.ts";
@@ -185,6 +185,12 @@ export const releaseRender = async (
 	if (own === undefined) return templateFilesRender(files, answers);
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-code-"));
 	const path = join(work.path, "template-render.ts");
+	// A release that split its render code keeps the modules beside the entry point.
+	for (const file of files.filter((f) =>
+		/^scripts\/template-render-[a-z]+\.ts$/.test(f.path),
+	)) {
+		writeFileSync(join(work.path, basename(file.path)), file.text);
+	}
 	writeFileSync(path, own.text);
 	const module = (await import(pathToFileURL(path).href)) as {
 		templateFilesRender: typeof templateFilesRender;

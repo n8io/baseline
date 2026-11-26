@@ -1,6 +1,6 @@
 // Runs the commands the scripts shell out to. Not a command: other scripts import it.
-// template-render.ts keeps its own private copy of processRun, because template-upgrade loads that
-// file alone (releaseRender) and so it imports nothing local.
+// template-render-process.ts keeps its own private copy of processRun, because template-upgrade loads the
+// template-render modules alone (releaseRender) and so they import nothing local.
 import { execFileSync } from "node:child_process";
 
 // Runs a command and returns its stdout. Its stderr is kept out of the terminal: a failure's error

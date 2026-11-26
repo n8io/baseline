@@ -584,6 +584,36 @@ describe("templateUpgradeRun", () => {
 		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("own\n");
 	});
 
+	it("renders a release whose render code is split into modules", async () => {
+		using folder = projectCreate("one\ntwo\nthree\nfour\nfive\n");
+		const app = folder.path;
+		const entry = {
+			path: "scripts/template-render.ts",
+			text: 'import { ownFile } from "./template-render-own.ts";\nexport const templateFilesRender = (files) => [...files.filter((f) => !f.path.startsWith("scripts/")), ownFile];\n',
+		};
+		const part = {
+			path: "scripts/template-render-own.ts",
+			text: 'export const ownFile = { path: "src/own.ts", text: "split\\n" };\n',
+		};
+		const withSplit: UpgradeTools = {
+			...tools,
+			fetch: (version) =>
+				version === "1.2.0"
+					? [...(releases["1.0.0"] ?? []), entry, part]
+					: tools.fetch(version),
+		};
+
+		expect(
+			await templateUpgradeRun({
+				appDirectory: app,
+				to: "1.2.0",
+				tools: withSplit,
+				...runCapture(),
+			}),
+		).toBe(0);
+		expect(readFileSync(join(app, "src/own.ts"), "utf8")).toBe("split\n");
+	});
+
 	it("installs only after npm serves the tarballs the lockfile names, and says so when it never does", async () => {
 		let asked = 0;
 		const server = createServer((_request, response) => {
