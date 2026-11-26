@@ -14,12 +14,9 @@ export type {
 	Authn,
 	AuthnClaims,
 	AuthnMemoryClient,
-	AuthnMemoryIssuer,
 	AuthnMemoryUser,
-	AuthnOidcIssuer,
 	AuthnOptions,
 	AuthnState,
-	AuthnTokens,
 	AuthnVerified,
 } from "./authn-types.ts";
 
