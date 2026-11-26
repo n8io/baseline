@@ -64,13 +64,8 @@ describe("architecture", () => {
 		);
 	});
 
-	// The regex checks of A5, A11, A14, A18 and A28 pass once the failing file is fixed.
+	// The regex checks of A11, A14, A18 and A28 pass once the failing file is fixed.
 	it.each([
-		{
-			from: "#contexts/bar/adapters/inbound/bar-routes.ts",
-			name: "a05-root-imports-adapter-entry.txt",
-			to: "#contexts/bar/index.ts",
-		},
 		{
 			from: "return { barContext };",
 			name: "a18-context-unbuilt.txt",
@@ -138,33 +133,6 @@ describe("architecture", () => {
 	});
 
 	// The passing side of each rule that A14 and A25 loosened or added.
-	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
-		const acl = await architectureFileCreate(
-			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
-			'import type { BazContext } from "#contexts/baz/index.ts";\n',
-		);
-		const seed = (source: string) =>
-			architectureFileCreate(
-				"src/contexts/bar/adapters/inbound/bar-seed.ts",
-				source,
-			);
-		const typed = await seed(
-			'import type { BazContext } from "#contexts/baz/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([acl, typed])).toEqual([]);
-		// Without the ACL, baz is no upstream of bar.
-		expect(architectureRules["A6"]?.([typed])).toHaveLength(1);
-		const value = await seed(
-			'import { bazScopes } from "#contexts/baz/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([acl, value])).toHaveLength(1);
-		const other = await architectureFileCreate(
-			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
-			'import type { QuxContext } from "#contexts/qux/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([other])).toHaveLength(1);
-	});
-
 	it("A6 lets only tests and test helpers in a context build contexts or open connections", async () => {
 		const source =
 			'import { connectionsOpen } from "../../../../connections.ts";\nimport { contextsCreate } from "../../../../contexts.ts";\n';

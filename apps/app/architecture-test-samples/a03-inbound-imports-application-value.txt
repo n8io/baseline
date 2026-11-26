@@ -1,0 +1,6 @@
+// A3: adapters/inbound/ imports only the types of application/
+// expect: src/contexts/bar/adapters/inbound/bar-routes.ts imports ../../application/bar-use-cases.ts: adapters/inbound/ imports only the types of application/
+// @file src/contexts/bar/adapters/inbound/bar-routes.ts
+import { barUseCasesCreate } from "../../application/bar-use-cases.ts";
+
+export const barRoutesCreate = barUseCasesCreate;

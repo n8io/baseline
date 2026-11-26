@@ -1,5 +1,5 @@
 // A1: business code never imports its context's index.ts
-// expect: src/contexts/bar/application/bar-create.ts imports ../index.ts: business code never imports its context's index.ts
+// expect: A1: business code (root files, domain/, application/) never imports adapters/ or its context
 // @file src/contexts/bar/application/bar-create.ts
 import { barScopes } from "../index.ts";
 

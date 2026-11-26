@@ -1,0 +1,6 @@
+// A8: a Use case may import telemetry/span
+// expect:
+// @file src/contexts/bar/application/bar-get.ts
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
+
+export const barGet = () => telemetrySpanAttributesSet({ "baseline.bar.id": "1" });
