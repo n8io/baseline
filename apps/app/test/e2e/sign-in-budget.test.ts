@@ -2,10 +2,10 @@ import lighthouse from "lighthouse";
 import { type Browser, chromium } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-	type E2eServer,
-	e2eServerPortFree,
-	e2eServerStart,
-} from "./e2e-server.ts";
+	type UiServer,
+	uiServerPortFree,
+	uiServerStart,
+} from "../../scripts/ui-server.ts";
 
 // The sign-in page's performance budget. Lighthouse drives the Chromium Playwright launched, over its
 // debugging port, and throttles by simulation, so one run is stable. Baseline on the production build
@@ -21,13 +21,13 @@ const budget = {
 	tbtMsMax: 200,
 } as const;
 
-let server: E2eServer;
+let server: UiServer;
 let browser: Browser;
 let port: number;
 
 beforeAll(async () => {
-	server = await e2eServerStart();
-	port = await e2eServerPortFree();
+	server = await uiServerStart();
+	port = await uiServerPortFree();
 	browser = await chromium.launch({
 		args: [`--remote-debugging-port=${port}`],
 	});

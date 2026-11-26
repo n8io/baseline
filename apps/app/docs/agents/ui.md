@@ -96,6 +96,15 @@ const setup = (actor: Actor | null = owner) => {
 - `routerTestContextCreate` and `routerTestArgsCreate` in `router-test-context.ts` build the context and the request. Pass one `[context key, Use cases]` entry per bounded context the page reads.
 - Check what a thrown `data(...)` carries with `toMatchObject({ data: { type }, init: { status } })`.
 
+## Look at the page
+
+`pnpm build`, then:
+
+- `pnpm ui-up --check` is the spin-up check: it boots the build on memory adapters (no Docker), prints the seconds to the first 200 on the sign-in page, and stops. `pnpm ui-up` keeps it running and prints its URL.
+- Every instance picks its own free ports and has its own memory adapters, so each worktree runs its own `pnpm ui-up`, `pnpm ui-shot` and `pnpm test:e2e` at the same time. Nothing else is shared: `build/` is per worktree, and the Server takes no fixed port. Never give an instance `PORT` or `HEALTH_PORT`.
+- A UI PR shows before and after. In a worktree of `main` (its `pnpm build` first) run `pnpm ui-shot --label before`; on the branch, `pnpm build` and `pnpm ui-shot --label after`. Add `--path /route` (repeat it) for other pages and `--sign-in` for pages behind the sign-in. It shoots a desktop (1280x800) and a phone (390x844) viewport at device scale factor 2, full page, and prints each file's path. The files go to `<temp folder>/ui-shots/<worktree folder>/` (`--out` changes it), outside the repository.
+- Put the images in the PR description by dragging each file into the description's editor on GitHub, under a "Before" and an "After" heading. Never commit a screenshot or push it to a branch, and never add one to the repository.
+
 ## Removing a page
 
 Delete its route module and test, and its line in `src/ui/routes.ts`, then run `pnpm check`: `react-router typegen` deletes the page's generated route types, which otherwise break `tsc`.
