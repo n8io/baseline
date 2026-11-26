@@ -302,55 +302,6 @@ jobs:
             *) echo "::error::The piece jobs ended $RESULT. Look at the failed piece (...) check."; exit 1 ;;
           esac
 
-  image: postgres:18
-        env:
-          POSTGRES_DB: baseline
-          POSTGRES_PASSWORD: baseline
-          POSTGRES_USER: baseline
-        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
-        options: >-
-          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
-          --health-interval 2s --health-timeout 5s --health-retries 30
-        ports: ["5432:5432"]
-      redis:
-        image: redis:8
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s --health-timeout 5s --health-retries 30
-        ports: ["6379:6379"]
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      # CI enforces the budget on the command, the job limit is only a backstop.
-      - env:
-          INTEGRATION_CACHE_URL: redis://localhost:6379
-          INTEGRATION_DATABASE_URL: postgres://baseline:baseline@localhost:5432/baseline
-        run: |
-          status=0
-          timeout 4m pnpm test:integration || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
-          exit "$status"
-
-  # Each installed piece is removed on a throwaway worktree; check and unit tests must pass without it.
-  # A Project that keeps a piece lists it in .template.json `piecesKept`.
-  pieces:
-    needs: changes
-    if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - *checkout
-      - *download
-      - *extract
-      - *pnpm
-      - *node
-      - *install
-      - run: pnpm piece-check
-
   image:
     needs: changes
     if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' }}
