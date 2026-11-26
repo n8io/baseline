@@ -131,7 +131,7 @@ jobs:
     timeout-minutes: 6
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:c699303802144847d238196173655dbbecf7a96aeca1565f2b02eb671a1f0b6b
         env:
           POSTGRES_DB: baseline
           POSTGRES_PASSWORD: baseline
@@ -142,7 +142,7 @@ jobs:
           --health-interval 2s --health-timeout 5s --health-retries 30
         ports: ["5432:5432"]
       redis:
-        image: redis:8
+        image: redis:8@sha256:ca1cb6df9313d0186b68f19b60fc2802e0c76e8542b2c05650b560e7bbb3cc8f
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 2s --health-timeout 5s --health-retries 30
