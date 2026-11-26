@@ -15,7 +15,7 @@ pnpm dev
 
 `pnpm dev` starts the database and the cache in Docker, migrates, seeds, then runs the Worker beside the dev server: open the URL it prints. Each linked git worktree runs its own copy, with its own containers, data, ports and URL. Development signs in through a memory issuer and reads plain values from `.env.development`, so it needs no identity provider and no secrets.
 
-**Needs** Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), the pnpm that `packageManager` names, and Docker.
+**Needs** the Node version in `.node-version` ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), the pnpm that `packageManager` names, and Docker.
 
 ## What runs
 
