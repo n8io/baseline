@@ -26,8 +26,12 @@ jobs:
       EVENT: ${{ github.event.workflow_run.event }}
       RUN_URL: ${{ github.event.workflow_run.html_url }}
     steps:
+      # The job summary names the jobs about to be rerun, so a flake shows on the recover run without opening ci.
       - if: env.ATTEMPT == '1'
-        run: gh run rerun "$RUN_ID" --failed --repo "$REPO"
+        run: |
+          failed=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name] | join(", ")')
+          echo "Rerun of $RUN_URL (first attempt, $EVENT): $failed" >> "$GITHUB_STEP_SUMMARY"
+          gh run rerun "$RUN_ID" --failed --repo "$REPO"
       - if: env.ATTEMPT != '1' && env.EVENT == 'schedule'
         run: |
           failed=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | "- " + .name] | join("\n")')
