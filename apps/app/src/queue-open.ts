@@ -9,10 +9,13 @@ import { resourceOpen, type ShutdownSteps } from "./shutdown-step-add.ts";
 // intakes, since it brings work in there, else the resources.
 export const queueOpen = async ({
 	database,
+	poolMax,
 	role,
 	steps,
 }: {
 	database: PostgresPool | "memory";
+	// The pool's size, from databaseOpen.
+	poolMax: number;
 	role: "publisher" | "worker";
 	steps: ShutdownSteps;
 }): Promise<{
@@ -26,7 +29,7 @@ export const queueOpen = async ({
 	const queue = await queueCreate({
 		// A Worker runs this many Events and Schedule runs at once, across all its Event handlers. Each
 		// holds a pool connection while it runs, so one is kept free for the queue's own polls.
-		concurrency: Math.max(1, (database.options.max ?? 10) - 1),
+		concurrency: Math.max(1, poolMax - 1),
 		pgPool: database,
 		role,
 	});

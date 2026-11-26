@@ -9,14 +9,16 @@ const poolMax = async ({
 	poolMax?: number;
 	role: "publisher" | "worker";
 }) => {
-	const database = databaseOpen({
+	const opened = databaseOpen({
 		poolMax: poolMax ?? null,
 		role,
 		url: "postgres://localhost/app",
 	});
-	if (database === "memory") throw new Error("expected a pool");
-	await using pgPool = database;
-	return pgPool.options.max;
+	if (opened.database === "memory") throw new Error("expected a pool");
+	await using pgPool = opened.database;
+	// The queue sizes its concurrency from poolMax, so it must be the pool's own max, as before.
+	expect(opened.poolMax).toBe(pgPool.options.max);
+	return opened.poolMax;
 };
 
 describe("connectionsOpen", () => {
@@ -57,6 +59,13 @@ describe("databaseOpen", () => {
 	it("sizes the pool at 10 for the Server and 5 for the Worker", async () => {
 		expect(await poolMax({ role: "publisher" })).toBe(10);
 		expect(await poolMax({ role: "worker" })).toBe(5);
+	});
+
+	it("returns a memory database with the poolMax it would have sized", () => {
+		expect(databaseOpen({ role: "worker", url: "memory://" })).toEqual({
+			database: "memory",
+			poolMax: 5,
+		});
 	});
 
 	it("sizes the pool from poolMax for the Server and the Worker", async () => {
