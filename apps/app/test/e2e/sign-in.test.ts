@@ -1,19 +1,19 @@
 import { type AxeResults, source as axeSource } from "axe-core";
 import { type Browser, chromium, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type E2eServer, e2eServerStart } from "./e2e-server.ts";
+import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
 
 // The sign-in page is the memory issuer's, in development and test. One Server and one browser serve
 // every test here; Playwright records no trace unless a test starts one.
 type Axe = { run: () => Promise<AxeResults> };
 
-let server: E2eServer;
+let server: UiServer;
 let browser: Browser;
 let page: Page;
 let consoleErrors: string[];
 
 beforeAll(async () => {
-	server = await e2eServerStart();
+	server = await uiServerStart();
 	browser = await chromium.launch();
 }, 60_000);
 
