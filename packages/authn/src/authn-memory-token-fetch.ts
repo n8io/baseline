@@ -14,6 +14,10 @@ export type AuthnMemoryTokenFetchOptions = {
 	baseUrl: string;
 	/** One of the Project's `memoryClients`. */
 	clientId: string;
+	/** Reads the epoch ms `expiresAt` counts from. `null` means `Date.now`. */
+	now?: (() => number) | null;
+	/** Sends the request. `null` means the global `fetch`. */
+	fetch?: typeof fetch | null;
 	/** The scopes to ask for. `null` means all of the client's. */
 	scopes?: readonly string[] | null;
 };
@@ -38,10 +42,12 @@ const tokenResponseRead = (
 export const authnMemoryTokenFetch = async ({
 	baseUrl,
 	clientId,
+	fetch: fetchOption,
+	now,
 	scopes,
 }: AuthnMemoryTokenFetchOptions): Promise<AuthnMemoryToken> => {
 	const origin = new URL(baseUrl).origin;
-	const res = await fetch(`${origin}/auth/token`, {
+	const res = await (fetchOption ?? fetch)(`${origin}/auth/token`, {
 		body: new URLSearchParams({
 			client_id: clientId,
 			grant_type: "client_credentials",
@@ -67,7 +73,7 @@ export const authnMemoryTokenFetch = async ({
 	);
 	return {
 		authorization: `Bearer ${token}`,
-		expiresAt: Date.now() + expires_in * 1000,
+		expiresAt: (now ?? Date.now)() + expires_in * 1000,
 		token,
 	};
 };

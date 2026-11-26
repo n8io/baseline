@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { FeatureFlagsClient } from "./feature-flags-client.ts";
 import type { FeatureFlagContextResolved } from "./feature-flags-context.ts";
 import type { FeatureFlagFallback } from "./feature-flags-resolve.ts";
@@ -60,7 +60,7 @@ export const featureFlagsClientContractRun = (
 			});
 			expect(client.flags.get("itemLimit")).toBe(10);
 			await client.ready;
-			await vi.waitFor(() => expect(client.flags.get("itemLimit")).toBe(3));
+			await expect.poll(() => client.flags.get("itemLimit")).toBe(3);
 			await client.close();
 		});
 
@@ -92,12 +92,12 @@ export const featureFlagsClientContractRun = (
 			const first = client.flags.get("theme");
 			expect(client.flags.get("theme")).toBe(first);
 			await valuesSet(() => ({ "item-limit": 4, theme: { mode: "dark" } }));
-			await vi.waitFor(() => expect(client.flags.get("itemLimit")).toBe(4));
+			await expect.poll(() => client.flags.get("itemLimit")).toBe(4);
 			expect(client.flags.get("theme")).toBe(first);
 			await valuesSet(() => ({ "item-limit": 4, theme: { mode: "light" } }));
-			await vi.waitFor(() =>
-				expect(client.flags.get("theme")).toEqual({ mode: "light" }),
-			);
+			await expect
+				.poll(() => client.flags.get("theme"))
+				.toEqual({ mode: "light" });
 			expect(client.flags.get("theme")).not.toBe(first);
 			await client.close();
 		});
@@ -107,19 +107,23 @@ export const featureFlagsClientContractRun = (
 				"checkout-redesign": false,
 				"item-limit": 3,
 			}));
-			const limit = vi.fn();
-			const checkout = vi.fn();
+			const limit: string[] = [];
+			const checkout: string[] = [];
 			client.flags.get("itemLimit");
 			client.flags.get("checkoutRedesign");
-			const unsubscribe = client.flags.subscribe("itemLimit", limit);
-			client.flags.subscribe("checkoutRedesign", checkout);
+			const unsubscribe = client.flags.subscribe("itemLimit", () => {
+				limit.push("changed");
+			});
+			client.flags.subscribe("checkoutRedesign", () => {
+				checkout.push("changed");
+			});
 			await valuesSet(() => ({ "checkout-redesign": true, "item-limit": 3 }));
-			await vi.waitFor(() => expect(checkout).toHaveBeenCalledTimes(1));
-			expect(limit).not.toHaveBeenCalled();
+			await expect.poll(() => checkout.length).toBe(1);
+			expect(limit).toEqual([]);
 			unsubscribe();
 			await valuesSet(() => ({ "checkout-redesign": true, "item-limit": 9 }));
-			await vi.waitFor(() => expect(client.flags.get("itemLimit")).toBe(9));
-			expect(limit).not.toHaveBeenCalled();
+			await expect.poll(() => client.flags.get("itemLimit")).toBe(9);
+			expect(limit).toEqual([]);
 			await client.close();
 		});
 
@@ -132,32 +136,38 @@ export const featureFlagsClientContractRun = (
 				}),
 			});
 			await client.ready;
-			const checkout = vi.fn();
-			const limit = vi.fn();
+			const checkout: string[] = [];
+			const limit: string[] = [];
 			expect(client.flags.get("checkoutRedesign")).toBe(false);
 			expect(client.flags.get("itemLimit")).toBe(3);
-			client.flags.subscribe("checkoutRedesign", checkout);
-			client.flags.subscribe("itemLimit", limit);
+			client.flags.subscribe("checkoutRedesign", () => {
+				checkout.push("changed");
+			});
+			client.flags.subscribe("itemLimit", () => {
+				limit.push("changed");
+			});
 			await client.contextSet(actorB);
-			await vi.waitFor(() => expect(checkout).toHaveBeenCalledTimes(1));
+			await expect.poll(() => checkout.length).toBe(1);
 			expect(client.flags.get("checkoutRedesign")).toBe(true);
-			expect(limit).not.toHaveBeenCalled();
+			expect(limit).toEqual([]);
 			await client.contextSet(actorA);
-			await vi.waitFor(() => expect(checkout).toHaveBeenCalledTimes(2));
+			await expect.poll(() => checkout.length).toBe(2);
 			expect(client.flags.get("checkoutRedesign")).toBe(false);
 			await client.close();
 		});
 
 		it("closes twice, drops subscribers, and ready never rejects", async () => {
 			const { client, valuesSet } = await open(() => ({ "item-limit": 3 }));
-			const listener = vi.fn();
+			const listener: string[] = [];
 			client.flags.get("itemLimit");
-			client.flags.subscribe("itemLimit", listener);
+			client.flags.subscribe("itemLimit", () => {
+				listener.push("changed");
+			});
 			await client.close();
 			await client.close();
 			await valuesSet(() => ({ "item-limit": 4 }));
 			await expect(client.ready).resolves.toBeTypeOf("string");
-			expect(listener).not.toHaveBeenCalled();
+			expect(listener).toEqual([]);
 		});
 	});
 };

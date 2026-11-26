@@ -1,5 +1,5 @@
 // A8: only use cases set span attributes or start a child span
-// expect: src/contexts/bar/adapters/outbound/bar-repository.postgres.ts imports @n8io/baseline-telemetry/span: only Use cases touch spans
+// expect: A8: only Use cases touch spans
 // @file src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
 import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
 

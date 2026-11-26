@@ -1,5 +1,5 @@
 // A1: business code (domain/, application/, index.ts) imports nothing from adapters/
-// expect: src/contexts/bar/domain/bar.ts imports ../adapters/outbound/bar-cache.redis.ts: business code never imports adapters/
+// expect: A1: business code (root files, domain/, application/) never imports adapters/ or its context
 // @file src/contexts/bar/domain/bar.ts
 import { barCacheRedisCreate } from "../adapters/outbound/bar-cache.redis.ts";
 

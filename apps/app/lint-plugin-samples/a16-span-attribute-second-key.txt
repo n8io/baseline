@@ -1,0 +1,7 @@
+// A16: every key is checked, not only the first
+// expect: A16: a span attribute is baseline
+// @file src/contexts/bar/application/bar-get.ts
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
+
+export const barGet = (barId: string, name: string) =>
+	telemetrySpanAttributesSet({ "baseline.bar.id": barId, "baseline.bar.name": name });

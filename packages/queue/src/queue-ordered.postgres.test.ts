@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
+import { loggerErrorListen } from "@n8io/baseline-logger";
 import {
 	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import { ok, type Result } from "@n8io/baseline-result";
-import { metrics } from "@opentelemetry/api";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { type Meter, metrics } from "@opentelemetry/api";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
@@ -21,6 +22,40 @@ import {
 	queueMigrate,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
+import { queueLoggerTestRecord } from "./queue-logger-test-record.ts";
+import {
+	queueOrderedBlockedKeyGiveUp,
+	queueOrderedBlockedKeyRetry,
+	queueOrderedBlockedKeysWatch,
+} from "./queue-ordered.ts";
+import { queueWaitFor } from "./queue-wait-for.ts";
+
+// A hand-written meter provider, set before the queue takes its instruments: each counter add and
+// gauge record lands here, whichever worker made it.
+type Recorded = {
+	attributes: Record<string, string>;
+	metric: string;
+	value: number;
+};
+const recorded: Recorded[] = [];
+const instrument = (metric: string) => {
+	const record = (value: number, attributes: Record<string, string> = {}) => {
+		recorded.push({ attributes, metric, value });
+	};
+	return { add: record, record };
+};
+metrics.setGlobalMeterProvider({
+	getMeter: () =>
+		({
+			createCounter: instrument,
+			createGauge: instrument,
+			createHistogram: instrument,
+			createObservableGauge: () => ({
+				addCallback: () => undefined,
+				removeCallback: () => undefined,
+			}),
+		}) as unknown as Meter,
+});
 
 // The tests are the caller here.
 const bossGet = (queue: Queue) => queueBossGet(queue, "test");
@@ -120,10 +155,13 @@ const handled = async (consumer: string, key?: string): Promise<number[]> =>
 	).rows.map((row) => row.seq);
 
 const handledWait = (consumer: string, count: number): Promise<void> =>
-	vi.waitFor(async () => expect(await handled(consumer)).toHaveLength(count), {
-		interval: 100,
-		timeout: 120_000,
-	});
+	queueWaitFor(
+		async () => expect(await handled(consumer)).toHaveLength(count),
+		{
+			interval: 100,
+			timeout: 120_000,
+		},
+	);
 
 // Retries at once, so a test does not wait out the real delays.
 const retryFast = (consumer: string, retryLimit: number): Promise<void> =>
@@ -254,7 +292,7 @@ describe("order at publish", () => {
 	const consumer = consumerCreate(names);
 	// Runs the Consumer only once the Events are committed, so only their stamps decide the order.
 	const drained = async (key: string, count: number): Promise<number[]> => {
-		await vi.waitFor(
+		await queueWaitFor(
 			async () =>
 				expect(await handled(names.queueName, key)).toHaveLength(count),
 			{ interval: 100, timeout: 30_000 },
@@ -410,7 +448,7 @@ describe("a blocked key", () => {
 	};
 
 	const blockedWait = (queue: Queue, keys: string[]): Promise<void> =>
-		vi.waitFor(
+		queueWaitFor(
 			async () =>
 				expect((await queue.blockedKeys()).map(({ key }) => key)).toEqual(keys),
 			{ interval: 100, timeout: 30_000 },
@@ -560,7 +598,7 @@ describe("concurrency", () => {
 			);
 			return rows[0]?.count ?? 0;
 		};
-		await vi.waitFor(async () => expect(await done()).toBe(12), {
+		await queueWaitFor(async () => expect(await done()).toBe(12), {
 			interval: 100,
 			timeout: 30_000,
 		});
@@ -570,28 +608,9 @@ describe("concurrency", () => {
 
 describe("queueOrderedBlockedKeysWatch", () => {
 	it("reports each blocked key to error tracking, again after remindMs, warns before the deletion, and logs and counts a key the queue let go", async () => {
-		const recorded = new Map<string, ReturnType<typeof vi.fn>>();
-		const instrument = (name: string) => {
-			const record = vi.fn();
-			recorded.set(name, record);
-			return { add: record, record };
-		};
-		const getMeter = vi.spyOn(metrics, "getMeter").mockReturnValue({
-			createCounter: instrument,
-			createGauge: instrument,
-		} as unknown as ReturnType<typeof metrics.getMeter>);
-		// A fresh copy of the module, so its instruments come from the meter above; its logger is a
-		// fresh copy too.
-		vi.resetModules();
-		const {
-			queueOrderedBlockedKeyGiveUp,
-			queueOrderedBlockedKeyRetry,
-			queueOrderedBlockedKeysWatch,
-		} = await import("./queue-ordered.ts");
-		const { logger, loggerErrorListen } = await import("@n8io/baseline-logger");
-		// Spies that still call through, so an err reaches loggerErrorListen as in production.
-		const error = vi.spyOn(logger, "error");
-		const warn = vi.spyOn(logger, "warn");
+		// A logger that records and still logs, so an err reaches loggerErrorListen as in production.
+		using error = queueLoggerTestRecord("error", { callThrough: true });
+		using warn = queueLoggerTestRecord("warn", { callThrough: true });
 		const reported: unknown[] = [];
 		const listenStop = loggerErrorListen((err) => reported.push(err));
 		const boss = bossGet(publisher);
@@ -617,7 +636,7 @@ describe("queueOrderedBlockedKeysWatch", () => {
 			message: string,
 			key: string,
 		) =>
-			spy.mock.calls.filter(
+			spy.calls.filter(
 				(call: unknown[]) =>
 					call[1] === message && (call[0] as { key: string }).key === key,
 			);
@@ -627,14 +646,23 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		const warnMessage =
 			"Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first";
 		const attributes = { "messaging.destination.name": consumer };
-		const last = (metric: string) => recorded.get(metric)?.mock.lastCall;
+		const ofMetric = (metric: string) =>
+			recorded.filter(
+				(entry) =>
+					entry.metric === metric &&
+					entry.attributes["messaging.destination.name"] === consumer,
+			);
+		const last = (metric: string) => {
+			const entry = ofMetric(metric).at(-1);
+			return entry && [entry.value, entry.attributes];
+		};
 
 		const stop = queueOrderedBlockedKeysWatch(boss, {
 			checkMs: 100,
 			remindMs: 3000,
 		});
 		try {
-			await vi.waitFor(
+			await queueWaitFor(
 				() =>
 					expect(last("baseline.queue.blocked_keys")).toEqual([4, attributes]),
 				{ interval: 50, timeout: 10_000 },
@@ -669,7 +697,7 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				}),
 			).toBe(true);
 			// The ones with seconds left are warned about, the one with an hour is not.
-			await vi.waitFor(
+			await queueWaitFor(
 				() => {
 					expect(logs(warn, warnMessage, "foo_expiring")).toHaveLength(1);
 					expect(logs(warn, warnMessage, "foo_given_up")).toHaveLength(1);
@@ -690,17 +718,17 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				"DELETE FROM queue.job WHERE name = $1 AND singleton_key = 'foo_expiring' AND state = 'failed'",
 				[name],
 			);
-			// The log and the count come from this watcher, but the logger is shared with any watcher an
-			// earlier test left running (those count on their own meter), so the log can come first.
-			await vi.waitFor(
-				() => {
-					expect(logs(error, expiredMessage, "foo_expiring")).toHaveLength(1);
-					expect(
-						recorded.get("baseline.queue.blocked_keys_expired")?.mock.calls,
-					).toEqual([[1, attributes]]);
-				},
+			await queueWaitFor(
+				() =>
+					expect(logs(error, expiredMessage, "foo_expiring")).toHaveLength(1),
 				{ interval: 50, timeout: 10_000 },
 			);
+			expect(
+				ofMetric("baseline.queue.blocked_keys_expired").map((entry) => [
+					entry.value,
+					entry.attributes,
+				]),
+			).toEqual([[1, attributes]]);
 			expect(reported).toContainEqual(
 				expect.objectContaining({ name: "QueueBlockedKeyExpiredError" }),
 			);
@@ -713,7 +741,7 @@ describe("queueOrderedBlockedKeysWatch", () => {
 			).toBeGreaterThanOrEqual(2);
 
 			await pgPool.query("DELETE FROM queue.job WHERE name = $1", [name]);
-			await vi.waitFor(
+			await queueWaitFor(
 				() => {
 					expect(last("baseline.queue.blocked_keys")).toEqual([0, attributes]);
 					expect(last("baseline.queue.blocked_key_age")).toEqual([
@@ -732,15 +760,11 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		} finally {
 			stop();
 			listenStop();
-			getMeter.mockRestore();
-			error.mockRestore();
-			warn.mockRestore();
 		}
 		// A check that was under way when the watch stopped may still report.
-		const keys = recorded.get("baseline.queue.blocked_keys");
 		await sleep(300);
-		const calls = keys?.mock.calls.length;
+		const calls = ofMetric("baseline.queue.blocked_keys").length;
 		await sleep(300);
-		expect(keys?.mock.calls.length).toBe(calls);
+		expect(ofMetric("baseline.queue.blocked_keys")).toHaveLength(calls);
 	});
 });

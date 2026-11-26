@@ -1,6 +1,5 @@
-import { logger } from "@n8io/baseline-logger";
 import type { Hono } from "hono";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import {
 	type AuthnTestCookieJar,
@@ -17,38 +16,44 @@ import {
 	authnTestOidcProviderCreate,
 } from "./authn-test-oidc-provider.ts";
 
+let provider: AuthnTestOidcProvider;
+
+// The provider's fetch: authn sends its discovery, key set, token and revocation requests here.
+const providerFetch = (input: string | URL | Request, init?: RequestInit) => {
+	if (provider.options.down)
+		return Promise.reject(new TypeError("fetch failed"));
+	return Promise.resolve(provider.app.fetch(new Request(input, init)));
+};
+
 const oidcOptions = {
 	actorFromClaims: authnTestActorFromClaims,
 	audience: "api",
 	clientId: "app-client",
 	clientSecret: "app-secret",
+	fetch: providerFetch,
 	issuerUrl: authnTestIdpOrigin,
 	secret: authnTestSecret,
 };
 
-let provider: AuthnTestOidcProvider;
+// What the error handler logged for a 500, as [fields, message].
+let errorsLogged: unknown[][] = [];
+const errorLogger = {
+	error: (...args: unknown[]) => {
+		errorsLogged.push(args);
+	},
+};
 
 beforeEach(async () => {
 	provider = await authnTestOidcProviderCreate(oidcOptions.clientId);
-	const realFetch = globalThis.fetch;
-	vi.stubGlobal(
-		"fetch",
-		(input: string | URL | Request, init?: RequestInit) => {
-			const request = new Request(input, init);
-			if (!request.url.startsWith(authnTestIdpOrigin))
-				return realFetch(request);
-			if (provider.options.down)
-				return Promise.reject(new TypeError("fetch failed"));
-			return Promise.resolve(provider.app.fetch(request));
-		},
-	);
+	errorsLogged = [];
 });
 
-afterEach(() => {
-	vi.useRealTimers();
-	vi.unstubAllGlobals();
-	vi.restoreAllMocks();
-});
+// Provider tokens last 10 minutes and the access cookie is no longer fresh with under a minute
+// left, so a refresh goes to the provider. A provider that issues 30 s tokens makes every
+// cookie it signs that old at once.
+const accessNearlySpent = () => {
+	provider.options.accessTtl = "30s";
+};
 
 const signInStart = async (app: Hono, returnTo = "/foos") => {
 	const jar = authnTestCookieJarCreate();
@@ -164,7 +169,6 @@ describe("OIDC sign-in", () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, jar } = await signInStart(app);
 		const code = provider.authorize(authorizeUrl);
-		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const res = await app.request(
 			`${authnTestOrigin}/auth/callback?code=${code}&state=wrong`,
 			{
@@ -181,7 +185,6 @@ describe("OIDC sign-in", () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { authorizeUrl, jar } = await signInStart(app);
 		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
-		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const res = await app.request(
 			`${authnTestOrigin}/auth/callback?error=access_denied&state=${state}`,
 			{ headers: { Cookie: jar.header() } },
@@ -258,27 +261,18 @@ describe("OIDC bearer tokens", () => {
 	])(
 		"answers 500, not 401, when the provider's JWKS %s",
 		async (_, breakJwks) => {
-			const { app } = await authnTestAppCreate(oidcOptions);
+			const { app } = await authnTestAppCreate(oidcOptions, errorLogger);
 			const token = await provider.accessToken();
 			breakJwks();
-			const logError = vi
-				.spyOn(logger, "error")
-				.mockImplementation(() => undefined);
 			const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 
 			expect(res.status).toBe(500);
-			expect(logError).toHaveBeenCalledOnce();
+			expect(errorsLogged).toHaveLength(1);
 		},
 	);
 });
-
-// Provider tokens last 10 minutes; past 9.5 the access cookie is no longer fresh, so a refresh
-// goes to the provider.
-const nearExpiry = () => {
-	vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
-};
 
 const refreshGet = ({
 	app,
@@ -295,18 +289,19 @@ const refreshGet = ({
 
 describe("OIDC refresh", () => {
 	it("refreshes with the refresh token and stores the rotated one", async () => {
+		accessNearlySpent();
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		const before = [...provider.refreshTokens];
-		nearExpiry();
 		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 		jar.store(res);
 
 		expect(res.headers.get("Location")).toBe("/foos");
 		expect(provider.refreshTokens.has(before[0] ?? "")).toBe(false);
 		expect(provider.refreshTokens.size).toBe(1);
-		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
+		const rotated = [...provider.refreshTokens];
 		expect((await refreshGet({ app, jar })).status).toBe(200);
+		expect(provider.refreshTokens.has(rotated[0] ?? "")).toBe(false);
 	});
 
 	it("answers without a grant while the access cookie has over a minute left", async () => {
@@ -324,12 +319,11 @@ describe("OIDC refresh", () => {
 
 	it("keeps the refresh token when the provider does not rotate", async () => {
 		provider.options.rotate = false;
+		accessNearlySpent();
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
-		nearExpiry();
 		const first = await refreshGet({ app, jar });
 		jar.store(first);
-		vi.useFakeTimers({ now: Date.now() + 9.5 * 60_000, toFake: ["Date"] });
 		const second = await refreshGet({ app, jar });
 
 		expect(first.status).toBe(200);
@@ -340,10 +334,10 @@ describe("OIDC refresh", () => {
 	});
 
 	it("sends the user to sign-in when the provider refuses, leaving the cookies to another tab", async () => {
+		accessNearlySpent();
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.refreshTokens.clear();
-		nearExpiry();
 		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 		expect(res.headers.get("Location")).toBe("/auth/sign-in?returnTo=%2Ffoos");
@@ -351,12 +345,12 @@ describe("OIDC refresh", () => {
 	});
 
 	it("keeps the rotated refresh token when checking the new access token fails", async () => {
-		const { app } = await authnTestAppCreate(oidcOptions);
-		const { jar } = await signIn(app);
-		// Past the JWKS cache's 10 minutes, so verifying the new token fetches the key set again.
-		vi.useFakeTimers({ now: Date.now() + 11 * 60_000, toFake: ["Date"] });
+		accessNearlySpent();
+		const { app: signedInAt } = await authnTestAppCreate(oidcOptions);
+		const { jar } = await signIn(signedInAt);
+		// Another Server has not fetched the provider's key set yet, so verifying the new token does.
+		const { app } = await authnTestAppCreate(oidcOptions, errorLogger);
 		provider.options.jwksFails = true;
-		vi.spyOn(logger, "error").mockImplementation(() => undefined);
 		const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 		expect(res.status).toBe(500);
@@ -383,20 +377,17 @@ describe("OIDC refresh", () => {
 	])(
 		"answers 500 rather than signing out when the provider %s",
 		async (_, breakProvider) => {
-			const { app } = await authnTestAppCreate(oidcOptions);
+			accessNearlySpent();
+			const { app } = await authnTestAppCreate(oidcOptions, errorLogger);
 			const { jar } = await signIn(app);
-			nearExpiry();
 			breakProvider();
-			const logError = vi
-				.spyOn(logger, "error")
-				.mockImplementation(() => undefined);
 			const res = await refreshGet({ app, jar, query: "?returnTo=%2Ffoos" });
 
 			expect(res.status).toBe(500);
 			expect(
 				authnTestSetCookieLine(res, "__Secure-authn-refresh"),
 			).toBeUndefined();
-			expect(logError).toHaveBeenCalledOnce();
+			expect(errorsLogged).toHaveLength(1);
 		},
 	);
 });
@@ -430,7 +421,6 @@ describe("OIDC sign-out", () => {
 		const { app } = await authnTestAppCreate(oidcOptions);
 		const { jar } = await signIn(app);
 		provider.options.revokeFails = true;
-		vi.spyOn(logger, "warn").mockImplementation(() => undefined);
 		const res = await app.request(`${authnTestOrigin}/auth/sign-out`, {
 			headers: { Cookie: jar.header() },
 			method: "POST",

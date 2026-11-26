@@ -9,6 +9,10 @@ export type AuthnMemoryAuthorizationOptions = {
 	baseUrl: string;
 	/** One of the Project's `memoryClients`. */
 	clientId: string;
+	/** Sends the token requests. `null` means the global `fetch`. */
+	fetch?: typeof fetch | null;
+	/** Reads the epoch ms the held token's expiry is judged against. `null` means `Date.now`. */
+	now?: (() => number) | null;
 	/** How long before expiry a new token is fetched, in ms; at most half the token's lifetime. `null` means 60,000. */
 	renewMs?: number | null;
 	/** The scopes to ask for. `null` means all of the client's. */
@@ -30,10 +34,13 @@ export type AuthnMemoryAuthorization = (options?: {
 export const authnMemoryAuthorizationCreate = ({
 	baseUrl,
 	clientId,
+	fetch: fetchOption,
+	now: nowOption,
 	renewMs: renewMsOption,
 	scopes,
 }: AuthnMemoryAuthorizationOptions): AuthnMemoryAuthorization => {
 	const renewMs = renewMsOption ?? 60_000;
+	const now = nowOption ?? Date.now;
 	if (!Number.isFinite(renewMs) || renewMs < 0) {
 		throw new TypeError(
 			`authnMemoryAuthorizationCreate: renewMs must be a finite number of 0 or more, found ${renewMsOption}`,
@@ -45,10 +52,12 @@ export const authnMemoryAuthorizationCreate = ({
 	const tokenRenew = (): Promise<string> => {
 		pending ??= (async () => {
 			try {
-				const fetchedAt = Date.now();
+				const fetchedAt = now();
 				const token = await authnMemoryTokenFetch({
 					baseUrl,
 					clientId,
+					fetch: fetchOption ?? null,
+					now,
 					scopes: scopes ?? null,
 				});
 				const lifetime = token.expiresAt - fetchedAt;
@@ -64,19 +73,14 @@ export const authnMemoryAuthorizationCreate = ({
 
 	return async (options) => {
 		const renew = options?.renew === true;
-		if (
-			pending === null &&
-			!renew &&
-			held !== null &&
-			Date.now() < held.renewAt
-		) {
+		if (pending === null && !renew && held !== null && now() < held.renewAt) {
 			return held.token.authorization;
 		}
 		const fallback = renew ? null : held;
 		try {
 			return await tokenRenew();
 		} catch (error) {
-			if (fallback !== null && Date.now() < fallback.token.expiresAt) {
+			if (fallback !== null && now() < fallback.token.expiresAt) {
 				return fallback.token.authorization;
 			}
 			throw error;

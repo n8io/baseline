@@ -1,0 +1,4 @@
+// A34: a cast on a Map or Headers get is not a flag cast
+// expect:
+// @file src/server.ts
+export const lang = (headers: Headers) => headers.get("accept-language") as string;

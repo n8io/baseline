@@ -1,5 +1,5 @@
 // A22: varlock/env only in src/env.ts; #env only in the entry points and src/connections.ts
-// expect: src/ui/routes/bar-list.tsx imports #env: only the entry points and src/connections.ts read #env
+// expect: A22: only the entry points and src/connections.ts read #env
 // @file src/ui/routes/bar-list.tsx
 import { ENV } from "#env";
 

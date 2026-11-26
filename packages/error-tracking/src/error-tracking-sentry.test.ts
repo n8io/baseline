@@ -1,7 +1,7 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import { context, TraceFlags, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { errorTrackingSentryCreate } from "./error-tracking-sentry.ts";
 
 context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
@@ -23,6 +23,25 @@ type SentEvent = {
 	tags?: Record<string, string>;
 };
 
+type LogCall = [fields: unknown, message?: string];
+
+const restores: (() => void)[] = [];
+
+// A hand-written recording double for the logger's warn, put back by afterEach.
+const warnRecord = () => {
+	const calls: LogCall[] = [];
+	const original = logger.warn;
+	logger.warn = ((...args: LogCall) => {
+		calls.push(args);
+	}) as Logger["warn"];
+	restores.push(() => {
+		logger.warn = original;
+	});
+	return calls;
+};
+
+const fetchOriginal = globalThis.fetch;
+
 // Stands in for Sentry's ingestion: keeps each envelope, and answers with `status`.
 const requestsCatch = (status = 200) => {
 	const requests: {
@@ -30,7 +49,7 @@ const requestsCatch = (status = 200) => {
 		header: { trace?: { trace_id?: string } };
 		event: SentEvent;
 	}[] = [];
-	vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
+	globalThis.fetch = (async (url: string, init: RequestInit) => {
 		const [header, , event] = String(init.body).split("\n");
 		requests.push({
 			event: JSON.parse(event ?? "{}") as SentEvent,
@@ -38,14 +57,13 @@ const requestsCatch = (status = 200) => {
 			url,
 		});
 		return new Response("{}", { status });
-	});
+	}) as typeof fetch;
 	return requests;
 };
 
 afterEach(() => {
-	vi.useRealTimers();
-	vi.unstubAllGlobals();
-	vi.restoreAllMocks();
+	globalThis.fetch = fetchOriginal;
+	for (const restore of restores.splice(0)) restore();
 });
 
 describe("errorTrackingSentryCreate", () => {
@@ -177,7 +195,7 @@ describe("errorTrackingSentryCreate", () => {
 
 	it("warns when Sentry refuses a report", async () => {
 		requestsCatch(429);
-		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		const warn = warnRecord();
 		{
 			await using errorTracking = errorTrackingSentryCreate({
 				dsn,
@@ -187,10 +205,7 @@ describe("errorTrackingSentryCreate", () => {
 			errorTracking.report(new Error("boom"));
 		}
 
-		expect(warn).toHaveBeenCalledWith(
-			{ status: 429 },
-			"Sentry refused an error report",
-		);
+		expect(warn).toEqual([[{ status: 429 }, "Sentry refused an error report"]]);
 	});
 
 	it("await using sends the reports in flight when its block ends", async () => {
@@ -221,22 +236,20 @@ describe("errorTrackingSentryCreate", () => {
 		expect(requests).toEqual([]);
 	});
 
+	// Waits out the real 2 s close timeout.
 	it("gives up at close when a send never finishes, and warns", async () => {
-		vi.useFakeTimers();
-		vi.stubGlobal("fetch", () => new Promise(() => undefined));
-		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		globalThis.fetch = (() => new Promise(() => undefined)) as typeof fetch;
+		const warn = warnRecord();
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
 		});
 
 		errorTracking.report(new Error("stuck"));
-		const closing = errorTracking.close();
-		await vi.advanceTimersByTimeAsync(5000);
-		await closing;
+		await errorTracking.close();
 
-		expect(warn).toHaveBeenCalledWith("Error reports still unsent at close");
-	});
+		expect(warn).toEqual([["Error reports still unsent at close"]]);
+	}, 10_000);
 
 	it.each(["https://example.com", "garbage"])(
 		"refuses dsn %j, which is not a Sentry DSN",

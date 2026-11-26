@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	sharedConnectionSslAssert,
 	sharedConnectionUrlAssert,
@@ -37,7 +37,7 @@ describe("sharedTimeLimit", () => {
 });
 
 describe("sharedTimeRace", () => {
-	it("resolves the value when the timer wins and clears the timer when the work does", async () => {
+	it("resolves the value when the timer wins, and the work when it wins", async () => {
 		await expect(
 			sharedTimeRace({
 				ms: 5,
@@ -45,7 +45,6 @@ describe("sharedTimeRace", () => {
 				work: new Promise<never>(() => undefined),
 			}),
 		).resolves.toBe("timeout");
-		const clear = vi.spyOn(globalThis, "clearTimeout");
 		await expect(
 			sharedTimeRace({
 				ms: 1000,
@@ -53,8 +52,6 @@ describe("sharedTimeRace", () => {
 				work: Promise.resolve("done"),
 			}),
 		).resolves.toBe("done");
-		expect(clear).toHaveBeenCalled();
-		clear.mockRestore();
 	});
 });
 

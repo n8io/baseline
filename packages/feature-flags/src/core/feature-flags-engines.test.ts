@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { featureFlagsClientCreate } from "./feature-flags-client.ts";
 import { featureFlagsMemorySourceClientCreate } from "./feature-flags-memory-source.ts";
 import type {
@@ -231,30 +231,35 @@ describe("featureFlagsClientCreate with misbehaving subscribers and sources", ()
 	it("keeps notifying the others, and resolves contextSet, when a subscriber throws", async () => {
 		const { client, source } = clientOpen();
 		await client.ready;
-		const other = vi.fn();
+		const other: string[] = [];
 		expect(client.flags.get("itemLimit")).toBe(3);
 		expect(client.flags.get("checkoutRedesign")).toBe(false);
 		client.flags.subscribe("itemLimit", () => {
 			throw new Error("subscriber");
 		});
-		client.flags.subscribe("checkoutRedesign", other);
+		client.flags.subscribe("checkoutRedesign", () => {
+			other.push("changed");
+		});
 		source.valuesSet(() => ({ "checkout-redesign": true, "item-limit": 4 }));
 		await expect(client.contextSet({})).resolves.toBeUndefined();
 		expect(client.flags.get("itemLimit")).toBe(4);
 		expect(client.flags.get("checkoutRedesign")).toBe(true);
-		expect(other).toHaveBeenCalledTimes(1);
+		expect(other).toHaveLength(1);
 	});
 
 	it("unsubscribes one subscription at a time, even for the same function", async () => {
 		const { client, source } = clientOpen();
 		await client.ready;
-		const listener = vi.fn();
+		const calls: string[] = [];
+		const listener = () => {
+			calls.push("changed");
+		};
 		client.flags.get("itemLimit");
 		const first = client.flags.subscribe("itemLimit", listener);
 		client.flags.subscribe("itemLimit", listener);
 		first();
 		source.valuesSet(() => ({ "item-limit": 4 }));
-		expect(listener).toHaveBeenCalledTimes(1);
+		expect(calls).toHaveLength(1);
 	});
 
 	it("returns the fallback when the source throws, and keeps going", async () => {

@@ -17,8 +17,8 @@ describe("envMemoryRefused", () => {
 		DATABASE_URL: "memory://",
 	};
 
-	it.each(["development", "test"])("allows memory:// in %s", (APP_ENV) => {
-		expect(envMemoryRefused({ ...memory, APP_ENV })).toEqual([]);
+	it.each(["development", "test"])("allows memory:// in %s", (appEnv) => {
+		expect(envMemoryRefused({ ...memory, APP_ENV: appEnv })).toEqual([]);
 	});
 
 	it("refuses memory:// in production, naming each item", () => {

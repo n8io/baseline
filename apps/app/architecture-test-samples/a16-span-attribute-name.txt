@@ -1,8 +1,0 @@
-// A16: span attribute keys in application/ match baseline.<context>.id, baseline.<context>.<thing>_id or baseline.<context>.<thing>_count
-// expect: src/contexts/bar/application/bar-get.ts: span attribute baseline.bar.name must be baseline.bar.id or baseline.bar.<thing>_id
-// @file src/contexts/bar/application/bar-get.ts
-import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
-
-export const barGet = (input: { barId: string; name: string }) => {
-	telemetrySpanAttributesSet({ "baseline.bar.id": input.barId, "baseline.bar.name": input.name });
-};

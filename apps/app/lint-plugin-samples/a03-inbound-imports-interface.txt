@@ -1,5 +1,5 @@
 // A3: adapters/inbound/ never imports its context's index.ts, which imports it back
-// expect: src/contexts/bar/adapters/inbound/bar-routes.ts imports ../../index.ts: adapters/inbound/ imports from its context only domain/
+// expect: A3: adapters/inbound/ never imports adapters/outbound/ or its context
 // @file src/contexts/bar/adapters/inbound/bar-routes.ts
 import { Bar } from "../../index.ts";
 

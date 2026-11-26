@@ -1,5 +1,5 @@
 // A5: outside a context, code imports only its index.ts, the context's one interface
-// expect: src/server.ts imports #contexts/bar/adapters/inbound/bar-routes.ts: outside a context, import only src/contexts/bar/index.ts, its one interface
+// expect: A5: outside a context, import only
 // @file src/server.ts
 import { barRoutesCreate } from "#contexts/bar/adapters/inbound/bar-routes.ts";
 

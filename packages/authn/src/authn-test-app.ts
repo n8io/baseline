@@ -1,4 +1,5 @@
-import { httpErrorHandle } from "@n8io/baseline-http";
+import { httpErrorHandleCreate } from "@n8io/baseline-http";
+import type { Logger } from "@n8io/baseline-logger";
 import { type Context, Hono } from "hono";
 import { except } from "hono/combine";
 import { authnTestMemoryOptions } from "./authn-test-helpers.ts";
@@ -11,13 +12,14 @@ import {
 	authnRoutesCreate,
 } from "./index.ts";
 
-/** Wires authn the way `src/server.ts` does, with one API route and one page route. */
+/** Wires authn the way `src/server.ts` does, with one API route and one page route. `errorLogger` takes what the error handler logs for a 500. */
 export const authnTestAppCreate = async (
 	options: AuthnOptions = authnTestMemoryOptions,
+	errorLogger: Pick<Logger, "error"> | null = null,
 ): Promise<{ app: Hono; authn: Authn }> => {
 	const authn = await authnCreate(options);
 	const app = new Hono();
-	app.onError(httpErrorHandle);
+	app.onError(httpErrorHandleCreate({ logger: errorLogger }));
 	app.use(
 		"*",
 		except(["/api/*"], authnMiddlewareCreate(authn, { source: "cookie" })),

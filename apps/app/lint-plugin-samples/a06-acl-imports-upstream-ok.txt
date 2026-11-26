@@ -1,0 +1,6 @@
+// A6: an ACL imports its upstream context's index.ts
+// expect:
+// @file src/contexts/bar/adapters/outbound/bar-baz-acl.ts
+import { bazGet } from "../../../baz/index.ts";
+
+export const barBazAclCreate = () => bazGet;

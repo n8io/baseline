@@ -1,5 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
 	type CacheStore,
@@ -22,55 +21,73 @@ const storeFlaky = (calls: (keyof CacheStore)[]) => {
 	return flaky;
 };
 
-beforeEach(() => {
-	vi.useFakeTimers();
-});
-
-afterEach(() => {
-	vi.useRealTimers();
-	vi.restoreAllMocks();
-});
+// A clock and a logger that record, handed to cacheCreate in place of the real ones.
+const depsCreate = () => {
+	const clock = { at: 0 };
+	const warnings: unknown[][] = [];
+	return {
+		advance: (ms: number) => {
+			clock.at += ms;
+		},
+		deps: {
+			logger: { warn: (...args: unknown[]) => void warnings.push(args) },
+			now: () => clock.at,
+		},
+		warnings,
+	};
+};
 
 describe("cacheCreate on a failing store", () => {
 	it("get is a miss, and set and delete resolve", async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
-		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
+		const cache = cacheCreate(store, {
+			...deps,
+			prefix: "foo",
+			schema: z.string(),
+		});
 
 		expect(await cache.get("foo_1")).toBeUndefined();
 		expect(await cache.set("foo_1", "First")).toBeUndefined();
 		expect(await cache.delete("foo_1")).toBeUndefined();
-		expect(warn).toHaveBeenCalledExactlyOnceWith(
-			expect.objectContaining({
-				err: new Error("Store is down"),
-				operation: "get",
-				prefix: "foo",
-			}),
-			"Cache store failed; serving without the cache",
-		);
+		expect(warnings).toEqual([
+			[
+				expect.objectContaining({
+					err: new Error("Store is down"),
+					operation: "get",
+					prefix: "foo",
+				}),
+				"Cache store failed; serving without the cache",
+			],
+		]);
 	});
 
 	it("warns once per 30 s, with how many failures went unlogged", async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { advance, deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["get"]);
-		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
+		const cache = cacheCreate(store, {
+			...deps,
+			prefix: "foo",
+			schema: z.string(),
+		});
 
 		for (let call = 0; call < 5; call += 1) await cache.get("foo_1");
-		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warnings).toHaveLength(1);
 
-		vi.advanceTimersByTime(30_000);
+		advance(30_000);
 		await cache.get("foo_1");
-		expect(warn).toHaveBeenCalledTimes(2);
-		expect(warn).toHaveBeenLastCalledWith(
+		expect(warnings).toHaveLength(2);
+		expect(warnings.at(-1)).toEqual([
 			expect.objectContaining({ unlogged: 4 }),
 			expect.any(String),
-		);
+		]);
 	});
 
 	it("after a failed delete this process reads a miss until the entry has expired", async () => {
-		vi.spyOn(logger, "warn").mockReturnValue();
+		const { advance, deps } = depsCreate();
 		const flaky = storeFlaky(["delete"]);
 		const cache = cacheCreate(flaky.store, {
+			...deps,
 			prefix: "foo",
 			schema: z.string(),
 			ttlMs: 1000,
@@ -88,17 +105,18 @@ describe("cacheCreate on a failing store", () => {
 
 		// Rewritten by this process after the delete: still not trusted before the mark ends.
 		await cache.set("foo_1", "New");
-		vi.advanceTimersByTime(999);
+		advance(999);
 		expect(await cache.get("foo_1")).toBeUndefined();
-		vi.advanceTimersByTime(1);
+		advance(1);
 		await cache.set("foo_1", "Newer");
 		expect(await cache.get("foo_1")).toBe("Newer");
 	});
 
 	it("after a failed set this process reads a miss, not the entry it meant to replace", async () => {
-		vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps } = depsCreate();
 		const flaky = storeFlaky(["set"]);
 		const cache = cacheCreate(flaky.store, {
+			...deps,
 			prefix: "foo",
 			schema: z.string(),
 		});
@@ -113,9 +131,10 @@ describe("cacheCreate on a failing store", () => {
 	});
 
 	it('with onStoreError "throw" every call rejects with the store\'s error', async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
 		const cache = cacheCreate(store, {
+			...deps,
 			onStoreError: "throw",
 			prefix: "foo",
 			schema: z.string(),
@@ -124,7 +143,7 @@ describe("cacheCreate on a failing store", () => {
 		await expect(cache.get("foo_1")).rejects.toThrow("Store is down");
 		await expect(cache.set("foo_1", "First")).rejects.toThrow("Store is down");
 		await expect(cache.delete("foo_1")).rejects.toThrow("Store is down");
-		expect(warn).not.toHaveBeenCalled();
+		expect(warnings).toEqual([]);
 	});
 });
 

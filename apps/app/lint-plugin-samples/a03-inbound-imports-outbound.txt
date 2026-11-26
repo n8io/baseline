@@ -1,0 +1,6 @@
+// A3: adapters/inbound/ never imports adapters/outbound/
+// expect: A3: adapters/inbound/ never imports adapters/outbound/ or its context
+// @file src/contexts/bar/adapters/inbound/bar-routes.ts
+import { barPortsCreate } from "../outbound/index.ts";
+
+export const barRoutesCreate = () => barPortsCreate();

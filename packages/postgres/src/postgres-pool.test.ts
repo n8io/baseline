@@ -1,10 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { type PostgresPool, postgresPoolCreate } from "./index.ts";
-
-afterEach(() => {
-	vi.restoreAllMocks();
-});
+import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
 
 // Option checks and defaults: no connection is made, so these run without Docker.
 describe("postgresPoolCreate", () => {
@@ -141,7 +137,7 @@ describe("postgresPoolCreate", () => {
 	});
 
 	it("logs idle client errors instead of crashing the process", async () => {
-		const loggerError = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using loggerError = postgresLoggerTestRecord("error");
 		await using pgPool = postgresPoolCreate({
 			databaseUrl: "postgres://localhost/db",
 		});
@@ -149,10 +145,9 @@ describe("postgresPoolCreate", () => {
 
 		pgPool.emit("error", error);
 
-		expect(loggerError).toHaveBeenCalledWith(
-			{ err: error },
-			"Postgres idle client error",
-		);
+		expect(loggerError.calls).toEqual([
+			[{ err: error }, "Postgres idle client error"],
+		]);
 	});
 
 	it("await using ends the pool when its block ends", async () => {

@@ -1,32 +1,40 @@
 import { EventEmitter } from "node:events";
-import { logger } from "@n8io/baseline-logger";
 import { ok } from "@n8io/baseline-result";
 import type pg from "pg";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { type PostgresPool, postgresTransactionRun } from "./index.ts";
+import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
 
 // A pool whose one client records its queries, for the paths a live server can't force.
 const fakePoolCreate = (
 	failing: string[] = [],
-): { pgClient: pg.PoolClient; pgPool: PostgresPool; queries: string[] } => {
+): {
+	pgClient: pg.PoolClient;
+	pgPool: PostgresPool;
+	queries: string[];
+	releases: unknown[];
+} => {
 	const queries: string[] = [];
+	const releases: unknown[] = [];
 	const pgClient = Object.assign(new EventEmitter(), {
-		query: vi.fn(async (text: string) => {
+		query: async (text: string) => {
 			queries.push(text);
 			if (failing.includes(text)) {
 				throw new Error(`${text} failed`);
 			}
 			return { rows: [] };
-		}),
-		release: vi.fn(),
+		},
+		release: (discard?: unknown) => {
+			releases.push(discard);
+		},
 	}) as unknown as pg.PoolClient;
 	const pgPool = { connect: async () => pgClient } as unknown as PostgresPool;
-	return { pgClient, pgPool, queries };
+	return { pgClient, pgPool, queries, releases };
 };
 
 describe("postgresTransactionRun client handling", () => {
 	it("returns a healthy client to the pool", async () => {
-		const { pgClient, pgPool, queries } = fakePoolCreate();
+		const { pgPool, queries, releases } = fakePoolCreate();
 
 		await postgresTransactionRun({ pgPool, work: async () => ok(undefined) });
 
@@ -35,11 +43,11 @@ describe("postgresTransactionRun client handling", () => {
 			"SET LOCAL transaction_timeout = '5000ms'",
 			"COMMIT",
 		]);
-		expect(pgClient.release).toHaveBeenCalledWith(undefined);
+		expect(releases).toEqual([undefined]);
 	});
 
 	it("discards a client whose ROLLBACK fails", async () => {
-		const { pgClient, pgPool } = fakePoolCreate(["ROLLBACK"]);
+		const { pgPool, releases } = fakePoolCreate(["ROLLBACK"]);
 
 		await expect(
 			postgresTransactionRun({
@@ -49,12 +57,12 @@ describe("postgresTransactionRun client handling", () => {
 				},
 			}),
 		).rejects.toThrow("boom");
-		expect(pgClient.release).toHaveBeenCalledWith(true);
+		expect(releases).toEqual([true]);
 	});
 
 	it("discards and logs a client that emitted an error", async () => {
-		const loggerError = vi.spyOn(logger, "error").mockReturnValue(undefined);
-		const { pgClient, pgPool } = fakePoolCreate();
+		using loggerError = postgresLoggerTestRecord("error");
+		const { pgClient, pgPool, releases } = fakePoolCreate();
 		const error = new Error("connection reset");
 
 		await postgresTransactionRun({
@@ -65,11 +73,10 @@ describe("postgresTransactionRun client handling", () => {
 			},
 		});
 
-		expect(loggerError).toHaveBeenCalledWith(
-			{ err: error },
-			"Postgres transaction client error",
-		);
-		expect(pgClient.release).toHaveBeenCalledWith(true);
+		expect(loggerError.calls).toEqual([
+			[{ err: error }, "Postgres transaction client error"],
+		]);
+		expect(releases).toEqual([true]);
 		expect(pgClient.listenerCount("error")).toBe(0);
 	});
 

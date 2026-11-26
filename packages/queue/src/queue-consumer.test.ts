@@ -1,8 +1,18 @@
 import { ok } from "@n8io/baseline-result";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { queueConsumerCreate } from "./queue-consumer.ts";
+
+// A hand-written Consumer run that records the Event and Inbox it is called with.
+const runRecord = <Result>(result: Result) => {
+	const calls: unknown[][] = [];
+	const run = async (...args: unknown[]): Promise<Result> => {
+		calls.push(args);
+		return result;
+	};
+	return { calls, run };
+};
 
 const inbox = { consumer: "audit.foo-created", eventId: "job_1" };
 
@@ -33,7 +43,7 @@ describe("queueConsumerCreate", () => {
 		["a Zod schema", z.object({ fooId: z.string() })],
 		["any Standard Schema", fooCreatedPlain],
 	])("runs the Consumer with the Event parsed by %s", async (_name, schema) => {
-		const run = vi.fn(async (_event: { fooId: string }) => ok(undefined));
+		const { calls, run } = runRecord(ok(undefined));
 		const consumer = queueConsumerCreate({
 			queueName: "audit.foo-created",
 			eventName: "foo.created",
@@ -43,7 +53,7 @@ describe("queueConsumerCreate", () => {
 
 		await consumer.run({ fooId: "foo_1", extra: true }, inbox);
 
-		expect(run).toHaveBeenCalledWith({ fooId: "foo_1" }, inbox);
+		expect(calls).toEqual([[{ fooId: "foo_1" }, inbox]]);
 	});
 
 	it.each([
@@ -52,7 +62,7 @@ describe("queueConsumerCreate", () => {
 	])(
 		"fails an Event that does not match %s, naming paths and no values",
 		async (_name, schema) => {
-			const run = vi.fn(async () => ok(undefined));
+			const { calls, run } = runRecord(ok(undefined));
 			const consumer = queueConsumerCreate({
 				queueName: "audit.foo-created",
 				eventName: "foo.created",
@@ -68,7 +78,7 @@ describe("queueConsumerCreate", () => {
 				new Error("Event failed validation for audit.foo-created at fooId"),
 			);
 			expect((failure as Error).cause).toBeUndefined();
-			expect(run).not.toHaveBeenCalled();
+			expect(calls).toEqual([]);
 		},
 	);
 
@@ -96,7 +106,7 @@ describe("queueConsumerCreate", () => {
 
 	it("parses the event and passes the inbox through", async () => {
 		const fooCreated = z.object({ fooId: z.string() });
-		const run = vi.fn(async () => ok("done"));
+		const { calls, run } = runRecord(ok("done"));
 		const consumer = queueConsumerCreate({
 			queueName: "billing.foo-created",
 			eventName: "foo.created",
@@ -108,7 +118,7 @@ describe("queueConsumerCreate", () => {
 		expect(await consumer.run({ extra: 1, fooId: "foo_1" }, inbox)).toEqual(
 			ok("done"),
 		);
-		expect(run).toHaveBeenCalledWith({ fooId: "foo_1" }, inbox);
+		expect(calls).toEqual([[{ fooId: "foo_1" }, inbox]]);
 		expect(consumer).toMatchObject({
 			eventName: "foo.created",
 			queueName: "billing.foo-created",

@@ -1,12 +1,11 @@
-import { logger } from "@n8io/baseline-logger";
 import { Hono } from "hono";
-import { describe, expect, it, vi } from "vitest";
-import { httpErrorHandle, httpSecureHeadersCreate } from "./index.ts";
+import { describe, expect, it } from "vitest";
+import { httpErrorHandleCreate, httpSecureHeadersCreate } from "./index.ts";
 
 const appCreate = () => {
 	const app = new Hono();
 	app.use(httpSecureHeadersCreate());
-	app.onError(httpErrorHandle);
+	app.onError(httpErrorHandleCreate({ logger: { error: () => undefined } }));
 	app.get("/", (c) => c.text(c.get("secureHeadersNonce") ?? "no nonce"));
 	app.get("/boom", () => {
 		throw new Error("boom");
@@ -60,13 +59,11 @@ describe("httpSecureHeadersCreate", () => {
 	});
 
 	it("sets the headers on an error response too", async () => {
-		vi.spyOn(logger, "error").mockImplementation(() => undefined);
 		const res = await appCreate().request("/boom");
 
 		expect(res.status).toBe(500);
 		expect(res.headers.get("Content-Security-Policy")).toMatch(
 			/^base-uri 'self'; .*script-src 'self' 'nonce-/,
 		);
-		vi.restoreAllMocks();
 	});
 });

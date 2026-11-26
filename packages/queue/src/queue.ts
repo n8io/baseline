@@ -120,6 +120,7 @@ type QueueOwnedKey =
 	| "useListenNotify"
 	| "user";
 const queueOwnedKeys: Record<QueueOwnedKey, string> = {
+	// biome-ignore lint/style/useNamingConvention: pg-boss's own option name
 	__test__enableSpies: queueUnsupported,
 	allowSchemaCaseVariant: queueMigrateOnly,
 	application_name: queueRunsOnPool,

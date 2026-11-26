@@ -1,7 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type Queue,
@@ -12,6 +11,7 @@ import {
 	queueSchedulesSync,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
+import { queueLoggerTestRecord } from "./queue-logger-test-record.ts";
 
 // The tests are the caller here.
 const bossGet = (queue: Queue) => queueBossGet(queue, "test");
@@ -47,7 +47,6 @@ beforeEach(async () => {
 		await queue.close();
 	}
 	await pgPool?.end();
-	vi.restoreAllMocks();
 	databaseUrl = await postgresTestDatabaseCreate();
 	await queueMigrate({ databaseUrl });
 	pgPool = new pg.Pool({ connectionString: databaseUrl });
@@ -222,7 +221,7 @@ describe("queueSchedulesStart", () => {
 	});
 
 	it("warns about a schedule the database does not hold, and does not start it", async () => {
-		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		using warn = queueLoggerTestRecord("warn");
 		const queue = await worker();
 
 		await queueSchedulesStart({
@@ -231,16 +230,18 @@ describe("queueSchedulesStart", () => {
 			schedules: [schedule("foo.stale-archive")],
 		});
 
-		expect(warn).toHaveBeenCalledExactlyOnceWith(
-			{ schedule: "foo.stale-archive" },
-			"Schedule is not in the database, so it will not run: run migrate",
-		);
+		expect(warn.calls).toEqual([
+			[
+				{ schedule: "foo.stale-archive" },
+				"Schedule is not in the database, so it will not run: run migrate",
+			],
+		]);
 		expect(working(queue)).not.toContain("foo.stale-archive");
 		expect(await held()).toEqual({ "queue.inbox-prune": "0 4 * * *" });
 	});
 
 	it("skips a schedule that is turned off, without a warning", async () => {
-		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		using warn = queueLoggerTestRecord("warn");
 		const queue = await worker();
 
 		await queueSchedulesStart({
@@ -249,7 +250,7 @@ describe("queueSchedulesStart", () => {
 			schedules: [schedule("foo.stale-archive")],
 		});
 
-		expect(warn).not.toHaveBeenCalled();
+		expect(warn.calls).toEqual([]);
 		expect(working(queue)).not.toContain("foo.stale-archive");
 	});
 });

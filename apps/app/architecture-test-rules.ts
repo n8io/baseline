@@ -328,8 +328,6 @@ const applicationUseCaseIs = (p: string): boolean =>
 	layerOf(p) === "application" &&
 	!testIs(p) &&
 	!p.endsWith("/application/ports.ts");
-const businessIs = (p: string): boolean =>
-	["root", "domain", "application"].includes(layerOf(p) ?? "");
 const contextsOf = (files: ArchitectureFile[]): string[] => [
 	...new Set(files.flatMap((f) => contextOf(f.path) ?? [])),
 ];
@@ -623,21 +621,9 @@ const adapterDomainLogicImports = (
 		});
 
 export const architectureRules: Record<string, ArchitectureRule> = {
-	A1: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => businessIs(f.path) && !testIs(f.path),
-			check: ({ context, imp }) => {
-				const parts = sameContextParts(imp, context);
-				if (parts?.join("/") === "index.ts") {
-					return "business code never imports its context's index.ts, which imports every adapter (and so this file back); import the domain/ or application/ file itself";
-				}
-				return parts?.[0] === "adapters"
-					? "business code never imports adapters/; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
-					: undefined;
-			},
-		}),
-
+	// A3 and A4's layer imports are Biome's (noRestrictedImports in biome.json). Left here: the domain's
+	// functions (they need the names the domain exports), and a value import of an application/ file in
+	// adapters/inbound/ (Biome cannot tell it from the type import that is allowed).
 	A3: (files) => [
 		...adapterDomainLogicImports(files, "adapters/inbound"),
 		...importsCheck({
@@ -645,118 +631,28 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			fileIs: (f) => layerOf(f.path) === "adapters/inbound" && !testIs(f.path),
 			check: ({ context, imp }) => {
 				const parts = sameContextParts(imp, context);
-				if (!parts) return undefined;
-				const layer = layerOfParts(parts);
-				if (layer === "adapters/outbound") {
-					return "adapters/inbound/ never imports adapters/outbound/; index.ts passes it Use cases built on the adapters";
-				}
-				const allowed =
-					layer === "root" ||
-					layer === "domain" ||
-					layer === "adapters/inbound" ||
-					(layer === "application" && imp.typeOnly);
-				return allowed
-					? undefined
-					: "adapters/inbound/ imports from its context only domain/, the files beside index.ts and Use case types; index.ts builds the context from the adapters, so importing it is a cycle";
-			},
-		}),
-	],
-
-	A4: (files) => [
-		...adapterDomainLogicImports(files, "adapters/outbound"),
-		...importsCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) === "adapters/outbound" && !testIs(f.path),
-			check: ({ context, imp }) => {
-				const parts = sameContextParts(imp, context);
-				if (!parts) return undefined;
-				const layer = layerOfParts(parts);
-				const allowed =
-					layer === "domain" ||
-					layer === "adapters/outbound" ||
-					parts.join("/") === "application/ports.ts";
-				return allowed
-					? undefined
-					: "adapters/outbound/ implements ports: from its context it imports only domain/ and application/ports.ts";
-			},
-		}),
-	],
-
-	A5: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => contextOf(f.path) === undefined,
-			check: ({ imp }) => {
-				const target = contextOf(imp.target);
-				if (!target) return undefined;
-				return partsOf(imp.target).join("/") === "index.ts"
-					? undefined
-					: `outside a context, import only src/contexts/${target}/index.ts, its one interface: build it with ${camel(target)}ContextCreate, or export the Public contract you need from it`;
-			},
-		}),
-
-	A6: (files) => {
-		// The upstreams a context reads: the contexts it has ACL files for.
-		const upstreams = (context: string): string[] =>
-			files.flatMap((f) =>
-				contextOf(f.path) === context && !testIs(f.path)
-					? (aclOf(f.path) ?? [])
-					: [],
-			);
-		return importsCheck({
-			files,
-			fileIs: (f) => contextOf(f.path) !== undefined,
-			check: ({ context, f, imp }) => {
-				// The composition: only tests and test helpers build contexts or open connections.
-				if (
-					["src/contexts.ts", "src/connections.ts"].includes(imp.target) &&
-					!imp.typeOnly &&
-					!testIs(f.path) &&
-					!/-test-[^/]*\.ts$/.test(f.path)
-				) {
-					return "inside a context only tests and test helpers build contexts or open connections; index.ts gets connections and upstream as arguments";
-				}
-				const target = contextOf(imp.target);
-				if (!target || target === context) return undefined;
-				const entry = partsOf(imp.target).join("/") === "index.ts";
-				const handler =
-					layerOf(f.path) === "adapters/inbound" &&
-					f.path.endsWith("-handler.ts");
-				// A seed may type an upstream it lists rows from (a customer's invoices).
-				const seed =
-					layerOf(f.path) === "adapters/inbound" &&
-					f.path.endsWith("-seed.ts") &&
-					imp.typeOnly &&
-					upstreams(context ?? "").includes(target);
-				return entry && (handler || seed || aclOf(f.path) === target)
-					? undefined
-					: `contexts never import each other; read ${target} through an anti-corruption layer in adapters/outbound/${context}-${target}-acl.ts, or handle its Event in adapters/inbound/${context}-${target}-<event>-handler.ts`;
-			},
-		});
-	},
-
-	A7: (files) =>
-		textCheck({
-			files,
-			fileIs: (f) => layerOf(f.path) !== "adapters/inbound",
-			pattern: /\.openapi\(/g,
-			reason: () =>
-				".openapi( appears only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts",
-		}),
-
-	A8: (files) =>
-		importsCheck({
-			files,
-			fileIs: (f) => !testIs(f.path),
-			check: ({ f, imp }) => {
-				if (imp.specifier.startsWith("@opentelemetry/")) {
-					return "src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span";
-				}
-				return imp.specifier === "@n8io/baseline-telemetry/span" &&
-					layerOf(f.path) !== "application"
-					? "only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+				return parts && layerOfParts(parts) === "application" && !imp.typeOnly
+					? "adapters/inbound/ imports only the types of application/; index.ts passes it the Use cases"
 					: undefined;
 			},
+		}),
+	],
+
+	A4: (files) => adapterDomainLogicImports(files, "adapters/outbound"),
+
+	// A6's context-to-context imports are Biome's; left here: only tests and test helpers build
+	// contexts or open connections (Biome cannot tell a type import, which is fine, from a value one).
+	A6: (files) =>
+		importsCheck({
+			files,
+			fileIs: (f) => contextOf(f.path) !== undefined,
+			check: ({ f, imp }) =>
+				["src/contexts.ts", "src/connections.ts"].includes(imp.target) &&
+				!imp.typeOnly &&
+				!testIs(f.path) &&
+				!/-test-[^/]*\.ts$/.test(f.path)
+					? "inside a context only tests and test helpers build contexts or open connections; index.ts gets connections and upstream as arguments"
+					: undefined,
 		}),
 
 	A11: (files) =>
@@ -936,46 +832,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			});
 	},
 
-	A16: (files) =>
-		files
-			.filter((f) => applicationUseCaseIs(f.path))
-			.flatMap((f) => {
-				const context = snake(contextOf(f.path) ?? "");
-				// A key that is not a plain string literal reads as itself and fails the pattern.
-				const single = [
-					...f.source.matchAll(/\.setAttribute\(\s*([^,)]+)/g),
-				].map(
-					(m) =>
-						/^(["'])([^"'`]+)\1$/.exec((m[1] ?? "").trim())?.[2] ?? m[1] ?? "",
-				);
-				// Keys are what follows `{` or a comma: shorthand counts, a ternary's branches do not.
-				const many = [
-					...f.source.matchAll(
-						/(?:\.setAttributes|\btelemetrySpanAttributesSet)\(\s*\{([^}]*)\}/g,
-					),
-				].flatMap((m) =>
-					[
-						...`,${m[1] ?? ""}`.matchAll(
-							/,\s*(?:(["'])([^"'`]+)\1|([A-Za-z_$`[][^\s:,]*))\s*(?=[:,]|$)/g,
-						),
-					].map((k) => k[2] ?? k[3] ?? ""),
-				);
-				// A Model's Use cases may name the Model instead: baseline.invoice_line.id.
-				const scopes = [
-					context,
-					...modelsOf(files, contextOf(f.path) ?? "").map(snake),
-				].join("|");
-				const valid = new RegExp(
-					`^baseline\\.(${scopes})\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
-				);
-				return [...single, ...many]
-					.filter((key) => !valid.test(key))
-					.map(
-						(key) =>
-							`${f.path}: span attribute ${key} must be baseline.${context}.id or baseline.${context}.<thing>_id, or a baseline.${context}.<thing>_count; never put names or other personal data on spans`,
-					);
-			}),
-
 	A17: (files) =>
 		textCheck({
 			files,
@@ -1048,26 +904,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			reason: (m) =>
 				`@ts-${m[1]} is banned in src/contexts/; fix the type instead`,
 		}),
-
-	A22: (files) => [
-		...importsCheck({
-			files,
-			fileIs: (f) => !testIs(f.path),
-			check: ({ f, imp }) => {
-				if (imp.specifier === "varlock/env" && f.path !== "src/env.ts") {
-					return "only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts";
-				}
-				const rootsWithEnv = [
-					...roots,
-					// Opens every connection for the roots, so it reads their settings itself.
-					"src/connections.ts",
-				];
-				return imp.target === "src/env.ts" && !rootsWithEnv.includes(f.path)
-					? "only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
-					: undefined;
-			},
-		}),
-	],
 
 	A23: (files) => [
 		...architectureFileNamesCheck(files),
@@ -1316,29 +1152,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 							`${f.path}: writes the flag key "${key}" as a string literal; read the flag by its name from src/flags.ts (handle.get("<name>")) and keep the key there`,
 					),
 			);
-	},
-
-	// A34: a flag's value arrives already typed (boolean, number, a values union, or its schema's
-	// output), so no `as` cast on one. A cast hides a flag declared with the wrong type; fix the
-	// declaration in src/flags.ts instead. Looks for a cast right after `get("<name>")` or
-	// `useFeatureFlag("<name>")`, where <name> is a flag declared in src/flags.ts.
-	A34: (files) => {
-		const flagsFile = files.find((f) => f.path === "src/flags.ts");
-		const names = [
-			...(flagsFile?.source ?? "").matchAll(/^\t(\w+):\s*\{/gm),
-		].map((m) => m[1] ?? "");
-		if (names.length === 0) return [];
-		const pattern = new RegExp(
-			`\\b(?:get|useFeatureFlag)\\(\\s*["'\`](?:${names.join("|")})["'\`]\\s*\\)\\)?\\s+as\\s+(?!const\\b)`,
-			"g",
-		);
-		return textCheck({
-			files,
-			fileIs: (f) => !testIs(f.path) && !f.path.includes("-test-"),
-			pattern,
-			reason: (match) =>
-				`${match[0].trim()} casts a flag value; its type comes from the declaration in src/flags.ts (change fallback, values or schema there)`,
-		});
 	},
 
 	// A35: entry.client opens the browser's feature flags from the page's own HTML (`document`),

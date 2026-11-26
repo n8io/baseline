@@ -1,16 +1,7 @@
 import { setTimeout } from "node:timers/promises";
-import { logger } from "@n8io/baseline-logger";
 import { ok } from "@n8io/baseline-result";
 import pg from "pg";
-import {
-	afterEach,
-	beforeAll,
-	describe,
-	expect,
-	it,
-	type MockInstance,
-	vi,
-} from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
@@ -21,6 +12,10 @@ import {
 	queueMigrate,
 } from "./index.ts";
 import { queueBossGet } from "./queue.ts";
+import { queueDateNowPin } from "./queue-date-now-pin.ts";
+import { queueLoggerTestRecord } from "./queue-logger-test-record.ts";
+import type { QueueSql } from "./queue-sql.ts";
+import { queueWaitFor } from "./queue-wait-for.ts";
 
 // The tests are the caller here.
 const bossGet = (queue: Queue) => queueBossGet(queue, "test");
@@ -35,8 +30,33 @@ const poolCreate = (): pg.Pool => {
 	return pgPool;
 };
 
+// A pool in front of the real one that records every query and, on demand, fails or hangs them
+// all, as a Postgres outage or a silent server does.
+const poolWrap = (pgPool: pg.Pool) => {
+	const state = {
+		hung: [] as ((error: Error) => void)[],
+		mode: "ok" as "fail" | "hang" | "ok",
+		queries: [] as unknown[][],
+	};
+	const sql: QueueSql = {
+		query: (text, values) => {
+			state.queries.push([text, values]);
+			if (state.mode === "fail") {
+				return Promise.reject(new Error("Connection terminated unexpectedly"));
+			}
+			if (state.mode === "hang") {
+				return new Promise((_resolve, reject) => {
+					state.hung.push(reject);
+				});
+			}
+			return pgPool.query(text, values as unknown[] | undefined);
+		},
+	};
+	return { sql, state };
+};
+
 const start = async (
-	pgPool: pg.Pool,
+	pgPool: QueueSql,
 	role: "publisher" | "worker",
 ): Promise<Queue> => {
 	const queue = await queueCreate({ pgPool, role });
@@ -50,7 +70,6 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-	vi.restoreAllMocks();
 	for (const queue of queues.splice(0)) {
 		await queue.close();
 	}
@@ -83,17 +102,17 @@ describe("queueCreate", () => {
 	});
 
 	it("a publisher starts no workers, maintenance or cron, and runs no SQL while idle", async () => {
-		const pgPool = poolCreate();
-		const queue = await start(pgPool, "publisher");
+		const { sql, state } = poolWrap(poolCreate());
+		const queue = await start(sql, "publisher");
 		const boss = bossGet(queue);
-		const query = vi.spyOn(pgPool, "query");
+		state.queries.length = 0;
 
 		await setTimeout(3_000);
 
 		expect(boss.getWipData({ includeInternal: true })).toEqual([]);
 		expect(boss.isMaintaining()).toBe(false);
 		expect(boss.isTimekeeping()).toBe(false);
-		expect(query).not.toHaveBeenCalled();
+		expect(state.queries).toEqual([]);
 		// The instance registry records the roles pg-boss started with.
 		const live = (await boss.getInstances()).filter((row) => row.live);
 		expect(live).toEqual([
@@ -134,26 +153,24 @@ describe("queueCreate", () => {
 		expect(first).toBeGreaterThan(0);
 		expect(second).toBeGreaterThan(first);
 		expect(queue.isAlive()).toBe(true);
-		vi.spyOn(Date, "now").mockReturnValue(second + 60_000);
+		using _clock = queueDateNowPin(second + 60_000);
 		expect(queue.isAlive()).toBe(false);
 	});
 
 	it("a poll that fails still stamps the heartbeat: an outage is not a stuck loop", async () => {
-		const pgPool = poolCreate();
-		const queue = await start(pgPool, "worker");
+		const { sql, state } = poolWrap(poolCreate());
+		const queue = await start(sql, "worker");
 		const boss = bossGet(queue);
 		const stamp = (key: "lastErrorOn" | "lastFetchedOn"): number =>
 			Math.max(...boss.getWipData().map((wip) => wip[key] ?? 0));
-		vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using _error = queueLoggerTestRecord("error");
 		await setTimeout(500);
 
 		// Postgres goes away: every query fails from here on. A poll already on its way may still land.
-		vi.spyOn(pgPool, "query").mockImplementation(() =>
-			Promise.reject(new Error("Connection terminated unexpectedly")),
-		);
+		state.mode = "fail";
 		await setTimeout(500);
 		const fetched = stamp("lastFetchedOn");
-		await vi.waitFor(
+		await queueWaitFor(
 			() => expect(stamp("lastErrorOn")).toBeGreaterThan(fetched + 1_000),
 			{ interval: 100, timeout: 15_000 },
 		);
@@ -161,26 +178,22 @@ describe("queueCreate", () => {
 
 		// A minute after the last poll that completed, the failing polls keep it alive.
 		expect(stamp("lastFetchedOn")).toBe(fetched);
-		vi.spyOn(Date, "now").mockReturnValue(fetched + 60_000);
+		using clock = queueDateNowPin(fetched + 60_000);
 		expect(queue.isAlive()).toBe(true);
-		vi.spyOn(Date, "now").mockReturnValue(failed + 60_000);
+		clock.set(failed + 60_000);
 		expect(queue.isAlive()).toBe(false);
+		state.mode = "ok";
 	});
 
 	it("a poll loop that hangs, with no attempt ending, is reported dead", async () => {
-		const pgPool = poolCreate();
-		const queue = await start(pgPool, "worker");
+		const { sql, state } = poolWrap(poolCreate());
+		const queue = await start(sql, "worker");
+		using _error = queueLoggerTestRecord("error");
 		await setTimeout(500);
 		expect(queue.isAlive()).toBe(true);
 
 		// Every query hangs, as on a pool with no query timeout whose server went silent.
-		const hung: ((error: Error) => void)[] = [];
-		vi.spyOn(pgPool, "query").mockImplementation(
-			() =>
-				new Promise((_resolve, reject) => {
-					hung.push(reject);
-				}),
-		);
+		state.mode = "hang";
 		const boss = bossGet(queue);
 		const stamp = (): number =>
 			Math.max(
@@ -194,19 +207,18 @@ describe("queueCreate", () => {
 		await setTimeout(3_000);
 		try {
 			expect(stamp()).toBe(last);
-			vi.spyOn(Date, "now").mockReturnValue(last + 59_999);
+			using clock = queueDateNowPin(last + 59_999);
 			expect(queue.isAlive()).toBe(true);
-			vi.spyOn(Date, "now").mockReturnValue(last + 60_000);
+			clock.set(last + 60_000);
 			expect(queue.isAlive()).toBe(false);
 		} finally {
-			vi.restoreAllMocks();
-			vi.spyOn(logger, "error").mockReturnValue(undefined);
-			for (const reject of hung) reject(new Error("released"));
+			state.mode = "ok";
+			for (const reject of state.hung) reject(new Error("released"));
 		}
 	});
 
 	it("logs a failure pg-boss reports as a plain object as an Error, with the object as its cause", async () => {
-		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using error = queueLoggerTestRecord("error");
 		const boss = bossGet(await start(poolCreate(), "worker"));
 		const reported = {
 			code: "ECONNREFUSED",
@@ -221,15 +233,12 @@ describe("queueCreate", () => {
 		boss.emit("error", reported as unknown as Error);
 		boss.emit("error", already);
 
-		expect(error).toHaveBeenCalledTimes(2);
-		expect(error).toHaveBeenNthCalledWith(
-			1,
+		expect(error.calls).toHaveLength(2);
+		expect(error.calls[0]).toEqual([
 			{ err: expect.any(Error), queue: "foo.stale-archive" },
 			"Queue error",
-		);
-		const logged = error.mock.calls.map(
-			(call: unknown[]) => (call[0] as { err: Error }).err,
-		);
+		]);
+		const logged = error.calls.map((call) => (call[0] as { err: Error }).err);
 		expect(logged[0]?.message).toBe(reported.message);
 		expect(logged[0]?.stack).toBe(reported.stack);
 		expect(logged[0]?.cause).toBe(reported);
@@ -238,30 +247,31 @@ describe("queueCreate", () => {
 	});
 
 	it("logs one queue's failures once per 30 s, as an outage fails every poll", async () => {
-		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using error = queueLoggerTestRecord("error");
 		const boss = bossGet(await start(poolCreate(), "worker"));
 		const failed = (queue: string): Error =>
 			Object.assign(new Error("connect ECONNREFUSED"), { queue });
 		const now = Date.now();
+		using clock = queueDateNowPin(now);
 
 		boss.emit("error", failed("foo.stale-archive"));
 		boss.emit("error", failed("foo.stale-archive"));
 		boss.emit("error", failed("foo.report-send"));
-		vi.spyOn(Date, "now").mockReturnValue(now + 29_000);
+		clock.set(now + 29_000);
 		boss.emit("error", failed("foo.stale-archive"));
-		expect(error.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+		expect(error.calls.map((call) => call[0])).toEqual([
 			expect.objectContaining({ queue: "foo.stale-archive" }),
 			expect.objectContaining({ queue: "foo.report-send" }),
 		]);
 
-		vi.spyOn(Date, "now").mockReturnValue(now + 31_000);
+		clock.set(now + 31_000);
 		boss.emit("error", failed("foo.stale-archive"));
-		expect(error).toHaveBeenCalledTimes(3);
+		expect(error.calls).toHaveLength(3);
 	});
 
 	it("a worker whose queue was removed stops polling it and says so once", async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue(undefined);
-		const error = vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using warn = queueLoggerTestRecord("warn");
+		using error = queueLoggerTestRecord("error");
 		const queue = await queueCreate({
 			pgPool: poolCreate(),
 			role: "worker",
@@ -283,7 +293,7 @@ describe("queueCreate", () => {
 		const other = await start(poolCreate(), "publisher");
 		await bossGet(other).deleteQueue("search.foo-created");
 
-		await vi.waitFor(
+		await queueWaitFor(
 			() => expect(working()).not.toContain("search.foo-created"),
 			{
 				interval: 100,
@@ -291,16 +301,18 @@ describe("queueCreate", () => {
 			},
 		);
 		await setTimeout(2_000);
-		expect(warn).toHaveBeenCalledExactlyOnceWith(
-			{ queue: "search.foo-created" },
-			"Queue was removed; this worker stops polling it",
-		);
-		expect(error).not.toHaveBeenCalled();
+		expect(warn.calls).toEqual([
+			[
+				{ queue: "search.foo-created" },
+				"Queue was removed; this worker stops polling it",
+			],
+		]);
+		expect(error.calls).toEqual([]);
 	});
 
 	it("a publisher is always alive: it has no workers to poll", async () => {
 		const queue = await start(poolCreate(), "publisher");
-		vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_000);
+		using _clock = queueDateNowPin(Date.now() + 120_000);
 
 		expect(queue.isAlive()).toBe(true);
 	});
@@ -323,7 +335,7 @@ describe("queueCreate", () => {
 			}),
 		]);
 		await boss.send("bar.foo-created.ordered", {}, { singletonKey: "foo_1" });
-		await vi.waitFor(
+		await queueWaitFor(
 			async () => {
 				const [job] = await boss.findJobs("bar.foo-created.ordered");
 				expect(job?.state).toBe("active");
@@ -345,16 +357,19 @@ describe("queueCreate", () => {
 
 	it("await using closes the queue when its block ends", async () => {
 		const pgPool = poolCreate();
-		let stop: MockInstance;
+		const stops: unknown[][] = [];
 		{
 			await using queue = await queueCreate({ pgPool, role: "worker" });
-			stop = vi.spyOn(bossGet(queue), "stop");
+			const boss = bossGet(queue);
+			const stopReal = boss.stop.bind(boss);
+			// Records each stop, then runs the real one.
+			boss.stop = ((...args: Parameters<typeof boss.stop>) => {
+				stops.push(args);
+				return stopReal(...args);
+			}) as typeof boss.stop;
 		}
 
-		expect(stop).toHaveBeenCalledExactlyOnceWith({
-			graceful: true,
-			timeout: 15_000,
-		});
+		expect(stops).toEqual([[{ graceful: true, timeout: 15_000 }]]);
 	});
 
 	it("a job still running at the timeout is failed, to be retried", async () => {
@@ -372,7 +387,7 @@ describe("queueCreate", () => {
 			}),
 		]);
 		await boss.send("baz.foo-deleted.ordered", {}, { singletonKey: "foo_1" });
-		await vi.waitFor(
+		await queueWaitFor(
 			async () => {
 				const [job] = await boss.findJobs("baz.foo-deleted.ordered");
 				expect(job?.state).toBe("active");

@@ -1,5 +1,5 @@
 import { STATUS_CODES } from "node:http";
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import type { ErrorHandler, NotFoundHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -40,32 +40,46 @@ const httpExceptionCode = (status: number): string =>
 				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 				.join("");
 
-/** `app.onError`: answers a thrown 4xx Package error or Hono HTTPException with its status, anything else with a logged 500. */
-export const httpErrorHandle: ErrorHandler = (error, c) => {
-	if (httpStatusErrorIs(error)) {
-		return c.json(
-			httpProblemCreate(error.httpStatus, error.type),
-			error.httpStatus,
-			httpProblemHeaders,
-		);
-	}
-	if (httpException4xxIs(error)) {
-		return c.json(
-			httpProblemCreate(error.status, httpExceptionCode(error.status)),
-			error.status,
-			httpProblemHeaders,
-		);
-	}
-	logger.error(
-		{ err: error, route: c.req.routePath, status: 500 },
-		"Request failed; answered 500 InternalError",
-	);
-	return c.json(
-		httpProblemCreate(500, "InternalError"),
-		500,
-		httpProblemHeaders,
-	);
+/** What `httpErrorHandleCreate` takes. */
+export type HttpErrorHandleOptions = {
+	/** Where a 500 is logged. `null` means the one `logger`. */
+	logger?: Pick<Logger, "error"> | null;
 };
+
+/** `httpErrorHandle` with its logger given, for a test that records what is logged. */
+export const httpErrorHandleCreate = (
+	options: HttpErrorHandleOptions = {},
+): ErrorHandler => {
+	const log = options.logger ?? logger;
+	return (error, c) => {
+		if (httpStatusErrorIs(error)) {
+			return c.json(
+				httpProblemCreate(error.httpStatus, error.type),
+				error.httpStatus,
+				httpProblemHeaders,
+			);
+		}
+		if (httpException4xxIs(error)) {
+			return c.json(
+				httpProblemCreate(error.status, httpExceptionCode(error.status)),
+				error.status,
+				httpProblemHeaders,
+			);
+		}
+		log.error(
+			{ err: error, route: c.req.routePath, status: 500 },
+			"Request failed; answered 500 InternalError",
+		);
+		return c.json(
+			httpProblemCreate(500, "InternalError"),
+			500,
+			httpProblemHeaders,
+		);
+	};
+};
+
+/** `app.onError`: answers a thrown 4xx Package error or Hono HTTPException with its status, anything else with a logged 500. */
+export const httpErrorHandle: ErrorHandler = httpErrorHandleCreate();
 
 /** Answers an unknown path with a JSON 404 `NotFound`, never HTML. */
 export const httpNotFoundHandle: NotFoundHandler = (c) =>

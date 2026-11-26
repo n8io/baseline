@@ -1,4 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
 
 /** What changed, never the data itself: the page reruns its loaders to read it. */
@@ -98,7 +98,12 @@ const liveUpdateParse = (message: string): LiveUpdate | undefined => {
  * One hub per instance: sends through the transport and fans each received
  * update out to this instance's streams for its (channel, id).
  */
-export const liveHubCreate = (transport: LiveTransport): LiveHub => {
+export const liveHubCreate = (
+	transport: LiveTransport,
+	options: { logger?: Pick<Logger, "warn">; now?: () => number } = {},
+): LiveHub => {
+	const now = options.now ?? Date.now;
+	const log = options.logger ?? logger;
 	const listeners = new Map<string, Set<LiveListener>>();
 	const subscriptions = new Map<string, Promise<void>>();
 	const ends = new Set<() => Promise<void>>();
@@ -115,12 +120,12 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 	// Copied from packages/cache/src/cache.ts (`storeFailed`); keep the two in step.
 	const sendFailed = (channel: string, err: unknown): void => {
 		liveSendsFailedCounter().add(1, { "baseline.live.channel": channel });
-		if (Date.now() - warnedAt < liveWarnIntervalMs) {
+		if (now() - warnedAt < liveWarnIntervalMs) {
 			unlogged += 1;
 			return;
 		}
-		logger.warn({ channel, err, unlogged }, "Live update not sent");
-		warnedAt = Date.now();
+		log.warn({ channel, err, unlogged }, "Live update not sent");
+		warnedAt = now();
 		unlogged = 0;
 	};
 
@@ -132,7 +137,7 @@ export const liveHubCreate = (transport: LiveTransport): LiveHub => {
 		(message: string): void => {
 			const update = liveUpdateParse(message);
 			if (update === undefined) {
-				logger.warn({ channel }, "Dropped a malformed Live update");
+				log.warn({ channel }, "Dropped a malformed Live update");
 				return;
 			}
 			for (const listener of listeners.get(key(channel, update.id)) ?? []) {
