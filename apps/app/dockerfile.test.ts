@@ -80,7 +80,7 @@ const entries = (): string[][] => {
 };
 
 describe("Dockerfile", () => {
-	it("builds from node:<.node-version major>-alpine pinned by digest in every stage", () => {
+	it("builds from node:<.node-version major>-alpine pinned by digest in every FROM", () => {
 		const major = nodeMajorRead();
 		const froms = instructions.filter(({ keyword }) => keyword === "FROM");
 		expect(froms).toHaveLength(2);
