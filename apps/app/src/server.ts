@@ -7,6 +7,7 @@ import {
 	authnMiddlewareCreate,
 	authnRoutesCreate,
 } from "@n8io/baseline-authn";
+import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/client";
 import { healthServerCreate } from "@n8io/baseline-health";
 import {
 	httpCsrf,
@@ -14,7 +15,7 @@ import {
 	httpNotFoundHandle,
 	httpRouteName,
 	httpRouterCreate,
-	httpSecureHeaders,
+	httpSecureHeadersCreate,
 	httpServerClose,
 	httpServerKeepAlive,
 } from "@n8io/baseline-http";
@@ -108,7 +109,17 @@ const authn = await authnCreate({
 export const app = httpRouterCreate();
 app.use(httpRouteName);
 app.onError(httpErrorHandle);
-app.use(httpSecureHeaders);
+app.use(
+	httpSecureHeadersCreate({
+		// piece-start: feature-flags
+		// The browser's flag client talks to LaunchDarkly directly, so the CSP must allow its origins.
+		// Without a client-side ID there is no client, so nothing is allowed.
+		connectSrc: ENV.LAUNCHDARKLY_CLIENT_SIDE_ID
+			? featureFlagsLaunchDarklyClientOrigins()
+			: null,
+		// piece-end: feature-flags
+	}),
+);
 // bodyLimit reads a body with no Content-Length (a DELETE with no body, a chunked POST) and copies
 // the request with `new Request(raw, init)`. The Node adapter's request is not a native Request, so
 // that copy throws ERR_INVALID_URL: give bodyLimit a native one (n8io/baseline#485). Drop this once

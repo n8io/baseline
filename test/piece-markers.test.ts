@@ -4,11 +4,12 @@ import { describe, expect, it } from "vitest";
 
 // Every `piece-start:` block is code a reader has to skip past, so the Template keeps few of them:
 // a piece prefers whole files, and the count has a budget. Raise a limit only on purpose.
-const markersMax = 94;
+const markersMax = 95;
 const markersPerFileMax = 6;
 // It opens every piece, one block each.
 const markersPerFileAllowed: Record<string, number> = {
 	"apps/app/src/connections.ts": 12,
+	"apps/app/src/server.ts": 7,
 };
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));

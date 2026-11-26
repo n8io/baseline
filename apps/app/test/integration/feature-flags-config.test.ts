@@ -1,3 +1,4 @@
+import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/client";
 import { Window } from "happy-dom";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { featureFlagsClientConfigRead } from "../../src/ui/feature-flags-client-config.ts";
@@ -57,5 +58,24 @@ describe("the browser's feature flag config on the production build", {
 		expect(
 			featureFlagsClientConfigRead((await pageGet({})).document),
 		).toBeNull();
+	});
+});
+
+// The browser client reaches LaunchDarkly itself, so the CSP the real server sends must allow it:
+// a page that blocks its requests renders every flag as its fallback, with nothing to say why.
+describe("the Content Security Policy on the production build", {
+	timeout: 30_000,
+}, () => {
+	it("lets the browser reach the origins the LaunchDarkly client uses", async () => {
+		const res = await fetch(`${server.url}/auth/sign-in`);
+		const policy = res.headers.get("content-security-policy") ?? "";
+		const connectSrc = policy
+			.split("; ")
+			.find((directive) => directive.startsWith("connect-src "));
+
+		expect(connectSrc?.split(" ").slice(1)).toEqual([
+			"'self'",
+			...featureFlagsLaunchDarklyClientOrigins(),
+		]);
 	});
 });
