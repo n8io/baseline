@@ -1,6 +1,6 @@
 import { context, TraceFlags, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import { Hono } from "hono";
+import { Context, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it } from "vitest";
 import { httpErrorHandleCreate, httpNotFoundHandle } from "./index.ts";
@@ -98,6 +98,43 @@ describe("httpErrorHandle", () => {
 	});
 });
 
+describe("httpErrorHandle httpStatus bounds", () => {
+	it.each([400, 499])(
+		"answers a package error with httpStatus %i with that status, unlogged",
+		async (httpStatus) => {
+			const error = Object.assign(new Error(canary), {
+				httpStatus,
+				type: "Refused",
+			});
+			const res = await appThrowing(error).request("/foos/foo_1");
+
+			expect(res.status).toBe(httpStatus);
+			expect(await res.json()).toMatchObject({
+				code: "Refused",
+				status: httpStatus,
+			});
+			expect(logged).toStrictEqual([]);
+		},
+	);
+
+	it.each([
+		["null", null],
+		["undefined", undefined],
+		["a string", canary],
+		["a number", 404],
+	])("answers a thrown %s with a logged 500", async (_, thrown) => {
+		// Hono hands its error handler only `Error`s, so a thrown non-Error is a direct call.
+		const c = new Context(new Request("http://localhost/foos/foo_1"), {
+			matchResult: [[[[() => undefined, { path: "/foos/:fooId" }], {}]], []],
+		} as never);
+		const res = await httpErrorHandle(thrown as unknown as Error, c);
+
+		expect(res.status).toBe(500);
+		expect(await res.json()).toMatchObject({ code: "InternalError" });
+		expect(logged).toHaveLength(1);
+	});
+});
+
 describe("httpErrorHandle with Hono's HTTPException", () => {
 	it.each([
 		{ code: "ValidationFailed", status: 400, title: "Bad Request" },
@@ -108,11 +145,12 @@ describe("httpErrorHandle with Hono's HTTPException", () => {
 			title: "Unsupported Media Type",
 		},
 		{ code: "ImATeapot", status: 418, title: "I'm a Teapot" },
+		{ code: "ClientError", status: 499, title: "Unknown" },
 	] as const)(
 		"answers a 4xx HTTPException $status with code $code, unlogged",
 		async ({ code, status, title }) => {
 			const res = await appThrowing(
-				new HTTPException(status, { message: canary }),
+				new HTTPException(status as 418, { message: canary }),
 			).request("/foos/foo_1");
 			const text = await res.text();
 
@@ -121,6 +159,19 @@ describe("httpErrorHandle with Hono's HTTPException", () => {
 			expect(JSON.parse(text)).toStrictEqual({ code, status, title });
 			expect(text).not.toContain(canary);
 			expect(logged).toStrictEqual([]);
+		},
+	);
+
+	it.each([399, 500])(
+		"answers an HTTPException %i, outside 400 to 499, with a logged 500",
+		async (status) => {
+			const res = await appThrowing(new HTTPException(status as 500)).request(
+				"/foos/foo_1",
+			);
+
+			expect(res.status).toBe(500);
+			expect(await res.json()).toMatchObject({ code: "InternalError" });
+			expect(logged).toHaveLength(1);
 		},
 	);
 

@@ -62,6 +62,21 @@ describe("httpServerClose", () => {
 		expect(server.listening).toBe(false);
 	});
 
+	it("stops its idle-close interval once the server has closed", async () => {
+		const timeouts = () =>
+			process.getActiveResourcesInfo().filter((name) => name === "Timeout")
+				.length;
+		const server = createServer();
+		await new Promise<void>((resolve) =>
+			server.listen(0, "127.0.0.1", resolve),
+		);
+		const before = timeouts();
+
+		await httpServerClose(server);
+
+		expect(timeouts()).toBe(before);
+	});
+
 	it("rejects when the server is not running", async () => {
 		const server = createServer();
 
