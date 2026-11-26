@@ -2,7 +2,8 @@
 // `pnpm piece-remove`, `pnpm check` and `pnpm test` on its own throwaway git worktree of HEAD, so
 // your tree is left alone and uncommitted changes are not checked. The unmodified tree is checked
 // first, then the pieces two at a time, each in a child process whose output is printed whole
-// only when it fails. A piece listed in `.template.json` as `piecesKept` is
+// only when it fails. `--skip-tree` leaves out the unmodified tree's check, for CI jobs that run one
+// piece each next to the `check` and `unit` jobs. A piece listed in `.template.json` as `piecesKept` is
 // skipped: the Project keeps it and its new code needs no markers. The `pieces` job in
 // app-ci.yml runs it. docs/agents/pieces.md says what to do when it fails.
 import { spawn } from "node:child_process";
@@ -318,19 +319,24 @@ export const eachConcurrently = async <T>({
 	);
 };
 
-const usage = `Usage: pnpm piece-check [<piece>...]
+const usage = `Usage: pnpm piece-check [--skip-tree] [<piece>...]
 
 Proves that every installed Piece can still be removed: ${pieceNames.join(", ")}.
 Name Pieces to check only those.
 
-  -h, --help  this help`;
+  --skip-tree  do not check the unmodified tree first (CI runs one Piece per job and
+               its check and unit jobs already run on HEAD)
+  -h, --help   this help`;
 
 const main = async () => {
 	const directory = process.cwd();
 	// --job is how it runs each check in a child process of its own; it is not for people.
 	const parsed = argsParse({
 		allowPositionals: true,
-		options: { job: { type: "string" } },
+		options: {
+			job: { type: "string" },
+			"skip-tree": { type: "boolean" },
+		},
 		usage,
 	});
 	if (parsed === undefined) return;
@@ -373,20 +379,22 @@ const main = async () => {
 	// The unmodified tree is checked first, alone. When it fails, no piece is to blame. Its install
 	// also fills the pnpm store, so the pieces' installs, two at a time, only link from it: two
 	// installs downloading into an empty store at once can fail on the same file.
-	const tree = await jobSpawn(directory, { tree: true }).catch(
-		(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
-	);
-	if (tree.outcome === "failed" || tree.outcome === "unchecked") {
-		console.error(tree.output);
-		process.exitCode = 1;
-		return;
-	}
-	if (tree.outcome === "crashed") {
-		console.error(
-			`piece-check: the check of the unmodified tree stopped before it ended, so no piece is to blame. Run it again.\n${tree.output}`,
+	if (parsed.values["skip-tree"] !== true) {
+		const tree = await jobSpawn(directory, { tree: true }).catch(
+			(error): JobEnd => ({ outcome: "crashed", output: String(error) }),
 		);
-		process.exitCode = 1;
-		return;
+		if (tree.outcome === "failed" || tree.outcome === "unchecked") {
+			console.error(tree.output);
+			process.exitCode = 1;
+			return;
+		}
+		if (tree.outcome === "crashed") {
+			console.error(
+				`piece-check: the check of the unmodified tree stopped before it ended, so no piece is to blame. Run it again.\n${tree.output}`,
+			);
+			process.exitCode = 1;
+			return;
+		}
 	}
 	// Output of each piece that fails or could not be checked, printed whole at the end.
 	const failures = new Map<string, string>();
