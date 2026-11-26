@@ -10,7 +10,7 @@ const serverEntry = "build/server/index.js";
 export type E2eServer = AsyncDisposable & { url: string };
 
 // A port the kernel hands out and frees at once; the Server binds it a moment later.
-const portFree = async (): Promise<number> => {
+export const e2eServerPortFree = async (): Promise<number> => {
 	const probe = createServer().listen(0, "127.0.0.1");
 	await once(probe, "listening");
 	const address = probe.address();
@@ -36,7 +36,10 @@ const stop = async (child: ChildProcess): Promise<void> => {
 
 /** Boots the production build (`pnpm build` first) and resolves once the sign-in page answers 200. */
 export const e2eServerStart = async (): Promise<E2eServer> => {
-	const [port, healthPort] = [await portFree(), await portFree()];
+	const [port, healthPort] = [
+		await e2eServerPortFree(),
+		await e2eServerPortFree(),
+	];
 	const child = spawn(
 		process.execPath,
 		["--import", resolve("src/preload.ts"), serverEntry],

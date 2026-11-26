@@ -95,6 +95,7 @@
 		"es-module-lexer": "^3.0.5",
 		"fast-check": "^4.10.3",
 		"happy-dom": "^21.0.4",
+		"lighthouse": "13.6.0",
 		"orval": "8.48.0",
 		"playwright": "1.63.0",
 		"protobufjs": "^8.8.1",
