@@ -1,5 +1,11 @@
 # app
 
+## 17.0.1
+
+### Patch Changes
+
+- d610f31: Docs only: the Template's CONTEXT.md cites ADR 0012, `using.md` lists the feature-flags handles, and `pieces.md` no longer contradicts itself on removal order. No behaviour changes.
+
 ## 17.0.0
 
 ### Major Changes
