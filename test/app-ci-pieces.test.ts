@@ -33,4 +33,11 @@ describe("app-ci.yml pieces", () => {
 	it("keeps `pieces` as the one aggregate job the ruleset requires", () => {
 		expect(workflow).toMatch(/^ {2}pieces:\n {4}needs: piece\n/m);
 	});
+
+	it("checks out every blob in `changes`, since a partial clone cannot fetch one without credentials", () => {
+		const changes = /^ {2}changes:\n[\s\S]*?^ {2}# Every check/m.exec(workflow);
+		expect(changes).not.toBeNull();
+		expect(changes?.[0]).toContain("persist-credentials: false");
+		expect(changes?.[0]).not.toMatch(/^\s*filter:/m);
+	});
 });
