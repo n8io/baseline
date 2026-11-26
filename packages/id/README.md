@@ -78,4 +78,10 @@ The pattern also shows up in an OpenAPI document generated from the schema.
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/id.ts` with the Package's tests and fails below a **floor of 90%**. The score today is 95.4% (81 killed, 2 timed out, 4 survived of 87 mutants). The survivors are the unanchored UUID pattern (`^` and `$` are untested on a UUID with text around it) and the two `?? 0` fallbacks on bytes that are always set. Raise the floor as tests kill them; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** nothing: no peers and no env.
