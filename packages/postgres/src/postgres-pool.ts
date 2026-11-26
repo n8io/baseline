@@ -22,9 +22,10 @@ export type PostgresClient = pg.PoolClient;
 /**
  * pg's own pool settings, passed through as they are. Outside this Package's contract: nothing
  * here is tested, and moving off pg deletes it. The keys the named options and the URL set are
- * refused.
+ * refused. Not exported from the Package: write the object inline in `src/connections.ts`, where
+ * `postgresPoolCreate` takes it.
  */
-export type PostgresPoolVendorOptions = Omit<
+type PostgresPoolVendorOptions = Omit<
 	pg.PoolConfig,
 	PostgresVendorOwnedKey | "max" | "query_timeout"
 >;

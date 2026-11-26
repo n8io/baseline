@@ -1,14 +1,19 @@
 // The shared Redis global setup starts the Redis these tests use (vitest.config.ts).
 /// <reference path="../../../test/redis/redis-global-setup.ts" />
+import type { RedisClientType } from "redis";
 import { describe, expect, inject, it } from "vitest";
-import { redisClientCreate } from "./index.ts";
+import { type RedisClient, redisClientCreate } from "./index.ts";
+
+// The test reads node-redis's own commands, which the Package's RedisClient type leaves out on purpose.
+const nodeRedisOf = (client: RedisClient): RedisClientType =>
+	client as unknown as RedisClientType;
 
 describe("redisClientCreate on Redis", () => {
 	it("connects before it resolves", async () => {
 		await using redisClient = await redisClientCreate({
 			url: inject("redisUrl"),
 		});
-		expect(await redisClient.ping()).toBe("PONG");
+		expect(await nodeRedisOf(redisClient).ping()).toBe("PONG");
 	});
 
 	it("passes vendor settings to node-redis", async () => {
@@ -16,7 +21,9 @@ describe("redisClientCreate on Redis", () => {
 			url: inject("redisUrl"),
 			vendor: { name: "baseline-test" },
 		});
-		expect(await redisClient.clientGetName()).toBe("baseline-test");
+		expect(await nodeRedisOf(redisClient).clientGetName()).toBe(
+			"baseline-test",
+		);
 	});
 
 	it("rejects at once when nothing listens, instead of retrying", async () => {

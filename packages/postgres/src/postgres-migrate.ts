@@ -21,9 +21,10 @@ export const postgresMigrateLockKey: string = createHash("sha256")
 
 /**
  * pg's own client settings for the migration's one connection, passed through as they are.
- * Outside this Package's contract, like `PostgresPoolVendorOptions`.
+ * Outside this Package's contract, like the pool's `vendor`. Not exported from the Package: write the object inline in
+ * `src/migrate.ts`.
  */
-export type PostgresMigrateVendorOptions = Omit<
+type PostgresMigrateVendorOptions = Omit<
 	pg.ClientConfig,
 	PostgresVendorOwnedKey
 >;

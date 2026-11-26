@@ -3,14 +3,41 @@ import { sharedTimeLimit } from "@n8io/baseline-shared";
 import {
 	createClient,
 	type RedisClientOptions as NodeRedisClientOptions,
-	type RedisClientType,
 } from "redis";
 
 /**
- * A connected node-redis client, for `cacheStoreRedisCreate`, `liveHubRedisCreate` and a Project's
- * own adapters. Close it with `close()`; `await using` calls `close()` when its block ends.
+ * A Redis connection, as far as the cache store, the live hub and the Project's shutdown use it: the
+ * commands they send and the lifecycle calls. Close it with `close()`; `await using` calls `close()`
+ * when its block ends. A command outside this list goes through an adapter the Project builds on its
+ * own connection, not through this type.
  */
-export type RedisClient = RedisClientType & AsyncDisposable;
+export type RedisConnection = {
+	close(): Promise<void>;
+	connect(): Promise<unknown>;
+	del(key: string): Promise<unknown>;
+	destroy(): void;
+	/** A second connection with the same settings, for a subscriber. */
+	duplicate(): RedisConnection;
+	get(key: string): Promise<string | null>;
+	on(event: "error" | "ready", listener: (err: unknown) => void): unknown;
+	publish(channel: string, message: string): Promise<unknown>;
+	set(
+		key: string,
+		value: string,
+		options: { expiration: { type: "PX"; value: number } },
+	): Promise<unknown>;
+	subscribe(
+		channel: string,
+		listener: (message: string) => void,
+	): Promise<unknown>;
+	unsubscribe(
+		channel: string,
+		listener: (message: string) => void,
+	): Promise<unknown>;
+};
+
+/** What `redisClientCreate` resolves with: a connected {@link RedisConnection} that `await using` closes. */
+export type RedisClient = RedisConnection & AsyncDisposable;
 
 // The settings this Package decides, and where each is set instead.
 const redisVendorOwnedKeys = {
@@ -35,9 +62,10 @@ const redisConnectTimeoutMs = 3_000;
  * node-redis's own client settings, passed through as they are: `socket.ca`, `name`, `keyPrefix`
  * and the like. Outside this Package's contract: nothing here is tested, and moving off
  * node-redis deletes it. The keys the URL and this Package set are refused, and the ones that would
- * change the client's type are left out.
+ * change the client's type are left out. Not exported from the Package: write the object inline in
+ * `src/redis-open.ts`, where `redisClientCreate` takes it.
  */
-export type RedisClientVendorOptions = Omit<
+type RedisClientVendorOptions = Omit<
 	NodeRedisClientOptions,
 	| keyof typeof redisVendorOwnedKeys
 	| "functions"
