@@ -1,4 +1,4 @@
-// Tests use no mocks, spies or fake timers; vi.waitFor and vi.waitUntil are fine.
+// Tests use no mocks, spies, fake timers or reassigned methods of imported modules; vi.waitFor and vi.waitUntil are fine.
 language js
 
 or {
@@ -8,7 +8,13 @@ or {
 			`waitUntil`
 		}
 	},
-	`import { $names } from "vitest"` where { $names <: contains `vi` }
+	`import { $names } from "vitest"` where { $names <: contains `vi` },
+	// A method of an imported module or namespace reassigned by hand: `logger.debug = () => {}`.
+	`$module.$method = $_` where {
+		$program <: contains `import $clause from $_` where {
+			$clause <: contains `$module`
+		}
+	}
 } as $mock where {
 	register_diagnostic(span=$mock, message="No mocks, spies or fake timers: use a memory adapter or a hand-written double on a connection", severity="error")
 }

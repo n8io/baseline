@@ -1,4 +1,4 @@
-// pnpm glossary-check [map] [tree]: warns on words the glossaries rule out, in lines added against
+// pnpm glossary-check [map] [tree]: fails on words the glossaries rule out, in lines added against
 // origin/main under the tree (default "."). The map (default CONTEXT-MAP.md) lists the app's
 // glossaries: CONTEXT.md, the architecture terms every file shares, and each bounded context's
 // own src/contexts/<context>/CONTEXT.md. A file in a context is held to the architecture terms
@@ -11,8 +11,8 @@
 // other text files; migrations, JSON, the glossaries and a string that is the value of `kind:`,
 // in code or quoted in text, are skipped. A glossary term on the line is blanked first, so "Event
 // key" is no hit for an alias "Event"; an alias written capitalized ("DTO") matches only that case,
-// so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. Warnings
-// only: the agent judges each hit, so a hit never fails it; it exits 1 only on wrong arguments.
+// so "dto" passes; an `_Allowed until <when>_:` line lists aliases not checked yet. A hit fails
+// the run (exit 1), as does a crash or wrong arguments: CI treats the check as blocking.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { argsParse, argsUsageFail } from "./args.ts";
@@ -527,7 +527,7 @@ const languageOfRead = (
 
 const usage = `Usage: pnpm glossary-check [map] [tree]
 
-Warns on words the glossaries rule out, in lines added against origin/main under the tree.
+Fails on words the glossaries rule out, in lines added against origin/main under the tree.
 
   map   the app's CONTEXT-MAP.md (default), or one CONTEXT.md that holds every file
   tree  the folder to check (default ".")
@@ -560,8 +560,10 @@ const main = () => {
 		for (const hit of hits) console.log(glossaryHitFormat(hit, actions));
 		if (hits.length === 0)
 			console.log("glossary-check: no hits in added lines");
+		else process.exitCode = 1;
 	} catch (error) {
-		console.log(`glossary-check: skipped (${(error as Error).message})`);
+		console.error(`glossary-check: failed (${(error as Error).message})`);
+		process.exitCode = 1;
 	}
 };
 

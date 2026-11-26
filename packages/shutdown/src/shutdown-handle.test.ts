@@ -1,5 +1,5 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { Logger } from "@n8io/baseline-logger";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
 	type ShutdownHost,
 	type ShutdownStep,
@@ -58,7 +58,8 @@ let events: string[];
 let clock: ReturnType<typeof clockCreate>;
 let host: ShutdownHost;
 let logs: Record<LogMethod, LogCall[]>;
-let loggerOriginal: Record<LogMethod, Logger[LogMethod]>;
+// Records each call in `logs`; the host hands it to the handle.
+const loggerDouble = {} as Record<LogMethod, Logger[LogMethod]>;
 
 // Node passes a signal listener the signal's name.
 const emit = (event: string, value: unknown = event): void => {
@@ -114,23 +115,12 @@ beforeEach(() => {
 		sleep: clock.sleep,
 	};
 	logs = { error: [], fatal: [], info: [], warn: [] };
-	loggerOriginal = {
-		error: logger.error,
-		fatal: logger.fatal,
-		info: logger.info,
-		warn: logger.warn,
-	};
 	for (const method of logMethods) {
-		logger[method] = ((...args: LogCall) => {
+		loggerDouble[method] = ((...args: LogCall) => {
 			logs[method].push(args);
 		}) as Logger[typeof method];
 	}
-});
-
-afterEach(() => {
-	for (const method of logMethods) {
-		logger[method] = loggerOriginal[method];
-	}
+	host.logger = loggerDouble;
 });
 
 describe("shutdownHandleCreate", () => {
@@ -319,7 +309,7 @@ describe("shutdownHandleCreate", () => {
 			intakes: [],
 			resources: [failing("postgres")],
 		});
-		logger.error = (() => {
+		loggerDouble.error = (() => {
 			throw new Error("stdout closed");
 		}) as Logger["error"];
 

@@ -1,0 +1,6 @@
+// no-mocks: assigning a property of a local object is not a mock
+// expect:
+// @file src/contexts/bar/application/bar-close.test.ts
+const state = { count: 0 };
+
+state.count = 1;

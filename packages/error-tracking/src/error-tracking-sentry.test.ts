@@ -1,4 +1,4 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import { context, TraceFlags, trace } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { afterEach, describe, expect, it } from "vitest";
@@ -25,19 +25,18 @@ type SentEvent = {
 
 type LogCall = [fields: unknown, message?: string];
 
-const restores: (() => void)[] = [];
-
-// A hand-written recording double for the logger's warn, put back by afterEach.
+// A hand-written recording double for the logger's warn.
 const warnRecord = () => {
 	const calls: LogCall[] = [];
-	const original = logger.warn;
-	logger.warn = ((...args: LogCall) => {
-		calls.push(args);
-	}) as Logger["warn"];
-	restores.push(() => {
-		logger.warn = original;
-	});
-	return calls;
+	const out = {
+		calls,
+		logger: {
+			warn: ((...args: LogCall) => {
+				calls.push(args);
+			}) as Logger["warn"],
+		},
+	};
+	return out;
 };
 
 const fetchOriginal = globalThis.fetch;
@@ -63,7 +62,6 @@ const requestsCatch = (status = 200) => {
 
 afterEach(() => {
 	globalThis.fetch = fetchOriginal;
-	for (const restore of restores.splice(0)) restore();
 });
 
 describe("errorTrackingSentryCreate", () => {
@@ -200,12 +198,15 @@ describe("errorTrackingSentryCreate", () => {
 			await using errorTracking = errorTrackingSentryCreate({
 				dsn,
 				environment: "test",
+				logger: warn.logger,
 			});
 
 			errorTracking.report(new Error("boom"));
 		}
 
-		expect(warn).toEqual([[{ status: 429 }, "Sentry refused an error report"]]);
+		expect(warn.calls).toEqual([
+			[{ status: 429 }, "Sentry refused an error report"],
+		]);
 	});
 
 	it("await using sends the reports in flight when its block ends", async () => {
@@ -243,12 +244,13 @@ describe("errorTrackingSentryCreate", () => {
 		const errorTracking = errorTrackingSentryCreate({
 			dsn,
 			environment: "test",
+			logger: warn.logger,
 		});
 
 		errorTracking.report(new Error("stuck"));
 		await errorTracking.close();
 
-		expect(warn).toEqual([["Error reports still unsent at close"]]);
+		expect(warn.calls).toEqual([["Error reports still unsent at close"]]);
 	}, 10_000);
 
 	it.each(["https://example.com", "garbage"])(

@@ -112,7 +112,7 @@ Other hard rules: no `any`; every Biome suppression states a reason, and so does
 - The entry lands in the same PR, listed in its "Glossary" section.
 - A context's `CONTEXT-MAP.md` row comes before `pnpm context-create` and goes with the context.
 - Code using another word for a term gets a rename ticket per term, never a rename in passing. Renames go everywhere, expand then contract.
-- Run `pnpm glossary-check` before a PR and judge each hit.
+- Run `pnpm glossary-check` before a PR; each hit fails CI.
 
 ## Rules no tool checks
 

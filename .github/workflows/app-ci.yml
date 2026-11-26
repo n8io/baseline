@@ -170,8 +170,8 @@ jobs:
             echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
             exit 1
           fi
-      # Warnings only: it prints a ::warning annotation per glossary alias or other context's term in the added lines and exits 0.
-      # continue-on-error keeps a crash in the script from failing `check`.
+      # Advisory for now: the artifact path has no git base to diff against, so a hit here is not reliable yet.
+      # It prints an annotation per hit and exits 1; continue-on-error keeps the job green until the base is fixed.
       - name: Glossary hits in added lines
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         continue-on-error: true
