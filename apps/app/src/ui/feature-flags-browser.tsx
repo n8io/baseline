@@ -6,7 +6,11 @@ import type { ReactNode } from "react";
 import { flagDefs, flagKinds } from "../flags.ts";
 import { FeatureFlagExample } from "./feature-flag-example.tsx";
 import { FeatureFlagsProvider } from "./feature-flags.ts";
-import type { FeatureFlagsClientConfig } from "./feature-flags-client-config.ts";
+import {
+	type FeatureFlagsClientConfig,
+	type FeatureFlagsClientPage,
+	featureFlagsClientConfigRead,
+} from "./feature-flags-client-config.ts";
 
 export type AppFeatureFlagsClient = FeatureFlagsClient<
 	typeof flagDefs,
@@ -47,3 +51,20 @@ export const featureFlagsBrowserWrap = async ({
 		</FeatureFlagsProvider>
 	);
 };
+
+// What entry.client hydrates: reads the config from the page the server sent, opens the client it
+// asks for and wraps the app. It reads the page and nothing else: React Router has built no state
+// when entry.client runs, so its own globals are empty (A35 keeps entry.client from reading them).
+export const featureFlagsBrowserStart = ({
+	create = featureFlagsBrowserClientCreate,
+	page,
+	tree,
+}: {
+	create?: (config: FeatureFlagsClientConfig) => AppFeatureFlagsClient | null;
+	page: FeatureFlagsClientPage;
+	tree: ReactNode;
+}): Promise<ReactNode> =>
+	featureFlagsBrowserWrap({
+		client: create(featureFlagsClientConfigRead(page)),
+		tree,
+	});

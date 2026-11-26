@@ -1,0 +1,8 @@
+// A35: entry.client reads the page, not React Router's global state
+// expect: entry.client reads __reactRouterContext
+// @file src/ui/entry.client.tsx
+import { featureFlagsClientConfigRead } from "./feature-flags-client-config.ts";
+
+const config = featureFlagsClientConfigRead(
+	Reflect.get(window, "__reactRouterContext"),
+);
