@@ -6,7 +6,7 @@ import {
 	liveHubRedisCreate,
 } from "@n8io/baseline-live";
 import type { RedisClient } from "@n8io/baseline-redis";
-import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
+import { resourceOpen, type ShutdownSteps } from "./shutdown-step-add.ts";
 
 // The steps it returns close the hub at shutdown, before what is already in them: with the
 // resources in the Worker, else with the intakes, since the hub streams out.
@@ -25,10 +25,11 @@ export const liveHubOpen = ({
 			: liveHubRedisCreate({ redisClient: redis });
 	return {
 		liveHub,
-		steps: shutdownStepAdd({
+		steps: resourceOpen({
 			at: "first",
 			group: role === "worker" ? "resources" : "intakes",
-			step: { close: () => liveHub.close(), name: "live" },
+			name: "live",
+			resource: liveHub,
 			steps,
 		}),
 	};

@@ -3,7 +3,7 @@
 import type { PostgresPool } from "@n8io/baseline-postgres";
 import { type Events, type Queue, queueCreate } from "@n8io/baseline-queue";
 import { eventsOpen } from "./events-open.ts";
-import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
+import { resourceOpen, type ShutdownSteps } from "./shutdown-step-add.ts";
 
 // The steps it returns close the queue at shutdown before what is already in them: the Worker's
 // intakes, since it brings work in there, else the resources.
@@ -33,10 +33,11 @@ export const queueOpen = async ({
 	return {
 		events: eventsOpen(queue),
 		queue,
-		steps: shutdownStepAdd({
+		steps: resourceOpen({
 			at: "first",
 			group: role === "worker" ? "intakes" : "resources",
-			step: { close: () => queue.close(), name: "queue" },
+			name: "queue",
+			resource: queue,
 			steps,
 		}),
 	};
