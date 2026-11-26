@@ -11,13 +11,40 @@ import {
 } from "./postgres-vendor-assert.ts";
 
 /**
+ * Anything that runs SQL on Postgres: the pool, or the client of an open transaction. For a
+ * Drizzle query, wrap it with `postgresDatabaseCreate`.
+ */
+// mutable: pg-boss types the rows of a query as a mutable array, and the queue hands it this as is.
+export type PostgresClient = {
+	query<Row = unknown>(
+		text: string,
+		values?: readonly unknown[],
+	): Promise<{ rowCount: number | null; rows: Row[] }>;
+};
+
+/**
+ * The connection `postgresTransactionRun` checks out of its pool: a client that also reports its
+ * errors and goes back to the pool.
+ */
+export type PostgresTransactionRunConnection = PostgresClient & {
+	off(event: "error", listener: (error: Error) => void): unknown;
+	on(event: "error", listener: (error: Error) => void): unknown;
+	/** Pass `true` to close the connection instead of keeping it. */
+	release(discard?: boolean): void;
+};
+
+/** The pool `postgresTransactionRun` checks a connection out of: a `PostgresPool` fits. */
+export type PostgresTransactionRunPool = {
+	connect(): Promise<PostgresTransactionRunConnection>;
+};
+
+/**
  * The process's Postgres connection pool. Close it with `end()`; `await using` calls `end()` when
  * its block ends.
  */
-export type PostgresPool = pg.Pool & AsyncDisposable;
-
-/** One connection checked out of the pool: what `postgresTransactionRun` hands to its work. */
-export type PostgresClient = pg.PoolClient;
+export type PostgresPool = PostgresClient &
+	PostgresTransactionRunPool &
+	AsyncDisposable & { end(): Promise<void> };
 
 /**
  * pg's own pool settings, passed through as they are. Outside this Package's contract: nothing

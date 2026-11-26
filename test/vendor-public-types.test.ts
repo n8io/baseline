@@ -24,12 +24,7 @@ const vendorModule =
 
 // Exports that still name a vendor, each with the reason and the change that removes it. The test
 // fails on a new one, and on an entry that no longer names a vendor, so the list only shrinks.
-const knownLeaks: Readonly<Record<string, string>> = {
-	"postgres:PostgresClient":
-		"callers hand it to drizzle({ client }), which accepts only pg's types; needs a Drizzle seam in the Package first",
-	"postgres:PostgresPool":
-		"callers hand it to drizzle({ client }), which accepts only pg's types; needs a Drizzle seam in the Package first",
-};
+const knownLeaks: Readonly<Record<string, string>> = {};
 
 const blank = (text: string) => text.replace(/[^\n]/g, " ");
 

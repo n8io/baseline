@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
+	postgresDatabaseCreate,
 	postgresErrorIsUniqueViolation,
 	postgresPoolCreate,
 	postgresUniqueViolationRead,
@@ -13,7 +13,7 @@ describe("postgresErrorIsUniqueViolation", () => {
 		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
 		});
-		const db = drizzle({ client: pgPool });
+		const db = postgresDatabaseCreate(pgPool);
 		await db.execute(
 			sql`CREATE TABLE foo (name text CONSTRAINT foo_name_key UNIQUE)`,
 		);
@@ -35,7 +35,7 @@ describe("postgresUniqueViolationRead", () => {
 		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
 		});
-		const db = drizzle({ client: pgPool });
+		const db = postgresDatabaseCreate(pgPool);
 		await db.execute(
 			sql`CREATE TABLE team (league int, name text, CONSTRAINT team_league_name_key UNIQUE (league, name))`,
 		);

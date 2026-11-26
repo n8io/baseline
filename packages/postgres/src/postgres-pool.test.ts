@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type PostgresPool, postgresPoolCreate } from "./index.ts";
 import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
+import { postgresTestDriverRead } from "./postgres-test-driver-read.ts";
 
 // Option checks and defaults: no connection is made, so these run without Docker.
 describe("postgresPoolCreate", () => {
@@ -26,7 +27,7 @@ describe("postgresPoolCreate", () => {
 			max: 2,
 		});
 
-		expect(pgPool.options).toMatchObject({
+		expect(postgresTestDriverRead(pgPool).options).toMatchObject({
 			connectionString: "postgresql://localhost/db",
 			connectionTimeoutMillis: 3_000,
 			keepAlive: true,
@@ -34,7 +35,7 @@ describe("postgresPoolCreate", () => {
 			max: 10,
 			query_timeout: 15_000,
 		});
-		expect(pgPoolSmall.options.max).toBe(2);
+		expect(postgresTestDriverRead(pgPoolSmall).options.max).toBe(2);
 	});
 
 	it("passes vendor settings to pg, and its own options win", async () => {
@@ -44,7 +45,7 @@ describe("postgresPoolCreate", () => {
 			vendor: { idleTimeoutMillis: 1_000, keepAlive: false },
 		});
 
-		expect(pgPool.options).toMatchObject({
+		expect(postgresTestDriverRead(pgPool).options).toMatchObject({
 			connectionString: "postgres://localhost/db",
 			idleTimeoutMillis: 1_000,
 			keepAlive: false,
@@ -128,12 +129,14 @@ describe("postgresPoolCreate", () => {
 			vendor: null,
 		});
 
-		expect(pgPool.options).toMatchObject({
+		expect(postgresTestDriverRead(pgPool).options).toMatchObject({
 			connectionTimeoutMillis: 3_000,
 			keepAlive: true,
 			max: 10,
 		});
-		expect(pgPool.options.query_timeout).toBeUndefined();
+		expect(
+			postgresTestDriverRead(pgPool).options.query_timeout,
+		).toBeUndefined();
 	});
 
 	it("logs idle client errors instead of crashing the process", async () => {
@@ -143,7 +146,7 @@ describe("postgresPoolCreate", () => {
 		});
 		const error = new Error("connection reset");
 
-		pgPool.emit("error", error);
+		postgresTestDriverRead(pgPool).emit("error", error);
 
 		expect(loggerError.calls).toEqual([
 			[{ err: error }, "Postgres idle client error"],
@@ -159,6 +162,6 @@ describe("postgresPoolCreate", () => {
 			ended = pgPool;
 		}
 
-		expect(ended.ended).toBe(true);
+		expect(postgresTestDriverRead(ended).ended).toBe(true);
 	});
 });

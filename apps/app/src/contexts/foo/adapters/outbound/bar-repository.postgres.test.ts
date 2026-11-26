@@ -1,6 +1,9 @@
-import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
+import {
+	type PostgresPool,
+	postgresDatabaseCreate,
+	postgresPoolCreate,
+} from "@n8io/baseline-postgres";
 import { queueCreate, queueEventsCreate } from "@n8io/baseline-queue";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
 import { barRepositoryContract } from "./bar-repository.contract.ts";
@@ -27,7 +30,9 @@ barRepositoryContract(async () => {
 	closes.push(() => queue.close());
 	// piece-end: queue
 	return {
-		barReadRepository: barRepositoryPostgresCreate(drizzle({ client: pgPool })),
+		barReadRepository: barRepositoryPostgresCreate(
+			postgresDatabaseCreate(pgPool),
+		),
 		fooTransaction: fooTransactionPostgresCreate(
 			pgPool,
 			// piece-start: queue

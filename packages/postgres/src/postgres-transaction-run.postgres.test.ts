@@ -1,15 +1,16 @@
 import { err, ok } from "@n8io/baseline-result";
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import type pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
+	type PostgresClient,
 	type PostgresPool,
+	postgresDatabaseCreate,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "./index.ts";
 import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
+import { postgresTestDriverRead } from "./postgres-test-driver-read.ts";
 
 let pgPool: PostgresPool;
 
@@ -38,7 +39,7 @@ describe("postgresTransactionRun", () => {
 		const result = await postgresTransactionRun({
 			pgPool,
 			work: async (pgClient) => {
-				const db = drizzle({ client: pgClient });
+				const db = postgresDatabaseCreate(pgClient);
 				await db.execute(sql`INSERT INTO foo (name) VALUES ('one')`);
 				return ok("done");
 			},
@@ -46,7 +47,9 @@ describe("postgresTransactionRun", () => {
 
 		expect(result).toEqual(ok("done"));
 		expect(await names()).toEqual(["one"]);
-		expect(pgPool.idleCount).toBe(pgPool.totalCount);
+		expect(postgresTestDriverRead(pgPool).idleCount).toBe(
+			postgresTestDriverRead(pgPool).totalCount,
+		);
 	});
 
 	it("rolls back on err and returns it", async () => {
@@ -75,7 +78,9 @@ describe("postgresTransactionRun", () => {
 			}),
 		).rejects.toBe(error);
 		expect(await names()).toEqual([]);
-		expect(pgPool.idleCount).toBe(pgPool.totalCount);
+		expect(postgresTestDriverRead(pgPool).idleCount).toBe(
+			postgresTestDriverRead(pgPool).totalCount,
+		);
 	});
 
 	it("runs every query on one client in one transaction", async () => {
@@ -95,7 +100,7 @@ describe("postgresTransactionRun", () => {
 	});
 
 	it("throws when the client is used after the transaction ended", async () => {
-		let leaked: pg.PoolClient | undefined;
+		let leaked: PostgresClient | undefined;
 		await postgresTransactionRun({
 			pgPool,
 			work: async (pgClient) => {
@@ -111,7 +116,7 @@ describe("postgresTransactionRun", () => {
 	});
 
 	it("closes the client before rolling back a throw, too", async () => {
-		let leaked: pg.PoolClient | undefined;
+		let leaked: PostgresClient | undefined;
 		await postgresTransactionRun({
 			pgPool,
 			work: async (pgClient) => {
@@ -154,7 +159,9 @@ describe("postgresTransactionRun", () => {
 			}),
 		).rejects.toThrow("transaction timeout");
 		expect(await names()).toEqual([]);
-		expect(pgPool.idleCount).toBe(pgPool.totalCount);
+		expect(postgresTestDriverRead(pgPool).idleCount).toBe(
+			postgresTestDriverRead(pgPool).totalCount,
+		);
 	});
 
 	it("rejects a query past the pool's queryTimeoutMs, rolls back and leaves the pool usable", async () => {

@@ -2,7 +2,11 @@ import { EventEmitter } from "node:events";
 import { ok } from "@n8io/baseline-result";
 import type pg from "pg";
 import { describe, expect, it } from "vitest";
-import { type PostgresPool, postgresTransactionRun } from "./index.ts";
+import {
+	type PostgresClient,
+	type PostgresPool,
+	postgresTransactionRun,
+} from "./index.ts";
 import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
 
 // A pool whose one client records its queries, for the paths a live server can't force.
@@ -82,7 +86,7 @@ describe("postgresTransactionRun client handling", () => {
 
 	it("closes the client as soon as the callback returns, before COMMIT", async () => {
 		const { pgPool, queries } = fakePoolCreate();
-		let leaked: pg.PoolClient | undefined;
+		let leaked: PostgresClient | undefined;
 		let lateError: unknown;
 
 		await postgresTransactionRun({
