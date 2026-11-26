@@ -4,10 +4,7 @@ import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueSchema } from "./queue.ts";
 import { queueConnectionAssert } from "./queue-connection-assert.ts";
 import { queueInboxTableSql } from "./queue-inbox.ts";
-import {
-	queueMigrateIndexesDeadlineMsDefault,
-	queueMigrateIndexesWait,
-} from "./queue-migrate-indexes-wait.ts";
+import { queueMigrateIndexesWait } from "./queue-migrate-indexes-wait.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
 
 /**
@@ -25,8 +22,8 @@ export type QueueMigrateOptions = {
 	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/**
-	 * How long to wait for pg-boss's background index builds before throwing. Default 600 000
-	 * (10 minutes); at most 2147483647.
+	 * How long to wait for pg-boss's background index builds before throwing. Default: no deadline,
+	 * it waits as long as the builds take; at most 2147483647.
 	 */
 	indexesDeadlineMs?: number | null;
 	/** The `queueName` of each Consumer an earlier release removed: its queues are deleted. */
@@ -42,7 +39,7 @@ export type QueueMigrateOptions = {
  * runs after it. Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL, on an
  * `indexesDeadlineMs` that is not a whole number from 1 to 2147483647, or on a `vendor` key other than `ssl`, `application_name` and `options`, or `vendor.ssl` together
  * with TLS in the URL. Rejects with an `Error` that starts `queueMigrate:` when the index builds
- * are still running after `indexesDeadlineMs`.
+ * are still running after `indexesDeadlineMs`, when one is set.
  */
 export const queueMigrate = async (
 	options: QueueMigrateOptions,
@@ -53,15 +50,16 @@ export const queueMigrate = async (
 		databaseUrl: options.databaseUrl,
 		vendor,
 	});
-	const indexesDeadlineMs =
-		options.indexesDeadlineMs ?? queueMigrateIndexesDeadlineMsDefault;
-	sharedIntegerAssert({
-		caller: "queueMigrate",
-		max: sharedTimerMaxMs,
-		min: 1,
-		name: "indexesDeadlineMs",
-		value: indexesDeadlineMs,
-	});
+	const indexesDeadlineMs = options.indexesDeadlineMs ?? null;
+	if (indexesDeadlineMs !== null) {
+		sharedIntegerAssert({
+			caller: "queueMigrate",
+			max: sharedTimerMaxMs,
+			min: 1,
+			name: "indexesDeadlineMs",
+			value: indexesDeadlineMs,
+		});
+	}
 	const boss = new PgBoss({
 		...vendor,
 		bamIntervalSeconds: 10,

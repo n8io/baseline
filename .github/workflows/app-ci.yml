@@ -170,6 +170,12 @@ jobs:
             echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
             exit 1
           fi
+      # Blocking in a Project, whose checkout has the full history and so origin/main to diff against.
+      # Not in artifact mode (the Template's render-and-test): app.tar carries no git base, and
+      # baseline's ci.yml runs the check on the Template with its real checkout.
+      - name: Glossary hits in added lines
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && inputs.artifact == '' }}
+        run: pnpm glossary-check
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
   # The rules are baseline's pinned snapshot of p/typescript, p/nodejs, p/react and p/secrets
