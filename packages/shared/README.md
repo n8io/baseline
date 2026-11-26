@@ -44,4 +44,10 @@ await sharedTimeLimit({
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/shared-*.ts` with the Package's tests and fails below a **floor of 90%**. The score today is 100% (88 killed, 3 timed out, 0 survived of 91 mutants; one more mutant did not compile and is not scored). Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** nothing: no peers and no env.
