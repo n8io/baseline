@@ -4,8 +4,8 @@ import { NONCE, secureHeaders } from "hono/secure-headers";
 /** What `httpSecureHeadersCreate` takes. */
 export type HttpSecureHeadersOptions = {
 	/**
-	 * Origins the page's own scripts may fetch, stream from or send events to, such as
-	 * `https://api.example.com`. `'self'` is always allowed; nothing else is without this.
+	 * Origins (scheme, host and port, such as `https://api.example.com`) the page's own scripts may
+	 * fetch, stream from or send events to. `'self'` is always allowed; nothing else is without this.
 	 */
 	readonly connectSrc?: readonly string[] | null;
 };

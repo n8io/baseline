@@ -31,12 +31,11 @@ describe("featureFlagsLaunchDarklyClientOrigins", () => {
 		).toEqual([relay]);
 	});
 
-	it("leaves out an option that is not a URL", () => {
+	it("leaves out an option that is not an http(s) URL, such as a bare host:port", () => {
 		expect(
-			featureFlagsLaunchDarklyClientOrigins({ vendor: { baseUri: "nope" } }),
-		).toEqual([
-			"https://clientstream.launchdarkly.com",
-			"https://events.launchdarkly.com",
-		]);
+			featureFlagsLaunchDarklyClientOrigins({
+				vendor: { baseUri: "nope", eventsUri: "localhost:8030" },
+			}),
+		).toEqual(["https://clientstream.launchdarkly.com"]);
 	});
 });

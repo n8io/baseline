@@ -31,7 +31,13 @@ export const featureFlagsLaunchDarklyClientOrigins = ({
 	];
 	return [
 		...new Set(
-			urls.flatMap((url) => (URL.canParse(url) ? [new URL(url).origin] : [])),
+			urls.flatMap((url) => {
+				// A scheme-less "host:8030" parses with the scheme "host:" and has no origin.
+				const parsed = URL.canParse(url) ? new URL(url) : null;
+				return parsed?.protocol === "https:" || parsed?.protocol === "http:"
+					? [parsed.origin]
+					: [];
+			}),
 		),
 	];
 };
