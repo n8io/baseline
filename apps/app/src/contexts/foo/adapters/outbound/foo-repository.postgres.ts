@@ -1,10 +1,10 @@
 import {
+	type PostgresDatabase,
 	postgresErrorIsUniqueViolation,
 	postgresKeysetCreate,
 } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 import { and, count, eq, isNotNull, isNull, lt } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { cursorDecode, cursorEncode } from "../../../../cursor.ts";
 import { FooNameTakenError, FooNotFoundError } from "../../domain/errors.ts";
 import type { Foo } from "../../domain/foo.ts";
@@ -12,7 +12,7 @@ import type { FooRepository } from "../../domain/repositories.ts";
 import { foo } from "./foo-table.ts";
 
 // A nested Drizzle transaction is a compile error: fooTransaction owns the transaction.
-type FooDatabase = Omit<NodePgDatabase, "transaction">;
+type FooDatabase = Omit<PostgresDatabase, "transaction">;
 
 const fooFromRow = (row: typeof foo.$inferSelect): Foo => ({
 	archivedAt: row.archivedAt,

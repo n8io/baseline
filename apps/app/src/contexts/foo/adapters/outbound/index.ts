@@ -1,5 +1,5 @@
+import { postgresDatabaseCreate } from "@n8io/baseline-postgres";
 import type { Events } from "@n8io/baseline-queue";
-import { drizzle } from "drizzle-orm/node-postgres";
 import type { Connections } from "../../../../connections.ts";
 import type { FooPorts } from "../../application/ports.ts";
 import { barRepositoryPostgresCreate } from "./bar-repository.postgres.ts";
@@ -25,10 +25,10 @@ export const fooPortsCreate = (connections: Connections): FooPorts => {
 			? fooPortsMemoryCreate().ports
 			: {
 					barReadRepository: barRepositoryPostgresCreate(
-						drizzle({ client: database }),
+						postgresDatabaseCreate(database),
 					),
 					fooReadRepository: fooRepositoryPostgresCreate(
-						drizzle({ client: database }),
+						postgresDatabaseCreate(database),
 					),
 					// wiring: read-repositories
 					fooTransaction: fooTransactionPostgresCreate(

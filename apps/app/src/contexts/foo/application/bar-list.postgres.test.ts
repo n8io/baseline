@@ -1,7 +1,7 @@
 import type { Actor } from "@n8io/baseline-authn";
 import type { Id } from "@n8io/baseline-id";
+import { postgresDatabaseCreate } from "@n8io/baseline-postgres";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { type Connections, connectionsOpen } from "../../../connections.ts";
@@ -32,7 +32,7 @@ afterAll(async () => {
 
 const barsCount = async (fooId: Id<"foo">): Promise<number> => {
 	if (connections.database === "memory") throw new Error("needs Postgres");
-	const rows = await drizzle({ client: connections.database })
+	const rows = await postgresDatabaseCreate(connections.database)
 		.select()
 		.from(bar)
 		.where(eq(bar.fooId, fooId));

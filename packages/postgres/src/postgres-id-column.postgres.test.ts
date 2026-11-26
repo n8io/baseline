@@ -1,6 +1,5 @@
 import { type Id, idCreate, idToUuid } from "@n8io/baseline-id";
-import { eq, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import {
 	afterAll,
@@ -11,7 +10,11 @@ import {
 	it,
 } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
-import { postgresIdColumnCreate, postgresPoolCreate } from "./index.ts";
+import {
+	postgresDatabaseCreate,
+	postgresIdColumnCreate,
+	postgresPoolCreate,
+} from "./index.ts";
 
 const fooTable = pgTable("foo", {
 	id: postgresIdColumnCreate("foo")().primaryKey(),
@@ -35,13 +38,13 @@ afterAll(async () => {
 
 describe("postgresIdColumnCreate", () => {
 	it("stores a uuid and reads back the prefixed id", async () => {
-		const db = drizzle({ client: pgPool });
+		const db = postgresDatabaseCreate(pgPool);
 		const id = idCreate("foo");
 		await db.insert(fooTable).values({ id, name: "one" });
 
 		const [row] = await db.select().from(fooTable).where(eq(fooTable.id, id));
-		const raw = await db.execute<{ id: string; type: string }>(
-			sql`SELECT id::text AS id, pg_typeof(id)::text AS type FROM foo`,
+		const raw = await pgPool.query<{ id: string; type: string }>(
+			"SELECT id::text AS id, pg_typeof(id)::text AS type FROM foo",
 		);
 
 		expectTypeOf(row?.id).toEqualTypeOf<Id<"foo"> | undefined>();
@@ -50,7 +53,7 @@ describe("postgresIdColumnCreate", () => {
 	});
 
 	it("refuses an id with another prefix cast past the types", async () => {
-		const db = drizzle({ client: pgPool });
+		const db = postgresDatabaseCreate(pgPool);
 		const barId = idCreate("bar") as string as Id<"foo">;
 
 		await expect(async () => {

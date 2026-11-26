@@ -1,10 +1,10 @@
+import type { PostgresDatabase } from "@n8io/baseline-postgres";
 import { asc, eq } from "drizzle-orm";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { BarRepository } from "../../domain/repositories.ts";
 import { bar } from "./bar-table.ts";
 
 // A nested Drizzle transaction is a compile error: fooTransaction owns the transaction.
-type BarDatabase = Omit<NodePgDatabase, "transaction">;
+type BarDatabase = Omit<PostgresDatabase, "transaction">;
 
 export const barRepositoryPostgresCreate = (
 	db: BarDatabase,

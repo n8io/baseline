@@ -1,10 +1,10 @@
 import { ok } from "@n8io/baseline-result";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type PostgresPool,
 	postgresAdvisoryLockTake,
+	postgresDatabaseCreate,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "./index.ts";
@@ -22,7 +22,7 @@ const lockedRun = ({
 	postgresTransactionRun({
 		pgPool,
 		work: async (pgClient) => {
-			await postgresAdvisoryLockTake(drizzle({ client: pgClient }), key);
+			await postgresAdvisoryLockTake(postgresDatabaseCreate(pgClient), key);
 			await pause?.();
 			return ok(key);
 		},

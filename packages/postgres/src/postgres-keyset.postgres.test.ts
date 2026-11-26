@@ -1,10 +1,10 @@
 import { type Id, idCreate, idToUuid } from "@n8io/baseline-id";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type PostgresKeysetKind,
+	postgresDatabaseCreate,
 	postgresIdColumnCreate,
 	postgresKeysetCreate,
 	postgresPoolCreate,
@@ -57,7 +57,7 @@ describe("postgresKeysetCreate", () => {
 			await using pgPool = postgresPoolCreate({
 				databaseUrl: await postgresTestDatabaseCreate(),
 			});
-			const db = drizzle({ client: pgPool });
+			const db = postgresDatabaseCreate(pgPool);
 			await db.execute(
 				"CREATE TABLE item (at timestamptz NOT NULL, id uuid PRIMARY KEY, name text NOT NULL, score integer NOT NULL)",
 			);
@@ -105,7 +105,7 @@ describe("postgresKeysetCreate", () => {
 		await using pgPool = postgresPoolCreate({
 			databaseUrl: await postgresTestDatabaseCreate(),
 		});
-		const db = drizzle({ client: pgPool });
+		const db = postgresDatabaseCreate(pgPool);
 		await db.execute(
 			"CREATE TABLE item (at timestamptz NOT NULL, id uuid PRIMARY KEY, name text NOT NULL, score integer NOT NULL)",
 		);

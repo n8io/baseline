@@ -1,5 +1,6 @@
 import {
 	type PostgresPool,
+	postgresDatabaseCreate,
 	postgresTransactionRun,
 } from "@n8io/baseline-postgres";
 import {
@@ -8,7 +9,6 @@ import {
 	queueInboxInsert,
 } from "@n8io/baseline-queue";
 import { ok, type Result } from "@n8io/baseline-result";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { transactionPortsGuard } from "../../../../transaction-ports-guard.ts";
 import type {
 	FooTransaction,
@@ -41,7 +41,7 @@ export const fooTransactionPostgresCreate = (
 			work: async (pgClient) => {
 				let open = true;
 				const isOpen = (): boolean => open;
-				const db = drizzle({ client: pgClient });
+				const db = postgresDatabaseCreate(pgClient);
 				// piece-start: queue
 				if (inbox && !(await queueInboxInsert(pgClient, inbox))) {
 					return ok(undefined) as Result<T, E>;

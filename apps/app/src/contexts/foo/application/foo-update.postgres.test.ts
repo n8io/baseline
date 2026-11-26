@@ -1,9 +1,12 @@
 import type { Actor } from "@n8io/baseline-authn";
-import { type PostgresPool, postgresPoolCreate } from "@n8io/baseline-postgres";
+import {
+	type PostgresPool,
+	postgresDatabaseCreate,
+	postgresPoolCreate,
+} from "@n8io/baseline-postgres";
 import { postgresTestInterleave } from "@n8io/baseline-postgres/testing";
 import { queueCreate, queueEventsCreate } from "@n8io/baseline-queue";
 import { err, ok } from "@n8io/baseline-result";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { integrationDatabaseCreate } from "../../../../test/integration/integration-database.ts";
 import { clockMemoryCreate } from "../../../clock.ts";
@@ -47,7 +50,9 @@ afterAll(async () => {
 const portsCreate = (): FooPorts => ({
 	...fooPortsMemoryCreate().ports,
 	fooClock: clockMemoryCreate(now),
-	fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
+	fooReadRepository: fooRepositoryPostgresCreate(
+		postgresDatabaseCreate(pgPool),
+	),
 	fooTransaction,
 });
 

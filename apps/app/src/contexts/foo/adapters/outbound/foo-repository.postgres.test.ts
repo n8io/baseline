@@ -1,6 +1,8 @@
-import { postgresPoolCreate } from "@n8io/baseline-postgres";
+import {
+	postgresDatabaseCreate,
+	postgresPoolCreate,
+} from "@n8io/baseline-postgres";
 import { queueCreate, queueEventsCreate } from "@n8io/baseline-queue";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll } from "vitest";
 import { integrationDatabaseCreate } from "../../../../../test/integration/integration-database.ts";
 import { fooRepositoryContract } from "./foo-repository.contract.ts";
@@ -27,7 +29,9 @@ fooRepositoryContract(async () => {
 	closes.unshift(() => queue.close());
 	// piece-end: queue
 	return {
-		fooReadRepository: fooRepositoryPostgresCreate(drizzle({ client: pgPool })),
+		fooReadRepository: fooRepositoryPostgresCreate(
+			postgresDatabaseCreate(pgPool),
+		),
 		fooTransaction: fooTransactionPostgresCreate(
 			pgPool,
 			// piece-start: queue

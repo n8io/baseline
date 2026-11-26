@@ -1,3 +1,4 @@
+import pg from "pg";
 import { describe, expect, it } from "vitest";
 import { connectionsOpen, databaseOpen } from "./connections.ts";
 
@@ -16,6 +17,7 @@ const poolMax = async ({
 	});
 	if (opened.database === "memory") throw new Error("expected a pool");
 	await using pgPool = opened.database;
+	if (!(pgPool instanceof pg.Pool)) throw new Error("expected a pg pool");
 	// The queue sizes its concurrency from poolMax, so it must be the pool's own max, as before.
 	expect(opened.poolMax).toBe(pgPool.options.max);
 	return opened.poolMax;
