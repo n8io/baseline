@@ -25,8 +25,20 @@ export type Logger = {
 	trace: LoggerMethod;
 };
 
-/** The one logger: JSON to stdout, level from `LOG_LEVEL` (default `info`). A
- * `LOG_LEVEL` that is not a level throws a `TypeError` on import. */
-export const logger: Logger = pino(
-	loggerOptionsCreate(loggerLevelAssert(process.env["LOG_LEVEL"] || "info")),
-);
+/** What `loggerCreate` takes. */
+export type LoggerCreateOptions = {
+	/** One of fatal, error, warn, info, debug, trace or silent. Defaults to `LOG_LEVEL`, then `info`. */
+	level?: string | null;
+};
+
+/**
+ * Creates a logger: JSON to stdout, credentials redacted. The level is `options.level`, else
+ * `LOG_LEVEL` read now, else `info`. A level that is not one throws a `TypeError` naming the valid
+ * levels, at the call.
+ */
+export const loggerCreate = (options: LoggerCreateOptions = {}): Logger =>
+	pino(
+		loggerOptionsCreate(
+			loggerLevelAssert(options.level || process.env["LOG_LEVEL"] || "info"),
+		),
+	);

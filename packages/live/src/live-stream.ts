@@ -1,5 +1,5 @@
-import { logger } from "@n8io/baseline-logger";
 import { type LiveHub, liveHubStreams } from "./live-hub.ts";
+import { liveLoggerDefault as logger } from "./live-logger-default.ts";
 
 /** How often a stream sends a comment to keep the connection open. */
 export const liveHeartbeatMs: number = 20_000;

@@ -1,9 +1,9 @@
-import { logger } from "@n8io/baseline-logger";
 import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueSchema } from "./queue.ts";
 import { queueConnectionAssert } from "./queue-connection-assert.ts";
 import { queueInboxTableSql } from "./queue-inbox.ts";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 import { queueMigrateIndexesWait } from "./queue-migrate-indexes-wait.ts";
 import { queueOrderedName } from "./queue-ordered.ts";
 

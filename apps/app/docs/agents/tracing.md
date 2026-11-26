@@ -13,7 +13,7 @@ One client request is one trace, with no app code. The telemetry preload (`src/p
 - **Back to the caller.** Every problem+json body has `traceId`, the same id. A caller reports it; you search by it.
 - **Error reports.** Every `logger.error` or `logger.fatal` with an `err` is also an Error report in Sentry when the Project has `SENTRY_DSN`, tagged with the same `trace_id`. So log only the unexpected there: an err a Use case returns is expected and is not logged at error.
 
-Log through `logger` from `@n8io/baseline-logger` (`console` is only for a command's own output to the person running it): `logger.info({ invoiceId }, "Invoice archived")`, fields first, then a fixed message with no values in it. A line carries only what [AGENTS.md](../../AGENTS.md)'s Privacy rules allow: ids, error codes, class names, counts and timings.
+Log through a logger from `loggerCreate()` in `@n8io/baseline-logger` (`console` is only for a command's own output to the person running it): `logger.info({ invoiceId }, "Invoice archived")`, fields first, then a fixed message with no values in it. A line carries only what [AGENTS.md](../../AGENTS.md)'s Privacy rules allow: ids, error codes, class names, counts and timings.
 
 Never add a request id, correlation id or trace header by hand, and never pass a trace id through a Port or Event payload: the context already travels.
 

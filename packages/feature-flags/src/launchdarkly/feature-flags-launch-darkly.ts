@@ -1,6 +1,5 @@
 import type { LDOptions } from "@launchdarkly/node-server-sdk";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
-import { logger } from "@n8io/baseline-logger";
 import { sharedTimeRace } from "@n8io/baseline-shared";
 import {
 	type EvaluationContext,
@@ -28,6 +27,7 @@ import {
 	type FeatureFlagsServerSource,
 	featureFlagsServerCreate,
 } from "../core/feature-flags-server.ts";
+import { featureFlagsLoggerDefault as logger } from "../feature-flags-logger-default.ts";
 import { featureFlagsLaunchDarklyContext } from "./feature-flags-launch-darkly-context.ts";
 import { featureFlagsLaunchDarklyEvaluationRecord } from "./feature-flags-launch-darkly-evaluation.ts";
 

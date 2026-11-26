@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { pino } from "pino";
 import { describe, expect, it } from "vitest";
+import { loggerCreate } from "./logger.ts";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
 const canary = "canary@example.com";
@@ -27,7 +28,7 @@ const loggerImport = (level: string | undefined) => {
 		[
 			"--input-type=module",
 			"-e",
-			`import(${JSON.stringify(loggerModuleUrl)}).then((m) => { process.stdout.write(m.logger.level); }, (e) => { process.stderr.write(e.name + ": " + e.message); process.exit(1); });`,
+			`import(${JSON.stringify(loggerModuleUrl)}).then((m) => { let created; try { created = m.loggerCreate().level; } catch (e) { created = e.name + ": " + e.message; } process.stdout.write(created); }, (e) => { process.stderr.write(e.name + ": " + e.message); process.exit(1); });`,
 		],
 		{ encoding: "utf8", env },
 	);
@@ -48,12 +49,20 @@ describe("logger", () => {
 		expect(loggerImport("").stdout).toBe("info");
 	});
 
-	it("throws a TypeError on import when LOG_LEVEL is not a level", () => {
+	it("imports without throwing when LOG_LEVEL is not a level, and loggerCreate throws a clear error", () => {
 		const result = loggerImport("verbose");
 
-		expect(result.status).toBe(1);
-		expect(result.stderr).toBe(
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe("");
+		expect(result.stdout).toBe(
 			'TypeError: LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
+		);
+	});
+
+	it("loggerCreate takes its level from the options over LOG_LEVEL", () => {
+		expect(loggerCreate({ level: "debug" }).level).toBe("debug");
+		expect(() => loggerCreate({ level: "verbose" })).toThrow(
+			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
 		);
 	});
 

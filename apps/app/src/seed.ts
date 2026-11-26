@@ -1,11 +1,13 @@
 // Entry point for example data: local development only, never production.
 import type { Actor } from "@n8io/baseline-authn";
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { fooScopes } from "#contexts/foo/index.ts";
 import { ENV, envLocal } from "#env";
 import { connectionsClose, connectionsOpen } from "./connections.ts";
 import { type ContextMounts, contextsCreate } from "./contexts.ts";
+
+const logger = loggerCreate();
 
 const devSeedActor: Actor = {
 	id: "dev-seed",

@@ -1,4 +1,3 @@
-import { logger } from "@n8io/baseline-logger";
 import { type Context, Hono } from "hono";
 import { decodeJwt } from "jose";
 import {
@@ -31,6 +30,7 @@ import {
 	authnCookieGet,
 	authnCookieSet,
 } from "./authn-cookie.ts";
+import { authnLoggerDefault as logger } from "./authn-logger-default.ts";
 import { authnRequestUrlPublic } from "./authn-request-url.ts";
 import { authnReturnToSafe } from "./authn-return-to.ts";
 import {

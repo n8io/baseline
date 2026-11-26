@@ -1,7 +1,7 @@
-import { logger } from "@n8io/baseline-logger";
 import { type Counter, type Gauge, metrics } from "@opentelemetry/api";
 import type { PgBoss } from "pg-boss";
 import type { QueueBlockedKey } from "./queue.ts";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 
 /**
  * A Consumer's jobs wait in the queue `<queueName>.ordered`, which hands out the jobs of one key

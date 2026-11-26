@@ -1,4 +1,5 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 
 /** One recorded logger call: the fields or message, then the message when fields came first. */
 export type LoggerTestCall = [fields: unknown, message?: string];

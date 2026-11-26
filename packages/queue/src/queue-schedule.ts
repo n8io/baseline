@@ -1,4 +1,3 @@
-import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
 import { PgBoss } from "pg-boss";
 import {
@@ -9,6 +8,7 @@ import {
 } from "./queue.ts";
 import { queueConnectionAssert } from "./queue-connection-assert.ts";
 import { queueJobRun } from "./queue-job-run.ts";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 import type { QueueMigrateVendorOptions } from "./queue-migrate.ts";
 import { queueSlotsGet } from "./queue-slots.ts";
 import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";

@@ -1,9 +1,9 @@
-import { logger } from "@n8io/baseline-logger";
 import { sharedTimeLimit } from "@n8io/baseline-shared";
 import {
 	createClient,
 	type RedisClientOptions as NodeRedisClientOptions,
 } from "redis";
+import { redisLoggerDefault as logger } from "./redis-logger-default.ts";
 
 /**
  * A Redis connection, as far as the cache store, the live hub and the Project's shutdown use it: the
