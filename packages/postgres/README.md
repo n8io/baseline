@@ -48,20 +48,32 @@ import { postgresPoolCreate } from "@n8io/baseline-postgres";
 const pgPool = postgresPoolCreate({ databaseUrl: ENV.DATABASE_URL });
 ```
 
-A transaction that commits on `ok` and rolls back on `err`:
+A write through a client, which a transaction hands to its work:
 
 ```ts
 import { idCreate } from "@n8io/baseline-id";
-import { postgresDatabaseCreate, postgresTransactionRun } from "@n8io/baseline-postgres";
+import {
+	postgresDatabaseCreate,
+	type PostgresClient,
+} from "@n8io/baseline-postgres";
+
+export const fooCreate = (pgClient: PostgresClient, name: string) =>
+	postgresDatabaseCreate(pgClient)
+		.insert(fooTable)
+		.values({ id: idCreate("foo"), name })
+		.returning();
+```
+
+A transaction that commits on `ok` and rolls back on `err`:
+
+```ts
+import { postgresTransactionRun } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 
 const result = await postgresTransactionRun({
 	pgPool,
 	work: async (pgClient) => {
-		const [foo] = await postgresDatabaseCreate(pgClient)
-			.insert(fooTable)
-			.values({ id: idCreate("foo"), name })
-			.returning();
+		const [foo] = await fooCreate(pgClient, name);
 		return foo ? ok(foo) : err(new FooNotCreatedError());
 	},
 });
