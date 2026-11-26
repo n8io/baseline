@@ -52,10 +52,7 @@ A transaction that commits on `ok` and rolls back on `err`:
 
 ```ts
 import { idCreate } from "@n8io/baseline-id";
-import {
-	postgresDatabaseCreate,
-	postgresTransactionRun,
-} from "@n8io/baseline-postgres";
+import { postgresDatabaseCreate, postgresTransactionRun } from "@n8io/baseline-postgres";
 import { err, ok } from "@n8io/baseline-result";
 
 const result = await postgresTransactionRun({
