@@ -10,14 +10,12 @@ export {
 } from "./postgres-keyset.ts";
 export {
 	type PostgresMigrateOptions,
-	type PostgresMigrateVendorOptions,
 	postgresMigrate,
 } from "./postgres-migrate.ts";
 export {
 	type PostgresClient,
 	type PostgresPool,
 	type PostgresPoolOptions,
-	type PostgresPoolVendorOptions,
 	postgresPoolCreate,
 } from "./postgres-pool.ts";
 export {

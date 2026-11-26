@@ -1,6 +1,6 @@
 export {
 	type RedisClient,
 	type RedisClientOptions,
-	type RedisClientVendorOptions,
+	type RedisConnection,
 	redisClientCreate,
 } from "./redis-client.ts";
