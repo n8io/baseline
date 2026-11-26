@@ -19,6 +19,17 @@ import.meta.glob(
 const read = (path: string) =>
 	readFileSync(new URL(`./${path}`, import.meta.url), "utf8");
 
+// The root .node-version (apps/app/ in baseline, the Project's own root elsewhere).
+const nodeMajorRead = (): string => {
+	const path = existsSync(new URL("./.node-version", import.meta.url))
+		? "./.node-version"
+		: "../../.node-version";
+	return readFileSync(new URL(path, import.meta.url), "utf8")
+		.trim()
+		.replace(/^v/, "")
+		.split(".")[0] as string;
+};
+
 type Instruction = { args: string; keyword: string };
 
 // One entry per instruction: comments dropped, backslash continuations joined.
@@ -69,11 +80,17 @@ const entries = (): string[][] => {
 };
 
 describe("Dockerfile", () => {
-	it("builds from node:26-alpine pinned by digest in every stage", () => {
+	it("builds from node:<.node-version major>-alpine pinned by digest in every stage", () => {
+		const major = nodeMajorRead();
 		const froms = instructions.filter(({ keyword }) => keyword === "FROM");
 		expect(froms).toHaveLength(2);
 		for (const { args } of froms) {
-			expect(args).toMatch(/^node:26-alpine@sha256:[0-9a-f]{64}( AS \w+)?$/);
+			expect(
+				args,
+				`.node-version says Node ${major}: set each FROM to node:${major}-alpine@sha256:<digest> (digest: docker buildx imagetools inspect node:${major}-alpine)`,
+			).toMatch(
+				new RegExp(`^node:${major}-alpine@sha256:[0-9a-f]{64}( AS \\w+)?$`),
+			);
 		}
 	});
 

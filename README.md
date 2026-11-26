@@ -11,7 +11,7 @@ pnpm app-create   # a new Project: rendered, on GitHub, CI started on main
 pnpm dev          # Postgres, Redis, migrations, seed, the Worker and the dev server
 ```
 
-Run `pnpm app-create` from a clone of this repo after `fnm use && pnpm install`, then `pnpm dev` inside the new Project. Needs Node 26 ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12, Docker and a logged-in [GitHub CLI](https://cli.github.com), which creates the Project's repo (`--no-github` skips it).
+Run `pnpm app-create` from a clone of this repo after `fnm use && pnpm install`, then `pnpm dev` inside the new Project. Needs the Node version in `.node-version` ([fnm](https://github.com/Schniz/fnm) reads `.node-version`), pnpm 12, Docker and a logged-in [GitHub CLI](https://cli.github.com), which creates the Project's repo (`--no-github` skips it).
 
 <details><summary><b>What the two commands do</b></summary>
 

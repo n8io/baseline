@@ -15,6 +15,7 @@
 		"format": "biome format --write .",
 		"kickoff": "node --import ./apps/app/scripts/node-version-require.ts scripts/kickoff.ts",
 		"knip": "knip",
+		"node-version-sync": "node scripts/node-version-sync.ts",
 		"pre-pr": "node --import ./apps/app/scripts/node-version-require.ts scripts/pre-pr.ts",
 		"readme-svg": "node scripts/readme-svg-write.ts",
 		"release:verify": "node --import ./apps/app/scripts/node-version-require.ts scripts/release-verify.ts",
