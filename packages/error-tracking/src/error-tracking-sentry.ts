@@ -1,4 +1,4 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import {
 	type LoggerErr,
 	loggerErrSerialize,
@@ -17,6 +17,7 @@ import {
 	type ServerRuntimeClientOptions,
 } from "@sentry/core/server";
 import type { ErrorTracking } from "./error-tracking.ts";
+import { errorTrackingLoggerDefault as logger } from "./error-tracking-logger-default.ts";
 
 // Bounds close(), so shutdown never waits on Sentry much longer than this.
 const closeTimeoutMs = 2000;

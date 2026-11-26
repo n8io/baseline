@@ -1,9 +1,11 @@
 // Entry point for migrations: run once per deploy, before the new version starts.
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import { postgresMigrate } from "@n8io/baseline-postgres";
 import { queueMigrate, queueSchedulesSync } from "@n8io/baseline-queue";
 import { fooSchedules } from "#contexts/foo/index.ts";
 import { ENV } from "#env";
+
+const logger = loggerCreate();
 
 if (ENV.DATABASE_URL === "memory://") {
 	logger.info("memory database: nothing to migrate");

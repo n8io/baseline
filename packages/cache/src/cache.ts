@@ -1,7 +1,8 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import { sharedIntegerAssert } from "@n8io/baseline-shared";
 import { type Counter, metrics } from "@opentelemetry/api";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import { cacheLoggerDefault as logger } from "./cache-logger-default.ts";
 
 /**
  * A typed cache for one kind of value, keyed by id. Unless it was made with

@@ -19,7 +19,7 @@ import {
 	httpServerClose,
 	httpServerKeepAlive,
 } from "@n8io/baseline-http";
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import {
 	type ShutdownHandle,
 	shutdownHandleCreate,
@@ -44,6 +44,8 @@ import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
 import { type ContextMounts, contextsCreate } from "./contexts.ts";
 import { seedsRun } from "./seed.ts";
+
+const logger = loggerCreate();
 
 // piece-start: ui
 // Development: the dev server re-runs this file after an edit, and import.meta.hot is

@@ -1,6 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
 import { type Counter, metrics, trace } from "@opentelemetry/api";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 import { queueRetryLimit } from "./queue-with-dead-letter.ts";
 
 let deadLetters: Counter | undefined;

@@ -1,5 +1,5 @@
 ---
-"@n8io/baseline-logger": minor
+"@n8io/baseline-logger": major
 ---
 
-Adds `loggerCreate({ level })`, which returns a logger and validates the level (default `LOG_LEVEL`, then `info`) when called, throwing a `TypeError` that names the valid levels for a bad one. The default `logger` export remains, so no caller changes, but importing it no longer throws on a bad `LOG_LEVEL`: it falls back to `info`.
+Replaces the module-level `logger` export with `loggerCreate({ level })`, which returns a logger and validates the level (default `LOG_LEVEL`, then `info`) when called. A bad `LOG_LEVEL` now fails at startup, where the caller calls `loggerCreate`, with a `TypeError` naming the valid levels; importing the Package never throws. The old `logger` export is removed, so this is breaking: replace `import { logger }` with a `loggerCreate()` call.

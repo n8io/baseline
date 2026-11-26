@@ -2,7 +2,6 @@ export {
 	type Logger,
 	type LoggerCreateOptions,
 	type LoggerMethod,
-	logger,
 	loggerCreate,
 } from "./logger.ts";
 export {

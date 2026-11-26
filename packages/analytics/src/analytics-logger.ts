@@ -1,5 +1,6 @@
-import { type LoggerMethod, logger } from "@n8io/baseline-logger";
+import type { LoggerMethod } from "@n8io/baseline-logger";
 import type { Analytics } from "./analytics.ts";
+import { analyticsLoggerDefault as logger } from "./analytics-logger-default.ts";
 
 /** What `analyticsLoggerCreate` takes. */
 export type AnalyticsLoggerOptions = {

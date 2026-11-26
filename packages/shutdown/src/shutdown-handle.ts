@@ -1,9 +1,10 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import {
 	sharedIntegerAssert,
 	sharedTimerMaxMs,
 	sharedTimeTimer,
 } from "@n8io/baseline-shared";
+import { shutdownLoggerDefault as logger } from "./shutdown-logger-default.ts";
 
 /**
  * One thing to close on shutdown: an intake (HTTP server, live streams, Event handlers) or a

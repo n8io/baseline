@@ -1,5 +1,6 @@
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
+import { liveLoggerDefault as logger } from "./live-logger-default.ts";
 
 /** What changed, never the data itself: the page reruns its loaders to read it. */
 export type LiveUpdate = { type: string; id: string };

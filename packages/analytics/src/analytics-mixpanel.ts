@@ -1,5 +1,5 @@
-import { logger } from "@n8io/baseline-logger";
 import type { Analytics } from "./analytics.ts";
+import { analyticsLoggerDefault as logger } from "./analytics-logger-default.ts";
 
 const trackHost = "api.mixpanel.com";
 // Bounds each send, so close() never waits longer than this.

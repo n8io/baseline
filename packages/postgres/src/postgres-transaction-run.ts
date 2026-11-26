@@ -1,6 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
 import type { Result } from "@n8io/baseline-result";
 import { sharedIntegerAssert, sharedTimerMaxMs } from "@n8io/baseline-shared";
+import { postgresLoggerDefault as logger } from "./postgres-logger-default.ts";
 import type { PostgresClient } from "./postgres-pool.ts";
 
 // A client that throws on any use once its transaction has ended, so a callback that leaks it

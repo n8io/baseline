@@ -1,6 +1,6 @@
 // The one file under src/ui that may log: handleError logs each thrown failure once.
 import { PassThrough } from "node:stream";
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import { telemetryRouterInstrumentation } from "@n8io/baseline-telemetry";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { renderToPipeableStream } from "react-dom/server";
@@ -14,6 +14,8 @@ import {
 } from "react-router";
 import { cspNonceContext } from "./context.ts";
 import { CspNonce } from "./csp-nonce.ts";
+
+const logger = loggerCreate();
 
 export const streamTimeout = 5_000;
 

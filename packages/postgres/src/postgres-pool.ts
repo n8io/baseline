@@ -1,10 +1,10 @@
-import { logger } from "@n8io/baseline-logger";
 import {
 	sharedConnectionUrlAssert,
 	sharedIntegerAssert,
 	sharedTimerMaxMs,
 } from "@n8io/baseline-shared";
 import pg from "pg";
+import { postgresLoggerDefault as logger } from "./postgres-logger-default.ts";
 import {
 	type PostgresVendorOwnedKey,
 	postgresVendorAssert,

@@ -28,7 +28,7 @@ const loggerImport = (level: string | undefined) => {
 		[
 			"--input-type=module",
 			"-e",
-			`import(${JSON.stringify(loggerModuleUrl)}).then((m) => { let created; try { m.loggerCreate(); created = "ok"; } catch (e) { created = e.name + ": " + e.message; } process.stdout.write(m.logger.level + "|" + created); }, (e) => { process.stderr.write(e.name + ": " + e.message); process.exit(1); });`,
+			`import(${JSON.stringify(loggerModuleUrl)}).then((m) => { let created; try { created = m.loggerCreate().level; } catch (e) { created = e.name + ": " + e.message; } process.stdout.write(created); }, (e) => { process.stderr.write(e.name + ": " + e.message); process.exit(1); });`,
 		],
 		{ encoding: "utf8", env },
 	);
@@ -41,21 +41,21 @@ const loggerImport = (level: string | undefined) => {
 
 describe("logger", () => {
 	it("reads its level from LOG_LEVEL", () => {
-		expect(loggerImport("silent").stdout).toBe("silent|ok");
+		expect(loggerImport("silent").stdout).toBe("silent");
 	});
 
 	it("defaults to info when LOG_LEVEL is unset or empty", () => {
-		expect(loggerImport(undefined).stdout).toBe("info|ok");
-		expect(loggerImport("").stdout).toBe("info|ok");
+		expect(loggerImport(undefined).stdout).toBe("info");
+		expect(loggerImport("").stdout).toBe("info");
 	});
 
-	it("imports without throwing when LOG_LEVEL is not a level, and loggerCreate then throws a clear error", () => {
+	it("imports without throwing when LOG_LEVEL is not a level, and loggerCreate throws a clear error", () => {
 		const result = loggerImport("verbose");
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe("");
 		expect(result.stdout).toBe(
-			'info|TypeError: LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
+			'TypeError: LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
 		);
 	});
 

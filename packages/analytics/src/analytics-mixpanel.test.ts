@@ -1,6 +1,7 @@
 import { setTimeout } from "node:timers/promises";
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import { afterEach, describe, expect, it } from "vitest";
+import { analyticsLoggerDefault as logger } from "./analytics-logger-default.ts";
 import { analyticsMixpanelCreate } from "./analytics-mixpanel.ts";
 
 type LogCall = [fields: unknown, message?: string];

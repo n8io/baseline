@@ -1,8 +1,8 @@
-import { logger } from "@n8io/baseline-logger";
 import { sharedIntegerAssert } from "@n8io/baseline-shared";
 import { W3CTraceContextPropagator } from "@opentelemetry/core";
 import { type ConstructorOptions, PgBoss } from "pg-boss";
 import { queueInboxPruneStart } from "./queue-inbox.ts";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 import {
 	queueOrderedBlockedKeyGiveUp,
 	queueOrderedBlockedKeyRetry,

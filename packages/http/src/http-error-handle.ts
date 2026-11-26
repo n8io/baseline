@@ -1,8 +1,9 @@
 import { STATUS_CODES } from "node:http";
-import { type Logger, logger } from "@n8io/baseline-logger";
+import type { Logger } from "@n8io/baseline-logger";
 import type { ErrorHandler, NotFoundHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { httpLoggerDefault as logger } from "./http-logger-default.ts";
 import { httpProblemCreate, httpProblemHeaders } from "./http-problem.ts";
 
 type HttpStatusError = { httpStatus: ContentfulStatusCode; type: string };

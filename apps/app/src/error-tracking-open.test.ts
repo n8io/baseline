@@ -1,9 +1,11 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import { describe, expect, it, onTestFinished } from "vitest";
 import { errorTrackingOpen } from "./error-tracking-open.ts";
 import type { ShutdownSteps } from "./shutdown-step-add.ts";
+
+const logger = loggerCreate();
 
 const steps: ShutdownSteps = { intakes: [], resources: [] };
 

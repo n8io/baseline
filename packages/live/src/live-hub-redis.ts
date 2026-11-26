@@ -1,6 +1,6 @@
-import { logger } from "@n8io/baseline-logger";
 import { sharedTimeLimit } from "@n8io/baseline-shared";
 import { type LiveHub, liveHubCreate } from "./live-hub.ts";
+import { liveLoggerDefault as logger } from "./live-logger-default.ts";
 
 // The part of a connected node-redis client the hub uses.
 type LiveRedisClient = {

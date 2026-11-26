@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
-import { logger } from "@n8io/baseline-logger";
 import type { PgBoss } from "pg-boss";
+import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
 
 /** The part of pg-boss that the wait reads. */
 export type QueueMigrateIndexesBoss = Pick<

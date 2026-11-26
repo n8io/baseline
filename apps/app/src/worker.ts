@@ -1,6 +1,6 @@
 // Entry point for Event handlers and Schedules; it never serves pages or the API.
 import { healthServerCreate } from "@n8io/baseline-health";
-import { logger } from "@n8io/baseline-logger";
+import { loggerCreate } from "@n8io/baseline-logger";
 import { queueSchedulesStart } from "@n8io/baseline-queue";
 import {
 	type ShutdownHandle,
@@ -10,6 +10,8 @@ import { telemetryShutdown } from "@n8io/baseline-telemetry";
 import { ENV } from "#env";
 import { connectionsOpen } from "./connections.ts";
 import { type ContextMounts, contextsCreate } from "./contexts.ts";
+
+const logger = loggerCreate();
 
 let shutdown: ShutdownHandle | undefined;
 const connections = await connectionsOpen({ role: "worker" }).catch((error) => {
