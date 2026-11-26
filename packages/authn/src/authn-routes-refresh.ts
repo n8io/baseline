@@ -2,7 +2,10 @@ import type { Context } from "hono";
 import { ResponseBodyError, refreshTokenGrant } from "openid-client";
 import { authnCookieGet } from "./authn-cookie.ts";
 import { authnReturnToSafe } from "./authn-return-to.ts";
-import { accessFreshFor, authnTokensStore } from "./authn-routes-tokens.ts";
+import {
+	authnRoutesAccessFreshFor,
+	authnRoutesTokensStore,
+} from "./authn-routes-tokens.ts";
 import type { AuthnState, AuthnTokens } from "./authn-types.ts";
 
 const refreshSkipMs = 60_000;
@@ -34,7 +37,11 @@ const refreshRun = async (
 	c: Context,
 	authn: AuthnState,
 ): Promise<number | undefined> => {
-	const fresh = await accessFreshFor({ c, authn, minimumMs: refreshSkipMs });
+	const fresh = await authnRoutesAccessFreshFor({
+		c,
+		authn,
+		minimumMs: refreshSkipMs,
+	});
 	if (fresh !== undefined) return fresh;
 	const refreshToken = await authnCookieGet({
 		c,
@@ -46,7 +53,7 @@ const refreshRun = async (
 	const tokens = await tokensRefresh(authn, refreshToken);
 	return tokens === undefined
 		? undefined
-		: authnTokensStore({ c, authn, tokens });
+		: authnRoutesTokensStore({ c, authn, tokens });
 };
 
 /**
@@ -56,7 +63,7 @@ const refreshRun = async (
  * alone: with refresh token rotation, two tabs refreshing at once see one fail, and clearing
  * would undo the other's fresh cookies. A new sign-in replaces them.
  */
-export const refresh = async (
+export const authnRoutesRefresh = async (
 	c: Context,
 	authn: AuthnState,
 ): Promise<Response> => {

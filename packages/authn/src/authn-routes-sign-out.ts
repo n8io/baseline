@@ -27,7 +27,7 @@ const refreshTokenRevoke = async (
 	}
 };
 
-export const signOut = async (
+export const authnRoutesSignOut = async (
 	c: Context,
 	authn: AuthnState,
 ): Promise<Response> => {

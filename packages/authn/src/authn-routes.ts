@@ -1,9 +1,15 @@
 import { type Context, Hono } from "hono";
 import { authnReturnToSafe } from "./authn-return-to.ts";
-import { memorySignIn, memoryToken } from "./authn-routes-memory.ts";
-import { refresh } from "./authn-routes-refresh.ts";
-import { callback, signInStart } from "./authn-routes-sign-in.ts";
-import { signOut } from "./authn-routes-sign-out.ts";
+import {
+	authnRoutesMemorySignIn,
+	authnRoutesMemoryToken,
+} from "./authn-routes-memory.ts";
+import { authnRoutesRefresh } from "./authn-routes-refresh.ts";
+import {
+	authnRoutesSignInCallback,
+	authnRoutesSignInStart,
+} from "./authn-routes-sign-in.ts";
+import { authnRoutesSignOut } from "./authn-routes-sign-out.ts";
 import { authnSignInPageMemoryForm } from "./authn-sign-in-page.ts";
 import { authnState } from "./authn-state.ts";
 import type { Authn } from "./authn-types.ts";
@@ -33,16 +39,25 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 						users: issuer.users,
 					}),
 				)
-			: signInStart({ c, authn: state, issuer, returnTo: returnToQuery(c) }),
+			: authnRoutesSignInStart({
+					c,
+					authn: state,
+					issuer,
+					returnTo: returnToQuery(c),
+				}),
 	);
-	routes.get("/refresh", (c) => refresh(c, state));
-	routes.post("/sign-out", (c) => signOut(c, state));
+	routes.get("/refresh", (c) => authnRoutesRefresh(c, state));
+	routes.post("/sign-out", (c) => authnRoutesSignOut(c, state));
 	if (issuer.kind === "memory") {
-		routes.post("/sign-in", (c) => memorySignIn({ c, authn: state, issuer }));
-		routes.post("/token", (c) => memoryToken({ c, issuer }));
+		routes.post("/sign-in", (c) =>
+			authnRoutesMemorySignIn({ c, authn: state, issuer }),
+		);
+		routes.post("/token", (c) => authnRoutesMemoryToken({ c, issuer }));
 	} else {
 		const { config } = issuer;
-		routes.get("/callback", (c) => callback({ c, authn: state, config }));
+		routes.get("/callback", (c) =>
+			authnRoutesSignInCallback({ c, authn: state, config }),
+		);
 	}
 	return routes;
 };

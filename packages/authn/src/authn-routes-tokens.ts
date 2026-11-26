@@ -13,7 +13,7 @@ import type { AuthnState, AuthnTokens } from "./authn-types.ts";
  * provider may already have rotated it, so it must survive a verify that throws (an outage).
  * No refresh token clears the old one, so a new sign-in never inherits another's.
  */
-export const authnTokensStore = async ({
+export const authnRoutesTokensStore = async ({
 	authn,
 	c,
 	tokens,
@@ -42,7 +42,7 @@ export const authnTokensStore = async ({
 };
 
 // Another tab may have refreshed already; its cookie is then fresh and needs no grant.
-export const accessFreshFor = async ({
+export const authnRoutesAccessFreshFor = async ({
 	authn,
 	c,
 	minimumMs,

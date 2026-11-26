@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import { z } from "zod";
 import { authnReturnToSafe } from "./authn-return-to.ts";
-import { authnTokensStore } from "./authn-routes-tokens.ts";
+import { authnRoutesTokensStore } from "./authn-routes-tokens.ts";
 import type { AuthnMemoryIssuer, AuthnState } from "./authn-types.ts";
 
 const MemorySignIn = z.object({
@@ -9,7 +9,7 @@ const MemorySignIn = z.object({
 	who: z.string(),
 });
 
-export const memorySignIn = async ({
+export const authnRoutesMemorySignIn = async ({
 	authn,
 	c,
 	issuer,
@@ -27,7 +27,7 @@ export const memorySignIn = async ({
 		kind: "user",
 		scopes: user.scopes,
 	});
-	if ((await authnTokensStore({ c, authn, tokens })) === undefined) {
+	if ((await authnRoutesTokensStore({ c, authn, tokens })) === undefined) {
 		throw new TypeError(
 			"authn: actorFromClaims rejected a memory issuer token",
 		);
@@ -55,7 +55,7 @@ const tokenError = (
  * `grant_type=client_credentials`, `client_id` and an optional space-separated `scope`, which must
  * be a subset of the client's (default all of them). No client secret: development and test only.
  */
-export const memoryToken = async ({
+export const authnRoutesMemoryToken = async ({
 	c,
 	issuer,
 }: {

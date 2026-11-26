@@ -20,7 +20,7 @@ import {
 } from "./authn-cookie.ts";
 import { authnLoggerDefault as logger } from "./authn-logger-default.ts";
 import { authnRequestUrlPublic } from "./authn-request-url.ts";
-import { authnTokensStore } from "./authn-routes-tokens.ts";
+import { authnRoutesTokensStore } from "./authn-routes-tokens.ts";
 import { authnSignInPageFailed } from "./authn-sign-in-page.ts";
 import type { AuthnOidcIssuer, AuthnState } from "./authn-types.ts";
 
@@ -41,7 +41,7 @@ const authnProviderRefusalIs = (error: unknown): boolean =>
 	error instanceof WWWAuthenticateChallengeError ||
 	error instanceof ClientError;
 
-export const signInStart = async ({
+export const authnRoutesSignInStart = async ({
 	authn,
 	c,
 	issuer,
@@ -73,7 +73,7 @@ export const signInStart = async ({
 	return c.redirect(url.href, 302);
 };
 
-export const callback = async ({
+export const authnRoutesSignInCallback = async ({
 	authn,
 	c,
 	config,
@@ -102,7 +102,7 @@ export const callback = async ({
 			idTokenExpected: true,
 			pkceCodeVerifier: flow.codeVerifier,
 		});
-		const stored = await authnTokensStore({
+		const stored = await authnRoutesTokensStore({
 			c,
 			authn,
 			tokens: {
