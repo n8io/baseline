@@ -1,5 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
 	type CacheStore,
@@ -22,18 +21,25 @@ const storeFlaky = (calls: (keyof CacheStore)[]) => {
 	return flaky;
 };
 
-beforeEach(() => {
-	vi.useFakeTimers();
-});
-
-afterEach(() => {
-	vi.useRealTimers();
-	vi.restoreAllMocks();
-});
+// A clock and a logger that record, handed to cacheCreate in place of the real ones.
+const depsCreate = () => {
+	const clock = { at: 0 };
+	const warnings: unknown[][] = [];
+	return {
+		advance: (ms: number) => {
+			clock.at += ms;
+		},
+		deps: {
+			logger: { warn: (...args: unknown[]) => void warnings.push(args) },
+			now: () => clock.at,
+		},
+		warnings,
+	};
+};
 
 describe("cacheCreate on a failing store", () => {
 	it("get is a miss, and set and delete resolve", async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
 		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
 
@@ -51,7 +57,7 @@ describe("cacheCreate on a failing store", () => {
 	});
 
 	it("warns once per 30 s, with how many failures went unlogged", async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["get"]);
 		const cache = cacheCreate(store, { prefix: "foo", schema: z.string() });
 
@@ -68,7 +74,7 @@ describe("cacheCreate on a failing store", () => {
 	});
 
 	it("after a failed delete this process reads a miss until the entry has expired", async () => {
-		vi.spyOn(logger, "warn").mockReturnValue();
+		const { advance, deps } = depsCreate();
 		const flaky = storeFlaky(["delete"]);
 		const cache = cacheCreate(flaky.store, {
 			prefix: "foo",
@@ -96,7 +102,7 @@ describe("cacheCreate on a failing store", () => {
 	});
 
 	it("after a failed set this process reads a miss, not the entry it meant to replace", async () => {
-		vi.spyOn(logger, "warn").mockReturnValue();
+		const { advance, deps } = depsCreate();
 		const flaky = storeFlaky(["set"]);
 		const cache = cacheCreate(flaky.store, {
 			prefix: "foo",
@@ -113,7 +119,7 @@ describe("cacheCreate on a failing store", () => {
 	});
 
 	it('with onStoreError "throw" every call rejects with the store\'s error', async () => {
-		const warn = vi.spyOn(logger, "warn").mockReturnValue();
+		const { deps, warnings } = depsCreate();
 		const { store } = storeFlaky(["delete", "get", "set"]);
 		const cache = cacheCreate(store, {
 			onStoreError: "throw",

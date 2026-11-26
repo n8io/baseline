@@ -1,7 +1,12 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
 	"files": {
-		"includes": ["**", "!.agents", "!**/build", "!**/dist"]
+		"includes": [
+			"**",
+			"!.agents",
+			"!**/build",
+			"!**/dist"
+		]
 	},
 	"vcs": {
 		"clientKind": "git",
@@ -17,14 +22,25 @@
 				"!**/*.test.tsx",
 				"!**/*-test-*.ts"
 			],
-			"plugins": ["./apps/app/lint-plugins/max-params.grit"]
+			"plugins": [
+				"./apps/app/lint-plugins/max-params.grit"
+			]
 		},
 		{
-			"includes": ["**", "!packages/feature-flags/**"],
-			"plugins": ["./apps/app/lint-plugins/feature-flags-vendor-imports.grit"]
+			"includes": [
+				"**",
+				"!packages/feature-flags/**"
+			],
+			"plugins": [
+				"./apps/app/lint-plugins/feature-flags-vendor-imports.grit"
+			]
 		},
 		{
-			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"includes": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/*-test-*.ts"
+			],
 			"linter": {
 				"rules": {
 					"complexity": {
@@ -34,7 +50,11 @@
 			}
 		},
 		{
-			"includes": ["scripts/**", "test/**", "**/*-test-fixtures/**"],
+			"includes": [
+				"scripts/**",
+				"test/**",
+				"**/*-test-fixtures/**"
+			],
 			"linter": {
 				"rules": {
 					"suspicious": {
@@ -51,11 +71,29 @@
 				"!**/*.test.tsx",
 				"!**/*-test-*.ts"
 			],
-			"plugins": ["./apps/app/lint-plugins/spans-in-telemetry.grit"]
+			"plugins": [
+				"./apps/app/lint-plugins/spans-in-telemetry.grit"
+			]
 		},
 		{
-			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
-			"plugins": ["./apps/app/lint-plugins/it-not-test.grit"]
+			"includes": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/*-test-*.ts"
+			],
+			"plugins": [
+				"./apps/app/lint-plugins/it-not-test.grit"
+			]
+		},
+		{
+			"includes": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/*-test-*.ts"
+			],
+			"plugins": [
+				"./apps/app/lint-plugins/no-mocks.grit"
+			]
 		}
 	],
 	"linter": {
@@ -142,7 +180,9 @@
 						"paths": {
 							"chai": "Assert with expect(); Vitest requireAssertions does not count chai assert calls.",
 							"vitest": {
-								"importNames": ["assert"],
+								"importNames": [
+									"assert"
+								],
 								"message": "Assert with expect(); Vitest requireAssertions does not count chai assert calls."
 							}
 						}
@@ -194,19 +234,28 @@
 								"selector": {
 									"kind": "classMethod"
 								},
-								"formats": ["camelCase", "PascalCase"]
+								"formats": [
+									"camelCase",
+									"PascalCase"
+								]
 							},
 							{
 								"selector": {
 									"kind": "objectLiteralMethod"
 								},
-								"formats": ["camelCase", "PascalCase"]
+								"formats": [
+									"camelCase",
+									"PascalCase"
+								]
 							},
 							{
 								"selector": {
 									"kind": "typeMethod"
 								},
-								"formats": ["camelCase", "PascalCase"]
+								"formats": [
+									"camelCase",
+									"PascalCase"
+								]
 							}
 						]
 					}

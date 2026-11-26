@@ -1,4 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -50,6 +50,12 @@ export type CacheKeyedOptions<T> = Omit<CacheOptions<T>, "keyOf"> & {
 	keyOf: (value: T) => string;
 };
 
+/** What `cacheCreate` may be handed in place of the real clock and logger, so a test can drive them. */
+export type CacheDeps = {
+	logger?: Pick<Logger, "warn">;
+	now?: () => number;
+};
+
 const cacheTtlMsDefault = 60_000;
 
 const cacheWarnIntervalMs = 30_000;
@@ -85,6 +91,7 @@ const cacheJsonParse = (json: string): unknown => {
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheKeyedOptions<T>,
+	deps?: CacheDeps,
 ): CacheKeyed<T>;
 /**
  * A cache for one kind of value on any store, whose `set` takes an id and a value: key
@@ -95,12 +102,14 @@ export function cacheCreate<T>(
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T>,
+	deps?: CacheDeps,
 ): Cache<T>;
 export function cacheCreate<T>(
 	store: CacheStore,
 	options: CacheOptions<T> | CacheKeyedOptions<T>,
+	deps: CacheDeps = {},
 ): Cache<T> | CacheKeyed<T> {
-	const cache = cacheByIdCreate(store, options);
+	const cache = cacheByIdCreate(store, options, deps);
 	const { keyOf } = options;
 	if (keyOf === undefined) return cache;
 	return {
@@ -113,8 +122,11 @@ export function cacheCreate<T>(
 const cacheByIdCreate = <T>(
 	store: CacheStore,
 	options: Omit<CacheOptions<T>, "keyOf">,
+	deps: CacheDeps,
 ): Cache<T> => {
 	const { prefix, schema } = options;
+	const now = deps.now ?? Date.now;
+	const log = deps.logger ?? logger;
 	const onStoreError = options.onStoreError ?? "miss";
 	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
 	if (prefix === "") {
@@ -145,27 +157,27 @@ const cacheByIdCreate = <T>(
 			"baseline.cache.operation": operation,
 			"baseline.cache.prefix": prefix,
 		});
-		if (Date.now() - warnedAt < cacheWarnIntervalMs) {
+		if (now() - warnedAt < cacheWarnIntervalMs) {
 			unlogged += 1;
 			return;
 		}
-		logger.warn(
+		log.warn(
 			{ err, operation, prefix, unlogged },
 			"Cache store failed; serving without the cache",
 		);
-		warnedAt = Date.now();
+		warnedAt = now();
 		unlogged = 0;
 	};
 
 	const staleMark = (id: string): void => {
-		const now = Date.now();
+		const at = now();
 		// Oldest first: every mark lasts ttlMs, so the first live one ends the sweep.
 		for (const [staleId, until] of staleUntil) {
-			if (until > now) break;
+			if (until > at) break;
 			staleUntil.delete(staleId);
 		}
 		staleUntil.delete(id);
-		staleUntil.set(id, now + ttlMs);
+		staleUntil.set(id, at + ttlMs);
 	};
 
 	return {
@@ -178,7 +190,7 @@ const cacheByIdCreate = <T>(
 			}
 		},
 		get: async (id) => {
-			if ((staleUntil.get(id) ?? 0) > Date.now()) return undefined;
+			if ((staleUntil.get(id) ?? 0) > now()) return undefined;
 			let json: string | undefined;
 			try {
 				json = await store.get(key(id));

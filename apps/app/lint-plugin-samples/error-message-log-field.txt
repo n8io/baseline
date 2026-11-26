@@ -1,0 +1,5 @@
+// AF-10: an error's message never goes into a log's fields
+// expect: An error's message never goes on a span attribute
+// @file src/server.ts
+export const fail = (logger: { error: (f: object, m: string) => void }, error: Error) =>
+	logger.error({ reason: error.message }, "failed");

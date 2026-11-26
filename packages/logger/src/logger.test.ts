@@ -1,5 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { pino } from "pino";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
 const canary = "canary@example.com";
@@ -14,35 +15,45 @@ const loggerCapture = () => {
 	return { lines, logger: pino(loggerOptionsCreate("info"), stream) };
 };
 
+const loggerModuleUrl = new URL("./logger.ts", import.meta.url).href;
+
+/** Imports the real logger module in a fresh Node process whose LOG_LEVEL is `level` (unset when undefined). */
+const loggerImport = (level: string | undefined) => {
+	const env = { ...process.env };
+	delete env["LOG_LEVEL"];
+	if (level !== undefined) env["LOG_LEVEL"] = level;
+	const result = spawnSync(
+		process.execPath,
+		[
+			"--input-type=module",
+			"-e",
+			`import(${JSON.stringify(loggerModuleUrl)}).then((m) => { process.stdout.write(m.logger.level); }, (e) => { process.stderr.write(e.name + ": " + e.message); process.exit(1); });`,
+		],
+		{ encoding: "utf8", env },
+	);
+	return {
+		status: result.status,
+		stdout: result.stdout,
+		stderr: result.stderr,
+	};
+};
+
 describe("logger", () => {
-	afterEach(() => {
-		vi.unstubAllEnvs();
-		vi.resetModules();
+	it("reads its level from LOG_LEVEL", () => {
+		expect(loggerImport("silent").stdout).toBe("silent");
 	});
 
-	it("reads its level from LOG_LEVEL", async () => {
-		vi.stubEnv("LOG_LEVEL", "silent");
-		const { logger } = await import("./logger.ts");
-
-		expect(logger.level).toBe("silent");
+	it("defaults to info when LOG_LEVEL is unset or empty", () => {
+		expect(loggerImport(undefined).stdout).toBe("info");
+		expect(loggerImport("").stdout).toBe("info");
 	});
 
-	it("defaults to info when LOG_LEVEL is unset or empty", async () => {
-		vi.stubEnv("LOG_LEVEL", undefined);
-		expect((await import("./logger.ts")).logger.level).toBe("info");
+	it("throws a TypeError on import when LOG_LEVEL is not a level", () => {
+		const result = loggerImport("verbose");
 
-		vi.resetModules();
-		vi.stubEnv("LOG_LEVEL", "");
-		expect((await import("./logger.ts")).logger.level).toBe("info");
-	});
-
-	it("throws a TypeError on import when LOG_LEVEL is not a level", async () => {
-		vi.stubEnv("LOG_LEVEL", "verbose");
-
-		await expect(import("./logger.ts")).rejects.toThrow(TypeError);
-		vi.resetModules();
-		await expect(import("./logger.ts")).rejects.toThrow(
-			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
+		expect(result.status).toBe(1);
+		expect(result.stderr).toBe(
+			'TypeError: LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
 		);
 	});
 

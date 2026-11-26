@@ -868,6 +868,10 @@
 				"!**/*-test-*.ts"
 			],
 			"plugins": ["./lint-plugins/span-attribute-keys.grit"]
+		},
+		{
+			"includes": ["src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+			"plugins": ["./lint-plugins/error-message-attribute.grit"]
 		}
 	],
 	"linter": {
