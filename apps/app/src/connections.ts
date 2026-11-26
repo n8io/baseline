@@ -57,11 +57,12 @@ export const connectionsOpen = async ({
 			"The Worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
-	const { database, poolMax } = databaseOpen({
+	const opened = databaseOpen({
 		poolMax: ENV.DATABASE_POOL_MAX ?? null,
 		role,
 		url: databaseUrl,
 	});
+	const { database } = opened;
 	if (database !== "memory") {
 		// The startup check: while Postgres is unreachable this throws, boot fails and the process
 		// never reports ready, so a new pod does not start during an outage. A pod already running
@@ -115,7 +116,7 @@ export const connectionsOpen = async ({
 	// piece-start: queue
 	const { steps: queueSteps, ...queueConnections } = await queueOpen({
 		database,
-		poolMax,
+		poolMax: opened.poolMax,
 		role,
 		steps,
 	});
