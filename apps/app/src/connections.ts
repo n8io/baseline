@@ -16,7 +16,8 @@ import { redisOpen } from "./redis-open.ts";
 import { type ShutdownSteps, shutdownStepAdd } from "./shutdown-step-add.ts";
 
 // The Postgres pool. Everything in a process shares it, so `max` is every Postgres connection the
-// process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker.
+// process opens: DATABASE_POOL_MAX, else 10 in the Server and 5 in the Worker. It returns that
+// `poolMax` beside the pool, so nothing reads it back out of the driver's own options.
 export const databaseOpen = ({
 	poolMax,
 	role,
@@ -25,13 +26,16 @@ export const databaseOpen = ({
 	poolMax?: number | null;
 	role: "publisher" | "worker";
 	url: string;
-}) =>
-	url === "memory://"
-		? ("memory" as const)
-		: postgresPoolCreate({
-				databaseUrl: url,
-				max: poolMax ?? (role === "worker" ? 5 : 10),
-			});
+}) => {
+	const max = poolMax ?? (role === "worker" ? 5 : 10);
+	return {
+		database:
+			url === "memory://"
+				? ("memory" as const)
+				: postgresPoolCreate({ databaseUrl: url, max }),
+		poolMax: max,
+	};
+};
 
 // Also lists how to close each connection, in the order shutdown closes them. The Worker's queue
 // is an intake, since it brings work in; elsewhere the live hub is, since it streams out.
@@ -53,11 +57,12 @@ export const connectionsOpen = async ({
 			"The Worker needs a real database: DATABASE_URL is memory://",
 		);
 	}
-	const database = databaseOpen({
+	const opened = databaseOpen({
 		poolMax: ENV.DATABASE_POOL_MAX ?? null,
 		role,
 		url: databaseUrl,
 	});
+	const { database } = opened;
 	if (database !== "memory") {
 		// The startup check: while Postgres is unreachable this throws, boot fails and the process
 		// never reports ready, so a new pod does not start during an outage. A pod already running
@@ -111,6 +116,7 @@ export const connectionsOpen = async ({
 	// piece-start: queue
 	const { steps: queueSteps, ...queueConnections } = await queueOpen({
 		database,
+		poolMax: opened.poolMax,
 		role,
 		steps,
 	});

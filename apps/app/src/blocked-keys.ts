@@ -63,7 +63,7 @@ const blockedKeysRun = async (
 	return 0;
 };
 
-const database = databaseOpen({
+const { database, poolMax } = databaseOpen({
 	poolMax: 2,
 	role: "publisher",
 	url: ENV.DATABASE_URL,
@@ -80,6 +80,7 @@ let closing = poolSteps;
 try {
 	const { queue, steps } = await queueOpen({
 		database,
+		poolMax,
 		role: "publisher",
 		steps: poolSteps,
 	});
