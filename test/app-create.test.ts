@@ -309,14 +309,16 @@ describe("app-create", () => {
 		});
 	});
 
-	it("requires every app-ci.yml job but changes, as ci / <job>", () => {
+	// `changes` is no check to require, and `piece` is a matrix whose checks are `ci / piece (<name>)`:
+	// `pieces` is the one required check that stands for them.
+	it("requires every app-ci.yml job but changes and piece, as ci / <job>", () => {
 		const workflow = readFileSync(
 			join(import.meta.dirname, "../.github/workflows/app-ci.yml"),
 			"utf8",
 		);
 		const jobs = [...workflow.matchAll(/^ {2}([a-z-]+):$/gm)]
 			.map((m) => m[1])
-			.filter((job) => job !== "changes");
+			.filter((job) => job !== "changes" && job !== "piece");
 
 		expect([...requiredJobs].sort()).toEqual(jobs.sort());
 	});
