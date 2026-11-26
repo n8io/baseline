@@ -1,406 +1,21 @@
 import { type Context, Hono } from "hono";
-import { decodeJwt } from "jose";
-import {
-	AuthorizationResponseError,
-	authorizationCodeGrant,
-	buildAuthorizationUrl,
-	buildEndSessionUrl,
-	ClientError,
-	type Configuration,
-	calculatePKCECodeChallenge,
-	ResponseBodyError,
-	randomNonce,
-	randomPKCECodeVerifier,
-	randomState,
-	refreshTokenGrant,
-	tokenRevocation,
-	WWWAuthenticateChallengeError,
-} from "openid-client";
-import { z } from "zod";
-import {
-	type Authn,
-	type AuthnMemoryIssuer,
-	type AuthnOidcIssuer,
-	type AuthnState,
-	type AuthnTokens,
-	authnState,
-} from "./authn.ts";
-import {
-	authnCookieClear,
-	authnCookieGet,
-	authnCookieSet,
-} from "./authn-cookie.ts";
-import { authnLoggerDefault as logger } from "./authn-logger-default.ts";
-import { authnRequestUrlPublic } from "./authn-request-url.ts";
 import { authnReturnToSafe } from "./authn-return-to.ts";
 import {
-	authnSignInPageFailed,
-	authnSignInPageMemoryForm,
-} from "./authn-sign-in-page.ts";
-
-const FlowState = z.object({
-	codeVerifier: z.string(),
-	nonce: z.string(),
-	returnTo: z.string(),
-	state: z.string(),
-});
-
-const callbackPath = "/auth/callback";
-
-// What the provider can refuse: an error in the callback or token response, or a check
-// (state, nonce, PKCE, id token) that fails. Network failures are not in this list; they throw.
-const authnProviderRefusalIs = (error: unknown): boolean =>
-	error instanceof AuthorizationResponseError ||
-	error instanceof ResponseBodyError ||
-	error instanceof WWWAuthenticateChallengeError ||
-	error instanceof ClientError;
+	authnRoutesMemorySignIn,
+	authnRoutesMemoryToken,
+} from "./authn-routes-memory.ts";
+import { authnRoutesRefresh } from "./authn-routes-refresh.ts";
+import {
+	authnRoutesSignInCallback,
+	authnRoutesSignInStart,
+} from "./authn-routes-sign-in.ts";
+import { authnRoutesSignOut } from "./authn-routes-sign-out.ts";
+import { authnSignInPageMemoryForm } from "./authn-sign-in-page.ts";
+import { authnState } from "./authn-state.ts";
+import type { Authn } from "./authn-types.ts";
 
 const returnToQuery = (c: Context): string =>
 	authnReturnToSafe(c.req.query("returnTo"));
-
-/**
- * Writes the refresh cookie, then verifies the access token and writes the access cookie;
- * returns its expiry, or `undefined` when it does not verify. The refresh cookie goes first: the
- * provider may already have rotated it, so it must survive a verify that throws (an outage).
- * No refresh token clears the old one, so a new sign-in never inherits another's.
- */
-const authnTokensStore = async ({
-	authn,
-	c,
-	tokens,
-}: {
-	authn: AuthnState;
-	c: Context;
-	tokens: AuthnTokens;
-}): Promise<number | undefined> => {
-	if (tokens.refreshToken === undefined) authnCookieClear(c, "refresh");
-	else
-		await authnCookieSet({
-			c,
-			key: authn.cookieKey,
-			name: "refresh",
-			value: tokens.refreshToken,
-		});
-	const verified = await authn.verify(tokens.accessToken);
-	if (verified.status !== "valid") return undefined;
-	await authnCookieSet({
-		c,
-		key: authn.cookieKey,
-		name: "access",
-		value: tokens.accessToken,
-	});
-	return verified.expiresAt;
-};
-
-// Another tab may have refreshed already; its cookie is then fresh and needs no grant.
-const accessFreshFor = async ({
-	authn,
-	c,
-	minimumMs,
-}: {
-	authn: AuthnState;
-	c: Context;
-	minimumMs: number;
-}): Promise<number | undefined> => {
-	const accessToken = await authnCookieGet({
-		c,
-		key: authn.cookieKey,
-		name: "access",
-	});
-	if (accessToken === undefined || accessToken === "invalid") return undefined;
-	// Read `exp` before verifying, so an expiring token costs no JWKS lookup.
-	let exp: number | undefined;
-	try {
-		({ exp } = decodeJwt(accessToken));
-	} catch {
-		return undefined;
-	}
-	if (exp === undefined || exp * 1000 - Date.now() < minimumMs)
-		return undefined;
-	const verified = await authn.verify(accessToken);
-	return verified.status === "valid" &&
-		verified.expiresAt - Date.now() >= minimumMs
-		? verified.expiresAt
-		: undefined;
-};
-
-const refreshSkipMs = 60_000;
-
-const signInStart = async ({
-	authn,
-	c,
-	issuer,
-	returnTo,
-}: {
-	authn: AuthnState;
-	c: Context;
-	issuer: AuthnOidcIssuer;
-	returnTo: string;
-}): Promise<Response> => {
-	const codeVerifier = randomPKCECodeVerifier();
-	const nonce = randomNonce();
-	const state = randomState();
-	await authnCookieSet({
-		c,
-		key: authn.cookieKey,
-		name: "flow",
-		value: JSON.stringify({ codeVerifier, nonce, returnTo, state }),
-	});
-	const url = buildAuthorizationUrl(issuer.config, {
-		scope: "openid offline_access",
-		...issuer.authorizeParams,
-		code_challenge: await calculatePKCECodeChallenge(codeVerifier),
-		code_challenge_method: "S256",
-		nonce,
-		redirect_uri: authnRequestUrlPublic(c.req.raw, callbackPath).href,
-		state,
-	});
-	return c.redirect(url.href, 302);
-};
-
-const callback = async ({
-	authn,
-	c,
-	config,
-}: {
-	authn: AuthnState;
-	c: Context;
-	config: Configuration;
-}): Promise<Response> => {
-	const flowCookie = await authnCookieGet({
-		c,
-		key: authn.cookieKey,
-		name: "flow",
-	});
-	authnCookieClear(c, "flow");
-	const flow =
-		flowCookie === undefined || flowCookie === "invalid"
-			? undefined
-			: FlowState.safeParse(JSON.parse(flowCookie)).data;
-	if (flow === undefined) return c.html(authnSignInPageFailed("/"), 400);
-	const currentUrl = authnRequestUrlPublic(c.req.raw, callbackPath);
-	currentUrl.search = new URL(c.req.url).search;
-	try {
-		const tokens = await authorizationCodeGrant(config, currentUrl, {
-			expectedNonce: flow.nonce,
-			expectedState: flow.state,
-			idTokenExpected: true,
-			pkceCodeVerifier: flow.codeVerifier,
-		});
-		const stored = await authnTokensStore({
-			c,
-			authn,
-			tokens: {
-				accessToken: tokens.access_token,
-				refreshToken: tokens.refresh_token,
-			},
-		});
-		if (stored === undefined) {
-			return c.html(authnSignInPageFailed(flow.returnTo), 400);
-		}
-		return c.redirect(flow.returnTo, 302);
-	} catch (error) {
-		if (!authnProviderRefusalIs(error)) throw error;
-		logger.warn(
-			{ err: error, route: callbackPath },
-			"Sign-in refused by the provider",
-		);
-		return c.html(authnSignInPageFailed(flow.returnTo), 400);
-	}
-};
-
-const tokensRefresh = async (
-	authn: AuthnState,
-	refreshToken: string,
-): Promise<AuthnTokens | undefined> => {
-	if (authn.issuer.kind === "memory") {
-		return authn.issuer.tokensRefresh(refreshToken);
-	}
-	try {
-		const tokens = await refreshTokenGrant(authn.issuer.config, refreshToken);
-		return {
-			accessToken: tokens.access_token,
-			// Providers that do not rotate refresh tokens send none back; keep the one we have.
-			refreshToken: tokens.refresh_token ?? refreshToken,
-		};
-	} catch (error) {
-		// Only the provider saying no (an OAuth error body such as `invalid_grant`) signs the user
-		// out. openid-client reports a 5xx as a ClientError and an outage as a TypeError; both throw,
-		// so a provider hiccup never signs everyone out.
-		if (error instanceof ResponseBodyError) return undefined;
-		throw error;
-	}
-};
-
-const refreshRun = async (
-	c: Context,
-	authn: AuthnState,
-): Promise<number | undefined> => {
-	const fresh = await accessFreshFor({ c, authn, minimumMs: refreshSkipMs });
-	if (fresh !== undefined) return fresh;
-	const refreshToken = await authnCookieGet({
-		c,
-		key: authn.cookieKey,
-		name: "refresh",
-	});
-	if (refreshToken === undefined || refreshToken === "invalid")
-		return undefined;
-	const tokens = await tokensRefresh(authn, refreshToken);
-	return tokens === undefined
-		? undefined
-		: authnTokensStore({ c, authn, tokens });
-};
-
-/**
- * `GET /auth/refresh?returnTo=…` (a page whose token is expiring) refreshes both cookies and
- * redirects back, or to sign-in when the refresh fails. Without `returnTo` (the client
- * middleware's `fetch`) it answers `{ expiresAt }`, or 401. A failed refresh leaves the cookies
- * alone: with refresh token rotation, two tabs refreshing at once see one fail, and clearing
- * would undo the other's fresh cookies. A new sign-in replaces them.
- */
-const refresh = async (c: Context, authn: AuthnState): Promise<Response> => {
-	const returnTo = c.req.query("returnTo");
-	const expiresAt = await refreshRun(c, authn);
-	if (returnTo === undefined) {
-		return expiresAt === undefined
-			? c.body(null, 401)
-			: c.json({ expiresAt }, 200, { "Cache-Control": "no-store" });
-	}
-	const safeReturnTo = authnReturnToSafe(returnTo);
-	return expiresAt === undefined
-		? c.redirect(
-				`/auth/sign-in?returnTo=${encodeURIComponent(safeReturnTo)}`,
-				302,
-			)
-		: c.redirect(safeReturnTo, 302);
-};
-
-// Revokes the refresh token where the provider supports it; a failure still signs out locally.
-const refreshTokenRevoke = async (
-	config: Configuration,
-	refreshToken: string,
-): Promise<void> => {
-	if (config.serverMetadata().revocation_endpoint === undefined) return;
-	try {
-		await tokenRevocation(config, refreshToken, {
-			token_type_hint: "refresh_token",
-		});
-	} catch (error) {
-		logger.warn(
-			{ err: error, route: "/auth/sign-out" },
-			"Refresh token not revoked; signed out locally",
-		);
-	}
-};
-
-const signOut = async (c: Context, authn: AuthnState): Promise<Response> => {
-	const refreshToken = await authnCookieGet({
-		c,
-		key: authn.cookieKey,
-		name: "refresh",
-	});
-	authnCookieClear(c, "access");
-	authnCookieClear(c, "refresh");
-	if (authn.issuer.kind === "memory") return c.redirect("/", 302);
-	const { config } = authn.issuer;
-	if (refreshToken !== undefined && refreshToken !== "invalid") {
-		await refreshTokenRevoke(config, refreshToken);
-	}
-	if (config.serverMetadata().end_session_endpoint === undefined) {
-		return c.redirect("/", 302);
-	}
-	const endSession = buildEndSessionUrl(config, {
-		client_id: authn.clientId,
-		post_logout_redirect_uri: authnRequestUrlPublic(c.req.raw, "/").href,
-	});
-	return c.redirect(endSession.href, 302);
-};
-
-const MemorySignIn = z.object({
-	returnTo: z.string().optional(),
-	who: z.string(),
-});
-
-const memorySignIn = async ({
-	authn,
-	c,
-	issuer,
-}: {
-	authn: AuthnState;
-	c: Context;
-	issuer: AuthnMemoryIssuer;
-}): Promise<Response> => {
-	const form = MemorySignIn.safeParse(await c.req.parseBody());
-	const user =
-		form.data && issuer.users.find((entry) => entry.id === form.data.who);
-	if (form.data === undefined || user === undefined) return c.body(null, 400);
-	const tokens = await issuer.tokensCreate({
-		id: user.id,
-		kind: "user",
-		scopes: user.scopes,
-	});
-	if ((await authnTokensStore({ c, authn, tokens })) === undefined) {
-		throw new TypeError(
-			"authn: actorFromClaims rejected a memory issuer token",
-		);
-	}
-	return c.redirect(authnReturnToSafe(form.data.returnTo), 302);
-};
-
-const TokenRequest = z.object({
-	client_id: z.string(),
-	grant_type: z.string(),
-	scope: z.string().optional(),
-});
-
-const tokenError = (
-	c: Context,
-	error:
-		| "invalid_client"
-		| "invalid_request"
-		| "invalid_scope"
-		| "unsupported_grant_type",
-): Response => c.json({ error }, error === "invalid_client" ? 401 : 400);
-
-/**
- * `POST /auth/token`, the memory issuer's client-credentials grant: a form with
- * `grant_type=client_credentials`, `client_id` and an optional space-separated `scope`, which must
- * be a subset of the client's (default all of them). No client secret: development and test only.
- */
-const memoryToken = async ({
-	c,
-	issuer,
-}: {
-	c: Context;
-	issuer: AuthnMemoryIssuer;
-}): Promise<Response> => {
-	const form = TokenRequest.safeParse(await c.req.parseBody());
-	if (form.data === undefined) return tokenError(c, "invalid_request");
-	if (form.data.grant_type !== "client_credentials") {
-		return tokenError(c, "unsupported_grant_type");
-	}
-	const client = issuer.clients.find(
-		(entry) => entry.id === form.data.client_id,
-	);
-	if (client === undefined) return tokenError(c, "invalid_client");
-	const scopes =
-		form.data.scope === undefined
-			? client.scopes
-			: form.data.scope.split(" ").filter(Boolean);
-	if (!scopes.every((scope) => client.scopes.includes(scope))) {
-		return tokenError(c, "invalid_scope");
-	}
-	const { accessToken } = await issuer.tokensCreate({
-		id: client.id,
-		kind: "client",
-		scopes,
-	});
-	return c.json({
-		access_token: accessToken,
-		expires_in: issuer.accessTtlSeconds,
-		token_type: "Bearer",
-	});
-};
 
 /**
  * `/sign-in`, `/refresh` and `/sign-out`, plus `/callback` with an OIDC provider or `POST /token`
@@ -424,16 +39,25 @@ export const authnRoutesCreate = (authn: Authn): Hono => {
 						users: issuer.users,
 					}),
 				)
-			: signInStart({ c, authn: state, issuer, returnTo: returnToQuery(c) }),
+			: authnRoutesSignInStart({
+					c,
+					authn: state,
+					issuer,
+					returnTo: returnToQuery(c),
+				}),
 	);
-	routes.get("/refresh", (c) => refresh(c, state));
-	routes.post("/sign-out", (c) => signOut(c, state));
+	routes.get("/refresh", (c) => authnRoutesRefresh(c, state));
+	routes.post("/sign-out", (c) => authnRoutesSignOut(c, state));
 	if (issuer.kind === "memory") {
-		routes.post("/sign-in", (c) => memorySignIn({ c, authn: state, issuer }));
-		routes.post("/token", (c) => memoryToken({ c, issuer }));
+		routes.post("/sign-in", (c) =>
+			authnRoutesMemorySignIn({ c, authn: state, issuer }),
+		);
+		routes.post("/token", (c) => authnRoutesMemoryToken({ c, issuer }));
 	} else {
 		const { config } = issuer;
-		routes.get("/callback", (c) => callback({ c, authn: state, config }));
+		routes.get("/callback", (c) =>
+			authnRoutesSignInCallback({ c, authn: state, config }),
+		);
 	}
 	return routes;
 };
