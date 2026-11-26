@@ -22,6 +22,7 @@ export {
 } from "./postgres-pool.ts";
 export {
 	type PostgresTransactionRunOptions,
+	type PostgresTransactionRunPool,
 	postgresTransactionRun,
 } from "./postgres-transaction-run.ts";
 export {
