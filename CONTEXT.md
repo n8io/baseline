@@ -15,7 +15,7 @@ A repo made from the Template by `app-create`, which renders it: a copy of `apps
 _Avoid_: generated repo, child repo, downstream repo, baseline app
 
 **Release**:
-Merging the "Version packages" PR. It publishes each Package with a changeset and tags `app@x.y.z` when the Template changed; the next push then moves `v<major>` of `app-ci.yml` to the newest `app@` tag.
+Merging the "Version packages" PR. It publishes each Package with a changeset and tags `app@x.y.z` when the Template changed; the same `release.yml` run then moves `v<major>` of `app-ci.yml` to the newest `app@` tag.
 _Avoid_: version bump, deploy the Packages, drop a release
 
 **Template upgrade**:

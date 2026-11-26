@@ -46,4 +46,31 @@ describe("release.yml", () => {
 		);
 		expect(release).not.toMatch(/\bactions:/);
 	});
+
+	// The tag step is in the job that publishes, after changesets/action, so the run that merges the
+	// Version packages PR moves the tag. The docs say so; this keeps them and the workflow in step.
+	it("moves v<major> in the same run, as the docs say", () => {
+		const changesets = release.indexOf("- id: changesets");
+		const tag = release.indexOf(
+			"- if: steps.changesets.outputs.has-changesets == 'false'",
+		);
+
+		expect(changesets).toBeGreaterThan(-1);
+		expect(tag).toBeGreaterThan(changesets);
+		expect(release.slice(tag)).toContain(
+			'git push --force origin "refs/tags/$major"',
+		);
+
+		const contextRelease = readFileSync(join(root, "CONTEXT.md"), "utf8").match(
+			/^\*\*Release\*\*:\n(.*)$/m,
+		)?.[1];
+		const releaseDoc = readFileSync(
+			join(root, "docs/agents/release.md"),
+			"utf8",
+		).match(/^7\. \*\*`v<major>` moves\.\*\* (.*)$/m)?.[1];
+
+		expect(contextRelease).toContain("the same `release.yml` run");
+		expect(contextRelease).not.toContain("next push");
+		expect(releaseDoc).toContain("The same `release.yml` run");
+	});
 });
