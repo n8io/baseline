@@ -504,6 +504,7 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			"public",
 			"components.json",
 			"react-router.config.ts",
+			"test/integration/feature-flags-config.test.ts",
 			"test/integration/csp-nonce.ts",
 			"test/integration/rollout-build.ts",
 			"test/integration/rollout.test.ts",
