@@ -63,5 +63,19 @@ jobs:
           major="${major%%.*}"
           # app@0.x (the untagged app's first tag) is not a release.
           if [ "$major" = "v0" ]; then exit 0; fi
-          git tag --force "$major" "$tag^{commit}"
-          git push --force origin "refs/tags/$major"
+          new=$(git rev-parse "$tag^{commit}")
+          old=$(git rev-parse -q --verify "refs/tags/$major^{commit}" || true)
+          if [ -z "$old" ]; then
+            git tag "$major" "$new"
+            git push origin "refs/tags/$major"
+            exit 0
+          fi
+          if [ "$old" = "$new" ]; then exit 0; fi
+          # Only move forward: a v<major> already ahead of (or beside) the newest app@<major> tag stays put.
+          if ! git merge-base --is-ancestor "$old" "$new"; then
+            echo "$major is not behind $tag, leaving it"
+            exit 0
+          fi
+          # The lease fails the push if someone moved the tag since the fetch above.
+          git tag -f "$major" "$new"
+          git push --force-with-lease="refs/tags/$major:$old" origin "refs/tags/$major"

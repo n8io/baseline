@@ -58,7 +58,7 @@ describe("release.yml", () => {
 		expect(changesets).toBeGreaterThan(-1);
 		expect(tag).toBeGreaterThan(changesets);
 		expect(release.slice(tag)).toContain(
-			'git push --force origin "refs/tags/$major"',
+			'git push --force-with-lease="refs/tags/$major:$old" origin "refs/tags/$major"',
 		);
 
 		const contextRelease = readFileSync(join(root, "CONTEXT.md"), "utf8").match(
