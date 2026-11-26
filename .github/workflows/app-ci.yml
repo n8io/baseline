@@ -61,8 +61,9 @@ jobs:
             # piece removal touches: a manifest, the piece tooling, or a piece marker line. Every
             # other run (the nightly run on main, a dispatch, baseline's render) runs them all.
             pieces=false
+            patch=$(git diff --unified=0 --no-renames "$BASE...HEAD")
             if grep -qE '(^|/)(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$|^scripts/piece' <<< "$files" \
-              || git diff --unified=0 --no-renames "$BASE...HEAD" | grep -qE '^[+-][[:space:]]*(//|#) piece-(start|end): '; then
+              || grep -qE '^[+-][[:space:]]*(//|#) piece-(start|end): ' <<< "$patch"; then
               pieces=true
             fi
           fi

@@ -19,6 +19,7 @@ import {
 	glossaryTerm,
 	mergeSettingsCall,
 	npmVersionsWait,
+	piecesRemovalOrder,
 	releaseWarning,
 	repositoryFromRemote,
 	requiredJobs,
@@ -83,6 +84,12 @@ describe("app-create", () => {
 		expect(appCreateArgsRead(["--without", "sdk, cli,sdk"]).without).toEqual([
 			"sdk",
 			"cli",
+		]);
+		expect(piecesRemovalOrder(["redis", "sdk", "cache", "cli"])).toEqual([
+			"cache",
+			"cli",
+			"redis",
+			"sdk",
 		]);
 		expect(() => appCreateArgsRead(["--without", "sdk,nope"])).toThrow(
 			"nope, which is not a Piece",

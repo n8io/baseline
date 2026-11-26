@@ -2,7 +2,7 @@
 # Worker. Replace ghcr.io/OWNER/PROJECT:TAG with the image image-publish.yml pushed (every use below),
 # and create the Secret `app-env` holding the variables .env.production names (or the INFISICAL_* ones).
 # Run the migrate Job to the end before the Deployments roll: `kubectl apply -f` the Job, wait for it,
-# then apply the rest. Probes, pool sizing and rollouts: docs/agents/deploy-kubernetes.md.
+# then apply the rest. A Job cannot change once made: delete app-migrate (or rename it per release) first. Probes, pool sizing and rollouts: docs/agents/deploy-kubernetes.md.
 apiVersion: batch/v1
 kind: Job
 metadata:
