@@ -91,6 +91,8 @@ jobs:
       # Blocking like app-ci's: fails on root CONTEXT.md aliases in this PR's added lines.
       # On main there are no added lines to read.
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
       - if: github.ref == 'refs/heads/main'
         run: find .turbo/cache -type f -mtime +7 -delete
