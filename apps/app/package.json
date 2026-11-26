@@ -92,6 +92,7 @@
 		"drizzle-kit": "1.0.0-rc.5",
 		"es-module-lexer": "^3.0.5",
 		"fast-check": "^4.10.3",
+		"happy-dom": "^21.0.4",
 		"orval": "8.48.0",
 		"protobufjs": "^8.8.1",
 		"shadcn": "4.23.0",
