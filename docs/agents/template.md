@@ -41,7 +41,7 @@ Here, unlike in a Project, you edit the shared `apps/app/CONTEXT.md` and the Tem
 A new piece (each Package wired into the Template comes as one) is named by hand in:
 
 - `apps/app/scripts/pieces.ts` (`pieceNames` and `pieces`, then `pieceRemovals`: its files, lines and packages; type-checking asks for the rest) and its test, and `piece-check.test.ts`;
-- `apps/app/scripts/model-create.ts` (`piecesTemplate`) and its test;
+- `apps/app/scripts/model-create-options.ts` (`piecesTemplate`) and its test;
 - the `piece` matrix in `.github/workflows/app-ci.yml` (`test/app-ci-pieces.test.ts` keeps it equal to `pieceNames`; each entry costs one CI job on every code change that touches a piece);
 - `test/render/api-only.ts`;
 - the **Piece** entry in `apps/app/CONTEXT.md`, the pieces sentence in `apps/app/README.md`, the root README's pieces table and `scripts/readme-svg/root-pieces.ts`;
@@ -51,7 +51,7 @@ Its code sits in whole files named for it, or in `piece-start:` blocks within th
 
 A new option (an `model-create` flag):
 
-- `modelOptions` in `apps/app/scripts/model-create.ts`, and its lines in foo inside `model-create-start:` blocks (a piece's own blocks when the option is a piece);
+- `modelOptions` in `apps/app/scripts/model-create-options.ts`, and its lines in foo inside `model-create-start:` blocks (a piece's own blocks when the option is a piece);
 - the options list in `apps/app/docs/agents/context-create.md` and the **Option** entry in `apps/app/CONTEXT.md`;
 - a `[option, context name]` pair in `test/render/render-and-test.ts`, which makes one `--bare` context per option.
 
