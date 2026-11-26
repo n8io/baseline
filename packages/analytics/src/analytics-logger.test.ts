@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyticsLoggerCreate } from "./analytics-logger.ts";
 
-type LogCall = [fields: unknown, message?: string];
+type LogCall = [fields: unknown, message: string | undefined];
 
 // A plain writer the test passes in as the logger option; it keeps what it was given.
 const writerCreate = () => {
