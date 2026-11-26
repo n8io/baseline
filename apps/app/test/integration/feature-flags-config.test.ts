@@ -27,11 +27,12 @@ afterAll(async () => {
 	await drop?.();
 });
 
-const pageDocument = async (headers: Record<string, string>) => {
+const pageGet = async (headers: Record<string, string>) => {
 	const res = await fetch(`${server.url}/`, { headers, redirect: "manual" });
+	const html = await res.text();
 	const window = new Window();
-	window.document.write(await res.text());
-	return window.document;
+	window.document.documentElement.innerHTML = html;
+	return { document: window.document, html, status: res.status };
 };
 
 // entry.client reads the config before React Router has built any state, so the page's HTML is the
@@ -40,15 +41,21 @@ describe("the browser's feature flag config on the production build", {
 	timeout: 30_000,
 }, () => {
 	it("is in the HTML a signed-in Actor receives", async () => {
-		expect(
-			featureFlagsClientConfigRead(await pageDocument({ cookie })),
-		).toEqual({
+		const page = await pageGet({ cookie });
+		// The failure message then shows what the server sent.
+		expect({
+			html: page.html.slice(0, 800),
+			status: page.status,
+		}).toMatchObject({ status: 200 });
+		expect(featureFlagsClientConfigRead(page.document)).toEqual({
 			actorId: "dev-admin",
 			clientSideId: "client-side-id-for-test",
 		});
 	});
 
 	it("is not in the HTML without an Actor", async () => {
-		expect(featureFlagsClientConfigRead(await pageDocument({}))).toBeNull();
+		expect(
+			featureFlagsClientConfigRead((await pageGet({})).document),
+		).toBeNull();
 	});
 });
