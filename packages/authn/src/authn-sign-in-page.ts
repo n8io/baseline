@@ -1,4 +1,4 @@
-import type { AuthnMemoryUser } from "./authn.ts";
+import type { AuthnMemoryUser } from "./authn-types.ts";
 
 const authnHtmlEscape = (text: string): string =>
 	text
