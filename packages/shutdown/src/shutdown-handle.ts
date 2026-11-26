@@ -118,9 +118,9 @@ export const shutdownHandleCreate = ({
 		// The default clock's timers, stopped when the run ends so none outlives it.
 		const clears: (() => void)[] = [];
 		const timeout = (ms: number): Promise<typeof timedOut> => {
-			if (host?.sleep) return host.sleep(ms).then(() => timedOut);
+			if (host?.sleep) return host.sleep(ms).then((): typeof timedOut => timedOut);
 			// Held open (`ref`) as `setTimeout` did: the process must not exit mid-shutdown.
-			const timer = sharedTimeTimer({ ms, ref: true, value: timedOut });
+			const timer = sharedTimeTimer<typeof timedOut>({ ms, ref: true, value: timedOut });
 			clears.push(timer.clear);
 			return timer.promise;
 		};
