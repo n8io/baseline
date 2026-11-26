@@ -23,7 +23,7 @@ fnm use && pnpm install   # fnm reads .node-version; the exact pnpm is in packag
 pnpm app-create
 ```
 
-It asks two questions; pass them as flags instead with `--name --description [--owner]`. [`docs/agents/project-create.md`](docs/agents/project-create.md) walks through it, including `--no-github` and `--github-only`.
+It asks two questions; pass them as flags instead with `--name --description [--owner]`. [`docs/agents/project-create.md`](docs/agents/project-create.md) walks through it, including `--no-github`, `--github-only` and `--without a,b`, which leaves out the pieces a Project never wants (a UI, a cache, an SDK) from the first commit.
 
 **`pnpm dev`** starts Postgres 18 and Redis 8, migrates, seeds, then runs the Worker and the dev server. Open the URL it prints. The Worker restarts when a file it imports changes. Development uses a memory sign-in, so no identity provider is needed.
 
@@ -94,6 +94,8 @@ Projects depend on these. They are public on npmjs, so `pnpm add @n8io/baseline-
 | call the API from the generated SDK, with timeouts and safe retries   | [`sdk`](packages/sdk)                       | ky                 |
 | give API clients a command line, from the OpenAPI document            | [`cli`](packages/cli)                       | commander          |
 | shut down gracefully, in order                                        | [`shutdown`](packages/shutdown)             |                    |
+| read a feature flag, with a safe fallback when the service is down    | [`feature-flags`](packages/feature-flags)   | LaunchDarkly       |
+| write a helper once for the Packages (a Project never calls it)       | [`shared`](packages/shared)                 |                    |
 
 ## In a Project
 
@@ -127,7 +129,7 @@ Walkthroughs live in [`docs/agents/`](docs/agents/): ask "Walk me through creati
 .github/workflows/  ci.yml (this repo), app-ci.yml and dependabot-automerge.yml (called by Projects), release.yml
 apps/app/           the Template: src/contexts/foo is the example bounded context
 packages/*          the @n8io/baseline-* Packages
-scripts/            app-create.ts, ci-pin-write.ts, semgrep-rules-write.ts, readme-svg-write.ts and readme-svg/ for these diagrams
+scripts/            maintainer scripts: app-create, biome-generate, ci-pin-write, ci-watch, kickoff, pre-pr, release-verify, semgrep-rules-write, readme-svg-write (and readme-svg/ for these diagrams)
 test/               checks of the docs, the Packages' metadata and names, app-create tests and the render
 docs/               agents/ (rules and walkthroughs), adr/ (decisions), readme/ (these diagrams)
 ```

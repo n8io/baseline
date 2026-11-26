@@ -85,7 +85,7 @@ Add the queue and the Worker back: `git revert` the "Remove queue" commit. For e
 
 `pnpm piece-remove analytics`
 
-Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Model's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` (and in `.env.production`, once you added it). Nothing else uses it, so it can go in any order.
+Analytics events sent to Mixpanel (`@n8io/baseline-analytics`, `src/analytics-open.ts`), each Model's analytics port and the calls its Use cases make after commit, and `MIXPANEL_TOKEN` in `.env.schema` (and in `.env.production`, once you add it). Nothing else uses it, so it can go in any order.
 
 `MIXPANEL_TOKEN` is optional, so a new Project deploys before it has a Mixpanel project; until it is set, events go to the debug log and are not sent. To send them, add `MIXPANEL_TOKEN=infisical()` to `.env.production` and a `MIXPANEL_TOKEN` secret to the Infisical project.
 
@@ -95,7 +95,7 @@ Add analytics back: `git revert` the "Remove analytics" commit. For each Model c
 
 `pnpm piece-remove error-tracking`
 
-Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` (and in `.env.production`, once you added it). Code reports an error by logging it, so no context holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
+Error reports sent to Sentry (`@n8io/baseline-error-tracking`, `src/error-tracking-open.ts`) and `SENTRY_DSN` in `.env.schema` (and in `.env.production`, once you add it). Code reports an error by logging it, so no context holds any of it, nothing else uses it, and it can go in any order. Errors are still logged after it goes.
 
 It reports what is logged at error or fatal from the moment `src/connections.ts` opens it, and a crash once the entry point has its shutdown handle. A throw before that and `src/migrate.ts` report nothing. The logger decides what reaches it: `LOG_LEVEL=fatal` reports only crashes, and `silent` reports nothing.
 
@@ -107,7 +107,7 @@ Add error tracking back: `git revert` the "Remove error-tracking" commit.
 
 `pnpm piece-remove feature-flags`
 
-Feature flags read from LaunchDarkly (`@n8io/baseline-feature-flags`, `src/flags.ts`, `src/feature-flags-open.ts`) and `LAUNCHDARKLY_SDK_KEY` in `.env.schema` (and in `.env.production`, once you added it). Flags are declared once in `src/flags.ts`; `src/feature-flags-open.ts` is the one place the vendor is chosen, and `connections.featureFlags` is the instance every entry point shares. Code that reads a flag goes with the piece, so remove those reads first. Nothing else uses it, so it can go in any order.
+Feature flags read from LaunchDarkly (`@n8io/baseline-feature-flags`, `src/flags.ts`, `src/feature-flags-open.ts`) and `LAUNCHDARKLY_SDK_KEY` in `.env.schema` (and in `.env.production`, once you add it). Flags are declared once in `src/flags.ts`; `src/feature-flags-open.ts` is the one place the vendor is chosen, and `connections.featureFlags` is the instance every entry point shares. Code that reads a flag goes with the piece, so remove those reads first. No other piece uses it, so it can go in any order.
 
 Read a flag per request: `featureFlagsForActor({ actor, featureFlags: connections.featureFlags }).get("exampleFlag")` builds a complete context for that Actor, and the handle is dropped with the request. Reads never throw: a slow or down LaunchDarkly, a missing flag or a value of the wrong type returns the flag's declared fallback and logs why.
 

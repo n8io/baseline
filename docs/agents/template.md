@@ -42,6 +42,7 @@ A new piece (each Package wired into the Template comes as one) is named by hand
 
 - `apps/app/scripts/pieces.ts` (`pieceNames` and `pieces`, then `pieceRemovals`: its files, lines and packages; type-checking asks for the rest) and its test, and `piece-check.test.ts`;
 - `apps/app/scripts/model-create.ts` (`piecesTemplate`) and its test;
+- the `piece` matrix in `.github/workflows/app-ci.yml` (`test/app-ci-pieces.test.ts` keeps it equal to `pieceNames`; each entry costs one CI job on every code change that touches a piece);
 - `test/render/api-only.ts`;
 - the **Piece** entry in `apps/app/CONTEXT.md`, the pieces sentence in `apps/app/README.md`, the root README's pieces table and `scripts/readme-svg/root-pieces.ts`;
 - its own section in `apps/app/docs/agents/pieces.md`, and a `(<piece>)` reason in `apps/app/dependencies-allowed.json` for each runtime dependency only it uses.

@@ -3,11 +3,11 @@
 ## Language
 
 **Package**:
-One of the shared `@n8io/baseline-*` libraries in `packages/`, versioned and published on its own and installed by Projects. Each wraps one concern, such as cache or queue, and holds no business rules.
+One of the shared `@n8io/baseline-*` libraries in `packages/`, versioned and published on its own and installed by Projects. Each wraps one concern, such as cache or queue, and holds no business rules. A change to one ships as a new version, not through a Template upgrade.
 _Avoid_: shared lib, shared module, shared code
 
 **Template**:
-`apps/app`, the app every Project is made from, with `foo` as its example bounded context. Its versions are the `app@x.y.z` tags.
+`apps/app`, the app every Project is made from, with `foo` as its example bounded context. Its versions are the `app@x.y.z` tags, and a Project's `.template.json` names the one it was made from or last upgraded to.
 _Avoid_: boilerplate, scaffold, skeleton
 
 **Project**:
