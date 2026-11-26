@@ -19,6 +19,24 @@ const vectors: [Id<string>, string][] = [
 ];
 
 describe("idCreate", () => {
+	it("keeps the random bits beside the version and variant", () => {
+		// Over 256 ids the chance that a random bit never sets is 2^-256 per bit, so a mask that
+		// clears them (leaving the bare 0x70 and 0x80) shows up as a bit that is never set.
+		let versionBits = 0;
+		let variantBits = 0;
+		for (let count = 0; count < 256; count++) {
+			const uuid = idToUuid(idCreate("foo"));
+			versionBits |= Number.parseInt(uuid.charAt(15), 16);
+			variantBits |=
+				Number.parseInt(uuid.charAt(19), 16) * 16 +
+				Number.parseInt(uuid.charAt(20), 16);
+		}
+
+		expect(versionBits).toBe(0xf);
+		// Byte 8 is variant `10` plus 6 random bits: the top two bits stay fixed.
+		expect(variantBits).toBe(0xbf);
+	});
+
 	it("makes a prefixed id holding a UUIDv7 of the current time", () => {
 		const before = Date.now();
 		const id = idCreate("invoice_line");
@@ -90,6 +108,10 @@ describe("idToUuid and idFromUuid", () => {
 		"not-a-uuid",
 		"00000000000000000000000000000000",
 		"00000000-0000-0000-0000-00000000000g",
+		// Anchor boundaries: a valid UUID with one stray character on either side.
+		"x00000000-0000-0000-0000-000000000000",
+		"00000000-0000-0000-0000-000000000000x",
+		"00000000-0000-0000-0000-000000000000\n",
 	])("idFromUuid rejects %j", (uuid) => {
 		expect(() => idFromUuid("foo", uuid)).toThrow(
 			new TypeError("idFromUuid: uuid is not a UUID"),
