@@ -170,12 +170,6 @@ jobs:
             echo "::error::clients/sdk differs from what pnpm sdk-generate writes. Run it and commit clients/sdk/."
             exit 1
           fi
-      # Advisory for now: the artifact path has no git base to diff against, so a hit here is not reliable yet.
-      # It prints an annotation per hit and exits 1; continue-on-error keeps the job green until the base is fixed.
-      - name: Glossary hits in added lines
-        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        continue-on-error: true
-        run: pnpm glossary-check
 
   # Semgrep CE fails on any finding. A suppression is `// nosemgrep: <rule-id> -- <reason>`.
   # The rules are baseline's pinned snapshot of p/typescript, p/nodejs, p/react and p/secrets
