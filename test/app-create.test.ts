@@ -78,7 +78,18 @@ describe("app-create", () => {
 			mode: "all",
 			name: "golf",
 			owner: null,
+			without: [],
 		});
+		expect(appCreateArgsRead(["--without", "sdk, cli,sdk"]).without).toEqual([
+			"sdk",
+			"cli",
+		]);
+		expect(() => appCreateArgsRead(["--without", "sdk,nope"])).toThrow(
+			"nope, which is not a Piece",
+		);
+		expect(() =>
+			appCreateArgsRead(["--github-only", "--without", "sdk"]),
+		).toThrow("has no effect");
 		expect(appCreateArgsRead(["--no-github"]).mode).toBe("render");
 		expect(
 			appCreateArgsRead(["--github-only", "--owner", "n8io"]),

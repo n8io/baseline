@@ -16,7 +16,7 @@
 				"*.test.ts"
 			],
 			"ignore": ["src/ui/components/**"],
-			// isbot: used by react-router-hono-server's plugin. shadcn: a CLI the ui docs run. swagger-ui-dist: read by path, not imported.
+			// isbot: used by react-router-hono-server's plugin (why it stays: apps/app/dependencies-allowed.json). shadcn: a CLI the ui docs run. swagger-ui-dist: read by path, not imported.
 			"ignoreDependencies": ["isbot", "shadcn", "swagger-ui-dist"]
 		},
 		"packages/*": {
@@ -37,7 +37,7 @@
 		"sdk-generate"
 	],
 	"ignoreIssues": {
-		// The rules file's types are its public shape; another ticket (rule A28) owns the file.
+		// The rules file's types are its public shape, exported on purpose.
 		"apps/app/architecture-test-rules.ts": ["types"],
 		// foo is the reference Bounded Context: its exports show a Project what a context exposes.
 		"apps/app/src/contexts/foo/**": ["exports", "types"]
