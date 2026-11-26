@@ -1,5 +1,32 @@
 # app
 
+## 16.2.0
+
+### Minor Changes
+
+- db32212: Wire feature flags into the Template's browser. `src/ui/entry.client.tsx` waits for the flags to be ready before it hydrates and wraps the app in `FeatureFlagsProvider`, `src/ui/feature-flags.ts` holds the typed `useFeatureFlag`, and the root loader sends the Actor's id and the new `LAUNCHDARKLY_CLIENT_SIDE_ID` to the browser. Without the ID, or a signed-in Actor, every flag reads as its declared fallback and nothing is requested. `pnpm piece-remove feature-flags` removes all of it. The piece-marker budget is now 93. A Project adds the `server.ts` `getLoadContext` block and `root.tsx` loader block by hand, and sets `LAUNCHDARKLY_CLIENT_SIDE_ID` where it sets `LAUNCHDARKLY_SDK_KEY`.
+- d39806b: The `feature-flags` piece: flags declared once in `src/flags.ts`, opened in `src/feature-flags-open.ts` (LaunchDarkly with `LAUNCHDARKLY_SDK_KEY`, else every flag answers its fallback) and shared through `connections.featureFlags`. `pnpm piece-remove feature-flags` takes it out.
+- cff7b84: Lint and architecture rules for feature flags: only `@n8io/baseline-feature-flags` imports a flag vendor's SDK (A31, a Biome plugin), `featureFlagsDefine` is called only in `src/flags.ts` (A32), a flag key is written as a string literal only there (A33), and a flag value is never cast with `as` (A34).
+
+### Patch Changes
+
+- 6708e7e: Fix the browser feature flag client never starting. `entry.client.tsx` read the client config from React Router's state before hydration had built it, so no client was made and every browser flag read its fallback. The server now renders the config into the page head as a JSON `<script id="feature-flags-config">` (`FeatureFlagsConfigScript`), and `entry.client.tsx` reads it from the document. The piece-marker budget is now 94. A Project that added the feature flags blocks by hand adds the `<FeatureFlagsConfigScript />` block to the `Layout` head in `src/ui/root.tsx`.
+- c470b6a: Fix the browser feature flag client being blocked by the Content Security Policy: `connect-src` now allows LaunchDarkly's origins (`featureFlagsLaunchDarklyClientOrigins()`) when `LAUNCHDARKLY_CLIENT_SIDE_ID` is set, and only then. `src/server.ts` uses `httpSecureHeadersCreate`. The policy always names `connect-src 'self'`. The piece-marker budget is now 95 (7 in `server.ts`). A Project that added the feature flags blocks by hand adds the `connectSrc` block to `src/server.ts`.
+- 9e9a446: Docs: `docs/agents/feature-flags.md` (rules for agents, adding a flag or a kind, the browser wiring) with a line in AGENTS.md, and the Feature flag and Flag kind terms in the glossary.
+- Updated dependencies [c470b6a]
+- Updated dependencies [0656a01]
+- Updated dependencies [9e9a446]
+- Updated dependencies [83199aa]
+- Updated dependencies [d39806b]
+- Updated dependencies [c1e2bdb]
+- Updated dependencies [8629dd4]
+- Updated dependencies [35a01d4]
+- Updated dependencies [f5a3df9]
+- Updated dependencies [c470b6a]
+  - @n8io/baseline-feature-flags@1.0.0
+  - @n8io/baseline-telemetry@2.1.0
+  - @n8io/baseline-http@3.2.0
+
 ## 16.1.0
 
 ### Minor Changes
