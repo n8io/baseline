@@ -7,6 +7,7 @@ import {
 	sharedTimeLimit,
 	sharedTimeRace,
 	sharedTimerMaxMs,
+	sharedTimeTimer,
 } from "./index.ts";
 
 describe("sharedTimeLimit", () => {
@@ -52,6 +53,64 @@ describe("sharedTimeRace", () => {
 				work: Promise.resolve("done"),
 			}),
 		).resolves.toBe("done");
+	});
+});
+
+describe("sharedTimeRace bounds", () => {
+	const workAfter = (ms: number): Promise<string> =>
+		new Promise((resolve) => {
+			setTimeout(() => resolve("work"), ms);
+		});
+
+	it("resolves the value at once for 0 and for a negative wait", async () => {
+		for (const ms of [0, -5]) {
+			await expect(
+				sharedTimeRace({ ms, value: "timeout", work: workAfter(50) }),
+			).resolves.toBe("timeout");
+		}
+	});
+
+	it.each([
+		sharedTimerMaxMs - 1,
+		sharedTimerMaxMs,
+		sharedTimerMaxMs + 1,
+		sharedTimerMaxMs * 2 + 10,
+		Number.POSITIVE_INFINITY,
+	])("keeps waiting for a wait of %s ms, so the work wins", async (ms) => {
+		await expect(
+			sharedTimeRace({ ms, value: "timeout", work: workAfter(40) }),
+		).resolves.toBe("work");
+	});
+
+	it("limits a wait over the cap with the work, not a TimeoutError after 1 ms", async () => {
+		await expect(
+			sharedTimeLimit({
+				message: "slow",
+				ms: sharedTimerMaxMs + 1000,
+				work: workAfter(40),
+			}),
+		).resolves.toBe("work");
+	});
+});
+
+describe("sharedTimeTimer", () => {
+	it("resolves its value after the wait", async () => {
+		await expect(sharedTimeTimer({ ms: 5, value: "up" }).promise).resolves.toBe(
+			"up",
+		);
+	});
+
+	it("never settles once cleared", async () => {
+		const timer = sharedTimeTimer({ ms: 5, value: "up" });
+		timer.clear();
+		await expect(
+			Promise.race([
+				timer.promise,
+				new Promise<string>((resolve) => {
+					setTimeout(() => resolve("later"), 30);
+				}),
+			]),
+		).resolves.toBe("later");
 	});
 });
 

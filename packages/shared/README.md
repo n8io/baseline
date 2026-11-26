@@ -31,15 +31,16 @@ await sharedTimeLimit({
 
 <details><summary><b>Exports</b></summary>
 
-| Export                                                       | Does                                                                                               |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `sharedTimeLimit({ message, ms, work })`                     | Settles like `work`, or rejects with a `DOMException` named `TimeoutError` once `ms` passes first. |
-| `sharedTimeRace({ ms, value, work })`                        | Settles like `work`, or resolves `value` once `ms` passes first.                                   |
-| `sharedTimerMaxMs`                                           | 2147483647, the longest wait a timer takes.                                                        |
-| `sharedIntegerAssert({ caller, max, min, name, value })`     | Throws a `TypeError` unless `value` is a whole number from `min` to `max`.                         |
-| `sharedKeepAlive(server)`                                    | Sets a server's keep-alive timeout to 65 s and its headers timeout above it.                       |
-| `sharedConnectionUrlAssert(databaseUrl, caller)`             | Throws unless the URL starts with `postgres://` or `postgresql://`.                                |
-| `sharedConnectionSslAssert({ caller, databaseUrl, vendor })` | Throws on `vendor.ssl` beside an `ssl*` URL parameter, or on a URL that does not parse.            |
+| Export                                                       | Does                                                                                                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sharedTimeLimit({ message, ms, work })`                     | Settles like `work`, or rejects with a `DOMException` named `TimeoutError` once `ms` passes first.                                         |
+| `sharedTimeRace({ ms, value, work })`                        | Settles like `work`, or resolves `value` once `ms` passes first, however long `ms` is.                                                     |
+| `sharedTimeTimer({ ms, value, ref? })`, `SharedTimeTimer`    | Resolves `value` after `ms`, however long: a wait over the cap runs as several timers. `clear()` stops it. `unref`ed unless `ref` is true. |
+| `sharedTimerMaxMs`                                           | 2147483647, the longest wait a timer takes.                                                                                                |
+| `sharedIntegerAssert({ caller, max, min, name, value })`     | Throws a `TypeError` unless `value` is a whole number from `min` to `max`.                                                                 |
+| `sharedKeepAlive(server)`                                    | Sets a server's keep-alive timeout to 65 s and its headers timeout above it.                                                               |
+| `sharedConnectionUrlAssert(databaseUrl, caller)`             | Throws unless the URL starts with `postgres://` or `postgresql://`.                                                                        |
+| `sharedConnectionSslAssert({ caller, databaseUrl, vendor })` | Throws on `vendor.ssl` beside an `ssl*` URL parameter, or on a URL that does not parse.                                                    |
 
 </details>
 

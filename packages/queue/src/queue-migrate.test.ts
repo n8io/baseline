@@ -42,4 +42,16 @@ describe("queueMigrate", () => {
 			),
 		);
 	});
+
+	it.each([0, -1, 1.5, 2_147_483_648])(
+		"refuses indexesDeadlineMs %s",
+		async (indexesDeadlineMs) => {
+			await expect(
+				queueMigrate({
+					databaseUrl: "postgres://localhost/db",
+					indexesDeadlineMs,
+				}),
+			).rejects.toThrow(TypeError);
+		},
+	);
 });
