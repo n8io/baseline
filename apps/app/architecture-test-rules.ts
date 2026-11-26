@@ -1341,6 +1341,18 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 		});
 	},
 
+	// A35: entry.client opens the browser's feature flags from the page's own HTML (`document`),
+	// never from `window.__reactRouterContext`: React Router builds that state during hydration, so
+	// it is empty when entry.client runs and the flags silently fall back (the T10 bug).
+	A35: (files) =>
+		textCheck({
+			files,
+			fileIs: (f) => f.path === "src/ui/entry.client.tsx",
+			pattern: /__reactRouterContext/g,
+			reason: () =>
+				"entry.client reads __reactRouterContext, which is empty before hydration; read the page's config script with featureFlagsBrowserStart({ page: document })",
+		}),
+
 	// A function that changes its input leaves every caller guessing what it changed, and an error
 	// shows only the state after it. Return a new value instead of editing the one passed in. A
 	// change that must happen (a Node server's setters, an OpenTelemetry attribute object) says why

@@ -1,5 +1,6 @@
 import type { FeatureFlagsReadyStatus } from "@n8io/baseline-feature-flags";
 import { featureFlagsMemoryClientCreate } from "@n8io/baseline-feature-flags/testing";
+import { Window } from "happy-dom";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { flagDefs, flagKinds } from "../flags.ts";
@@ -7,6 +8,7 @@ import { useFeatureFlag } from "./feature-flags.ts";
 import {
 	type AppFeatureFlagsClient,
 	featureFlagsBrowserClientCreate,
+	featureFlagsBrowserStart,
 	featureFlagsBrowserWrap,
 } from "./feature-flags-browser.tsx";
 
@@ -81,5 +83,108 @@ describe("featureFlagsBrowserWrap", () => {
 		});
 		expect(serverHtml).toBe("<p>false</p>");
 		expect(renderToString(tree)).toBe(serverHtml);
+	});
+});
+
+describe("featureFlagsBrowserStart", () => {
+	const pageCreate = ({
+		config,
+		routerState,
+	}: {
+		config?: string;
+		routerState?: boolean;
+	}) => {
+		const window = new Window();
+		window.document.head.innerHTML =
+			config === undefined
+				? ""
+				: `<script type="application/json" id="feature-flags-config">${config}</script>`;
+		// What React Router leaves on the window once it has built its state, which entry.client
+		// must not read: it is empty when entry.client runs.
+		if (routerState) {
+			Reflect.set(window, "__reactRouterContext", {
+				state: {
+					loaderData: {
+						root: { featureFlags: { actorId: "a1", clientSideId: "csid" } },
+					},
+				},
+			});
+		}
+		return window.document;
+	};
+
+	const spyCreate = () => {
+		const configs: unknown[] = [];
+		return {
+			configs,
+			create: (
+				config: Parameters<typeof featureFlagsBrowserClientCreate>[0],
+			) => {
+				configs.push(config);
+				return config === null ? null : clientCreate();
+			},
+		};
+	};
+
+	it("opens the client the page's config script asks for", async () => {
+		const { configs, create } = spyCreate();
+		const tree = await featureFlagsBrowserStart({
+			create,
+			page: pageCreate({
+				config: JSON.stringify({ actorId: "a1", clientSideId: "csid" }),
+			}),
+			tree: <ExampleReader />,
+		});
+		expect(configs).toEqual([{ actorId: "a1", clientSideId: "csid" }]);
+		expect(renderToString(tree)).toBe("<p>false</p>");
+	});
+
+	it("makes no client and returns the app as it is without a config script", async () => {
+		const { configs, create } = spyCreate();
+		const tree = <ExampleReader />;
+		expect(
+			await featureFlagsBrowserStart({ create, page: pageCreate({}), tree }),
+		).toBe(tree);
+		expect(configs).toEqual([null]);
+	});
+
+	// The T10 bug: the config sat in React Router's state, which does not exist when entry.client
+	// runs. Only the page's script counts, so state without a script makes no client.
+	it("ignores React Router's state when the page has no config script", async () => {
+		const { configs, create } = spyCreate();
+		const tree = <ExampleReader />;
+		expect(
+			await featureFlagsBrowserStart({
+				create,
+				page: pageCreate({ routerState: true }),
+				tree,
+			}),
+		).toBe(tree);
+		expect(configs).toEqual([null]);
+	});
+
+	it("makes no client from a malformed config script", async () => {
+		const { configs, create } = spyCreate();
+		await featureFlagsBrowserStart({
+			create,
+			page: pageCreate({ config: "{nope" }),
+			tree: <ExampleReader />,
+		});
+		expect(configs).toEqual([null]);
+	});
+});
+
+// entry.client is a top-level-await module no test can import, so read what it calls: it must hand
+// `featureFlagsBrowserStart` the page's own `document`, not React Router's state (A35 also bans that).
+describe("entry.client", () => {
+	it("starts the feature flags from the page's document", () => {
+		const files = import.meta.glob(["./entry.client.tsx"], {
+			eager: true,
+			import: "default",
+			query: "?raw",
+		});
+		const source = String(files["./entry.client.tsx"]);
+		expect(source).toMatch(/featureFlagsBrowserStart\(\{\s*page: document,/);
+		expect(source).not.toContain("__reactRouterContext");
 	});
 });

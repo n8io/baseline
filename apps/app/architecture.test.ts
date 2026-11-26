@@ -128,6 +128,15 @@ describe("architecture", () => {
 		}
 	});
 
+	it("A35 passes without an entry.client and for one that reads the page", async () => {
+		const entry = await architectureFileCreate(
+			"src/ui/entry.client.tsx",
+			"const tree = await featureFlagsBrowserStart({ page: document, tree: null });\n",
+		);
+		expect(architectureRules["A35"]?.([])).toEqual([]);
+		expect(architectureRules["A35"]?.([entry])).toEqual([]);
+	});
+
 	// The passing side of each rule that A14 and A25 loosened or added.
 	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
 		const acl = await architectureFileCreate(
