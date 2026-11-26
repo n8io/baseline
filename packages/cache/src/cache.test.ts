@@ -1,3 +1,11 @@
+import { metrics } from "@opentelemetry/api";
+import {
+	AggregationTemporality,
+	InMemoryMetricExporter,
+	MeterProvider,
+	PeriodicExportingMetricReader,
+} from "@opentelemetry/sdk-metrics";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
@@ -5,6 +13,36 @@ import {
 	cacheCreate,
 	cacheStoreMemoryCreate,
 } from "./index.ts";
+
+// The global meter provider, with an in-memory exporter the tests read what was counted from.
+const metricExporter = new InMemoryMetricExporter(AggregationTemporality.DELTA);
+const metricReader = new PeriodicExportingMetricReader({
+	exporter: metricExporter,
+	exportIntervalMillis: 60_000,
+});
+metrics.setGlobalMeterProvider(new MeterProvider({ readers: [metricReader] }));
+
+// The store error counters exported since the last call, flattened to their data points.
+const storeErrorsTake = async () => {
+	await metricReader.forceFlush();
+	const taken = metricExporter
+		.getMetrics()
+		.flatMap((resource) => resource.scopeMetrics)
+		.flatMap((scope) =>
+			scope.metrics.map((metric) => ({
+				description: metric.descriptor.description,
+				name: metric.descriptor.name,
+				points: metric.dataPoints.map((point) => ({
+					attributes: point.attributes,
+					value: point.value,
+				})),
+				scope: scope.scope.name,
+				unit: metric.descriptor.unit,
+			})),
+		);
+	metricExporter.reset();
+	return taken;
+};
 
 // A memory store whose listed calls fail while `failing` is true.
 const storeFlaky = (calls: (keyof CacheStore)[]) => {
@@ -36,6 +74,72 @@ const depsCreate = () => {
 		warnings,
 	};
 };
+
+// First in the file on purpose: the counter is made on the first failure, so this test is the one
+// Stryker runs against a mutant of its name, scope, description or unit.
+describe("cacheCreate store failures, by operation", () => {
+	it.each(["delete", "get", "set"] as const)(
+		"a failed %s warns with that operation and counts one store error",
+		async (operation) => {
+			await storeErrorsTake();
+			const { deps, warnings } = depsCreate();
+			const { store } = storeFlaky([operation]);
+			const cache = cacheCreate(store, {
+				...deps,
+				prefix: "foo",
+				schema: z.string(),
+			});
+
+			if (operation === "get") await cache.get("foo_1");
+			if (operation === "set") await cache.set("foo_1", "First");
+			if (operation === "delete") await cache.delete("foo_1");
+
+			expect(warnings).toEqual([
+				[
+					expect.objectContaining({ operation, prefix: "foo" }),
+					"Cache store failed; serving without the cache",
+				],
+			]);
+			expect(await storeErrorsTake()).toEqual([
+				{
+					description: "Cache store calls that failed and were not rethrown",
+					name: "baseline.cache.store_errors",
+					points: [
+						{
+							attributes: {
+								"baseline.cache.operation": operation,
+								"baseline.cache.prefix": "foo",
+							},
+							value: 1,
+						},
+					],
+					scope: "@n8io/baseline-cache",
+					unit: "{call}",
+				},
+			]);
+		},
+	);
+
+	it("a failed delete of one id does not lift the miss on another id's failed delete", async () => {
+		const { deps } = depsCreate();
+		const flaky = storeFlaky(["delete"]);
+		const cache = cacheCreate(flaky.store, {
+			...deps,
+			prefix: "foo",
+			schema: z.string(),
+			ttlMs: 1000,
+		});
+		await cache.set("foo_1", "One");
+		await cache.set("foo_2", "Two");
+
+		await cache.delete("foo_1");
+		await cache.delete("foo_2");
+		flaky.failing = false;
+
+		expect(await cache.get("foo_1")).toBeUndefined();
+		expect(await cache.get("foo_2")).toBeUndefined();
+	});
+});
 
 describe("cacheCreate on a failing store", () => {
 	it("get is a miss, and set and delete resolve", async () => {
@@ -144,6 +248,50 @@ describe("cacheCreate on a failing store", () => {
 		await expect(cache.set("foo_1", "First")).rejects.toThrow("Store is down");
 		await expect(cache.delete("foo_1")).rejects.toThrow("Store is down");
 		expect(warnings).toEqual([]);
+	});
+});
+
+describe("cacheCreate on what the store holds", () => {
+	// A store that answers every get with the same text.
+	const storeHolding = (json: string | undefined): CacheStore => ({
+		delete: async () => {},
+		get: async () => json,
+		set: async () => {},
+	});
+
+	it("reads text that is not JSON as a miss", async () => {
+		const cache = cacheCreate(storeHolding("{not json"), {
+			prefix: "foo",
+			schema: z.string(),
+		});
+
+		expect(await cache.get("foo_1")).toBeUndefined();
+	});
+
+	it("does not run the schema on a miss, so a schema with a default cannot make one up", async () => {
+		const cache = cacheCreate(storeHolding(undefined), {
+			prefix: "foo",
+			schema: z.string().default("made up"),
+		});
+
+		expect(await cache.get("foo_1")).toBeUndefined();
+	});
+
+	it("reads a value the schema refuses as a miss, whatever the refusal carries", async () => {
+		const refusing: StandardSchemaV1<unknown, string> = {
+			"~standard": {
+				validate: () =>
+					({ issues: [{ message: "No" }], value: "leaked" }) as never,
+				vendor: "test",
+				version: 1,
+			},
+		};
+		const cache = cacheCreate(storeHolding('"First"'), {
+			prefix: "foo",
+			schema: refusing,
+		});
+
+		expect(await cache.get("foo_1")).toBeUndefined();
 	});
 });
 

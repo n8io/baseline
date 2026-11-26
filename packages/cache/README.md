@@ -105,4 +105,10 @@ By the Template's convention: `CACHE_URL` (`redis://` or `rediss://`, or `memory
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/cache.ts` and `src/cache-store-memory.ts` with the unit tests (`vitest.mutation.config.ts` leaves out the Redis ones, which need Docker) and fails below a **floor of 90%**. The score today is 94.74% (108 killed, 5 survived, 1 not covered of 114 mutants). All six are equivalent: the sweep of expired marks in `staleMark` only frees memory (a mark that has ended already reads as a miss), and the `catch` in `cacheJsonParse` returns `undefined` either way. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** peer `@opentelemetry/api` for the counter (it does nothing until your Project registers a meter provider); `CACHE_URL` by the Template's convention. Runs on Redis (any connected node-redis client, such as `@n8io/baseline-redis`'s) or in memory.

@@ -148,4 +148,10 @@ Each `pointer` is an RFC 6901 JSON Pointer into the request part that failed. Zo
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/http-*.ts` with the Package's tests and fails below a **floor of 90%**. The score today is 99.42% (170 killed, 1 survived of 171 mutants). The survivor is equivalent: `/[^A-Za-z]+/` and `/[^A-Za-z]/` in `httpExceptionCode` give the same code, because an empty word adds nothing once the words are joined. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `hono`, `@hono/zod-openapi`, `zod` and `@opentelemetry/api` as peers. No env.
