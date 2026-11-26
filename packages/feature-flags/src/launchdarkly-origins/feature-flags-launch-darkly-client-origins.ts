@@ -1,6 +1,4 @@
-import type { FeatureFlagKinds } from "../core/feature-flags-context.ts";
-import type { FeatureFlagDefinitions } from "../core/feature-flags-define.ts";
-import type { FeatureFlagsLaunchDarklyClientOptions } from "./feature-flags-launch-darkly-client.ts";
+import type { FeatureFlagsLaunchDarklyClientVendorOptions } from "../launchdarkly-client/feature-flags-launch-darkly-client.ts";
 
 // LaunchDarkly's own endpoints, which the browser SDK uses unless `vendor` names others.
 const originsDefault = {
@@ -19,10 +17,7 @@ const originsDefault = {
 export const featureFlagsLaunchDarklyClientOrigins = ({
 	vendor,
 }: {
-	vendor?: FeatureFlagsLaunchDarklyClientOptions<
-		FeatureFlagDefinitions,
-		FeatureFlagKinds
-	>["vendor"];
+	vendor?: FeatureFlagsLaunchDarklyClientVendorOptions | null;
 } = {}): readonly string[] => {
 	const urls = [
 		vendor?.baseUri ?? originsDefault.baseUri,

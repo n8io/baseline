@@ -7,7 +7,7 @@ import {
 	authnMiddlewareCreate,
 	authnRoutesCreate,
 } from "@n8io/baseline-authn";
-import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/client";
+import { featureFlagsLaunchDarklyClientOrigins } from "@n8io/baseline-feature-flags/launchdarkly/origins";
 import { healthServerCreate } from "@n8io/baseline-health";
 import {
 	httpCsrf,

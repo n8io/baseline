@@ -13,6 +13,7 @@ const keyOrder = [
 	"repository",
 	"exports",
 	"files",
+	"sideEffects",
 	"publishConfig",
 	"scripts",
 	"dependencies",
@@ -91,5 +92,20 @@ describe("Package metadata", () => {
 			return !description?.endsWith(".");
 		});
 		expect(wrong, "end the description with a full stop").toEqual([]);
+	});
+
+	// The standard tree-shaking field: a bundler drops what a browser build never calls.
+	it("marks the Packages with browser entries as free of side effects", () => {
+		const wrong = ["authn", "feature-flags", "live", "sdk"].filter(
+			(dir) =>
+				(
+					JSON.parse(textRead(`packages/${dir}/package.json`)) as {
+						sideEffects?: boolean;
+					}
+				).sideEffects !== false,
+		);
+		expect(wrong, 'add "sideEffects": false to each listed Package').toEqual(
+			[],
+		);
 	});
 });

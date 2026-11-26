@@ -12,6 +12,7 @@ import {
 	type FeatureFlagEvaluation,
 	type FeatureFlagFallback,
 	type FeatureFlagRead,
+	type FeatureFlagsOnFallback,
 	type FeatureFlagsReadyStatus,
 	featureFlagsEvaluationReport,
 	featureFlagsFallbackReport,
@@ -69,7 +70,7 @@ export type FeatureFlagsServerOptions<
 	 * Called with each fallback a read returns, to log it. A flag service outage is called once,
 	 * when it starts, not on every read. A throw is ignored.
 	 */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
+	readonly onFallback?: FeatureFlagsOnFallback | null;
 	/** Called once when reads succeed again after an outage was reported. A throw is ignored. */
 	readonly onRecovered?: (() => unknown) | null;
 	readonly source: FeatureFlagsServerSource;

@@ -11,6 +11,7 @@ import type {
 import {
 	type FeatureFlagFallback,
 	type FeatureFlagRead,
+	type FeatureFlagsOnFallback,
 	type FeatureFlagsReadyStatus,
 	featureFlagsFallbackReport,
 	featureFlagsResolve,
@@ -68,7 +69,7 @@ export type FeatureFlagsClientOptions<
 	readonly flags: D;
 	readonly kinds?: K | null;
 	/** Called with each fallback a read returns, to log it. A throw is ignored. */
-	readonly onFallback?: ((fallback: FeatureFlagFallback) => unknown) | null;
+	readonly onFallback?: FeatureFlagsOnFallback | null;
 	readonly source: FeatureFlagsClientSource;
 };
 

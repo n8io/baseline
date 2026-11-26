@@ -16,6 +16,7 @@
 		".": "./src/index.ts",
 		"./launchdarkly": "./src/launchdarkly/index.ts",
 		"./launchdarkly/client": "./src/launchdarkly-client/index.ts",
+		"./launchdarkly/origins": "./src/launchdarkly-origins/index.ts",
 		"./react": "./src/react/index.ts",
 		"./testing": "./src/testing.ts"
 	},
@@ -23,6 +24,7 @@
 		"dist",
 		"README.md"
 	],
+	"sideEffects": false,
 	"publishConfig": {
 		"access": "public",
 		"exports": {
@@ -37,6 +39,10 @@
 			"./launchdarkly/client": {
 				"types": "./dist/launchdarkly/client.d.ts",
 				"default": "./dist/launchdarkly/client.js"
+			},
+			"./launchdarkly/origins": {
+				"types": "./dist/launchdarkly/origins.d.ts",
+				"default": "./dist/launchdarkly/origins.js"
 			},
 			"./react": {
 				"types": "./dist/react.d.ts",
@@ -58,14 +64,12 @@
 	},
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
-		"@n8io/baseline-telemetry": "workspace:^",
 		"@standard-schema/spec": "^1.1.0"
 	},
 	"devDependencies": {
 		"@launchdarkly/js-client-sdk": "^4.14.4",
 		"@launchdarkly/node-server-sdk": "^9.17.1",
 		"@launchdarkly/openfeature-node-server": "^2.1.12",
-		"@openfeature/core": "^1.12.0",
 		"@openfeature/launchdarkly-client-provider": "^0.4.0",
 		"@openfeature/server-sdk": "^1.23.0",
 		"@openfeature/web-sdk": "^1.10.0",
@@ -82,10 +86,10 @@
 		"@launchdarkly/js-client-sdk": "^4.7.0",
 		"@launchdarkly/node-server-sdk": "^9.0.0",
 		"@launchdarkly/openfeature-node-server": "^2.1.12",
-		"@openfeature/core": "^1.12.0",
 		"@openfeature/launchdarkly-client-provider": "^0.4.0",
 		"@openfeature/server-sdk": "^1.23.0",
 		"@openfeature/web-sdk": "^1.10.0",
+		"@opentelemetry/api": "^1.10.0",
 		"react": "^19.3.1"
 	},
 	"peerDependenciesMeta": {
@@ -98,9 +102,6 @@
 		"@launchdarkly/openfeature-node-server": {
 			"optional": true
 		},
-		"@openfeature/core": {
-			"optional": true
-		},
 		"@openfeature/launchdarkly-client-provider": {
 			"optional": true
 		},
@@ -108,6 +109,9 @@
 			"optional": true
 		},
 		"@openfeature/web-sdk": {
+			"optional": true
+		},
+		"@opentelemetry/api": {
 			"optional": true
 		},
 		"react": {

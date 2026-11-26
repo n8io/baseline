@@ -1,15 +1,11 @@
 import { logger } from "@n8io/baseline-logger";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import {
-	httpErrorHandle,
-	httpSecureHeaders,
-	httpSecureHeadersCreate,
-} from "./index.ts";
+import { httpErrorHandle, httpSecureHeadersCreate } from "./index.ts";
 
 const appCreate = () => {
 	const app = new Hono();
-	app.use(httpSecureHeaders);
+	app.use(httpSecureHeadersCreate());
 	app.onError(httpErrorHandle);
 	app.get("/", (c) => c.text(c.get("secureHeadersNonce") ?? "no nonce"));
 	app.get("/boom", () => {
@@ -21,7 +17,7 @@ const appCreate = () => {
 const csp = (nonce: string) =>
 	`base-uri 'self'; connect-src 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-${nonce}'`;
 
-describe("httpSecureHeaders", () => {
+describe("httpSecureHeadersCreate", () => {
 	it("enforces a CSP whose script-src carries the request's nonce", async () => {
 		const res = await appCreate().request("/");
 		const nonce = await res.text();
