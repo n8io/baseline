@@ -36,6 +36,7 @@
 		"seed": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts src/seed.ts",
 		"template-upgrade": "node --import ./scripts/node-version-require.ts scripts/template-upgrade.ts",
 		"test": "vitest run --project unit --project unit-contexts",
+		"test:e2e": "pnpm build && vitest run --project e2e",
 		"test:integration": "node --import ./scripts/node-version-require.ts scripts/dev-instance.ts && pnpm build && vitest run --project integration"
 	},
 	"dependencies": {
@@ -89,11 +90,13 @@
 		"@types/pg": "^8.23.1",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
+		"axe-core": "^4.14.1",
 		"drizzle-kit": "1.0.0-rc.5",
 		"es-module-lexer": "^3.0.5",
 		"fast-check": "^4.10.3",
 		"happy-dom": "^21.0.4",
 		"orval": "8.48.0",
+		"playwright": "1.63.0",
 		"protobufjs": "^8.8.1",
 		"shadcn": "4.23.0",
 		"tailwindcss": "^4.3.5",

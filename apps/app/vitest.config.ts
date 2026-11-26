@@ -26,6 +26,18 @@ const integration: TestProjectConfiguration = {
 	},
 };
 
+// A real browser against the production build on memory adapters: no Docker. `pnpm test:e2e` builds first.
+const e2e: TestProjectConfiguration = {
+	extends: true,
+	test: {
+		hookTimeout: 60_000,
+		include: ["test/e2e/**/*.test.ts"],
+		name: "e2e",
+		setupFiles: ["varlock/auto-load"],
+		testTimeout: 30_000,
+	},
+};
+
 // Unit tests run on memory adapters even where the shell exports real URLs, and every one that
 // opens connections keeps analytics, error tracking and feature flags local.
 const unitEnv = {
@@ -92,6 +104,7 @@ export default defineConfig({
 				},
 			},
 			integration,
+			e2e,
 		],
 	},
 });

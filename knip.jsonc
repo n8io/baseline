@@ -13,6 +13,7 @@
 				"src/server.ts",
 				"src/**/*.test.{ts,tsx}",
 				"test/integration/**/*.ts",
+				"test/e2e/**/*.test.ts",
 				"*.test.ts"
 			],
 			"ignore": ["src/ui/components/**"],

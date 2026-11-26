@@ -148,7 +148,7 @@ const diskReadsUndeclared = (
 		);
 
 // A test sits beside the file it covers (<name>.test.ts(x) or <name>-<aspect>.test.ts(x)) in src/ or
-// scripts/, at the app root when it checks the whole app, or in test/integration/.
+// scripts/, at the app root when it checks the whole app, or in test/integration/ or test/e2e/.
 const testPlacementViolations = (paths: string[]): string[] => {
 	const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
 	const nameOf = (path: string) => path.slice(folderOf(path).length);
@@ -165,7 +165,11 @@ const testPlacementViolations = (paths: string[]): string[] => {
 	return paths
 		.filter(testIs)
 		.filter((path) => {
-			if (!path.includes("/") || path.startsWith("test/integration/"))
+			if (
+				!path.includes("/") ||
+				path.startsWith("test/integration/") ||
+				path.startsWith("test/e2e/")
+			)
 				return false;
 			const name = nameOf(path).replace(/\.test\.tsx?$/, "");
 			const context = /^src\/contexts\/([^/]+)\//.exec(path)?.[1] ?? "";
@@ -411,6 +415,7 @@ describe("test placement", () => {
 				"src/ui/routes/home.test.tsx",
 				"structure.test.ts",
 				"test/integration/ssr.test.ts",
+				"test/e2e/sign-in.test.ts",
 			]),
 		).toEqual([]);
 	});
