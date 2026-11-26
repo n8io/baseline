@@ -91,6 +91,8 @@ jobs:
       # Advisory like app-ci's: warns on root CONTEXT.md aliases in this PR's added lines, never fails.
       # On main there are no added lines to read.
       - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+      - if: ${{ !cancelled() && github.ref != 'refs/heads/main' }}
         continue-on-error: true
         run: node apps/app/scripts/glossary-check.ts CONTEXT.md .
       - if: github.ref == 'refs/heads/main'
