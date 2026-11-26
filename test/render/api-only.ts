@@ -155,7 +155,8 @@ const apiGuardsRequire = async ({
 	openapi: Response;
 	url: string;
 }) => {
-	const csp = /^base-uri 'self'; default-src 'self'; .*'nonce-/;
+	const csp =
+		/^base-uri 'self'; connect-src 'self'[^;]*; default-src 'self'; .*'nonce-/;
 	const anonymous = await fetch(`${url}/api/v1/invoice-lines`, {
 		body: "{not json",
 		headers: { "content-type": "application/json" },

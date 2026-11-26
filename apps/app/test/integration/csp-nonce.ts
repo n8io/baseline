@@ -4,7 +4,7 @@ import { expect } from "vitest";
 export const cspNonce = (res: Response, html: string): string => {
 	const csp = res.headers.get("content-security-policy") ?? "";
 	expect(csp).toMatch(
-		/^base-uri 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-/,
+		/^base-uri 'self'; connect-src 'self'[^;]*; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-/,
 	);
 	const nonce = /script-src 'self' 'nonce-([^']+)'/.exec(csp)?.[1] ?? "";
 	const scripts = html.match(/<script\b[^>]*>/g) ?? [];

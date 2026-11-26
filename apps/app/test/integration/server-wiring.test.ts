@@ -99,7 +99,7 @@ describe("server wiring", { timeout: 30_000 }, () => {
 	describe("security guards in every piece combination", () => {
 		const evil = { Origin: "https://evil.example" };
 		const cspStart =
-			/^base-uri 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-/;
+			/^base-uri 'self'; connect-src 'self'[^;]*; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-/;
 
 		it("sends the CSP and the secure headers on every kind of response", async () => {
 			const responses = {

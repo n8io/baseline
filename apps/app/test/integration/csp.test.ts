@@ -51,6 +51,9 @@ describe("security headers on the production build", {
 		expect(res.headers.get("content-security-policy")).toContain(
 			"default-src 'self'",
 		);
+		expect(res.headers.get("content-security-policy")).toContain(
+			"connect-src 'self';",
+		);
 		expect(await res.text()).not.toContain("style=");
 	});
 

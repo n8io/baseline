@@ -1,7 +1,11 @@
 import { logger } from "@n8io/baseline-logger";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import { httpErrorHandle, httpSecureHeaders } from "./index.ts";
+import {
+	httpErrorHandle,
+	httpSecureHeaders,
+	httpSecureHeadersCreate,
+} from "./index.ts";
 
 const appCreate = () => {
 	const app = new Hono();
@@ -15,7 +19,7 @@ const appCreate = () => {
 };
 
 const csp = (nonce: string) =>
-	`base-uri 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-${nonce}'`;
+	`base-uri 'self'; connect-src 'self'; default-src 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'nonce-${nonce}'`;
 
 describe("httpSecureHeaders", () => {
 	it("enforces a CSP whose script-src carries the request's nonce", async () => {
@@ -24,6 +28,21 @@ describe("httpSecureHeaders", () => {
 
 		expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
 		expect(res.headers.get("Content-Security-Policy")).toBe(csp(nonce));
+	});
+
+	it("allows the origins it is given in connect-src, and nothing else", async () => {
+		const app = new Hono();
+		app.use(
+			httpSecureHeadersCreate({
+				connectSrc: ["https://api.example.com", "https://stream.example.com"],
+			}),
+		);
+		app.get("/", (c) => c.text("ok"));
+		const res = await app.request("/");
+
+		expect(res.headers.get("Content-Security-Policy")).toContain(
+			"connect-src 'self' https://api.example.com https://stream.example.com; default-src 'self'",
+		);
 	});
 
 	it("keeps Hono's other secure headers", async () => {
