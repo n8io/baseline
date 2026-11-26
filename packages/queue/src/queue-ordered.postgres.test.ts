@@ -690,14 +690,17 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				"DELETE FROM queue.job WHERE name = $1 AND singleton_key = 'foo_expiring' AND state = 'failed'",
 				[name],
 			);
+			// The log and the count come from this watcher, but the logger is shared with any watcher an
+			// earlier test left running (those count on their own meter), so the log can come first.
 			await vi.waitFor(
-				() =>
-					expect(logs(error, expiredMessage, "foo_expiring")).toHaveLength(1),
+				() => {
+					expect(logs(error, expiredMessage, "foo_expiring")).toHaveLength(1);
+					expect(
+						recorded.get("baseline.queue.blocked_keys_expired")?.mock.calls,
+					).toEqual([[1, attributes]]);
+				},
 				{ interval: 50, timeout: 10_000 },
 			);
-			expect(
-				recorded.get("baseline.queue.blocked_keys_expired")?.mock.calls,
-			).toEqual([[1, attributes]]);
 			expect(reported).toContainEqual(
 				expect.objectContaining({ name: "QueueBlockedKeyExpiredError" }),
 			);
