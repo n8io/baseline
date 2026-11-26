@@ -64,13 +64,8 @@ describe("architecture", () => {
 		);
 	});
 
-	// The regex checks of A5, A11, A14, A18 and A28 pass once the failing file is fixed.
+	// The regex checks of A11, A14, A18 and A28 pass once the failing file is fixed.
 	it.each([
-		{
-			from: "#contexts/bar/adapters/inbound/bar-routes.ts",
-			name: "a05-root-imports-adapter-entry.txt",
-			to: "#contexts/bar/index.ts",
-		},
 		{
 			from: "return { barContext };",
 			name: "a18-context-unbuilt.txt",
@@ -113,7 +108,7 @@ describe("architecture", () => {
 	});
 
 	// The passing side of the flag rules: no flags file, no key written elsewhere, a typed read.
-	it("A32 to A34 pass without flags, and for a typed read of a declared flag", async () => {
+	it("A32 and A33 pass without flags, and for a typed read of a declared flag", async () => {
 		const flags = await architectureFileCreate(
 			"src/flags.ts",
 			'import { featureFlagsDefine } from "@n8io/baseline-feature-flags";\nexport const flagDefs = featureFlagsDefine({ express: { key: "express-checkout", fallback: false } });\n',
@@ -122,7 +117,7 @@ describe("architecture", () => {
 			"src/contexts/bar/application/bar-checkout.ts",
 			'import type { FeatureFlagsHandle } from "@n8io/baseline-feature-flags";\nexport const barExpress = async (h: FeatureFlagsHandle<never>) => (await h.get("express")) satisfies boolean;\nexport const barConst = h.get("express") as const;\n',
 		);
-		for (const rule of ["A32", "A33", "A34"]) {
+		for (const rule of ["A32", "A33"]) {
 			expect(architectureRules[rule]?.([])).toEqual([]);
 			expect(architectureRules[rule]?.([flags, use])).toEqual([]);
 		}
@@ -138,33 +133,6 @@ describe("architecture", () => {
 	});
 
 	// The passing side of each rule that A14 and A25 loosened or added.
-	it("A6 lets an ACL import its upstream's index.ts, and a seed only the types of an upstream", async () => {
-		const acl = await architectureFileCreate(
-			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
-			'import type { BazContext } from "#contexts/baz/index.ts";\n',
-		);
-		const seed = (source: string) =>
-			architectureFileCreate(
-				"src/contexts/bar/adapters/inbound/bar-seed.ts",
-				source,
-			);
-		const typed = await seed(
-			'import type { BazContext } from "#contexts/baz/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([acl, typed])).toEqual([]);
-		// Without the ACL, baz is no upstream of bar.
-		expect(architectureRules["A6"]?.([typed])).toHaveLength(1);
-		const value = await seed(
-			'import { bazScopes } from "#contexts/baz/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([acl, value])).toHaveLength(1);
-		const other = await architectureFileCreate(
-			"src/contexts/bar/adapters/outbound/bar-baz-acl.ts",
-			'import type { QuxContext } from "#contexts/qux/index.ts";\n',
-		);
-		expect(architectureRules["A6"]?.([other])).toHaveLength(1);
-	});
-
 	it("A6 lets only tests and test helpers in a context build contexts or open connections", async () => {
 		const source =
 			'import { connectionsOpen } from "../../../../connections.ts";\nimport { contextsCreate } from "../../../../contexts.ts";\n';
@@ -247,24 +215,6 @@ describe("architecture", () => {
 			].map(([path = "", source = ""]) => architectureFileCreate(path, source)),
 		);
 		expect(architectureRules["A14"]?.(files)).toEqual([]);
-	});
-
-	it("A16 lets a Model's Use case name its span attributes after the Model", async () => {
-		const table = await architectureFileCreate(
-			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
-			"",
-		);
-		const model = await architectureFileCreate(
-			"src/contexts/billing/domain/invoice-line.ts",
-			"",
-		);
-		const useCase = await architectureFileCreate(
-			"src/contexts/billing/application/invoice-line-get.ts",
-			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
-		);
-		expect(architectureRules["A16"]?.([table, model, useCase])).toEqual([
-			expect.stringContaining("span attribute baseline.note.id"),
-		]);
 	});
 
 	it.each([

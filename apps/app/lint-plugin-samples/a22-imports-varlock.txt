@@ -1,0 +1,6 @@
+// A22: only src/env.ts imports varlock/env
+// expect: A22: only src/env.ts imports varlock/env
+// @file src/server.ts
+import { ENV } from "varlock/env";
+
+export const port = ENV.PORT;

@@ -1,0 +1,7 @@
+// A16: a valid attribute key passes
+// expect:
+// @file src/contexts/bar/application/bar-get.ts
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
+
+export const barGet = (barId: string) =>
+	telemetrySpanAttributesSet({ "baseline.bar.id": barId, "baseline.bar.line_count": 2 });

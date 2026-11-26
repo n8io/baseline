@@ -1,0 +1,12 @@
+// A34: a flag's value arrives already typed, so no `as` cast on one; fix the declaration in src/flags.ts.
+language js
+
+`$value as $type` as $cast where {
+	$value <: contains or {
+		`$recv.get($name)` where { $recv <: r"(?i)^(?:\w*flags?|handle|h)$" },
+		`useFeatureFlag($name)`
+	},
+	$name <: string(),
+	$type <: not `const`,
+	register_diagnostic(span=$cast, message="A34: this casts a flag value; its type comes from the declaration in src/flags.ts (change fallback, values or schema there)", severity="error")
+}

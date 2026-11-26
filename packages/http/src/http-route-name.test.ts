@@ -1,22 +1,37 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { logger } from "@n8io/baseline-logger";
-import { INVALID_SPAN_CONTEXT, type Span, trace } from "@opentelemetry/api";
-import { Hono } from "hono";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-	httpErrorHandle,
+	context,
+	INVALID_SPAN_CONTEXT,
+	type Span,
+	trace,
+} from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { Hono } from "hono";
+import { describe, expect, it } from "vitest";
+import {
+	httpErrorHandleCreate,
 	httpNotFoundHandle,
 	httpRouteName,
 	httpRouterCreate,
 } from "./index.ts";
 
+context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
+
+// A span that records what the middleware does to it.
 const spanFake = () => {
+	const attributes: [string, unknown][] = [];
+	const names: string[] = [];
 	const span = {
-		setAttribute: vi.fn(),
+		attributes,
+		names,
+		setAttribute: (key: string, value: unknown) => {
+			attributes.push([key, value]);
+		},
 		spanContext: () => INVALID_SPAN_CONTEXT,
-		updateName: vi.fn(),
+		updateName: (name: string) => {
+			names.push(name);
+		},
 	};
-	vi.spyOn(trace, "getActiveSpan").mockReturnValue(span as unknown as Span);
 	return span;
 };
 
@@ -27,7 +42,7 @@ const fooListRoute = createRoute({
 	responses: { 200: { description: "OK" } },
 });
 
-const appCreate = () => {
+const appCreate = (span: ReturnType<typeof spanFake> | null = null) => {
 	const foos = httpRouterCreate()
 		.openapi(fooListRoute, (c) => c.body(null, 200))
 		.get("/:fooId", (c) => c.text("foo"))
@@ -36,8 +51,17 @@ const appCreate = () => {
 		})
 		.post("/", (c) => c.body(null, 201));
 	const app = new Hono();
+	// What the HTTP instrumentation does for a traced request: the handler runs inside its span.
+	if (span !== null) {
+		app.use((_c, next) =>
+			context.with(
+				trace.setSpan(context.active(), span as unknown as Span),
+				next,
+			),
+		);
+	}
 	app.use(httpRouteName);
-	app.onError(httpErrorHandle);
+	app.onError(httpErrorHandleCreate({ logger: { error: () => undefined } }));
 	app.route("/api/v1/foos", foos);
 	app.all("/api/*", httpNotFoundHandle);
 	app.get("*", (c) => c.text("page"));
@@ -45,10 +69,6 @@ const appCreate = () => {
 };
 
 describe("httpRouteName", () => {
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	it.each([
 		{
 			method: "GET",
@@ -66,14 +86,11 @@ describe("httpRouteName", () => {
 		"names the server span for $method $path after the route that answered",
 		async ({ method, name, path, route }) => {
 			const span = spanFake();
-			const res = await appCreate().request(path, { method });
+			const res = await appCreate(span).request(path, { method });
 
 			expect(res.ok).toBe(true);
-			expect(span.updateName).toHaveBeenCalledExactlyOnceWith(name);
-			expect(span.setAttribute).toHaveBeenCalledExactlyOnceWith(
-				"http.route",
-				route,
-			);
+			expect(span.names).toStrictEqual([name]);
+			expect(span.attributes).toStrictEqual([["http.route", route]]);
 		},
 	);
 
@@ -93,12 +110,11 @@ describe("httpRouteName", () => {
 	])(
 		"still names the span when $method $path answers $status",
 		async ({ method, name, path, status }) => {
-			vi.spyOn(logger, "error").mockImplementation(() => undefined);
 			const span = spanFake();
-			const res = await appCreate().request(path, { method });
+			const res = await appCreate(span).request(path, { method });
 
 			expect(res.status).toBe(status);
-			expect(span.updateName).toHaveBeenCalledExactlyOnceWith(name);
+			expect(span.names).toStrictEqual([name]);
 		},
 	);
 
@@ -106,10 +122,10 @@ describe("httpRouteName", () => {
 		"leaves the span alone when a catch-all route answers %s",
 		async (path) => {
 			const span = spanFake();
-			await appCreate().request(path);
+			await appCreate(span).request(path);
 
-			expect(span.updateName).not.toHaveBeenCalled();
-			expect(span.setAttribute).not.toHaveBeenCalled();
+			expect(span.names).toStrictEqual([]);
+			expect(span.attributes).toStrictEqual([]);
 		},
 	);
 

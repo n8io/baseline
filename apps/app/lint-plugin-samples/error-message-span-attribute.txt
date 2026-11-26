@@ -1,0 +1,7 @@
+// AF-10: an error's message never goes on a span attribute
+// expect: An error's message never goes on a span attribute
+// @file src/server.ts
+import { telemetrySpanAttributesSet } from "@n8io/baseline-telemetry/span";
+
+export const fail = (error: Error) =>
+	telemetrySpanAttributesSet({ "baseline.bar.error": error.message });

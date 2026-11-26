@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { authnMemoryTokenFetch } from "./authn-memory-token-fetch.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import { authnTestOrigin } from "./authn-test-helpers.ts";
@@ -13,27 +13,27 @@ const whoami = async (app: App, token: string) => {
 	return { body: (await res.json()) as { actor: Actor | null }, res };
 };
 
-afterEach(() => {
-	vi.unstubAllGlobals();
-});
-
 describe("authnMemoryTokenFetch", () => {
 	const appServe = async () => {
 		const served = await authnTestAppCreate();
 		const requests: Request[] = [];
-		vi.stubGlobal("fetch", async (input: URL, init?: RequestInit) => {
+		const fetchApp = async (
+			input: string | URL | Request,
+			init?: RequestInit,
+		) => {
 			const request = new Request(input, init);
 			requests.push(request.clone());
 			return served.app.request(request);
-		});
-		return { ...served, requests };
+		};
+		return { ...served, fetchApp, requests };
 	};
 
 	it("fetches a client token a served app accepts, sending the app's Origin", async () => {
-		const { app, requests } = await appServe();
+		const { app, fetchApp, requests } = await appServe();
 
 		const fetched = await authnMemoryTokenFetch({
 			clientId: "feed",
+			fetch: fetchApp,
 			scopes: ["foo:read"],
 			baseUrl: authnTestOrigin,
 		});
@@ -49,11 +49,12 @@ describe("authnMemoryTokenFetch", () => {
 	});
 
 	it("takes the origin of a baseUrl with a trailing slash", async () => {
-		const { requests } = await appServe();
+		const { fetchApp, requests } = await appServe();
 
 		await authnMemoryTokenFetch({
 			baseUrl: `${authnTestOrigin}/`,
 			clientId: "feed",
+			fetch: fetchApp,
 		});
 
 		expect(requests[0]?.url).toBe(`${authnTestOrigin}/auth/token`);
@@ -61,18 +62,24 @@ describe("authnMemoryTokenFetch", () => {
 	});
 
 	it("names the issuer when the app is not on memory://", async () => {
-		vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
-
 		await expect(
-			authnMemoryTokenFetch({ clientId: "feed", baseUrl: authnTestOrigin }),
+			authnMemoryTokenFetch({
+				clientId: "feed",
+				fetch: async () => new Response(null, { status: 404 }),
+				baseUrl: authnTestOrigin,
+			}),
 		).rejects.toThrow("the Project's authn issuerUrl is not memory://");
 	});
 
 	it("passes on the issuer's refusal", async () => {
-		await appServe();
+		const { fetchApp } = await appServe();
 
 		await expect(
-			authnMemoryTokenFetch({ clientId: "nobody", baseUrl: authnTestOrigin }),
+			authnMemoryTokenFetch({
+				clientId: "nobody",
+				fetch: fetchApp,
+				baseUrl: authnTestOrigin,
+			}),
 		).rejects.toThrow('answered 401 {"error":"invalid_client"}');
 	});
 });

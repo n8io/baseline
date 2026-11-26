@@ -1,0 +1,6 @@
+// A6: inside a context only tests and test helpers build contexts or open connections
+// expect: imports ../../../contexts.ts: inside a context only tests
+// @file src/contexts/bar/application/bar-get.ts
+import { contextsCreate } from "../../../contexts.ts";
+
+export const barGet = contextsCreate;

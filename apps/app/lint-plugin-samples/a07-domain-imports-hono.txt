@@ -1,5 +1,5 @@
 // A7: domain/ imports nothing from @hono/*; .openapi( appears only in adapters/inbound/
-// expect: A7: domain/ stays free of HTTP
+// expect: A7: .openapi( and @hono/* appear only
 // @file src/contexts/bar/domain/bar.ts
 import { z } from "@hono/zod-openapi";
 

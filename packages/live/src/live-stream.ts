@@ -8,7 +8,16 @@ export const liveStreamMaxMs: number = 5 * 60_000;
 
 // Spread reconnects over 1–5 s so a restart or a token expiry wave does not
 // bring every page back at once.
-const liveRetryMs = (): number => 1000 + Math.floor(Math.random() * 4001);
+export const liveRetryMs = (random: () => number = Math.random): number =>
+	1000 + Math.floor(random() * 4001);
+
+/** The clock and timings of a stream; a test shortens them. `liveStreamCreate` uses the defaults. */
+export type LiveStreamTiming = {
+	heartbeatMs: number;
+	maxMs: number;
+	now: () => number;
+	retryMs: () => number;
+};
 
 // A page that stops reading is dropped once this much is waiting for it; it reconnects and
 // revalidates. So is a page sent more than this in one tick, which costs it only a reconnect.
@@ -39,13 +48,18 @@ export type LiveStreamOptions = {
  * in Hono) to keep the ones earlier middleware set. Throws `TypeError` on an `expiresAt` that is
  * not a number, or a `liveHub` from another factory.
  */
-export const liveStreamCreate = ({
-	channel,
-	expiresAt,
-	id,
-	liveHub,
-	signal,
-}: LiveStreamOptions): Response => {
+export const liveStreamCreate = (options: LiveStreamOptions): Response =>
+	liveStreamBuild(options);
+
+/** `liveStreamCreate` with its timings handed in, for tests that cannot wait 20 s or 5 minutes. */
+export const liveStreamBuild = (
+	{ channel, expiresAt, id, liveHub, signal }: LiveStreamOptions,
+	timing: Partial<LiveStreamTiming> = {},
+): Response => {
+	const heartbeatMs = timing.heartbeatMs ?? liveHeartbeatMs;
+	const maxMs = timing.maxMs ?? liveStreamMaxMs;
+	const now = timing.now ?? Date.now;
+	const retryMs = timing.retryMs ?? liveRetryMs;
 	if (typeof expiresAt !== "number" || Number.isNaN(expiresAt)) {
 		throw new TypeError(
 			`liveStreamCreate: expiresAt must be a number of epoch ms, found ${String(expiresAt)}`,
@@ -71,11 +85,11 @@ export const liveStreamCreate = ({
 		signal?.addEventListener("abort", abort, { once: true });
 		const lifetime = setTimeout(
 			stop.resolve,
-			Math.max(0, Math.min(liveStreamMaxMs, expiresAt - Date.now())),
+			Math.max(0, Math.min(maxMs, expiresAt - now())),
 		);
 		const heartbeat = setInterval(() => {
 			write(": heartbeat\n\n");
-		}, liveHeartbeatMs);
+		}, heartbeatMs);
 		let unlisten = (): void => {};
 		let resyncTimer: NodeJS.Timeout | undefined;
 		// EventSource's open fires on the headers, before this subscribe is
@@ -98,7 +112,7 @@ export const liveStreamCreate = ({
 					resyncTimer ??= setTimeout(() => {
 						resyncTimer = undefined;
 						ready();
-					}, liveRetryMs());
+					}, retryMs());
 				},
 			});
 			// Never let a slow subscribe hold up close() or the lifetime.
@@ -119,7 +133,7 @@ export const liveStreamCreate = ({
 			clearInterval(heartbeat);
 			signal?.removeEventListener("abort", abort);
 			untrack();
-			write(`retry: ${liveRetryMs()}\n\n`);
+			write(`retry: ${retryMs()}\n\n`);
 			finished.resolve();
 		}
 	};

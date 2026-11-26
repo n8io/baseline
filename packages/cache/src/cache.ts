@@ -1,4 +1,4 @@
-import { logger } from "@n8io/baseline-logger";
+import { type Logger, logger } from "@n8io/baseline-logger";
 import { type Counter, metrics } from "@opentelemetry/api";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -31,6 +31,10 @@ export type CacheStore = {
 export type CacheOptions<T> = {
 	/** Never set here: `CacheKeyedOptions` has it, and its absence picks this overload. */
 	keyOf?: undefined;
+	/** The logger for store failures. Defaults to the shared logger; a test passes its own. */
+	logger?: Pick<Logger, "warn">;
+	/** The clock, in ms. Defaults to `Date.now`; a test passes its own. */
+	now?: () => number;
 	/**
 	 * What a store error or timeout does. "miss" (the default) keeps the caller serving: a failed
 	 * get is a miss, and a failed set or delete is logged and counted. "throw" rejects the call.
@@ -115,6 +119,8 @@ const cacheByIdCreate = <T>(
 	options: Omit<CacheOptions<T>, "keyOf">,
 ): Cache<T> => {
 	const { prefix, schema } = options;
+	const now = options.now ?? Date.now;
+	const log = options.logger ?? logger;
 	const onStoreError = options.onStoreError ?? "miss";
 	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
 	if (prefix === "") {
@@ -145,27 +151,27 @@ const cacheByIdCreate = <T>(
 			"baseline.cache.operation": operation,
 			"baseline.cache.prefix": prefix,
 		});
-		if (Date.now() - warnedAt < cacheWarnIntervalMs) {
+		if (now() - warnedAt < cacheWarnIntervalMs) {
 			unlogged += 1;
 			return;
 		}
-		logger.warn(
+		log.warn(
 			{ err, operation, prefix, unlogged },
 			"Cache store failed; serving without the cache",
 		);
-		warnedAt = Date.now();
+		warnedAt = now();
 		unlogged = 0;
 	};
 
 	const staleMark = (id: string): void => {
-		const now = Date.now();
+		const at = now();
 		// Oldest first: every mark lasts ttlMs, so the first live one ends the sweep.
 		for (const [staleId, until] of staleUntil) {
-			if (until > now) break;
+			if (until > at) break;
 			staleUntil.delete(staleId);
 		}
 		staleUntil.delete(id);
-		staleUntil.set(id, now + ttlMs);
+		staleUntil.set(id, at + ttlMs);
 	};
 
 	return {
@@ -178,7 +184,7 @@ const cacheByIdCreate = <T>(
 			}
 		},
 		get: async (id) => {
-			if ((staleUntil.get(id) ?? 0) > Date.now()) return undefined;
+			if ((staleUntil.get(id) ?? 0) > now()) return undefined;
 			let json: string | undefined;
 			try {
 				json = await store.get(key(id));

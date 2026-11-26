@@ -1,0 +1,4 @@
+// A26: a Use case takes ids and randomness from ports, never Math.random() or crypto.randomUUID()
+// expect: never Math.random() or crypto.randomUUID()
+// @file src/contexts/bar/application/bar-create.ts
+export const barCreate = () => ({ barId: crypto.randomUUID() });

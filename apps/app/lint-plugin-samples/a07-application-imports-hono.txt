@@ -1,0 +1,6 @@
+// A7: only adapters/inbound/ imports @hono/*
+// expect: A7: .openapi( and @hono/* appear only
+// @file src/contexts/bar/application/bar-get.ts
+import { z } from "@hono/zod-openapi";
+
+export const barGet = z.object({});

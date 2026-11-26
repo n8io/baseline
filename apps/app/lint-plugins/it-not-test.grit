@@ -1,0 +1,9 @@
+// Tests are written with it(), not test().
+language js
+
+or {
+	`test($...)`,
+	`test.$_($...)`
+} as $call where {
+	register_diagnostic(span=$call, message="Write tests with it() and describe(); never test()", severity="error")
+}

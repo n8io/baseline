@@ -7,7 +7,14 @@
 				"src/**",
 				"!**/*.test.ts",
 				"!**/*.test.tsx",
-				"!src/contexts/**/*.ts"
+				"!src/contexts/**/*.ts",
+				"!src/blocked-keys.ts",
+				"!src/migrate.ts",
+				"!src/seed.ts",
+				"!src/server.ts",
+				"!src/worker.ts",
+				"!src/connections.ts",
+				"!src/env.ts"
 			],
 			"linter": {
 				"rules": {
@@ -15,7 +22,57 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24"]
+								"patterns": [
+									"$A24",
+									"$A5",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A22-varlock",
+									"$A22-env"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/blocked-keys.ts",
+				"src/migrate.ts",
+				"src/seed.ts",
+				"src/server.ts",
+				"src/worker.ts",
+				"src/connections.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									"$A24",
+									"$A5",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A22-varlock"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/env.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": ["$A24", "$A5", "$A8-opentelemetry", "$A8-span"]
 							}
 						}
 					}
@@ -35,7 +92,15 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24", "$A9", "$A10-ui"]
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-ui",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A22-varlock",
+									"$A22-env"
+								]
 							}
 						}
 					}
@@ -50,7 +115,17 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24", "$A9", "$A10-contexts"]
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A6-root",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A7",
+									"$A22-varlock",
+									"$A22-env"
+								]
 							}
 						}
 					}
@@ -70,7 +145,20 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24", "$A9", "$A10-contexts", "$A19", "$A21"]
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A19",
+									"$A21",
+									"$A6-root",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A1-root",
+									"$A7",
+									"$A22-varlock",
+									"$A22-env"
+								]
 							}
 						}
 					}
@@ -95,7 +183,13 @@
 									"$A10-contexts",
 									"$A19",
 									"$A7",
-									"$A2"
+									"$A2",
+									"$A6-layer",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A1-layer",
+									"$A22-varlock",
+									"$A22-env"
 								]
 							}
 						}
@@ -122,7 +216,13 @@
 									"$A19",
 									"$A21-application",
 									"$A21-queue",
-									"$A21-authn"
+									"$A21-authn",
+									"$A6-layer",
+									"$A8-opentelemetry",
+									"$A1-layer",
+									"$A7",
+									"$A22-varlock",
+									"$A22-env"
 								]
 							}
 						}
@@ -133,6 +233,8 @@
 		{
 			"includes": [
 				"src/contexts/*/adapters/inbound/**",
+				"!src/contexts/*/adapters/inbound/*-handler.ts",
+				"!src/contexts/*/adapters/inbound/*-seed.ts",
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
@@ -142,7 +244,18 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24", "$A9", "$A10-contexts", "$A19"]
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A19",
+									"$A6-adapter",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A3",
+									"$A22-varlock",
+									"$A22-env"
+								]
 							}
 						}
 					}
@@ -152,6 +265,7 @@
 		{
 			"includes": [
 				"src/contexts/*/adapters/outbound/**",
+				"!src/contexts/*/adapters/outbound/*-acl.ts",
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
@@ -161,7 +275,79 @@
 						"noRestrictedImports": {
 							"level": "error",
 							"options": {
-								"patterns": ["$A24", "$A9", "$A10-contexts"]
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A6-adapter",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A4",
+									"$A7",
+									"$A22-varlock",
+									"$A22-env"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/inbound/*-handler.ts",
+				"src/contexts/*/adapters/inbound/*-seed.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A19",
+									"$A6-adapter-upstream",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A3",
+									"$A22-varlock",
+									"$A22-env"
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/outbound/*-acl.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									"$A24",
+									"$A9",
+									"$A10-contexts",
+									"$A6-adapter-upstream",
+									"$A8-opentelemetry",
+									"$A8-span",
+									"$A4",
+									"$A7",
+									"$A22-varlock",
+									"$A22-env"
+								]
 							}
 						}
 					}
@@ -175,7 +361,26 @@
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
-			"plugins": ["./lint-plugins/system-time.grit"]
+			"plugins": [
+				"./lint-plugins/system-time.grit",
+				"./lint-plugins/ambient-effects.grit"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedGlobals": {
+							"level": "error",
+							"options": {
+								"deniedGlobals": {
+									"fetch": "A26: a Use case reaches the network through a port implemented in adapters/outbound/",
+									"setTimeout": "A26: a Use case never schedules timers; a Schedule or the queue does",
+									"setInterval": "A26: a Use case never schedules timers; a Schedule or the queue does"
+								}
+							}
+						}
+					}
+				}
+			}
 		},
 		{
 			"includes": ["src/contexts/*/adapters/outbound/**"],
@@ -197,7 +402,10 @@
 		},
 		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
-			"plugins": ["./lint-plugins/no-mocks.grit"]
+			"plugins": [
+				"./lint-plugins/no-mocks.grit",
+				"./lint-plugins/it-not-test.grit"
+			]
 		},
 		{
 			"includes": ["**"],
@@ -218,6 +426,42 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["scripts/**", "test/**", "src/blocked-keys.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": [
+				"./lint-plugins/flag-value-cast.grit",
+				"./lint-plugins/spans-in-telemetry.grit"
+			]
+		},
+		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!src/contexts/*/application/ports.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./lint-plugins/span-attribute-keys.grit"]
+		},
+		{
+			"includes": ["src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+			"plugins": ["./lint-plugins/error-message-attribute.grit"]
 		}
 	],
 	"linter": {
@@ -309,7 +553,71 @@
 							}
 						}
 					}
-				}
+				},
+				"noParameterAssign": "error",
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"conventions": [
+							{
+								"selector": {
+									"kind": "objectLiteralProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "typeProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "objectLiteralMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							}
+						]
+					}
+				},
+				"useFilenamingConvention": "error"
 			},
 			"suspicious": {
 				"noApproximativeNumericConstant": "error",
@@ -342,7 +650,8 @@
 				"useBiomeIgnoreFolder": "error",
 				"useDefaultSwitchClauseLast": "error",
 				"useGoogleFontDisplay": "error",
-				"useIsArray": "error"
+				"useIsArray": "error",
+				"noConsole": "error"
 			}
 		}
 	},

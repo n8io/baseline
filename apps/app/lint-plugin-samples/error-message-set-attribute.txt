@@ -1,0 +1,5 @@
+// AF-10: an error's message never goes on a span attribute (setAttribute)
+// expect: An error's message never goes on a span attribute
+// @file src/server.ts
+export const fail = (span: { setAttribute: (k: string, v: string) => void }, error: Error) =>
+	span.setAttribute("baseline.bar.error", error.message);

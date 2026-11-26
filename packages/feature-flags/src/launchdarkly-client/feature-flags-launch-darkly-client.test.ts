@@ -1,5 +1,5 @@
 import type { EvaluationContext } from "@openfeature/web-sdk";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { featureFlagsClientContractRun } from "../core/feature-flags-client.contract.ts";
 import { featureFlagsClientCreate } from "../core/feature-flags-client.ts";
@@ -177,11 +177,13 @@ describe("the LaunchDarkly browser source", () => {
 		const client = clientOf({ provider, readyTimeoutMs: 20 });
 		await expect(client.ready).resolves.toBe("timeout");
 		expect(client.flags.get("itemLimit")).toBe(10);
-		const listener = vi.fn();
-		client.flags.subscribe("itemLimit", listener);
+		const listener: string[] = [];
+		client.flags.subscribe("itemLimit", () => {
+			listener.push("changed");
+		});
 		provider.readyEmit();
-		await vi.waitFor(() => expect(client.flags.get("itemLimit")).toBe(3));
-		expect(listener).toHaveBeenCalledTimes(1);
+		await expect.poll(() => client.flags.get("itemLimit")).toBe(3);
+		expect(listener).toHaveLength(1);
 		await client.close();
 	});
 
@@ -195,7 +197,7 @@ describe("the LaunchDarkly browser source", () => {
 		await client.ready;
 		expect(client.flags.get("theme")).toEqual({ mode: "light" });
 		provider.valuesSet(() => ({ theme: [] }));
-		await vi.waitFor(() => expect(fallbacks).toHaveLength(1));
+		await expect.poll(() => fallbacks.length).toBe(1);
 		expect(client.flags.get("theme")).toEqual({ mode: "light" });
 		expect(fallbacks[0]).toMatchObject({
 			flag: "theme",
@@ -224,12 +226,10 @@ describe("the LaunchDarkly browser source", () => {
 		await client.ready;
 		expect(client.flags.get("theme")).toEqual({ any: 1 });
 		provider.valuesSet(() => ({ theme: [1] }));
-		await vi.waitFor(() => expect(fallbacks).toHaveLength(1));
+		await expect.poll(() => fallbacks.length).toBe(1);
 		expect(fallbacks[0]).toMatchObject({ flag: "theme", reason: "wrongType" });
 		provider.valuesSet(() => ({ theme: { any: 2 } }));
-		await vi.waitFor(() =>
-			expect(client.flags.get("theme")).toEqual({ any: 2 }),
-		);
+		await expect.poll(() => client.flags.get("theme")).toEqual({ any: 2 });
 		await client.close();
 	});
 
@@ -255,7 +255,7 @@ describe("the LaunchDarkly browser source", () => {
 		const second = clientOf({ provider: new FakeProvider({ values }) });
 		await Promise.all([first.ready, second.ready]);
 		await first.contextSet({ actor: { id: "b2" } });
-		await vi.waitFor(() => expect(first.flags.get("itemLimit")).toBe(9));
+		await expect.poll(() => first.flags.get("itemLimit")).toBe(9);
 		expect(second.flags.get("itemLimit")).toBe(3);
 		await Promise.all([first.close(), second.close()]);
 	});

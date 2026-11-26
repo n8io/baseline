@@ -1,0 +1,4 @@
+// A26: a Use case reaches the network through a port, never fetch
+// expect: A26: a Use case reaches the network through a port
+// @file src/contexts/bar/application/bar-sync.ts
+export const barSync = () => fetch("https://example.com/bars");

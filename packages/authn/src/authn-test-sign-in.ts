@@ -20,6 +20,8 @@ export type AuthnTestSignedIn = {
 export type AuthnTestSignInOptions = {
 	/** The served Project's origin. */
 	baseUrl: string;
+	/** Sends the sign-in request. `null` means the global `fetch`. */
+	fetch?: typeof fetch | null;
 	/** The Server's `secret`, which opens the access cookie. */
 	secret: string;
 	/** The id of the `memoryUsers` entry to sign in as. */
@@ -33,11 +35,12 @@ export type AuthnTestSignInOptions = {
  */
 export const authnTestSignIn = async ({
 	baseUrl,
+	fetch: fetchOption,
 	secret,
 	who,
 }: AuthnTestSignInOptions): Promise<AuthnTestSignedIn> => {
 	const origin = new URL(baseUrl).origin;
-	const res = await fetch(`${origin}/auth/sign-in`, {
+	const res = await (fetchOption ?? fetch)(`${origin}/auth/sign-in`, {
 		body: new URLSearchParams({ who }),
 		// Node's fetch sends no Origin, and a form post without one can answer 403.
 		headers: { origin },

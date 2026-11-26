@@ -1,0 +1,6 @@
+// A6: an Event handler imports the upstream context's index.ts
+// expect:
+// @file src/contexts/bar/adapters/inbound/bar-baz-deleted-handler.ts
+import { bazDeletedSchema } from "../../../baz/index.ts";
+
+export const barBazDeletedHandlerCreate = () => bazDeletedSchema;

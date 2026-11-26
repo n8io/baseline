@@ -1,7 +1,9 @@
-import { trace } from "@opentelemetry/api";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { context, ROOT_CONTEXT, type Span, trace } from "@opentelemetry/api";
+import { describe, expect, it } from "vitest";
 import { authnMiddlewareCreate } from "./authn-middleware.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
+import { authnTestTokenForge } from "./authn-test-forge.ts";
 import {
 	authnTestMemoryOptions,
 	authnTestOrigin,
@@ -15,9 +17,20 @@ const machine: Actor = {
 	scopes: ["foo:read"],
 };
 
-afterEach(() => {
-	vi.useRealTimers();
-	vi.restoreAllMocks();
+const contextStorage = new AsyncLocalStorage<typeof ROOT_CONTEXT>();
+
+// Lets `context.with` carry a span through awaits, as the HTTP instrumentation's manager does.
+context.setGlobalContextManager({
+	active: () => contextStorage.getStore() ?? ROOT_CONTEXT,
+	bind: (_context, target) => target,
+	disable() {
+		return this;
+	},
+	enable() {
+		return this;
+	},
+	with: (ctx, fn, thisArg, ...args) =>
+		contextStorage.run(ctx, () => fn.call(thisArg, ...args)),
 });
 
 describe("authnMiddlewareCreate with the bearer token", () => {
@@ -33,20 +46,21 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 	});
 
 	it("puts only the actor's id on the request span as user.id", async () => {
-		const setAttribute = vi.fn();
-		vi.spyOn(trace, "getActiveSpan").mockReturnValue({
-			setAttribute,
-		} as unknown as ReturnType<typeof trace.getActiveSpan>);
+		const attributes: [string, unknown][] = [];
+		const span = {
+			setAttribute: (key: string, value: unknown) => {
+				attributes.push([key, value]);
+			},
+		} as unknown as Span;
 		const { app, authn } = await authnTestAppCreate();
 		const token = await authnTestTokenCreate({ actor: machine, authn });
-		await app.request(`${authnTestOrigin}/api/v1/me`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-
-		expect(setAttribute).toHaveBeenCalledExactlyOnceWith(
-			"user.id",
-			"foo-schedule",
+		await context.with(trace.setSpan(context.active(), span), () =>
+			app.request(`${authnTestOrigin}/api/v1/me`, {
+				headers: { Authorization: `Bearer ${token}` },
+			}),
 		);
+
+		expect(attributes).toStrictEqual([["user.id", "foo-schedule"]]);
 	});
 
 	it("answers 401 AuthnRequired when a route needs an actor and none is sent", async () => {
@@ -83,9 +97,11 @@ describe("authnMiddlewareCreate with the bearer token", () => {
 	});
 
 	it("answers 401 AuthnInvalid for an expired token and never redirects", async () => {
-		const { app, authn } = await authnTestAppCreate();
-		const token = await authnTestTokenCreate({ actor: machine, authn });
-		vi.useFakeTimers({ now: Date.now() + 16 * 60_000, toFake: ["Date"] });
+		const { app } = await authnTestAppCreate();
+		const token = await authnTestTokenForge({
+			actor: machine,
+			expiresInSeconds: -60,
+		});
 		const res = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});

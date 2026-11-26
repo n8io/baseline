@@ -7,7 +7,14 @@
 				"src/**",
 				"!**/*.test.ts",
 				"!**/*.test.tsx",
-				"!src/contexts/**/*.ts"
+				"!src/contexts/**/*.ts",
+				"!src/blocked-keys.ts",
+				"!src/migrate.ts",
+				"!src/seed.ts",
+				"!src/server.ts",
+				"!src/worker.ts",
+				"!src/connections.ts",
+				"!src/env.ts"
 			],
 			"linter": {
 				"rules": {
@@ -19,6 +26,116 @@
 									{
 										"group": ["@n8io/baseline-*/testing"],
 										"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+									},
+									{
+										"group": [
+											"#contexts/*/**",
+											"**/contexts/*/**",
+											"!#contexts/*/index.ts",
+											"!**/contexts/*/index.ts"
+										],
+										"message": "A5: outside a context, import only src/contexts/<context>/index.ts, its one interface: build it with <context>ContextCreate, or export the Public contract you need from it"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/blocked-keys.ts",
+				"src/migrate.ts",
+				"src/seed.ts",
+				"src/server.ts",
+				"src/worker.ts",
+				"src/connections.ts"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									{
+										"group": ["@n8io/baseline-*/testing"],
+										"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+									},
+									{
+										"group": [
+											"#contexts/*/**",
+											"**/contexts/*/**",
+											"!#contexts/*/index.ts",
+											"!**/contexts/*/index.ts"
+										],
+										"message": "A5: outside a context, import only src/contexts/<context>/index.ts, its one interface: build it with <context>ContextCreate, or export the Public contract you need from it"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": ["src/env.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									{
+										"group": ["@n8io/baseline-*/testing"],
+										"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+									},
+									{
+										"group": [
+											"#contexts/*/**",
+											"**/contexts/*/**",
+											"!#contexts/*/index.ts",
+											"!**/contexts/*/index.ts"
+										],
+										"message": "A5: outside a context, import only src/contexts/<context>/index.ts, its one interface: build it with <context>ContextCreate, or export the Public contract you need from it"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
 									}
 								]
 							}
@@ -50,8 +167,29 @@
 										"message": "A9: contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
 									},
 									{
-										"group": ["#contexts/*/**", "!#contexts/*/index.ts"],
+										"group": [
+											"#contexts/*/**",
+											"**/contexts/*/**",
+											"!#contexts/*/index.ts",
+											"!**/contexts/*/index.ts"
+										],
 										"message": "A10: the UI calls contexts only through src/contexts/<context>/index.ts; loaders and actions get Use cases from the load context"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -80,6 +218,30 @@
 									{
 										"group": ["#ui/**", "**/ui/**"],
 										"message": "A10: contexts never import the UI; the UI calls the context"
+									},
+									{
+										"group": ["../*/index.ts", "../*/*/**", "#contexts/**"],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["@hono/*"],
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -125,6 +287,34 @@
 											"!@n8io/baseline-id"
 										],
 										"message": "A21: business code imports only @n8io/baseline-result and @n8io/baseline-id, plus @n8io/baseline-telemetry/span in application/ and the types Inbox (queue) and Actor (authn) in domain/ and application/; reach any other shared package through a port implemented in adapters/outbound/"
+									},
+									{
+										"group": ["../*/index.ts", "../*/*/**", "#contexts/**"],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["./index.ts", "./adapters/**"],
+										"message": "A1: business code (root files, domain/, application/) never imports adapters/ or its context's index.ts, which imports every adapter; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
+									},
+									{
+										"group": ["@hono/*"],
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -164,7 +354,7 @@
 									},
 									{
 										"group": ["@hono/*"],
-										"message": "A7: domain/ stays free of HTTP; put OpenAPI schemas in adapters/inbound/<model>-routes.ts"
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
 									},
 									{
 										"group": [
@@ -177,6 +367,34 @@
 											"!../../../id-schema.ts"
 										],
 										"message": "A2: domain/ is pure: it imports only its own domain/, zod, src/id-schema.ts, the result Package and the types of the authn and id Packages; move this to a Use case in application/"
+									},
+									{
+										"group": [
+											"../../*/index.ts",
+											"../../*/*/**",
+											"#contexts/**"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["../index.ts", "../adapters/**"],
+										"message": "A1: business code (root files, domain/, application/) never imports adapters/ or its context's index.ts, which imports every adapter; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -236,6 +454,34 @@
 										"importNamePattern": "Actor",
 										"invertImportNamePattern": true,
 										"message": "A21: business code imports only the Actor type from @n8io/baseline-authn"
+									},
+									{
+										"group": [
+											"../../*/index.ts",
+											"../../*/*/**",
+											"#contexts/**"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["../index.ts", "../adapters/**"],
+										"message": "A1: business code (root files, domain/, application/) never imports adapters/ or its context's index.ts, which imports every adapter; declare what it needs as a port in domain/repositories.ts or application/ports.ts and let index.ts wire the adapter"
+									},
+									{
+										"group": ["@hono/*"],
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -247,6 +493,8 @@
 		{
 			"includes": [
 				"src/contexts/*/adapters/inbound/**",
+				"!src/contexts/*/adapters/inbound/*-handler.ts",
+				"!src/contexts/*/adapters/inbound/*-seed.ts",
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
@@ -272,6 +520,34 @@
 									{
 										"group": ["**/*.memory.ts"],
 										"message": "A19: only *.test.ts files (and adapters/outbound/) import memory adapters; production code gets ports from <context>PortsCreate in adapters/outbound/index.ts"
+									},
+									{
+										"group": [
+											"../../../*/index.ts",
+											"../../../*/*/**",
+											"#contexts/**"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["../outbound/**", "../../index.ts"],
+										"message": "A3: adapters/inbound/ never imports adapters/outbound/ or its context's index.ts; index.ts passes it Use cases built on the adapters"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -283,6 +559,7 @@
 		{
 			"includes": [
 				"src/contexts/*/adapters/outbound/**",
+				"!src/contexts/*/adapters/outbound/*-acl.ts",
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
@@ -304,6 +581,177 @@
 									{
 										"group": ["#ui/**", "**/ui/**"],
 										"message": "A10: contexts never import the UI; the UI calls the context"
+									},
+									{
+										"group": [
+											"../../../*/index.ts",
+											"../../../*/*/**",
+											"#contexts/**"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": [
+											"../inbound/**",
+											"../../application/**",
+											"!../../application/ports.ts",
+											"../../*.ts"
+										],
+										"message": "A4: adapters/outbound/ implements ports: from its context it imports only domain/, adapters/outbound/ and application/ports.ts"
+									},
+									{
+										"group": ["@hono/*"],
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/inbound/*-handler.ts",
+				"src/contexts/*/adapters/inbound/*-seed.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									{
+										"group": ["@n8io/baseline-*/testing"],
+										"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+									},
+									{
+										"group": ["@n8io/baseline-logger"],
+										"message": "A9: contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
+									},
+									{
+										"group": ["#ui/**", "**/ui/**"],
+										"message": "A10: contexts never import the UI; the UI calls the context"
+									},
+									{
+										"group": ["**/*.memory.ts"],
+										"message": "A19: only *.test.ts files (and adapters/outbound/) import memory adapters; production code gets ports from <context>PortsCreate in adapters/outbound/index.ts"
+									},
+									{
+										"group": [
+											"../../../*/*/**",
+											"#contexts/**",
+											"!#contexts/*/index.ts"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": ["../outbound/**", "../../index.ts"],
+										"message": "A3: adapters/inbound/ never imports adapters/outbound/ or its context's index.ts; index.ts passes it Use cases built on the adapters"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/contexts/*/adapters/outbound/*-acl.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									{
+										"group": ["@n8io/baseline-*/testing"],
+										"message": "A24: only *.test.ts(x) files and files under test/ import a Package's test helpers; production code imports @n8io/baseline-<package>, where its memory adapter is"
+									},
+									{
+										"group": ["@n8io/baseline-logger"],
+										"message": "A9: contexts and the UI never log; return an error or set a span attribute, and log in the entry points (src/ui/entry.server.tsx for page errors)"
+									},
+									{
+										"group": ["#ui/**", "**/ui/**"],
+										"message": "A10: contexts never import the UI; the UI calls the context"
+									},
+									{
+										"group": [
+											"../../../*/*/**",
+											"#contexts/**",
+											"!#contexts/*/index.ts"
+										],
+										"message": "A6: contexts never import each other; read another through an anti-corruption layer in adapters/outbound/<context>-<upstream>-acl.ts, or handle its Event in adapters/inbound/<context>-<upstream>-<event>-handler.ts"
+									},
+									{
+										"group": ["@opentelemetry/*"],
+										"message": "A8: src/ never imports OpenTelemetry; use telemetrySpanAttributesSet and telemetrySpanRun from @n8io/baseline-telemetry/span"
+									},
+									{
+										"group": ["@n8io/baseline-telemetry/span"],
+										"message": "A8: only Use cases touch spans; set span attributes in application/, and wrap Use cases with telemetryUseCasesTrace in the context's index.ts"
+									},
+									{
+										"group": [
+											"../inbound/**",
+											"../../application/**",
+											"!../../application/ports.ts",
+											"../../*.ts"
+										],
+										"message": "A4: adapters/outbound/ implements ports: from its context it imports only domain/, adapters/outbound/ and application/ports.ts"
+									},
+									{
+										"group": ["@hono/*"],
+										"message": "A7: .openapi( and @hono/* appear only in a context's adapters/inbound/; put OpenAPI schemas and routes in adapters/inbound/<model>-routes.ts"
+									},
+									{
+										"group": ["varlock/env"],
+										"message": "A22: only src/env.ts imports varlock/env; import ENV from #env in an entry point or src/connections.ts"
+									},
+									{
+										"group": ["#env"],
+										"message": "A22: only the entry points and src/connections.ts read #env; pass the values in as arguments (the UI gets them from the load context)"
 									}
 								]
 							}
@@ -319,7 +767,26 @@
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
-			"plugins": ["./lint-plugins/system-time.grit"]
+			"plugins": [
+				"./lint-plugins/system-time.grit",
+				"./lint-plugins/ambient-effects.grit"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedGlobals": {
+							"level": "error",
+							"options": {
+								"deniedGlobals": {
+									"fetch": "A26: a Use case reaches the network through a port implemented in adapters/outbound/",
+									"setTimeout": "A26: a Use case never schedules timers; a Schedule or the queue does",
+									"setInterval": "A26: a Use case never schedules timers; a Schedule or the queue does"
+								}
+							}
+						}
+					}
+				}
+			}
 		},
 		{
 			"includes": ["src/contexts/*/adapters/outbound/**"],
@@ -341,7 +808,10 @@
 		},
 		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
-			"plugins": ["./lint-plugins/no-mocks.grit"]
+			"plugins": [
+				"./lint-plugins/no-mocks.grit",
+				"./lint-plugins/it-not-test.grit"
+			]
 		},
 		{
 			"includes": ["**"],
@@ -362,6 +832,42 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["scripts/**", "test/**", "src/blocked-keys.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": [
+				"./lint-plugins/flag-value-cast.grit",
+				"./lint-plugins/spans-in-telemetry.grit"
+			]
+		},
+		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!src/contexts/*/application/ports.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./lint-plugins/span-attribute-keys.grit"]
+		},
+		{
+			"includes": ["src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+			"plugins": ["./lint-plugins/error-message-attribute.grit"]
 		}
 	],
 	"linter": {
@@ -453,7 +959,71 @@
 							}
 						}
 					}
-				}
+				},
+				"noParameterAssign": "error",
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"conventions": [
+							{
+								"selector": {
+									"kind": "objectLiteralProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "typeProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "objectLiteralMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							}
+						]
+					}
+				},
+				"useFilenamingConvention": "error"
 			},
 			"suspicious": {
 				"noApproximativeNumericConstant": "error",
@@ -486,7 +1056,8 @@
 				"useBiomeIgnoreFolder": "error",
 				"useDefaultSwitchClauseLast": "error",
 				"useGoogleFontDisplay": "error",
-				"useIsArray": "error"
+				"useIsArray": "error",
+				"noConsole": "error"
 			}
 		}
 	},

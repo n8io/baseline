@@ -1,5 +1,5 @@
 // A8: src/ never imports @opentelemetry/api; spans go through @n8io/baseline-telemetry
-// expect: src/contexts/bar/application/bar-get.ts imports @opentelemetry/api: src/ never imports OpenTelemetry
+// expect: A8: src/ never imports OpenTelemetry
 // @file src/contexts/bar/application/bar-get.ts
 import { trace } from "@opentelemetry/api";
 

@@ -1,0 +1,6 @@
+// A6: an ACL reaches only the upstream context's index.ts
+// expect: A6: contexts never import each other
+// @file src/contexts/bar/adapters/outbound/bar-baz-acl.ts
+import { bazTable } from "../../../baz/adapters/outbound/baz-table.ts";
+
+export const barBazAclCreate = () => bazTable;

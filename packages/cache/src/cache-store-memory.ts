@@ -5,7 +5,10 @@ import type { CacheStore } from "./cache.ts";
  * JSON like Redis does, so a value that does not survive the round trip
  * (a Date comes back as a string) fails the same way.
  */
-export const cacheStoreMemoryCreate = (): CacheStore => {
+export const cacheStoreMemoryCreate = (
+	options: { now?: () => number } = {},
+): CacheStore => {
+	const now = options.now ?? Date.now;
 	const entries = new Map<string, { expiresAt: number; json: string }>();
 
 	return {
@@ -15,14 +18,14 @@ export const cacheStoreMemoryCreate = (): CacheStore => {
 		get: async (key) => {
 			const entry = entries.get(key);
 			if (entry === undefined) return undefined;
-			if (entry.expiresAt <= Date.now()) {
+			if (entry.expiresAt <= now()) {
 				entries.delete(key);
 				return undefined;
 			}
 			return entry.json;
 		},
 		set: async ({ json, key, ttlMs }) => {
-			entries.set(key, { expiresAt: Date.now() + ttlMs, json });
+			entries.set(key, { expiresAt: now() + ttlMs, json });
 		},
 	};
 };

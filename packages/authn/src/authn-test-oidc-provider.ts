@@ -14,6 +14,8 @@ export type AuthnTestOidcProvider = {
 	authorize: (authorizeUrl: string, sub?: string) => string;
 	revoked: readonly string[];
 	options: {
+		/** How long the next access token lives, as jose reads it (`"10m"`, `"30s"`); a test shortens it to get a token that is nearly spent. */
+		accessTtl: string;
 		accessAudience: string;
 		down: boolean;
 		jwksFails: boolean;
@@ -36,6 +38,7 @@ export const authnTestOidcProviderCreate = async (
 	const revoked: string[] = [];
 	const options = {
 		accessAudience: "api",
+		accessTtl: "10m",
 		down: false,
 		jwksFails: false,
 		noRefreshToken: false,
@@ -46,10 +49,12 @@ export const authnTestOidcProviderCreate = async (
 		audience,
 		claims,
 		sub,
+		ttl,
 	}: {
 		audience: string;
 		claims: JWTPayload;
 		sub: string;
+		ttl: string;
 	}) =>
 		new SignJWT(claims)
 			.setProtectedHeader({ alg: "RS256", kid: "k1" })
@@ -57,7 +62,7 @@ export const authnTestOidcProviderCreate = async (
 			.setSubject(sub)
 			.setAudience(audience)
 			.setIssuedAt()
-			.setExpirationTime("10m")
+			.setExpirationTime(ttl)
 			.sign(privateKey);
 	const tokens = async (
 		grant: Omit<Grant, "challenge">,
@@ -70,6 +75,7 @@ export const authnTestOidcProviderCreate = async (
 				claims: { scope: grant.scope },
 				audience: options.accessAudience,
 				sub: grant.sub,
+				ttl: options.accessTtl,
 			}),
 			expires_in: 600,
 			refresh_token: refreshToken,
@@ -80,6 +86,7 @@ export const authnTestOidcProviderCreate = async (
 							claims: { nonce: grant.nonce },
 							audience: clientId,
 							sub: grant.sub,
+							ttl: "10m",
 						}),
 					}
 				: {}),
@@ -151,6 +158,7 @@ export const authnTestOidcProviderCreate = async (
 				claims: { scope: "foo:read" },
 				audience: options.accessAudience,
 				sub,
+				ttl: options.accessTtl,
 			}),
 		app,
 		authorize: (authorizeUrl, sub = "user-1") => {

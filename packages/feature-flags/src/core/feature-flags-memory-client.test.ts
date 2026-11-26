@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { featureFlagsClientContractRun } from "./feature-flags-client.contract.ts";
 import { featureFlagsClientCreate } from "./feature-flags-client.ts";
 import { featureFlagsContextFreeze } from "./feature-flags-context.ts";
@@ -38,15 +38,19 @@ describe("featureFlagsMemoryClientCreate", () => {
 			values: { heroCopy: "bold" },
 		});
 		await client.ready;
-		const hero = vi.fn();
-		const limit = vi.fn();
+		const hero: string[] = [];
+		const limit: string[] = [];
 		expect(client.flags.get("heroCopy")).toBe("bold");
 		expect(client.flags.get("itemLimit")).toBe(10);
-		client.flags.subscribe("heroCopy", hero);
-		client.flags.subscribe("itemLimit", limit);
+		client.flags.subscribe("heroCopy", () => {
+			hero.push("changed");
+		});
+		client.flags.subscribe("itemLimit", () => {
+			limit.push("changed");
+		});
 		client.valuesSet({ heroCopy: "plain" });
-		expect(hero).toHaveBeenCalledTimes(1);
-		expect(limit).not.toHaveBeenCalled();
+		expect(hero).toHaveLength(1);
+		expect(limit).toEqual([]);
 		expect(client.flags.get("heroCopy")).toBe("plain");
 	});
 

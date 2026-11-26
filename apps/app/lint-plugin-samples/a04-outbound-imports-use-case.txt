@@ -1,5 +1,5 @@
 // A4: adapters/outbound/ imports only domain/ and application/ports.ts from its context
-// expect: src/contexts/bar/adapters/outbound/bar-repository.postgres.ts imports ../../application/bar-get.ts: adapters/outbound/ implements ports
+// expect: A4: adapters/outbound/ implements ports
 // @file src/contexts/bar/adapters/outbound/bar-repository.postgres.ts
 import type { BarRepository } from "../../domain/repositories.ts";
 import { barGet } from "../../application/bar-get.ts";

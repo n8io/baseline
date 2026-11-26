@@ -1,0 +1,6 @@
+// A22: an entry point imports ENV from #env
+// expect:
+// @file src/server.ts
+import { ENV } from "#env";
+
+export const port = ENV.PORT;

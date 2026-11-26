@@ -1,11 +1,5 @@
 // A34: no `as` cast on a flag value
-// expect: casts a flag value
-// @file src/flags.ts
-import { featureFlagsDefine } from "@n8io/baseline-feature-flags";
-
-export const flagDefs = featureFlagsDefine({
-	express: { key: "express-checkout", fallback: "a", values: ["a", "b"] },
-});
+// expect: A34: this casts a flag value
 // @file src/contexts/bar/application/bar-checkout.ts
 import type { FeatureFlagsHandle } from "@n8io/baseline-feature-flags";
 import type { flagDefs } from "../../../flags.ts";

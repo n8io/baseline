@@ -1,7 +1,26 @@
 import { setTimeout } from "node:timers/promises";
-import { logger } from "@n8io/baseline-logger";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { type Logger, logger } from "@n8io/baseline-logger";
+import { afterEach, describe, expect, it } from "vitest";
 import { analyticsMixpanelCreate } from "./analytics-mixpanel.ts";
+
+type LogCall = [fields: unknown, message?: string];
+
+const restores: (() => void)[] = [];
+
+// A hand-written recording double for one logger method, put back by afterEach.
+const loggerRecord = (method: "warn") => {
+	const calls: LogCall[] = [];
+	const original = logger[method];
+	logger[method] = ((...args: LogCall) => {
+		calls.push(args);
+	}) as Logger[typeof method];
+	restores.push(() => {
+		logger[method] = original;
+	});
+	return calls;
+};
+
+const fetchOriginal = globalThis.fetch;
 
 // Stands in for Mixpanel: each request stays open until the test answers it.
 const requestsCatch = () => {
@@ -10,24 +29,21 @@ const requestsCatch = () => {
 		init: RequestInit;
 		answer: (response: Response | Error) => void;
 	}[] = [];
-	vi.stubGlobal(
-		"fetch",
-		(url: string, init: RequestInit) =>
-			new Promise<Response>((resolve, reject) => {
-				requests.push({
-					answer: (response) =>
-						response instanceof Error ? reject(response) : resolve(response),
-					init,
-					url,
-				});
-			}),
-	);
+	globalThis.fetch = ((url: string, init: RequestInit) =>
+		new Promise<Response>((resolve, reject) => {
+			requests.push({
+				answer: (response) =>
+					response instanceof Error ? reject(response) : resolve(response),
+				init,
+				url,
+			});
+		})) as typeof fetch;
 	return requests;
 };
 
 afterEach(() => {
-	vi.unstubAllGlobals();
-	vi.restoreAllMocks();
+	globalThis.fetch = fetchOriginal;
+	for (const restore of restores.splice(0)) restore();
 });
 
 describe("analyticsMixpanelCreate", () => {
@@ -180,16 +196,18 @@ describe("analyticsMixpanelCreate", () => {
 		["an error status", new Response("{}", { status: 400 })],
 	])("logs and drops the event on %s", async (_, answer) => {
 		const requests = requestsCatch();
-		const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+		const warn = loggerRecord("warn");
 		const analytics = analyticsMixpanelCreate({ token: "token" });
 
 		analytics.track({ actorId: "user-1", name: "foo.created" });
 		requests[0]?.answer(answer);
 		await analytics.close();
 
-		expect(warn).toHaveBeenCalledWith(
-			{ err: expect.any(Error), event: "foo.created" },
-			"Dropped an analytics event",
-		);
+		expect(warn).toEqual([
+			[
+				{ err: expect.any(Error), event: "foo.created" },
+				"Dropped an analytics event",
+			],
+		]);
 	});
 });

@@ -1,0 +1,6 @@
+// A3: adapters/inbound/ may import application/ (the walker checks it is a type)
+// expect:
+// @file src/contexts/bar/adapters/inbound/bar-routes.ts
+import type { BarUseCases } from "../../application/bar-use-cases.ts";
+
+export const barRoutesCreate = (useCases: BarUseCases) => useCases;

@@ -1,23 +1,15 @@
-import { logger } from "@n8io/baseline-logger";
 import { err, ok } from "@n8io/baseline-result";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type pg from "pg";
-import {
-	afterAll,
-	beforeAll,
-	beforeEach,
-	describe,
-	expect,
-	it,
-	vi,
-} from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { postgresTestDatabaseCreate } from "../../../test/postgres/postgres-test-database.ts";
 import {
 	type PostgresPool,
 	postgresPoolCreate,
 	postgresTransactionRun,
 } from "./index.ts";
+import { postgresLoggerTestRecord } from "./postgres-logger-test-record.ts";
 
 let pgPool: PostgresPool;
 
@@ -35,7 +27,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	await pgPool.query("TRUNCATE foo");
-	vi.restoreAllMocks();
 });
 
 afterAll(async () => {
@@ -149,7 +140,7 @@ describe("postgresTransactionRun", () => {
 	});
 
 	it("ends a transaction that runs past timeoutMs and discards the broken client", async () => {
-		vi.spyOn(logger, "error").mockReturnValue(undefined);
+		using _loggerError = postgresLoggerTestRecord("error");
 
 		await expect(
 			postgresTransactionRun({
