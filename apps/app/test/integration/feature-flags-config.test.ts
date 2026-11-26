@@ -28,7 +28,7 @@ afterAll(async () => {
 });
 
 const pageGet = async (headers: Record<string, string>) => {
-	const res = await fetch(`${server.url}/`, { headers, redirect: "manual" });
+	const res = await fetch(`${server.url}/`, { headers, redirect: "follow" });
 	const html = await res.text();
 	const window = new Window();
 	window.document.documentElement.innerHTML = html;
