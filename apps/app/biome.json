@@ -319,7 +319,26 @@
 				"!**/*.test.ts",
 				"!**/*.test.tsx"
 			],
-			"plugins": ["./lint-plugins/system-time.grit"]
+			"plugins": [
+				"./lint-plugins/system-time.grit",
+				"./lint-plugins/ambient-effects.grit"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedGlobals": {
+							"level": "error",
+							"options": {
+								"deniedGlobals": {
+									"fetch": "A26: a Use case reaches the network through a port implemented in adapters/outbound/",
+									"setTimeout": "A26: a Use case never schedules timers; a Schedule or the queue does",
+									"setInterval": "A26: a Use case never schedules timers; a Schedule or the queue does"
+								}
+							}
+						}
+					}
+				}
+			}
 		},
 		{
 			"includes": ["src/contexts/*/adapters/outbound/**"],
@@ -341,7 +360,10 @@
 		},
 		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
-			"plugins": ["./lint-plugins/no-mocks.grit"]
+			"plugins": [
+				"./lint-plugins/no-mocks.grit",
+				"./lint-plugins/it-not-test.grit"
+			]
 		},
 		{
 			"includes": ["**"],
@@ -362,6 +384,38 @@
 					}
 				}
 			}
+		},
+		{
+			"includes": ["scripts/**", "test/**", "src/blocked-keys.ts"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"src/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": [
+				"./lint-plugins/flag-value-cast.grit",
+				"./lint-plugins/spans-in-telemetry.grit"
+			]
+		},
+		{
+			"includes": [
+				"src/contexts/*/application/**",
+				"!src/contexts/*/application/ports.ts",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./lint-plugins/span-attribute-keys.grit"]
 		}
 	],
 	"linter": {
@@ -453,7 +507,71 @@
 							}
 						}
 					}
-				}
+				},
+				"noParameterAssign": "error",
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"conventions": [
+							{
+								"selector": {
+									"kind": "objectLiteralProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "typeProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "objectLiteralMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							}
+						]
+					}
+				},
+				"useFilenamingConvention": "error"
 			},
 			"suspicious": {
 				"noApproximativeNumericConstant": "error",
@@ -486,7 +604,8 @@
 				"useBiomeIgnoreFolder": "error",
 				"useDefaultSwitchClauseLast": "error",
 				"useGoogleFontDisplay": "error",
-				"useIsArray": "error"
+				"useIsArray": "error",
+				"noConsole": "error"
 			}
 		}
 	},

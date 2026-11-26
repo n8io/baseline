@@ -25,7 +25,37 @@
 		},
 		{
 			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
-			"linter": { "rules": { "complexity": { "useMaxParams": "off" } } }
+			"linter": {
+				"rules": {
+					"complexity": {
+						"useMaxParams": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["scripts/**", "test/**", "**/*-test-fixtures/**"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noConsole": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"**",
+				"!packages/telemetry/**",
+				"!**/*.test.ts",
+				"!**/*.test.tsx",
+				"!**/*-test-*.ts"
+			],
+			"plugins": ["./apps/app/lint-plugins/spans-in-telemetry.grit"]
+		},
+		{
+			"includes": ["**/*.test.ts", "**/*.test.tsx", "**/*-test-*.ts"],
+			"plugins": ["./apps/app/lint-plugins/it-not-test.grit"]
 		}
 	],
 	"linter": {
@@ -57,7 +87,12 @@
 				"noUselessThisAlias": "error",
 				"noUselessTypeConstraint": "error",
 				"noUselessUndefinedInitialization": "error",
-				"useMaxParams": { "level": "error", "options": { "max": 2 } },
+				"useMaxParams": {
+					"level": "error",
+					"options": {
+						"max": 2
+					}
+				},
 				"useArrowFunction": "error",
 				"useDateNow": "error",
 				"useFlatMap": "error",
@@ -112,7 +147,71 @@
 							}
 						}
 					}
-				}
+				},
+				"noParameterAssign": "error",
+				"useNamingConvention": {
+					"level": "error",
+					"options": {
+						"strictCase": false,
+						"conventions": [
+							{
+								"selector": {
+									"kind": "objectLiteralProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "typeProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classProperty"
+								},
+								"match": "[$_]*(.+)",
+								"formats": [
+									"camelCase",
+									"CONSTANT_CASE",
+									"PascalCase",
+									"snake_case"
+								]
+							},
+							{
+								"selector": {
+									"kind": "classMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "objectLiteralMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeMethod"
+								},
+								"formats": ["camelCase", "PascalCase"]
+							}
+						]
+					}
+				},
+				"useFilenamingConvention": "error"
 			},
 			"suspicious": {
 				"noApproximativeNumericConstant": "error",
@@ -145,7 +244,8 @@
 				"useBiomeIgnoreFolder": "error",
 				"useDefaultSwitchClauseLast": "error",
 				"useGoogleFontDisplay": "error",
-				"useIsArray": "error"
+				"useIsArray": "error",
+				"noConsole": "error"
 			}
 		}
 	},

@@ -1,0 +1,6 @@
+// Spans are started only in @n8io/baseline-telemetry
+// expect: Only @n8io/baseline-telemetry starts spans
+// @file src/contexts/bar/application/bar-get.ts
+import { trace } from "@opentelemetry/api";
+
+export const barGet = () => trace.getTracer("bar").startSpan("bar.get");

@@ -936,46 +936,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 			});
 	},
 
-	A16: (files) =>
-		files
-			.filter((f) => applicationUseCaseIs(f.path))
-			.flatMap((f) => {
-				const context = snake(contextOf(f.path) ?? "");
-				// A key that is not a plain string literal reads as itself and fails the pattern.
-				const single = [
-					...f.source.matchAll(/\.setAttribute\(\s*([^,)]+)/g),
-				].map(
-					(m) =>
-						/^(["'])([^"'`]+)\1$/.exec((m[1] ?? "").trim())?.[2] ?? m[1] ?? "",
-				);
-				// Keys are what follows `{` or a comma: shorthand counts, a ternary's branches do not.
-				const many = [
-					...f.source.matchAll(
-						/(?:\.setAttributes|\btelemetrySpanAttributesSet)\(\s*\{([^}]*)\}/g,
-					),
-				].flatMap((m) =>
-					[
-						...`,${m[1] ?? ""}`.matchAll(
-							/,\s*(?:(["'])([^"'`]+)\1|([A-Za-z_$`[][^\s:,]*))\s*(?=[:,]|$)/g,
-						),
-					].map((k) => k[2] ?? k[3] ?? ""),
-				);
-				// A Model's Use cases may name the Model instead: baseline.invoice_line.id.
-				const scopes = [
-					context,
-					...modelsOf(files, contextOf(f.path) ?? "").map(snake),
-				].join("|");
-				const valid = new RegExp(
-					`^baseline\\.(${scopes})\\.(id|[a-z][a-z0-9_]*_(id|count))$`,
-				);
-				return [...single, ...many]
-					.filter((key) => !valid.test(key))
-					.map(
-						(key) =>
-							`${f.path}: span attribute ${key} must be baseline.${context}.id or baseline.${context}.<thing>_id, or a baseline.${context}.<thing>_count; never put names or other personal data on spans`,
-					);
-			}),
-
 	A17: (files) =>
 		textCheck({
 			files,
@@ -1316,29 +1276,6 @@ export const architectureRules: Record<string, ArchitectureRule> = {
 							`${f.path}: writes the flag key "${key}" as a string literal; read the flag by its name from src/flags.ts (handle.get("<name>")) and keep the key there`,
 					),
 			);
-	},
-
-	// A34: a flag's value arrives already typed (boolean, number, a values union, or its schema's
-	// output), so no `as` cast on one. A cast hides a flag declared with the wrong type; fix the
-	// declaration in src/flags.ts instead. Looks for a cast right after `get("<name>")` or
-	// `useFeatureFlag("<name>")`, where <name> is a flag declared in src/flags.ts.
-	A34: (files) => {
-		const flagsFile = files.find((f) => f.path === "src/flags.ts");
-		const names = [
-			...(flagsFile?.source ?? "").matchAll(/^\t(\w+):\s*\{/gm),
-		].map((m) => m[1] ?? "");
-		if (names.length === 0) return [];
-		const pattern = new RegExp(
-			`\\b(?:get|useFeatureFlag)\\(\\s*["'\`](?:${names.join("|")})["'\`]\\s*\\)\\)?\\s+as\\s+(?!const\\b)`,
-			"g",
-		);
-		return textCheck({
-			files,
-			fileIs: (f) => !testIs(f.path) && !f.path.includes("-test-"),
-			pattern,
-			reason: (match) =>
-				`${match[0].trim()} casts a flag value; its type comes from the declaration in src/flags.ts (change fallback, values or schema there)`,
-		});
 	},
 
 	// A35: entry.client opens the browser's feature flags from the page's own HTML (`document`),

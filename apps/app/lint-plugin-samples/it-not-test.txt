@@ -1,0 +1,8 @@
+// Tests are written with it(), not test()
+// expect: Write tests with it() and describe(); never test()
+// @file src/contexts/bar/application/bar-get.test.ts
+import { expect, test } from "vitest";
+
+test("adds", () => {
+	expect(1 + 1).toBe(2);
+});

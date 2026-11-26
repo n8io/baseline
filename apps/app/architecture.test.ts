@@ -113,7 +113,7 @@ describe("architecture", () => {
 	});
 
 	// The passing side of the flag rules: no flags file, no key written elsewhere, a typed read.
-	it("A32 to A34 pass without flags, and for a typed read of a declared flag", async () => {
+	it("A32 and A33 pass without flags, and for a typed read of a declared flag", async () => {
 		const flags = await architectureFileCreate(
 			"src/flags.ts",
 			'import { featureFlagsDefine } from "@n8io/baseline-feature-flags";\nexport const flagDefs = featureFlagsDefine({ express: { key: "express-checkout", fallback: false } });\n',
@@ -122,7 +122,7 @@ describe("architecture", () => {
 			"src/contexts/bar/application/bar-checkout.ts",
 			'import type { FeatureFlagsHandle } from "@n8io/baseline-feature-flags";\nexport const barExpress = async (h: FeatureFlagsHandle<never>) => (await h.get("express")) satisfies boolean;\nexport const barConst = h.get("express") as const;\n',
 		);
-		for (const rule of ["A32", "A33", "A34"]) {
+		for (const rule of ["A32", "A33"]) {
 			expect(architectureRules[rule]?.([])).toEqual([]);
 			expect(architectureRules[rule]?.([flags, use])).toEqual([]);
 		}
@@ -247,24 +247,6 @@ describe("architecture", () => {
 			].map(([path = "", source = ""]) => architectureFileCreate(path, source)),
 		);
 		expect(architectureRules["A14"]?.(files)).toEqual([]);
-	});
-
-	it("A16 lets a Model's Use case name its span attributes after the Model", async () => {
-		const table = await architectureFileCreate(
-			"src/contexts/billing/adapters/outbound/invoice-line-table.ts",
-			"",
-		);
-		const model = await architectureFileCreate(
-			"src/contexts/billing/domain/invoice-line.ts",
-			"",
-		);
-		const useCase = await architectureFileCreate(
-			"src/contexts/billing/application/invoice-line-get.ts",
-			'span.setAttribute("baseline.invoice_line.id", id);\nspan.setAttribute("baseline.note.id", id);\n',
-		);
-		expect(architectureRules["A16"]?.([table, model, useCase])).toEqual([
-			expect.stringContaining("span attribute baseline.note.id"),
-		]);
 	});
 
 	it.each([

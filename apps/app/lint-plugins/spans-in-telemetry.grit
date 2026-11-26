@@ -1,0 +1,10 @@
+// Spans are started only in @n8io/baseline-telemetry; everything else calls its functions.
+language js
+
+or {
+	`$_.startSpan($...)`,
+	`$_.startActiveSpan($...)`,
+	`trace.getTracer($...)`
+} as $span where {
+	register_diagnostic(span=$span, message="Only @n8io/baseline-telemetry starts spans; use telemetrySpanRun or telemetryUseCasesTrace from it", severity="error")
+}

@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { expect, test } from "vitest";
+import { expect, it } from "vitest";
 import globalSetup from "./redis-global-setup.ts";
 
 const docker = (...args: string[]): string =>
 	execFileSync("docker", args, { encoding: "utf8" }).trim();
 
-test("the container ends and is removed after its lifetime, even when teardown never runs", async () => {
+it("the container ends and is removed after its lifetime, even when teardown never runs", async () => {
 	await globalSetup({ provide: () => undefined }, 5);
 	const name = `baseline-redis-test-${process.pid}`;
 	expect(

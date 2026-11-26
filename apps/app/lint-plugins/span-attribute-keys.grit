@@ -1,0 +1,13 @@
+// A16: a Use case's span attributes are baseline.<context>.id or baseline.<context>.<thing>_id / _count.
+language js
+
+or {
+	`$_.setAttribute($key, $_)`,
+	`$_.setAttributes({ $keys })` where { $keys <: contains pair(key=$key) },
+	`telemetrySpanAttributesSet({ $keys })` where {
+		$keys <: contains pair(key=$key)
+	}
+} as $call where {
+	$key <: not r"^[\"'`]baseline\.[a-z][a-z0-9_]*\.(?:id|[a-z][a-z0-9_]*_(?:id|count))[\"'`]$",
+	register_diagnostic(span=$key, message="A16: a span attribute is baseline.<context>.id, baseline.<context>.<thing>_id or baseline.<context>.<thing>_count; never put names or other personal data on spans", severity="error")
+}

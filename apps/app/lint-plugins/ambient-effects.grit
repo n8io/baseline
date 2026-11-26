@@ -1,0 +1,9 @@
+// Use cases get randomness and ids from ports and @n8io/baseline-id, never from the runtime.
+language js
+
+or {
+	`Math.random()`,
+	`crypto.randomUUID()`
+} as $call where {
+	register_diagnostic(span=$call, message="A Use case takes ids from @n8io/baseline-id and randomness from a port; never Math.random() or crypto.randomUUID()", severity="error")
+}
