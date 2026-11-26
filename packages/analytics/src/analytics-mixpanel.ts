@@ -7,9 +7,10 @@ const sendTimeoutMs = 5000;
 
 /**
  * Mixpanel's own settings, named as the `mixpanel` SDK's init config names them. Outside this
- * Package's contract: moving off Mixpanel deletes it. Any other key throws.
+ * Package's contract: moving off Mixpanel deletes it. Any other key throws. Not exported from the
+ * Package: write the object inline in `src/analytics-open.ts`, where `analyticsMixpanelCreate` takes it.
  */
-export type AnalyticsMixpanelVendorOptions = {
+type AnalyticsMixpanelVendorOptions = {
 	/** The ingestion host, for data residency: `api-eu.mixpanel.com` or `api-in.mixpanel.com`. */
 	host?: string | null;
 };

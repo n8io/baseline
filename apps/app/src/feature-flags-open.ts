@@ -8,7 +8,7 @@ import {
 	featureFlagsFallbackCreate,
 } from "@n8io/baseline-feature-flags";
 import {
-	type FeatureFlagsLaunchDarklyVendorOptions,
+	type FeatureFlagsLaunchDarklyOptions,
 	featureFlagsLaunchDarklyCreate,
 } from "@n8io/baseline-feature-flags/launchdarkly";
 import { flagDefs, flagKinds } from "./flags.ts";
@@ -26,7 +26,10 @@ export const featureFlagsOpen = ({
 	sdkKey?: string | null;
 	steps: ShutdownSteps;
 	// LaunchDarkly's own SDK options, set here and nowhere else.
-	vendor?: FeatureFlagsLaunchDarklyVendorOptions | null;
+	vendor?: FeatureFlagsLaunchDarklyOptions<
+		typeof flagDefs,
+		typeof flagKinds
+	>["vendor"];
 }): { featureFlags: AppFeatureFlags; steps: ShutdownSteps } => {
 	if (!sdkKey) {
 		return {

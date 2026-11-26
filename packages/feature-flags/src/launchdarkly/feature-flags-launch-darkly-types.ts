@@ -5,9 +5,10 @@ import type { FeatureFlagsOnFallback } from "../core/feature-flags-resolve-types
 
 /**
  * LaunchDarkly's own SDK options, named as its SDK names them. Outside this Package's contract:
- * moving off LaunchDarkly deletes it. Examples: `baseUri`, `logger`, `proxyOptions`.
+ * moving off LaunchDarkly deletes it. Examples: `baseUri`, `logger`, `proxyOptions`. Not exported from the
+ * Package: write the object inline in `src/feature-flags-open.ts`, where `featureFlagsLaunchDarklyCreate` takes it.
  */
-export type FeatureFlagsLaunchDarklyVendorOptions = LDOptions;
+type FeatureFlagsLaunchDarklyVendorOptions = LDOptions;
 
 /** What `featureFlagsLaunchDarklyCreate` takes. */
 export type FeatureFlagsLaunchDarklyOptions<

@@ -5,14 +5,22 @@ import { describe, expect, it } from "vitest";
 
 // A Package's public API names no vendor (docs/adr/0005-vendor-escape-hatch.md), so a Project can
 // change vendor without changing callers. This test reads what `src/index.ts` of the Packages in
-// `packagesChecked` exports and fails when an exported signature names a type imported from the
-// vendor's module (`pg`, `redis`), or when the index exports a `*VendorOptions` type: the `vendor`
+// `packagesChecked` exports, on every subpath of the Package, and fails when an exported signature
+// names a type imported from the vendor's module (`pg`, `redis`, `@sentry/*`, `@launchdarkly/*`,
+// `@openfeature/*`, `mixpanel`), or when an index exports a `*VendorOptions` type: the `vendor`
 // option's type stays inside the Package, and a Project writes the object inline in its `*-open.ts`
 // or `connections.ts`.
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 
-const packagesChecked = ["postgres", "redis"] as const;
-const vendorModule = /^(?:pg|redis|@redis\/.+)$/;
+const packagesChecked = [
+	"analytics",
+	"error-tracking",
+	"feature-flags",
+	"postgres",
+	"redis",
+] as const;
+const vendorModule =
+	/^(?:pg|redis|mixpanel|@redis\/.+|@sentry\/.+|@launchdarkly\/.+|@openfeature\/.+)$/;
 
 // Exports that still name a vendor, each with the reason and the change that removes it. The test
 // fails on a new one, and on an entry that no longer names a vendor, so the list only shrinks.
@@ -53,20 +61,33 @@ const vendorNamesOf = (source: string): string[] =>
 
 // The exported names of an index: `export { type A, b } from "./x.ts"`, with the file each is from.
 const indexExportsOf = (source: string): { file: string; name: string }[] =>
-	[...source.matchAll(/export\s*\{([^}]*)\}\s*from\s*"([^"]+)"/g)].flatMap(
-		(m) =>
-			(m[1] ?? "")
-				.split(",")
-				.map((part) =>
-					part
-						.trim()
-						.replace(/^type\s+/, "")
-						.split(/\s+as\s+/)
-						.pop(),
-				)
-				.filter((name): name is string => Boolean(name))
-				.map((name) => ({ file: m[2] ?? "", name })),
+	[
+		...source.matchAll(/export\s+(?:type\s+)?\{([^}]*)\}\s*from\s*"([^"]+)"/g),
+	].flatMap((m) =>
+		(m[1] ?? "")
+			.split(",")
+			.map((part) =>
+				part
+					.trim()
+					.replace(/^type\s+/, "")
+					.split(/\s+as\s+/)
+					.pop(),
+			)
+			.filter((name): name is string => Boolean(name))
+			.map((name) => ({ file: m[2] ?? "", name })),
 	);
+
+// Each subpath entry of a Package: `src/index.ts`, `src/launchdarkly/index.ts`, and so on, read from
+// the `exports` map. An entry that only re-exports another entry's names is read too, and resolves
+// each name against the entry's own directory.
+const entriesOf = (pkg: string): string[] => {
+	const packageJson = JSON.parse(
+		readFileSync(path.join(repoRoot, "packages", pkg, "package.json"), "utf8"),
+	) as { exports: Record<string, string> };
+	return Object.values(packageJson.exports).filter((file) =>
+		file.endsWith("index.ts"),
+	);
+};
 
 // The signature of one exported declaration: a type in full, a const or function up to its body.
 const signatureOf = (source: string, name: string): string | null => {
@@ -100,15 +121,21 @@ const leaksOf = (source: string, name: string): string[] => {
 };
 
 const exportsLeaking = (): { key: string; names: string[] }[] =>
-	packagesChecked.flatMap((pkg) => {
-		const srcDir = path.join(repoRoot, "packages", pkg, "src");
-		const index = readFileSync(path.join(srcDir, "index.ts"), "utf8");
-		return indexExportsOf(index).flatMap(({ file, name }) => {
-			const source = readFileSync(path.join(srcDir, file), "utf8");
-			const names = leaksOf(source, name);
-			return names.length > 0 ? [{ key: `${pkg}:${name}`, names }] : [];
-		});
-	});
+	packagesChecked.flatMap((pkg) =>
+		entriesOf(pkg).flatMap((entry) => {
+			const entryPath = path.join(repoRoot, "packages", pkg, entry);
+			return indexExportsOf(readFileSync(entryPath, "utf8")).flatMap(
+				({ file, name }) => {
+					const source = readFileSync(
+						path.join(path.dirname(entryPath), file),
+						"utf8",
+					);
+					const names = leaksOf(source, name);
+					return names.length > 0 ? [{ key: `${pkg}:${name}`, names }] : [];
+				},
+			);
+		}),
+	);
 
 describe("vendor-neutral public types", () => {
 	it("finds a vendor name in an exported signature", () => {
@@ -128,6 +155,13 @@ describe("vendor-neutral public types", () => {
 		expect(leaksOf(source, "E")).toEqual([]);
 	});
 
+	it("reads an `export type { }` list as well", () => {
+		expect(indexExportsOf('export type { A, B } from "./x.ts";')).toEqual([
+			{ file: "./x.ts", name: "A" },
+			{ file: "./x.ts", name: "B" },
+		]);
+	});
+
 	it("reads the names a Package index exports", () => {
 		expect(
 			indexExportsOf(
@@ -140,7 +174,7 @@ describe("vendor-neutral public types", () => {
 		]);
 	});
 
-	it("exports no signature that names a pg or redis type, beyond the known leaks", () => {
+	it("exports no signature that names a vendor's type, beyond the known leaks", () => {
 		const found = exportsLeaking().map(({ key }) => key);
 		expect(found.filter((key) => !(key in knownLeaks))).toEqual([]);
 		// A leak that was fixed leaves the list.
@@ -151,14 +185,13 @@ describe("vendor-neutral public types", () => {
 
 	it("keeps each vendor option's type out of the Package index", () => {
 		const exported = packagesChecked.flatMap((pkg) =>
-			indexExportsOf(
-				readFileSync(
-					path.join(repoRoot, "packages", pkg, "src", "index.ts"),
-					"utf8",
-				),
-			)
-				.filter(({ name }) => name.endsWith("VendorOptions"))
-				.map(({ name }) => `${pkg}:${name}`),
+			entriesOf(pkg).flatMap((entry) =>
+				indexExportsOf(
+					readFileSync(path.join(repoRoot, "packages", pkg, entry), "utf8"),
+				)
+					.filter(({ name }) => name.endsWith("VendorOptions"))
+					.map(({ name }) => `${pkg}:${name}`),
+			),
 		);
 		expect(exported).toEqual([]);
 	});
