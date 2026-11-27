@@ -1,8 +1,8 @@
 name: ci-recover
 
 # Runs after ci. A failed first attempt is re-run once for its failed jobs (a job that hit its time limit sends
-# no event, so nothing else would look). A failed second attempt of the nightly run opens or updates one issue
-# that lists the failed jobs, so nobody has to ask why it failed. A run cancelled by a newer push is left alone.
+# no event, so nothing else would look). Each rerun job is also recorded as a flake issue (label `flake`).
+# A failed second attempt of the nightly run opens or updates one issue that lists the failed jobs, so nobody has to ask why it failed. A run cancelled by a newer push is left alone.
 on:
   workflow_run:
     workflows: [ci]
@@ -31,6 +31,20 @@ jobs:
         run: |
           failed=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '[.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name] | join(", ")')
           echo "Rerun of $RUN_URL (first attempt, $EVENT): $failed" >> "$GITHUB_STEP_SUMMARY"
+          # Each rerun job is a tracked flake: one open issue per job name, a comment per occurrence, so a
+          # rerun that passes still leaves a record.
+          gh label create flake --repo "$REPO" --color FBCA04 --description "A job failed, then passed on rerun" --force
+          gh run view "$RUN_ID" --repo "$REPO" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name' |
+            while IFS= read -r job; do
+              title="Flake: $job"
+              note="$job failed on the first attempt of $RUN_URL ($EVENT) and was rerun."
+              existing=$(gh issue list --repo "$REPO" --label flake --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+              if [ -n "$existing" ]; then
+                gh issue comment "$existing" --repo "$REPO" --body "$note"
+              else
+                gh issue create --repo "$REPO" --label flake --title "$title" --body "$note"
+              fi
+            done
           gh run rerun "$RUN_ID" --failed --repo "$REPO"
       - if: env.ATTEMPT != '1' && env.EVENT == 'schedule'
         run: |
