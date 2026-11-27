@@ -31,6 +31,18 @@ describe("featureFlagsLaunchDarklyClientOrigins", () => {
 		).toEqual([relay]);
 	});
 
+	it("keeps an http origin, and leaves out a scheme that is not http or https", () => {
+		expect(
+			featureFlagsLaunchDarklyClientOrigins({
+				vendor: {
+					baseUri: "http://localhost:8030/base",
+					eventsUri: "ftp://files.example.com",
+					streamUri: "file:///tmp/stream",
+				},
+			}),
+		).toEqual(["http://localhost:8030"]);
+	});
+
 	it("leaves out an option that is not an http(s) URL, such as a bare host:port", () => {
 		expect(
 			featureFlagsLaunchDarklyClientOrigins({

@@ -92,4 +92,20 @@ describe("featureFlagsMemoryClientCreate", () => {
 		expect(failed.flags.get("itemLimit")).toBe(10);
 		await failed.close();
 	});
+
+	it("hands each fallback to onFallback", async () => {
+		const fallbacks: unknown[] = [];
+		await using client = featureFlagsMemoryClientCreate({
+			context: { actor: { id: "a1" } },
+			flags: featureFlagsTestDefs,
+			kinds: featureFlagsTestKinds,
+			onFallback: (fallback) => fallbacks.push(fallback),
+			values: {},
+		});
+		await client.ready;
+		expect(client.flags.get("itemLimit")).toBe(10);
+		expect(fallbacks).toEqual([
+			{ flag: "itemLimit", key: "item-limit", reason: "notFound" },
+		]);
+	});
 });

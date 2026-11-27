@@ -60,6 +60,10 @@ const clientCreate = (
 
 type Counted = { readonly onRender?: () => void };
 
+// boundary: a name the types would reject, as plain JavaScript could pass
+const Unknown = (): ReactElement =>
+	createElement("p", null, String(useFeatureFlag("nope" as "itemLimit")));
+
 const Hero = ({ onRender }: Counted): ReactElement => {
 	onRender?.();
 	return createElement("p", { id: "hero" }, useFeatureFlag("heroCopy"));
@@ -95,6 +99,12 @@ const Theme = ({
 
 const Checkout = (): ReactElement =>
 	createElement("p", null, String(useFeatureFlag("checkoutRedesign")));
+
+const Named = ({
+	flag,
+}: {
+	readonly flag: "checkoutRedesign" | "itemLimit";
+}): ReactElement => createElement("p", null, String(useFeatureFlag(flag)));
 
 const Both = (): ReactElement =>
 	createElement(
@@ -174,6 +184,52 @@ describe("useFeatureFlag", () => {
 		expect(container.textContent).toBe("plain");
 	});
 
+	it("returns undefined, not a throw, for a flag the declarations do not hold", async () => {
+		const container = await render(createElement(Unknown));
+		expect(container.textContent).toBe("undefined");
+	});
+
+	it("follows the flag it is asked for when that changes between renders", async () => {
+		const client = clientCreate({ checkoutRedesign: false, itemLimit: 3 });
+		await client.ready;
+		const tree = (flag: "checkoutRedesign" | "itemLimit") =>
+			createElement(
+				FeatureFlagsProvider,
+				{ flags: client.flags },
+				createElement(Named, { flag }),
+			);
+		const container = document.createElement("div");
+		const root = createRoot(container);
+		roots.push(root);
+		await actRun(async () => root.render(tree("itemLimit")));
+		expect(container.textContent).toBe("3");
+		await actRun(async () => root.render(tree("checkoutRedesign")));
+		expect(container.textContent).toBe("false");
+		await actRun(async () =>
+			client.valuesSet({ checkoutRedesign: true, itemLimit: 3 }),
+		);
+		expect(container.textContent).toBe("true");
+	});
+
+	it("reads from the client of the Provider it is under, when that client is replaced", async () => {
+		const first = clientCreate({ itemLimit: 3 });
+		const second = clientCreate({ itemLimit: 4 });
+		await Promise.all([first.ready, second.ready]);
+		const tree = (client: typeof first) =>
+			createElement(
+				FeatureFlagsProvider,
+				{ flags: client.flags },
+				createElement(Named, { flag: "itemLimit" }),
+			);
+		const container = document.createElement("div");
+		const root = createRoot(container);
+		roots.push(root);
+		await actRun(async () => root.render(tree(first)));
+		expect(container.textContent).toBe("3");
+		await actRun(async () => root.render(tree(second)));
+		expect(container.textContent).toBe("4");
+	});
+
 	it("types the value from the declaration and rejects unknown names", () => {
 		const check = (): void => {
 			expectTypeOf(useFeatureFlag("checkoutRedesign")).toEqualTypeOf<boolean>();
@@ -240,6 +296,38 @@ describe("FeatureFlagsProvider", () => {
 			),
 		);
 		expect(container.textContent).toBe("plain");
+	});
+
+	it("waits on the ready it is given last when ready is replaced", async () => {
+		const client = clientCreate();
+		const one = Promise.withResolvers<"connected">();
+		const two = Promise.withResolvers<"connected">();
+		const tree = (ready: Promise<"connected">) =>
+			createElement(
+				FeatureFlagsProvider,
+				{ fallback: "loading", flags: client.flags, ready },
+				"children",
+			);
+		const container = document.createElement("div");
+		const root = createRoot(container);
+		roots.push(root);
+		await actRun(async () => root.render(tree(one.promise)));
+		await actRun(async () => root.render(tree(two.promise)));
+		expect(container.textContent).toBe("loading");
+		await actRun(async () => two.resolve("connected"));
+		expect(container.textContent).toBe("children");
+	});
+
+	it("renders the children at once when ready is null", async () => {
+		const client = clientCreate();
+		const container = await render(
+			createElement(
+				FeatureFlagsProvider,
+				{ flags: client.flags, ready: null },
+				"now",
+			),
+		);
+		expect(container.textContent).toBe("now");
 	});
 
 	it("renders the children at once without ready", async () => {

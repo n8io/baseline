@@ -67,6 +67,16 @@ describe("featureFlagsOptionsStringRequire", () => {
 		).toThrow(TypeError);
 	});
 
+	it("throws the same TypeError for a value that is not a string", () => {
+		expect(() =>
+			featureFlagsOptionsStringRequire({
+				factory: "f",
+				name: "sdkKey",
+				value: 5,
+			}),
+		).toThrow(new TypeError("f: sdkKey must be a non-empty string"));
+	});
+
 	it("accepts a string", () => {
 		expect(() =>
 			featureFlagsOptionsStringRequire({
@@ -84,6 +94,18 @@ describe("featureFlagsOptionsDomainCreate", () => {
 			featureFlagsOptionsDomainCreate(),
 		);
 	});
+
+	it("names it feature-flags, a time, a count that goes up by one, and a random word", () => {
+		const parts = (name: string) => name.split("-");
+		const first = parts(featureFlagsOptionsDomainCreate());
+		const second = parts(featureFlagsOptionsDomainCreate());
+		expect(first).toHaveLength(5);
+		expect(first.slice(0, 2)).toEqual(["feature", "flags"]);
+		expect(first[4]).toMatch(/^[0-9a-z]+$/);
+		expect(Number.parseInt(second[3] ?? "", 36)).toBe(
+			Number.parseInt(first[3] ?? "", 36) + 1,
+		);
+	});
 });
 
 describe("the factories", () => {
@@ -93,21 +115,31 @@ describe("the factories", () => {
 				flags: featureFlagsTestDefs,
 				sdkKey: "",
 			}),
-		).toThrow(TypeError);
+		).toThrow(
+			new TypeError(
+				"featureFlagsLaunchDarklyCreate: sdkKey must be a non-empty string",
+			),
+		);
 		expect(() =>
 			featureFlagsLaunchDarklyCreate({
 				flags: featureFlagsTestDefs,
 				readyTimeoutMs: Number.NaN,
 				sdkKey: "sdk-1",
 			}),
-		).toThrow(TypeError);
+		).toThrow(
+			"featureFlagsLaunchDarklyCreate: readyTimeoutMs must be a whole number from 1 to 2147483647, found NaN",
+		);
 		expect(() =>
 			featureFlagsLaunchDarklyClientCreate({
 				clientSideId: "",
 				context: {},
 				flags: featureFlagsTestDefs,
 			}),
-		).toThrow(TypeError);
+		).toThrow(
+			new TypeError(
+				"featureFlagsLaunchDarklyClientCreate: clientSideId must be a non-empty string",
+			),
+		);
 		expect(() =>
 			featureFlagsLaunchDarklyClientCreate({
 				clientSideId: "id",
@@ -115,6 +147,8 @@ describe("the factories", () => {
 				flags: featureFlagsTestDefs,
 				readyTimeoutMs: 1e12,
 			}),
-		).toThrow(TypeError);
+		).toThrow(
+			"featureFlagsLaunchDarklyClientCreate: readyTimeoutMs must be a whole number from 1 to 2147483647, found 1000000000000",
+		);
 	});
 });

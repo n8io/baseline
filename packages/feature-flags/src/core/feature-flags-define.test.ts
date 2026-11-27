@@ -84,6 +84,27 @@ describe("featureFlagsDefine", () => {
 			"then is a reserved name",
 		],
 		[
+			"isPrototypeOf",
+			{ isPrototypeOf: { fallback: 1, key: "k" } },
+			"isPrototypeOf is a reserved name",
+		],
+		[
+			"propertyIsEnumerable",
+			{ propertyIsEnumerable: { fallback: 1, key: "k" } },
+			"propertyIsEnumerable is a reserved name",
+		],
+		[
+			"toLocaleString",
+			{ toLocaleString: { fallback: 1, key: "k" } },
+			"toLocaleString is a reserved name",
+		],
+		[
+			"valueOf",
+			{ valueOf: { fallback: 1, key: "k" } },
+			"valueOf is a reserved name",
+		],
+		["a definition that is a string", { a: "x" }, "must be an object"],
+		[
 			"a fallback outside values",
 			{ a: { fallback: "c", key: "k", values: ["a", "b"] } },
 			'fallback "c" must be one of values',
