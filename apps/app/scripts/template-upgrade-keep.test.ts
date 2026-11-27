@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { releaseRender, renderModulesFollow } from "./template-upgrade-keep.ts";
+import { modulesFindRender, releaseRender } from "./template-upgrade-keep.ts";
+
+// The files this test reads from disk, so `pnpm test --changed` runs it when one changes.
+import.meta.glob(["./template-render.ts", "./template-render-*.ts"], {
+	query: "?raw",
+});
 
 const file = (path: string, text: string) => ({ path, text });
 
@@ -15,16 +20,16 @@ const layout18 = () =>
 			),
 		);
 
-describe("renderModulesFollow", () => {
+describe("modulesFindRender", () => {
 	it("copies template-render-blocks.ts, which the 18.x entry point imports", () => {
-		const paths = renderModulesFollow(layout18()).map((f) => f.path);
+		const paths = modulesFindRender(layout18()).map((f) => f.path);
 
 		expect(paths).toContain("scripts/template-render.ts");
 		expect(paths).toContain("scripts/template-render-blocks.ts");
 	});
 
 	it("follows imports transitively, whatever the module names", () => {
-		const paths = renderModulesFollow([
+		const paths = modulesFindRender([
 			file("scripts/template-render.ts", 'export * from "./a-b.ts";\n'),
 			file("scripts/a-b.ts", 'import { x } from "./c_d.ts";\n'),
 			file("scripts/c_d.ts", 'export const x = "";\n'),
@@ -40,7 +45,7 @@ describe("renderModulesFollow", () => {
 
 	it("names a module the entry point imports but the release lacks", () => {
 		expect(() =>
-			renderModulesFollow([
+			modulesFindRender([
 				file("scripts/template-render.ts", 'export * from "./gone.ts";\n'),
 			]),
 		).toThrow(

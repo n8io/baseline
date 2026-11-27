@@ -45,7 +45,7 @@ const importsRelative = (text: string): string[] =>
 
 // The release's render files the entry point reaches by following relative imports, so a release
 // that splits its render code (template-render-blocks.ts and the like) ships every module it needs.
-export const renderModulesFollow = (files: TemplateFile[]): TemplateFile[] => {
+export const modulesFindRender = (files: TemplateFile[]): TemplateFile[] => {
 	const byPath = new Map(files.map((file) => [file.path, file] as const));
 	const reach = (path: string, found: string[]): string[] => {
 		if (found.includes(path)) return found;
@@ -75,7 +75,7 @@ export const releaseRender = async (
 	const own = files.find((f) => f.path === renderEntry);
 	if (own === undefined) return templateFilesRender(files, answers);
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-code-"));
-	for (const file of renderModulesFollow(files)) {
+	for (const file of modulesFindRender(files)) {
 		writeFileSync(join(work.path, basename(file.path)), file.text);
 	}
 	const path = join(work.path, basename(renderEntry));
