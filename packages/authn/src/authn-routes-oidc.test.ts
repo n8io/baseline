@@ -450,3 +450,190 @@ describe("authnCreate with a provider", () => {
 		).rejects.toThrow("memory://");
 	});
 });
+
+describe("OIDC sign-in, edges", () => {
+	const callbackWith = async ({
+		app,
+		cookie,
+		query,
+	}: {
+		app: Hono;
+		cookie: string;
+		query: string;
+	}) =>
+		app.request(`${authnTestOrigin}/auth/callback?${query}`, {
+			headers: { Cookie: cookie },
+		});
+
+	it("answers 400 with a way back to / when the flow cookie cannot be opened", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await callbackWith({
+			app,
+			cookie: "__Secure-authn-flow=garbage",
+			query: "code=x&state=y",
+		});
+
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain("returnTo=%2F");
+	});
+
+	it("answers 400 with a way back to / without a flow cookie", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await callbackWith({
+			app,
+			cookie: "",
+			query: "code=x&state=y",
+		});
+
+		expect(await res.text()).toContain('href="/auth/sign-in?returnTo=%2F"');
+	});
+
+	it("sends the user back to sign-in for the page they wanted when the provider refuses", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { authorizeUrl, jar } = await signInStart(app, "/foos?tab=2");
+		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
+		const res = await callbackWith({
+			app,
+			cookie: jar.header(),
+			query: `error=access_denied&state=${state}`,
+		});
+
+		expect(await res.text()).toContain("returnTo=%2Ffoos%3Ftab%3D2");
+	});
+
+	it("refuses a code exchange that returns no ID token", async () => {
+		provider.options.noIdToken = true;
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { res } = await signIn(app);
+
+		expect(res.status).toBe(400);
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeUndefined();
+	});
+
+	it("answers 500, not a failure page, when the provider cannot be reached for the code", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions, errorLogger);
+		const { authorizeUrl, jar } = await signInStart(app);
+		const state = new URL(authorizeUrl).searchParams.get("state") ?? "";
+		const code = provider.authorize(authorizeUrl);
+		provider.options.down = true;
+		const res = await callbackWith({
+			app,
+			cookie: jar.header(),
+			query: `code=${code}&state=${state}&iss=${encodeURIComponent(authnTestIdpOrigin)}`,
+		});
+
+		expect(res.status).toBe(500);
+		expect(errorsLogged).toHaveLength(1);
+	});
+});
+
+describe("OIDC refresh, edges", () => {
+	it("answers 401 for the client's fetch when there is no refresh cookie", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await app.request(`${authnTestOrigin}/auth/refresh`);
+
+		expect(res.status).toBe(401);
+	});
+
+	it("answers 401 for the client's fetch when the refresh cookie cannot be opened", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
+			headers: { Cookie: "__Secure-authn-refresh=garbage" },
+		});
+
+		expect(res.status).toBe(401);
+	});
+
+	it("tells caches not to keep the client's answer", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		const res = await app.request(`${authnTestOrigin}/auth/refresh`, {
+			headers: { Cookie: jar.header() },
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe("no-store");
+	});
+});
+
+describe("OIDC sign-out, edges", () => {
+	const signOut = (app: Hono, cookie: string) =>
+		app.request(`${authnTestOrigin}/auth/sign-out`, {
+			headers: { Cookie: cookie },
+			method: "POST",
+		});
+
+	it("asks the provider to revoke it as a refresh token", async () => {
+		const sent: string[] = [];
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		const original = provider.app.fetch.bind(provider.app);
+		provider.app.fetch = async (
+			request: Request,
+			env?: unknown,
+			ctx?: Parameters<Hono["fetch"]>[2],
+		) => {
+			if (new URL(request.url).pathname === "/revoke") {
+				sent.push(await request.clone().text());
+			}
+			return original(request, env, ctx);
+		};
+		await signOut(app, jar.header());
+
+		expect(new URLSearchParams(sent[0]).get("token_type_hint")).toBe(
+			"refresh_token",
+		);
+	});
+
+	it("revokes nothing without a refresh cookie, yet still ends the provider's session", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await signOut(app, "");
+
+		expect(provider.revoked).toStrictEqual([]);
+		expect(res.headers.get("Location")).toMatch(
+			new RegExp(`^${authnTestIdpOrigin}/logout`),
+		);
+	});
+
+	it("revokes nothing when the refresh cookie cannot be opened", async () => {
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const res = await signOut(app, "__Secure-authn-refresh=garbage");
+
+		expect(provider.revoked).toStrictEqual([]);
+		expect(res.status).toBe(302);
+	});
+
+	it("does not call a provider that has no revocation endpoint", async () => {
+		provider.options.noRevocation = true;
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		const res = await signOut(app, jar.header());
+
+		expect(provider.revoked).toStrictEqual([]);
+		expect(res.headers.get("Location")).toMatch(
+			new RegExp(`^${authnTestIdpOrigin}/logout`),
+		);
+	});
+
+	it("goes home when the provider has no end-session endpoint, cookies cleared", async () => {
+		provider.options.noEndSession = true;
+		const { app } = await authnTestAppCreate(oidcOptions);
+		const { jar } = await signIn(app);
+		const res = await signOut(app, jar.header());
+
+		expect(res.status).toBe(302);
+		expect(res.headers.get("Location")).toBe("/");
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toMatch(/Max-Age=0/);
+		expect(provider.revoked).toHaveLength(1);
+	});
+});
+
+describe("authnCreate with a provider that advertises no key set", () => {
+	it("throws, stopping startup", async () => {
+		provider.options.noJwksUri = true;
+
+		await expect(authnTestAppCreate(oidcOptions)).rejects.toThrow(
+			"authnCreate: the issuer advertises no jwks_uri",
+		);
+	});
+});
