@@ -218,7 +218,7 @@ jobs:
       - *node
       - *install
       # No browser cache: Chromium downloads in seconds, and the only cache is the Turborepo one.
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:install
       - name: Browser tests against the production build
         run: |
           status=0

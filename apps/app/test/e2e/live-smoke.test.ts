@@ -17,8 +17,8 @@ afterAll(async () => {
 	await server?.[Symbol.asyncDispose]();
 });
 
-describe("live updates on a foo's detail page", () => {
-	it("opens the foo's live stream once the page renders", async () => {
+describe("live updates on an entry's detail page", () => {
+	it("opens the entry's live stream once the page renders", async () => {
 		const context = await browser.newContext();
 		const page = await context.newPage();
 		try {

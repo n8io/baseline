@@ -52,7 +52,7 @@ const signIn = async (page: Page) => {
 const nameCreate = () => `flow${Math.random().toString(36).slice(2, 10)}`;
 
 describe("sign-in flow", () => {
-	it("signs in as the Dev user and lands on the foo list", async () => {
+	it("signs in as the Dev user and lands on the list", async () => {
 		const { consoleErrors, context, page } = await pageOpen();
 		try {
 			await signIn(page);
@@ -79,8 +79,8 @@ describe("sign-in flow", () => {
 	});
 });
 
-describe("home and foo list", () => {
-	it("redirects the home page to the foo list", async () => {
+describe("home and list", () => {
+	it("redirects the home page to the list", async () => {
 		const { context, page } = await pageOpen();
 		try {
 			await signIn(page);
@@ -93,8 +93,8 @@ describe("home and foo list", () => {
 	});
 });
 
-describe("create and edit a foo", () => {
-	it("creates a foo from the list and opens its detail page", async () => {
+describe("create and edit", () => {
+	it("creates an entry from the list and opens its detail page", async () => {
 		const { consoleErrors, context, page } = await pageOpen();
 		const name = nameCreate();
 		try {
@@ -111,7 +111,7 @@ describe("create and edit a foo", () => {
 		}
 	});
 
-	it("lists the created foo, linked to its detail page", async () => {
+	it("lists the created entry, linked to its detail page", async () => {
 		const { context, page } = await pageOpen();
 		const name = nameCreate();
 		try {
@@ -132,7 +132,7 @@ describe("create and edit a foo", () => {
 		}
 	});
 
-	it("edits the foo's name on its detail page", async () => {
+	it("edits the entry's name on its detail page", async () => {
 		const { consoleErrors, context, page } = await pageOpen();
 		const name = nameCreate();
 		const renamed = nameCreate();

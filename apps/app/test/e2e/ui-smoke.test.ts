@@ -18,7 +18,7 @@ afterAll(async () => {
 });
 
 describe("ui pages render", () => {
-	it("renders the home redirect, the foo list and a foo's detail page", async () => {
+	it("renders the home redirect, the list and an entry's detail page", async () => {
 		const context = await browser.newContext();
 		const page = await context.newPage();
 		const consoleErrors: string[] = [];

@@ -20,7 +20,7 @@ afterAll(async () => {
 });
 
 describe("feature flags on the page", () => {
-	it("hydrates the foo list with the feature flags piece in the page", async () => {
+	it("hydrates the list with the feature flags piece in the page", async () => {
 		const context = await browser.newContext();
 		const page = await context.newPage();
 		const consoleErrors: string[] = [];
