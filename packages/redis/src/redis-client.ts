@@ -159,7 +159,7 @@ export const redisClientCreate = async ({
 	// node-redis exits the process on an unlistened error event. Never log the URL: it may carry
 	// a password.
 	redisClient.on("error", (err: unknown) => {
-		logger.error({ err }, "Redis client error");
+		logger().error({ err }, "Redis client error");
 	});
 	// connectTimeout bounds only the TCP connect; this also bounds a server that accepts and never
 	// answers the handshake.

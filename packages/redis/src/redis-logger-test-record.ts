@@ -12,14 +12,14 @@ export const redisLoggerTestRecord = (
 	method: "debug" | "error" | "fatal" | "info" | "warn",
 ): { calls: readonly LoggerTestCall[]; [Symbol.dispose]: () => void } => {
 	const calls: LoggerTestCall[] = [];
-	const original = logger[method];
-	logger[method] = ((...args: LoggerTestCall) => {
+	const original = logger()[method];
+	logger()[method] = ((...args: LoggerTestCall) => {
 		calls.push(args);
 	}) as Logger[typeof method];
 	return {
 		calls,
 		[Symbol.dispose]: () => {
-			logger[method] = original;
+			logger()[method] = original;
 		},
 	};
 };
