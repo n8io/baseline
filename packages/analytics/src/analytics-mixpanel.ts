@@ -87,7 +87,7 @@ export const analyticsMixpanelCreate = ({
 					}
 				})
 				.catch((error: unknown) => {
-					logger.warn(
+					logger().warn(
 						{ err: error, event: name },
 						"Dropped an analytics event",
 					);

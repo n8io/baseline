@@ -18,7 +18,7 @@ export type AnalyticsLoggerOptions = {
 export const analyticsLoggerCreate = (
 	options: AnalyticsLoggerOptions = {},
 ): Analytics => {
-	const out = options.logger ?? logger;
+	const out = options.logger ?? logger();
 	return {
 		close: async () => {},
 		[Symbol.asyncDispose]: async () => {},

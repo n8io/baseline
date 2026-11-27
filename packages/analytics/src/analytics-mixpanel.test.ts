@@ -11,12 +11,12 @@ const restores: (() => void)[] = [];
 // A hand-written recording double for one logger method, put back by afterEach.
 const loggerRecord = (method: "warn") => {
 	const calls: LogCall[] = [];
-	const original = logger[method];
-	logger[method] = ((...args: LogCall) => {
+	const original = logger()[method];
+	logger()[method] = ((...args: LogCall) => {
 		calls.push(args);
 	}) as Logger[typeof method];
 	restores.push(() => {
-		logger[method] = original;
+		logger()[method] = original;
 	});
 	return calls;
 };
