@@ -9,7 +9,7 @@ import {
 import { queueConnectionAssert } from "./queue-connection-assert.ts";
 import { queueJobRun } from "./queue-job-run.ts";
 import { queueLoggerDefault as logger } from "./queue-logger-default.ts";
-import type { QueueMigrateVendorOptions } from "./queue-migrate.ts";
+import type { QueueMigrateOptions } from "./queue-migrate.ts";
 import { queueSlotsGet } from "./queue-slots.ts";
 import { queueWithDeadLetterCreate } from "./queue-with-dead-letter.ts";
 
@@ -48,8 +48,10 @@ const scheduleOverride = (env: object, name: string): string | undefined => {
 	return typeof value === "string" ? value : undefined;
 };
 
-/** Settings only pg-boss's own connection has: the same ones `queueMigrate` takes. */
-export type QueueSchedulesSyncVendorOptions = QueueMigrateVendorOptions;
+/** Settings only pg-boss's own connection has: the same ones `queueMigrate` takes. Not exported. */
+type QueueSchedulesSyncVendorOptions = NonNullable<
+	QueueMigrateOptions["vendor"]
+>;
 
 /** What `queueSchedulesSync` takes. */
 export type QueueSchedulesSyncOptions = {

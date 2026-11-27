@@ -2,7 +2,6 @@ export {
 	type Queue,
 	type QueueBlockedKey,
 	type QueueOptions,
-	type QueueVendorOptions,
 	queueCreate,
 } from "./queue.ts";
 export {
@@ -20,14 +19,12 @@ export {
 export { type Inbox, queueInboxInsert } from "./queue-inbox.ts";
 export {
 	type QueueMigrateOptions,
-	type QueueMigrateVendorOptions,
 	queueMigrate,
 } from "./queue-migrate.ts";
 export {
 	type QueueScheduleOptions,
 	type QueueSchedulesStartOptions,
 	type QueueSchedulesSyncOptions,
-	type QueueSchedulesSyncVendorOptions,
 	queueScheduleCreate,
 	queueSchedulesStart,
 	queueSchedulesSync,

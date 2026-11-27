@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // A Package's public API names no vendor (docs/adr/0005-vendor-escape-hatch.md), so a Project can
 // change vendor without changing callers. This test reads what `src/index.ts` of the Packages in
 // `packagesChecked` exports, on every subpath of the Package, and fails when an exported signature
-// names a type imported from the vendor's module (`pg`, `redis`, `@sentry/*`, `@launchdarkly/*`,
+// names a type imported from the vendor's module (`pg`, `pg-boss`, `redis`, `@sentry/*`, `@launchdarkly/*`,
 // `@openfeature/*`, `mixpanel`), or when an index exports a `*VendorOptions` type: the `vendor`
 // option's type stays inside the Package, and a Project writes the object inline in its `*-open.ts`
 // or `connections.ts`.
@@ -17,10 +17,11 @@ const packagesChecked = [
 	"error-tracking",
 	"feature-flags",
 	"postgres",
+	"queue",
 	"redis",
 ] as const;
 const vendorModule =
-	/^(?:pg|redis|mixpanel|@redis\/.+|@sentry\/.+|@launchdarkly\/.+|@openfeature\/.+)$/;
+	/^(?:pg|pg-boss|redis|mixpanel|@redis\/.+|@sentry\/.+|@launchdarkly\/.+|@openfeature\/.+)$/;
 
 // Exports that still name a vendor, each with the reason and the change that removes it. The test
 // fails on a new one, and on an entry that no longer names a vendor, so the list only shrinks.
