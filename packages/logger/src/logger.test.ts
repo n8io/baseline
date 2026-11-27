@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { pino } from "pino";
 import { afterEach, describe, expect, it } from "vitest";
-import { createLogger, loggerCreate } from "./logger.ts";
+import { loggerCreate, loggerCreateFromConfig } from "./logger.ts";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
 const canary = "canary@example.com";
@@ -88,14 +88,14 @@ describe("logger", () => {
 		);
 	});
 
-	it("createLogger takes its level from the config and ignores LOG_LEVEL", () => {
+	it("loggerCreateFromConfig takes its level from the config and ignores LOG_LEVEL", () => {
 		levelSet("error");
-		expect(createLogger({ level: "debug" }).level).toBe("debug");
-		expect(createLogger({ level: "silent" }).level).toBe("silent");
+		expect(loggerCreateFromConfig({ level: "debug" }).level).toBe("debug");
+		expect(loggerCreateFromConfig({ level: "silent" }).level).toBe("silent");
 	});
 
-	it("createLogger throws a TypeError at the call for a level that is not one", () => {
-		expect(() => createLogger({ level: "verbose" })).toThrow(
+	it("loggerCreateFromConfig throws a TypeError at the call for a level that is not one", () => {
+		expect(() => loggerCreateFromConfig({ level: "verbose" })).toThrow(
 			'LOG_LEVEL must be one of fatal, error, warn, info, debug, trace, silent, found "verbose"',
 		);
 	});
