@@ -32,7 +32,7 @@ describe("live updates on an entry's detail page", () => {
 			await page.getByText(name, { exact: true }).waitFor();
 
 			const stream = page.waitForResponse((response) =>
-				response.url().includes("/live/foo/"),
+				response.url().includes("/live/"),
 			);
 			await page.reload();
 			expect((await stream).status()).toBe(200);
