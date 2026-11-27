@@ -1,15 +1,14 @@
 // What removing each Piece does: its paths, env lines, package.json edits and refusals.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { z } from "zod";
 import {
 	type Manifest,
 	manifestEdit,
-	objectParse,
 	recordOmit,
 	textEdit,
 } from "./pieces-manifest.ts";
 import type { Piece } from "./pieces-names.ts";
+import { uiEdit } from "./pieces-removals-ui.ts";
 import { piecesRemovedFind, trackedFiles } from "./pieces-signs.ts";
 
 type PieceRemoval = {
@@ -21,85 +20,6 @@ type PieceRemoval = {
 	edit?: (directory: string) => void;
 	// Why it cannot go yet, if it cannot.
 	refusal?: (directory: string) => string | undefined;
-};
-
-const biomeSchema = z.looseObject({
-	css: z.unknown().optional(),
-	files: z.looseObject({ includes: z.array(z.string()) }),
-});
-
-// Without the pages, Vite builds only src/server.ts.
-const apiViteConfig = `import { defineConfig } from "vite";
-
-// Builds src/server.ts into build/server/index.js, one file per source file so import.meta.main
-// stays true only there. Every library stays in node_modules so OpenTelemetry can patch it.
-export default defineConfig({
-	build: {
-		outDir: "build/server",
-		rollupOptions: {
-			output: {
-				entryFileNames: (chunk) => (chunk.isEntry ? "index.js" : "[name].js"),
-				preserveModules: true,
-				preserveModulesRoot: "src",
-			},
-		},
-		ssr: "src/server.ts",
-	},
-	ssr: { external: true },
-});
-`;
-
-// Without React Router, src/server.ts serves its Hono app itself.
-const apiServeLines = `
-// Node runs this file in development and its build in production; tests only import it.
-if (import.meta.main) {
-	serverServe(serve({ fetch: app.fetch, port: ENV.PORT }, serverListening) as Server);
-}
-`;
-const nodeServerImport = 'import { serve } from "@hono/node-server";\n';
-
-const uiEdit = (directory: string) => {
-	textEdit({
-		directory,
-		path: "biome.json",
-		edit: (text) => {
-			const { css: _css, ...biome } = objectParse(biomeSchema, text);
-			return `${JSON.stringify(
-				{
-					...biome,
-					files: {
-						...biome.files,
-						includes: biome.files.includes.filter(
-							(p) => p !== "!.react-router",
-						),
-					},
-				},
-				null,
-				"\t",
-			)}\n`;
-		},
-	});
-	writeFileSync(join(directory, "vite.config.ts"), apiViteConfig);
-	textEdit({
-		directory,
-		path: "src/server.ts",
-		edit: (text) =>
-			text.includes("serverServe(serve(")
-				? text
-				: `${text.replace(/^import /m, `${nodeServerImport}import `)}${apiServeLines}`,
-	});
-	manifestEdit(directory, (manifest) => ({
-		...manifest,
-		imports: recordOmit(manifest.imports, ["#ui/*"]),
-		scripts: {
-			...manifest.scripts,
-			build: "vite build",
-			dev: manifest.scripts["dev"]?.replace(
-				pieceDevUi,
-				"node --watch --import ./src/preload.ts src/server.ts",
-			),
-		},
-	}));
 };
 
 // Env files carry no markers: CACHE_URL and the comment lines above it.
@@ -121,9 +41,7 @@ export const pieceScheduleLines =
 // REDIS_HOST_PORT and its decorator.
 const redisHostPortLines =
 	/^# @type=port @sensitive=false\nREDIS_HOST_PORT=.*\n/m;
-// The parts of the `dev` script the ui and queue removals edit (structure.test.ts holds them to it).
-export const pieceDevUi =
-	"node --import ./src/preload.ts --conditions=development ./node_modules/@react-router/dev/bin.cjs dev";
+// The part of the `dev` script the queue removal edits (structure.test.ts holds it to it).
 export const pieceDevWorker =
 	/\(varlock run -- sh -c 'HEALTH_PORT=\$\(\(HEALTH_PORT \+ 1\)\) exec node --watch --import \.\/src\/preload\.ts src\/worker\.ts' & ([^)]*)\)/;
 

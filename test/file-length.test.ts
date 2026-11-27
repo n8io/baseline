@@ -5,14 +5,23 @@ import { describe, expect, it } from "vitest";
 
 // A file that outgrows its limit is split into modules, one per concern, with the entry point
 // keeping its name. Source files hold to 400 lines; scripts, which read top to bottom as a
-// command's steps, to 500. Tests, declaration files, node_modules and dist are not counted.
+// command's steps, to 300. Tests, declaration files, node_modules and dist are not counted.
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const sourceLimit = 400;
-const scriptLimit = 500;
+const scriptLimit = 300;
 
 // A file that cannot reasonably be split, by its path from the repository root, with the reason.
 // Keep it empty unless splitting the file would make it worse.
-const exemptions: readonly { path: string; reason: string }[] = [];
+const exemptions: readonly { path: string; reason: string }[] = [
+	{
+		path: "apps/app/scripts/clients-release.ts",
+		reason: "still to split into modules (n8io/baseline#655)",
+	},
+	{
+		path: "apps/app/scripts/model-create-reads.ts",
+		reason: "still to split into modules (n8io/baseline#655)",
+	},
+];
 
 type Limited = { limit: number; path: string };
 
@@ -59,7 +68,7 @@ const linesOf = (name: string): number => {
 };
 
 describe("file length", () => {
-	it("keeps every source file under 400 lines and every script under 500", () => {
+	it("keeps every source file under 400 lines and every script under 300", () => {
 		const files = limitedRead().filter(
 			({ path: name }) => !exemptions.some((e) => e.path === name),
 		);

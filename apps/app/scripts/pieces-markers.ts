@@ -13,42 +13,67 @@ export const pieceBlocksRemove = (text: string, name: Piece): string =>
 
 const markerLine = /^[ \t]*(?:\/\/|#) piece-(start|end): ([a-z-]+)$/;
 
+type OpenMarker = { line: number; piece: string };
+type MarkerScan = { open: OpenMarker[]; problems: string[] };
+
+// One marker line applied to what is open so far: the next open stack and any problems it adds.
+const markerApply = (
+	{ open, problems }: MarkerScan,
+	{ edge, line, piece }: { edge: string; line: number; piece: string },
+): MarkerScan => {
+	if (edge === "start") {
+		return {
+			open: [...open, { line, piece }],
+			problems: open.some((o) => o.piece === piece)
+				? [
+						...problems,
+						`line ${line}: piece-start: ${piece} inside another ${piece} block`,
+					]
+				: problems,
+		};
+	}
+	const at = open.findLastIndex((o) => o.piece === piece);
+	if (at === -1) {
+		return {
+			open,
+			problems: [
+				...problems,
+				`line ${line}: piece-end: ${piece} has no piece-start`,
+			],
+		};
+	}
+	if (at !== open.length - 1) {
+		const inner = open[open.length - 1]?.piece;
+		return {
+			open: open.filter((_, index) => index !== at),
+			problems: [
+				...problems,
+				`line ${line}: piece-end: ${piece} closes it while ${inner} is still open (blocks cross)`,
+			],
+		};
+	}
+	return { open: open.slice(0, -1), problems };
+};
+
 // What is wrong with the Piece markers in a file's text: a start without its end, an end without
 // its start, a block of a Piece inside a block of the same Piece, or blocks that cross each other.
 // Blocks of different Pieces may nest; they may not interleave.
 export const pieceMarkersProblems = (text: string): string[] => {
-	const problems: string[] = [];
-	const open: { line: number; piece: string }[] = [];
-	for (const [index, content] of text.split("\n").entries()) {
-		const found = markerLine.exec(content);
-		const edge = found?.[1];
-		const piece = found?.[2];
-		if (edge === undefined || piece === undefined) continue;
-		const line = index + 1;
-		if (edge === "start") {
-			if (open.some((o) => o.piece === piece)) {
-				problems.push(
-					`line ${line}: piece-start: ${piece} inside another ${piece} block`,
-				);
-			}
-			open.push({ line, piece });
-			continue;
-		}
-		const at = open.findLastIndex((o) => o.piece === piece);
-		if (at === -1) {
-			problems.push(`line ${line}: piece-end: ${piece} has no piece-start`);
-		} else if (at !== open.length - 1) {
-			const inner = open[open.length - 1]?.piece;
-			problems.push(
-				`line ${line}: piece-end: ${piece} closes it while ${inner} is still open (blocks cross)`,
-			);
-			open.splice(at, 1);
-		} else {
-			open.pop();
-		}
-	}
-	for (const o of open) {
-		problems.push(`line ${o.line}: piece-start: ${o.piece} has no piece-end`);
-	}
-	return problems;
+	const scanned = text
+		.split("\n")
+		.flatMap((content, index) => {
+			const found = markerLine.exec(content);
+			const edge = found?.[1];
+			const piece = found?.[2];
+			return edge === undefined || piece === undefined
+				? []
+				: [{ edge, line: index + 1, piece }];
+		})
+		.reduce(markerApply, { open: [], problems: [] });
+	return [
+		...scanned.problems,
+		...scanned.open.map(
+			(o) => `line ${o.line}: piece-start: ${o.piece} has no piece-end`,
+		),
+	];
 };

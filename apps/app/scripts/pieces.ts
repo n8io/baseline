@@ -17,11 +17,11 @@ export {
 	pieces,
 } from "./pieces-names.ts";
 export {
-	pieceDevUi,
 	pieceDevWorker,
 	pieceRemovals,
 	pieceScheduleLines,
 } from "./pieces-removals.ts";
+export { pieceDevUi } from "./pieces-removals-ui.ts";
 export {
 	filesNamedIn,
 	type PieceRemoveFailure,

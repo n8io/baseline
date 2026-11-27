@@ -46,15 +46,16 @@ const main = () => {
 			failed.packageManager === undefined
 				? `piece-remove: removing ${piece} failed, so ${undone}.`
 				: `piece-remove: the package manager failed (${failed.packageManager}), not ${piece}'s code, so ${undone}. Run pnpm piece-remove ${piece} again.`,
+			...(failed.files.length > 0
+				? [
+						`These files use ${piece} outside its piece markers, or fail for another reason:`,
+						...failed.files.map((f) => `  ${f}`),
+						`Wrap the code that uses ${piece} in \`// piece-start: ${piece}\` and \`// piece-end: ${piece}\` lines (docs/agents/pieces.md), then run pnpm piece-remove ${piece} again.`,
+					]
+				: []),
+			"",
+			...failed.output.split("\n").slice(-40),
 		];
-		if (failed.files.length > 0) {
-			lines.push(
-				`These files use ${piece} outside its piece markers, or fail for another reason:`,
-				...failed.files.map((f) => `  ${f}`),
-				`Wrap the code that uses ${piece} in \`// piece-start: ${piece}\` and \`// piece-end: ${piece}\` lines (docs/agents/pieces.md), then run pnpm piece-remove ${piece} again.`,
-			);
-		}
-		lines.push("", ...failed.output.split("\n").slice(-40));
 		console.error(lines.join("\n"));
 		process.exitCode = 1;
 		return;
