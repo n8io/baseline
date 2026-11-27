@@ -1,6 +1,6 @@
 # Pieces of the stack
 
-Read when a Project should remove a piece of the stack it does not use, or take one back, or when writing code that uses a piece. Remove one with `pnpm piece-remove <piece>`.
+Read when a Project should remove a piece of the stack it does not use, or take one back, or when writing code that uses a piece. Remove one with `pnpm piece-remove <piece>`. Add one to the Template with `pnpm piece-add <piece>` (see [Adding a piece](#adding-a-piece)).
 
 A piece's code sits mostly in whole files: `src/connections.ts` opens each piece's connection through the piece's own file (`src/redis-open.ts`, `src/cache-store-open.ts`, `src/live-hub-open.ts`, `src/queue-open.ts` (which opens `src/events-open.ts`), `src/analytics-open.ts`, `src/error-tracking-open.ts`, `src/feature-flags-open.ts`; the API reference page is `src/api-reference.ts`), and each Model's piece behaviour is tested in a file of its own (`application/<model>-use-cases-<piece>.test.ts`; the queue's Events in `adapters/outbound/<model>-transaction.postgres.test.ts`). The rest sits in blocks that run from a `// piece-start: <piece>` line to its `// piece-end: <piece>` line (`#` in YAML and ignore files). Removing a piece deletes those files and blocks, its dependencies, and the imports nothing uses any more. `pnpm context-create` and `pnpm model-create` see that a piece's package is gone and leave the piece out of every new context and Model.
 
@@ -32,6 +32,19 @@ A Project that will never remove a piece lists it in `.template.json`: `"piecesK
 A Project's own file that belongs to a piece, such as a test of the pages under `test/ui` or an integration test of analytics, is listed in `.template.json` too, so `pnpm piece-remove` and `piece-check` delete it with the piece: `"pieceFiles": { "ui": ["test/ui"], "analytics": ["test/integration/observability-analytics.test.ts"] }`. Paths are from the Project root and tracked by git (the undo of a failed removal restores only tracked files); a folder goes whole. List them there, never in `scripts/pieces.ts`: the Template owns that script, so each release that changes that script conflicts with lines you added to it, and a Template script copied over yours drops them. An unknown piece or a path outside the Project makes both commands stop and say which entry is wrong.
 
 `pnpm template-upgrade` renders both releases with the pieces this Project removed already removed (found by their missing package in `package.json`, or for `cli` its missing folder), so a removed piece's package, files and lines do not come back. If a piece's lines still conflict, commit the upgrade, run `pnpm piece-remove <piece>` again, and resolve a conflict on a deleted file by keeping it deleted.
+
+## Adding a piece
+
+`pnpm piece-add <name>` (from `apps/app`, with a lowercase hyphenated name such as `error-tracking`) adds a piece to the Template in one step. It writes, and nothing else:
+
+- the piece's entry in `scripts/piece-manifest.ts`: its name, the packages it adds (`@n8io/baseline-<name>`), its open file and its use-case tests. The manifest is the one list of the Pieces: `pieceNames`, `pieces` and `pieceRemovals` read it, `test/app-ci-pieces.test.ts` holds the matrix to it, and model-create reads each piece's `template` files from it;
+- its row at the end of the `piece` matrix of `.github/workflows/app-ci.yml`, so it gets its own `piece (<name>)` job;
+- its section at the end of this file, with its `pnpm piece-remove` line and a placeholder sentence to replace;
+- its scaffold, `src/<name>-open.ts`, an empty module the piece's own code goes into.
+
+It refuses a name that is taken, or a file it cannot find, before writing anything. It never commits.
+
+Then, by hand: add the piece's package (`pnpm add`, or a workspace package), write its code, put its `piece-start:` blocks around the code it shares, describe the piece in its section (the placeholder line says what), and run `pnpm piece-check <name>`, `pnpm check` and `pnpm test`. A piece needing a removal step beyond its lists (a script to edit, or a refusal) adds a hook in `scripts/pieces-removals.ts`.
 
 ## How to add a piece back
 
