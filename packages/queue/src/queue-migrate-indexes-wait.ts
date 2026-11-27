@@ -9,26 +9,41 @@ export type QueueMigrateIndexesBoss = Pick<
 >;
 
 /**
+ * How long `queueMigrate` waits for the index builds when the caller sets no deadline: 10 minutes.
+ * It is well above a normal pg-boss index build on the largest table we expect (a build of tens of
+ * millions of job rows takes a few minutes), so a healthy migrate never hits it, and it is finite so
+ * a stuck build (a lock held by another session, a dead connection) fails the deploy instead of
+ * hanging it. A caller that wants a longer wait passes `indexesDeadlineMs`; there is no unlimited
+ * value.
+ */
+export const queueMigrateIndexesDeadlineMsDefault = 600_000;
+
+/**
  * Waits for pg-boss's background index builds (bam) to finish, polling every `pollMs` (default
  * 1000). A build that failed, in this run or an earlier one, is retried by the next migrate run;
  * the schema version is already current, so it only costs speed, and boot goes on with a warning.
- * With `deadlineMs` set, throws an `Error` that starts `queueMigrate:` when the builds are still busy
- * after it; without one, waits as long as the builds take.
+ * Throws an `Error` that starts `queueMigrate:` when the builds are still busy after `deadlineMs`
+ * (default `queueMigrateIndexesDeadlineMsDefault`, 10 minutes).
  */
 export const queueMigrateIndexesWait = async ({
 	boss,
-	deadlineMs,
+	deadlineMs: deadlineMsOption,
+	nowMs,
 	pollMs,
 	startMs,
 }: {
 	boss: QueueMigrateIndexesBoss;
-	/** Give up after this many ms. Default: wait for as long as the builds take. */
+	/** Give up after this many ms. Default: `queueMigrateIndexesDeadlineMsDefault`. */
 	deadlineMs?: number | null;
+	/** The clock, in ms. Default `Date.now`; tests pass their own to skip the real wait. */
+	nowMs?: (() => number) | null;
 	pollMs?: number | null;
 	/** How long to wait before the first poll. Default 100. */
 	startMs?: number | null;
 }): Promise<void> => {
-	const startedAt = Date.now();
+	const deadlineMs = deadlineMsOption ?? queueMigrateIndexesDeadlineMsDefault;
+	const now = nowMs ?? Date.now;
+	const startedAt = now();
 	// The first bam poll starts on the next turn of the event loop after start().
 	await setTimeout(startMs ?? 100);
 	for (;;) {
@@ -46,7 +61,7 @@ export const queueMigrateIndexesWait = async ({
 			}
 			return;
 		}
-		if (deadlineMs != null && Date.now() - startedAt >= deadlineMs) {
+		if (now() - startedAt >= deadlineMs) {
 			throw new Error(
 				`queueMigrate: index builds still running after ${deadlineMs} ms`,
 			);

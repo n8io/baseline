@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { queueLoggerTestRecord } from "./queue-logger-test-record.ts";
 import {
 	type QueueMigrateIndexesBoss,
+	queueMigrateIndexesDeadlineMsDefault,
 	queueMigrateIndexesWait,
 } from "./queue-migrate-indexes-wait.ts";
 
@@ -53,21 +54,35 @@ describe("queueMigrateIndexesWait", () => {
 	});
 
 	it.each([{}, { deadlineMs: null }])(
-		"waits without limit when the deadline is unset: %o",
+		"gives up at the default deadline when none is set: %o",
 		async (deadline) => {
-			const boss = bossCreate([
-				...Array.from({ length: 30 }, () => "in_progress" as const),
-				"completed",
-			]);
+			// A hand-written clock: each poll moves it a minute, so the 10 minutes pass in a few polls.
+			let clock = 0;
+			let polls = 0;
+			const boss: QueueMigrateIndexesBoss = {
+				getBamStatus: async () => {
+					polls += 1;
+					clock += 60_000;
+					return [
+						{ count: 1, lastCreatedOn: new Date(0), status: "in_progress" },
+					];
+				},
+				isBamWorking: () => false,
+			};
 
-			await queueMigrateIndexesWait({
-				boss,
-				pollMs: 5,
-				startMs: 0,
-				...deadline,
-			});
-
-			expect(boss.polls()).toBe(31);
+			await expect(
+				queueMigrateIndexesWait({
+					boss,
+					nowMs: () => clock,
+					pollMs: 1,
+					startMs: 0,
+					...deadline,
+				}),
+			).rejects.toThrow(
+				new Error("queueMigrate: index builds still running after 600000 ms"),
+			);
+			expect(queueMigrateIndexesDeadlineMsDefault).toBe(600_000);
+			expect(polls).toBe(10);
 		},
 	);
 

@@ -23,8 +23,9 @@ export type QueueMigrateOptions = {
 	/** The Postgres URL, `postgres://` or `postgresql://`. */
 	databaseUrl: string;
 	/**
-	 * How long to wait for pg-boss's background index builds before throwing. Default: no deadline,
-	 * it waits as long as the builds take; at most 2147483647.
+	 * How long to wait for pg-boss's background index builds before throwing. Default: 600000 (10
+	 * minutes), a finite deadline so a stuck build fails the deploy instead of hanging it. Pass a
+	 * larger value for a longer wait; there is no unlimited value. At most 2147483647.
 	 */
 	indexesDeadlineMs?: number | null;
 	/** The `queueName` of each Consumer an earlier release removed: its queues are deleted. */
@@ -40,7 +41,7 @@ export type QueueMigrateOptions = {
  * runs after it. Throws a TypeError at the call on a `databaseUrl` that is not a Postgres URL, on an
  * `indexesDeadlineMs` that is not a whole number from 1 to 2147483647, or on a `vendor` key other than `ssl`, `application_name` and `options`, or `vendor.ssl` together
  * with TLS in the URL. Rejects with an `Error` that starts `queueMigrate:` when the index builds
- * are still running after `indexesDeadlineMs`, when one is set.
+ * are still running after `indexesDeadlineMs` (default 10 minutes).
  */
 export const queueMigrate = async (
 	options: QueueMigrateOptions,

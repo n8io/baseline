@@ -292,6 +292,51 @@ jobs:
           echo "api-only cases: $RESULT"
           [ "$RESULT" = success ] || [ "$RESULT" = skipped ]
 
+  # Each Package's Stryker floor (break 90 in its stryker.config.json), one case per Package, side by side.
+  # The changes job has no per-Package output, so a pull request runs every floor. Blocking: no continue-on-error.
+  # authn, cli, feature-flags, result and telemetry have no Stryker config yet, so they are not here.
+  mutation:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            analytics,
+            cache,
+            error-tracking,
+            health,
+            http,
+            id,
+            live,
+            logger,
+            postgres,
+            queue,
+            redis,
+            sdk,
+            shared,
+            shutdown,
+          ]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      # The Packages it imports resolve to their build, so build those first (not the Package itself).
+      - env:
+          PACKAGE: ${{ matrix.package }}
+        run: pnpm turbo run build --filter="./packages/${PACKAGE}^..."
+      - run: pnpm test:mutation
+        working-directory: packages/${{ matrix.package }}
+
   automerge:
     if: github.event_name == 'pull_request'
     # Every job that gates a merge; test/ci-automerge-needs.test.ts fails when a job is missing.
@@ -303,6 +348,7 @@ jobs:
         changes,
         e2e,
         integration,
+        mutation,
         packages,
         render,
         render-and-test,
