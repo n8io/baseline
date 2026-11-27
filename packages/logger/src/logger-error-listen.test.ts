@@ -90,7 +90,7 @@ describe("loggerErrorListen", () => {
 		const heard: unknown[] = [];
 		const stop = loggerErrorListen((error) => heard.push(error));
 
-		expect(() => logger.error(null as never, "no error here")).not.toThrow();
+		expect(() => logger.error(null as never)).not.toThrow();
 		stop();
 
 		expect(heard).toEqual([]);
