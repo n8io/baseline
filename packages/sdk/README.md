@@ -104,4 +104,10 @@ Each test runs against a real local HTTP server (`node:http`) that answers each 
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/sdk-*.ts` with the Package's tests and fails below a **floor of 90%**. The score today is 99.14% (115 killed, 1 survived of 116 mutants). The survivor is `error === totalSignal.reason` in the catch of `sdkFetch`: every route the tests take to the total timeout already reaches `isTimeoutError`, so the identity check is a second guard no test can reach on its own. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `fetch`, `AbortSignal.timeout` and `AbortSignal.any` (Node 26, current browsers). Runs on ky, which never appears in its types.

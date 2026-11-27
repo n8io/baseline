@@ -73,4 +73,10 @@ Nothing else changes: `Analytics` and `analyticsMixpanelCreate({ token, vendor }
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/analytics*.ts` (all but the default logger) with the Package's tests and fails below a **floor of 90%**. The score today is 96.88% (62 killed, 2 survived of 64 mutants). Both are equivalent: the `", "` separator in the refusal message joins a set that holds the one key `host`, and `.finally(() => sending.delete(sent))` only frees the finished send from the set `close()` waits on (a settled promise waits for nothing). Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** a project token (the Template reads `MIXPANEL_TOKEN`). Runs on Mixpanel.

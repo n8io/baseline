@@ -155,4 +155,63 @@ describe("loggerErrSerialize", () => {
 
 		expect(depth).toBe(10);
 	});
+
+	it("falls back to Error for an Error class with no name", () => {
+		const Anonymous = class extends Error {};
+		Object.defineProperty(Anonymous, "name", { value: "" });
+
+		expect(loggerErrSerialize(new Anonymous("x")).type).toBe("Error");
+	});
+
+	it("leaves out the stack of an Error that has none", () => {
+		const error = new Error("x");
+		Object.defineProperty(error, "stack", { value: undefined });
+
+		expect(Object.keys(loggerErrSerialize(error))).toEqual(["type"]);
+	});
+
+	it("leaves out a stack with no frames", () => {
+		const error = new Error("x");
+		error.stack = "Error: x";
+
+		expect(Object.keys(loggerErrSerialize(error))).toEqual(["type"]);
+	});
+
+	it("joins the frames one per line, trimmed", () => {
+		const error = new Error("x");
+		error.stack = "Error: x\n    at a (a.ts:1:1)\n    at b (b.ts:2:2)";
+
+		expect(loggerErrSerialize(error).stack).toBe(
+			"at a (a.ts:1:1)\nat b (b.ts:2:2)",
+		);
+	});
+
+	it("keeps only lines that start with a frame, not ones that hold ' at '", () => {
+		const error = new Error("x");
+		error.stack = "Error: x\nlooks at it (a.ts:1:1)\n    at b (b.ts:2:2)";
+
+		expect(loggerErrSerialize(error).stack).toBe("at b (b.ts:2:2)");
+	});
+
+	it("keeps every frame of a stack whose text does not hold the message", () => {
+		const error = new Error("m".repeat(40));
+		error.stack = "    at a (a.ts:1:1)\n    at b (b.ts:2:2)";
+
+		expect(loggerErrSerialize(error).stack).toBe(
+			"at a (a.ts:1:1)\nat b (b.ts:2:2)",
+		);
+	});
+
+	it("keeps the first frame of an empty-message Error whose stack starts with it", () => {
+		const error = new Error("");
+		error.stack = " at a (a.ts:1:1)";
+
+		expect(loggerErrSerialize(error).stack).toBe("at a (a.ts:1:1)");
+	});
+
+	it("ignores a constraint that is not a string", () => {
+		const error = Object.assign(new Error("x"), { constraint: 5 });
+
+		expect(loggerErrSerialize(error)).not.toHaveProperty("constraint");
+	});
 });

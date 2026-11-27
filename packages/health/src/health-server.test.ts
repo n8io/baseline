@@ -107,6 +107,49 @@ describe("healthServerCreate", () => {
 		expect((await probeGet(server.port, "/healthz")).status).toBe(404);
 	});
 
+	it("answers 404 with a plain-text not found body", async () => {
+		await using server = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
+		await probeGet(server.port, "/livez");
+
+		const response = await fetch(`http://127.0.0.1:${server.port}/healthz`);
+
+		expect(await response.text()).toBe("not found");
+		expect(response.headers.get("content-type")).toBe("text/plain");
+	});
+
+	it.each(["/livez", "/readyz"])(
+		"answers %s as plain text, healthy or not",
+		async (path) => {
+			await using server = await serverStart({
+				alive: false,
+				shuttingDown: false,
+			});
+			await probeGet(server.port, path);
+
+			const response = await fetch(`http://127.0.0.1:${server.port}${path}`);
+			await response.text();
+
+			expect(response.status).toBe(503);
+			expect(response.headers.get("content-type")).toBe("text/plain");
+		},
+	);
+
+	it("answers a healthy probe as plain text", async () => {
+		await using server = await serverStart({
+			alive: true,
+			shuttingDown: false,
+		});
+		await probeGet(server.port, "/livez");
+
+		const response = await fetch(`http://127.0.0.1:${server.port}/livez`);
+		await response.text();
+
+		expect(response.headers.get("content-type")).toBe("text/plain");
+	});
+
 	it("keeps an idle probe connection open for 65 s", async () => {
 		await using server = await serverStart({
 			alive: true,

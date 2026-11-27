@@ -10,10 +10,20 @@ const canary = "canary@example.com";
 const dsn = "https://public@o1.ingest.sentry.io/1";
 
 type SentEvent = {
-	contexts?: { trace?: { span_id?: string; trace_id?: string } };
+	contexts?: {
+		runtime?: unknown;
+		trace?: { span_id?: string; trace_id?: string };
+	};
 	environment?: string;
+	dist?: string;
+	event_id?: string;
+	level?: string;
+	platform?: string;
+	sdk?: unknown;
+	timestamp?: number;
 	exception?: {
 		values?: {
+			mechanism?: unknown;
 			type?: string;
 			value?: string;
 			stacktrace?: { frames?: { function?: string }[] };
@@ -42,8 +52,12 @@ const warnRecord = () => {
 const fetchOriginal = globalThis.fetch;
 
 // Stands in for Sentry's ingestion: keeps each envelope, and answers with `status`.
-const requestsCatch = (status = 200) => {
+const requestsCatch = (
+	status = 200,
+	answer: { body?: string | null; headers?: Record<string, string> } = {},
+) => {
 	const requests: {
+		method: string | undefined;
 		url: string;
 		header: { trace?: { trace_id?: string } };
 		event: SentEvent;
@@ -53,9 +67,13 @@ const requestsCatch = (status = 200) => {
 		requests.push({
 			event: JSON.parse(event ?? "{}") as SentEvent,
 			header: JSON.parse(header ?? "{}"),
+			method: init.method,
 			url,
 		});
-		return new Response("{}", { status });
+		return new Response(answer.body === undefined ? "{}" : answer.body, {
+			headers: answer.headers,
+			status,
+		});
 	}) as typeof fetch;
 	return requests;
 };
@@ -289,6 +307,203 @@ describe("errorTrackingSentryCreate", () => {
 			});
 
 			errorTracking.report(new Error("boom"));
+		}
+
+		expect(requests).toHaveLength(1);
+	});
+
+	it("posts with the POST method", async () => {
+		const requests = requestsCatch();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+
+			errorTracking.report(new Error("boom"));
+		}
+
+		expect(requests.map((r) => r.method)).toEqual(["POST"]);
+	});
+
+	it("sends an error report with only the allowed fields, marked handled on the outermost error", async () => {
+		const requests = requestsCatch();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				vendor: { dist: "7", release: "app@1.2.3" },
+			});
+
+			errorTracking.report(new Error("boom", { cause: new TypeError("in") }));
+		}
+
+		const event: SentEvent = requests[0]?.event ?? {};
+		expect(Object.keys(event).sort()).toEqual([
+			"contexts",
+			"dist",
+			"environment",
+			"event_id",
+			"exception",
+			"level",
+			"platform",
+			"release",
+			"sdk",
+			"tags",
+			"timestamp",
+		]);
+		expect(event.level).toBe("error");
+		expect(event.platform).toBe("node");
+		expect(event.dist).toBe("7");
+		expect(event.event_id).toMatch(/^[0-9a-f]{32}$/);
+		expect(typeof event.timestamp).toBe("number");
+		expect(event.sdk).toBeDefined();
+		expect(Object.keys(event.contexts ?? {}).sort()).toEqual([
+			"runtime",
+			"trace",
+		]);
+		expect(event.contexts?.runtime).toEqual({
+			name: "node",
+			version: process.version,
+		});
+		expect(event.exception?.values?.map((v) => v.mechanism)).toEqual([
+			undefined,
+			{ handled: true, type: "generic" },
+		]);
+	});
+
+	it("tags no code or constraint when the error has none", async () => {
+		const requests = requestsCatch();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+
+			errorTracking.report(new Error("boom"));
+		}
+
+		expect(requests[0]?.event.tags ?? {}).toEqual({});
+	});
+
+	it("takes vendor.sampleRate: a rate of 0 sends nothing", async () => {
+		const requests = requestsCatch();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				vendor: { sampleRate: 0 },
+			});
+
+			errorTracking.report(new Error("boom"));
+		}
+
+		expect(requests).toEqual([]);
+	});
+
+	it("names the keys vendor takes when it refuses one", () => {
+		expect(() =>
+			errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				vendor: { debug: true } as never,
+			}),
+		).toThrow(
+			"errorTrackingSentryCreate: vendor.debug is not allowed: only dist, release, sampleRate reach Sentry",
+		);
+	});
+
+	it.each([
+		["x-sentry-rate-limits", "60:error"],
+		["retry-after", "60"],
+	])(
+		"stops sending while Sentry's %s header says to wait",
+		async (header, value) => {
+			const requests = requestsCatch(200, { headers: { [header]: value } });
+			{
+				await using errorTracking = errorTrackingSentryCreate({
+					dsn,
+					environment: "test",
+				});
+
+				errorTracking.report(new Error("first"));
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				errorTracking.report(new Error("second"));
+			}
+
+			expect(requests).toHaveLength(1);
+		},
+	);
+
+	it("does not warn when Sentry answers ok, with a body or without", async () => {
+		const warn = warnRecord();
+		for (const body of ["{}", null]) {
+			requestsCatch(body === null ? 204 : 200, { body });
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				logger: warn.logger,
+			});
+
+			errorTracking.report(new Error("boom"));
+		}
+
+		expect(warn.calls).toEqual([]);
+	});
+
+	it("warns and drops a report it cannot build, without throwing", async () => {
+		const requests = requestsCatch();
+		const warn = warnRecord();
+		const hostile = Object.defineProperty(new Error("boom"), "code", {
+			get: () => {
+				throw new Error("getter");
+			},
+		});
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				logger: warn.logger,
+			});
+
+			expect(() => errorTracking.report(hostile)).not.toThrow();
+		}
+
+		expect(requests).toEqual([]);
+		expect(warn.calls).toEqual([
+			[{ err: expect.any(Error) }, "Dropped an error report"],
+		]);
+	});
+
+	it("marks a lone error handled", async () => {
+		const requests = requestsCatch();
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+			});
+
+			errorTracking.report(new Error("boom"));
+		}
+
+		expect(requests[0]?.event.exception?.values?.[0]?.mechanism).toEqual({
+			handled: true,
+			type: "generic",
+		});
+	});
+
+	it("stops sending after Sentry answers 429 with no body", async () => {
+		const requests = requestsCatch(429, { body: null });
+		{
+			await using errorTracking = errorTrackingSentryCreate({
+				dsn,
+				environment: "test",
+				logger: warnRecord().logger,
+			});
+
+			errorTracking.report(new Error("first"));
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			errorTracking.report(new Error("second"));
 		}
 
 		expect(requests).toHaveLength(1);

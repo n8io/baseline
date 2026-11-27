@@ -413,6 +413,13 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/authn:
     dependencies:
@@ -561,6 +568,13 @@ importers:
       '@n8io/baseline-shared':
         specifier: workspace:^
         version: link:../shared
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/http:
     dependencies:
@@ -638,6 +652,13 @@ importers:
       pino:
         specifier: ^10.4.0
         version: 10.4.0
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/postgres:
     dependencies:
@@ -736,6 +757,12 @@ importers:
       '@n8io/baseline-telemetry':
         specifier: workspace:^
         version: link:../telemetry
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/shared:
     devDependencies:
