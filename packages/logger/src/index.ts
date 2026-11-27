@@ -1,5 +1,7 @@
 export {
+	createLogger,
 	type Logger,
+	type LoggerConfig,
 	type LoggerCreateOptions,
 	type LoggerMethod,
 	loggerCreate,
