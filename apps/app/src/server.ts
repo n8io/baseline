@@ -47,12 +47,6 @@ import { seedsRun } from "./seed.ts";
 
 const logger = loggerCreate();
 
-// piece-start: ui
-// Development: the dev server re-runs this file after an edit, and import.meta.hot is
-// undefined there, so each run first closes what the last one opened.
-const devRun = globalThis as { serverDevClose?: () => Promise<void> };
-// piece-end: ui
-
 // The Hono app: its middleware in order, then every context's routes, the API reference and the
 // OpenAPI document.
 const appCreate = ({
@@ -146,6 +140,9 @@ const appCreate = ({
 // is called, so importing this file opens nothing.
 const serverCreate = async () => {
 	// piece-start: ui
+	// Development: the dev server re-runs this file after an edit, and import.meta.hot is
+	// undefined there, so each run first closes what the last one opened.
+	const devRun = globalThis as { serverDevClose?: () => Promise<void> };
 	if (import.meta.env.DEV) await devRun.serverDevClose?.();
 	// piece-end: ui
 	// The shutdown handle needs the health port, which asks it whether it is shutting down.
