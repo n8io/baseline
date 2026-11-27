@@ -10,7 +10,7 @@ const root = resolve(import.meta.dirname, "..");
 const read = (file: string) => readFileSync(join(root, file), "utf8");
 
 describe("the sast jobs' Semgrep rules", () => {
-	it.each([".github/workflows/app-ci.yml", ".github/workflows/ci.yml"])(
+	it.each([".github/workflows/app-ci.yml", ".github/workflows/sast.yml"])(
 		"%s scans with the pinned snapshot, never a live registry pack",
 		(file) => {
 			const workflow = read(file);

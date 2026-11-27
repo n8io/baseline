@@ -107,73 +107,16 @@ jobs:
           path: .turbo/cache
 
   # The same Semgrep scan and pinned rules app-ci runs; apps/app is scanned through render-and-test.
+  # sast.yml holds the job, so the Semgrep image is pinned once in this repository.
   sast:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
-    env:
-      SEMGREP_ENABLE_VERSION_CHECK: "0"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Pinned Semgrep rules
-        run: sh .github/semgrep/rules.sh .github/semgrep/rules.txt "$RUNNER_TEMP/semgrep-rules"
-      - run: >-
-          semgrep scan --error --metrics=off --no-rewrite-rule-ids --config "$RUNNER_TEMP/semgrep-rules"
-          packages scripts test
+    uses: ./.github/workflows/sast.yml
 
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
+  # integration.yml holds the job and its Postgres and Redis services.
   integration:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 6
-    services:
-      postgres:
-        image: postgres:18@sha256:64c8b0d31e4ab6ea665e8426ea406a94bf52de3c05b3a4a8bf713704eefa9328
-        env:
-          POSTGRES_DB: baseline
-          POSTGRES_PASSWORD: baseline
-          POSTGRES_USER: baseline
-        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
-        options: >-
-          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
-          --health-interval 2s --health-timeout 5s --health-retries 30
-        ports: ["5432:5432"]
-      redis:
-        image: redis:8@sha256:ca1cb6df9313d0186b68f19b60fc2802e0c76e8542b2c05650b560e7bbb3cc8f
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s --health-timeout 5s --health-retries 30
-        ports: ["6379:6379"]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          cache: pnpm
-          node-version-file: .node-version
-      - run: pnpm install --frozen-lockfile
-      # app-ci's check runs this on each render, which has no foo; this checks foo's SDK.
-      - name: The SDK matches the OpenAPI document
-        run: |
-          pnpm sdk-generate
-          if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
-            git status --porcelain -- clients/sdk
-            echo "::error::apps/app/clients/sdk differs from what pnpm sdk-generate writes. Run it in apps/app and commit clients/sdk/."
-            exit 1
-          fi
-        working-directory: apps/app
-      # CI enforces the budget on the command, the job limit is only a backstop.
-      - run: |
-          status=0
-          timeout 4m pnpm test:integration || status=$?
-          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
-          exit "$status"
-        working-directory: apps/app
+    uses: ./.github/workflows/integration.yml
 
   # The UI tests of apps/app: Playwright, axe and the Lighthouse budget, in a real Chromium against the
   # production build on memory adapters, so no Postgres or Redis. Blocking, like every job here.
