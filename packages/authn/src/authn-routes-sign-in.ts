@@ -116,7 +116,7 @@ export const authnRoutesSignInCallback = async ({
 		return c.redirect(flow.returnTo, 302);
 	} catch (error) {
 		if (!authnProviderRefusalIs(error)) throw error;
-		logger.warn(
+		logger().warn(
 			{ err: error, route: callbackPath },
 			"Sign-in refused by the provider",
 		);
