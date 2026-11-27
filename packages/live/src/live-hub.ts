@@ -104,7 +104,7 @@ export const liveHubCreate = (
 	options: { logger?: Pick<Logger, "warn">; now?: () => number } = {},
 ): LiveHub => {
 	const now = options.now ?? Date.now;
-	const log = options.logger ?? logger;
+	const log = options.logger ?? logger();
 	const listeners = new Map<string, Set<LiveListener>>();
 	const subscriptions = new Map<string, Promise<void>>();
 	const ends = new Set<() => Promise<void>>();
