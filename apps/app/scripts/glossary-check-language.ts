@@ -131,9 +131,9 @@ export const glossaryLanguageOf = ({
 };
 
 // Not inside a word or a path: test/integration, test:integration and integration.test.ts are
-// no hit for "integration". A word written capitalized ("DTO", another context's "Golfer")
+// no hit for "integration". A term written capitalized, another context's term included,
 // matches only as written, as prose writes a glossary term; "a dto" and "a golfer id" pass.
-// `plural` also takes "Golfers".
+// `plural` also takes the plural form of the word.
 export const wordPattern = ({
 	global,
 	plural,

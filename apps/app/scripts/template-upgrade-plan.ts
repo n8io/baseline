@@ -17,7 +17,7 @@ import { templateMerge, type UpgradeTools } from "./template-upgrade-commit.ts";
 import {
 	type DroppedImport,
 	droppedImportsFind,
-	importFileIs,
+	importFileIsScanned,
 } from "./template-upgrade-imports.ts";
 import {
 	changelogBetween,
@@ -118,7 +118,7 @@ export const templateUpgrade = async ({
 			? droppedImportsFind({
 					before: manifestBefore,
 					after: readFileSync(manifestPath, "utf8"),
-					files: filesRead(appDirectory).filter(importFileIs),
+					files: filesRead(appDirectory).filter(importFileIsScanned),
 				})
 			: [];
 	writeFileSync(

@@ -1,7 +1,7 @@
 // glossary-check's prose: the comments and string literals of a file with the code blanked.
 import { modesRead } from "./template-render.ts";
 
-export const glossarySkipIs = (file: string): boolean =>
+export const glossaryFileIsSkipped = (file: string): boolean =>
 	/(^|\/)CONTEXT(-MAP)?\.md$/.test(file) ||
 	/(^|\/)migrations\//.test(file) ||
 	file.endsWith(".json");

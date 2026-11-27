@@ -25,7 +25,7 @@ const importRoots = ["src/", "test/", "scripts/", "clients/"];
 const importPattern =
 	/(?:^\s*(?:import|export)\b[^;"']*?\bfrom\s*|^\s*import\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)["']([^"'.#/][^"']*)["']/gm;
 
-export const importFileIs = (file: TemplateFile): boolean =>
+export const importFileIsScanned = (file: TemplateFile): boolean =>
 	importRoots.some((root) => file.path.startsWith(root)) &&
 	/\.[cm]?[jt]sx?$/.test(file.path);
 
@@ -48,7 +48,7 @@ export const droppedImportsFind = ({
 	const dropped = Object.keys(were).filter((name) => !(name in are));
 	const importers = new Map<string, Set<string>>();
 	for (const file of files) {
-		if (!importFileIs(file)) continue;
+		if (!importFileIsScanned(file)) continue;
 		for (const [, specifier = ""] of file.text.matchAll(importPattern)) {
 			const [scope = "", name] = specifier.split("/");
 			const pack = scope.startsWith("@") ? `${scope}/${name ?? ""}` : scope;

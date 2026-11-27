@@ -5,8 +5,8 @@ import {
 	wordPattern,
 } from "./glossary-check-language.ts";
 import {
+	glossaryFileIsSkipped,
 	glossaryProseLines,
-	glossarySkipIs,
 	kindValuePattern,
 } from "./glossary-check-prose.ts";
 import { fileIsCode } from "./template-render.ts";
@@ -89,7 +89,7 @@ export const glossaryHitsFind = ({
 	const proses = new Map<string, string[] | null>();
 	for (const added of glossaryDiffAddedLines(diff)) {
 		// The glossaries and the map name every alias and term on purpose.
-		if (glossarySkipIs(added.file)) continue;
+		if (glossaryFileIsSkipped(added.file)) continue;
 		let prose = added.text;
 		if (fileIsCode(added.file)) {
 			let lines = proses.get(added.file);
