@@ -65,4 +65,10 @@ Without `SENTRY_DSN`, nothing is reported and errors are only logged; with it, `
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/error-tracking-*.ts` (the report and its exceptions, the field allowlist, the send, the vendor-key check and the client wiring) with the Package's tests and fails below a **floor of 90%**. The score today is 95.76% (113 killed, 5 survived of 118 mutants). The survivors are equivalent: in the exceptions, `at.stack ?? ""` mutated to another string that has no stack frame line parses to no frames, as the empty string does; in the send, a string body is the same text with or without `.slice()`, so the `typeof` check only picks between two equal copies; in the wiring, `integrations: []` and `client.init()` change nothing a report can show, since the client built here installs no default integrations and sends without `init()` (it is kept as the SDK's documented setup step). Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `@opentelemetry/api` as a peer, a DSN (the Template reads `SENTRY_DSN`), and `LOG_LEVEL` at `error` or below when reports come through `loggerErrorListen`: a level the logger turns off reaches no listener. Runs on Sentry.
