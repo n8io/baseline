@@ -2,7 +2,7 @@
 // alone, plus the changelog and render-code steps around them.
 import { mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, posix } from "node:path";
 import { pathToFileURL } from "node:url";
 import { releaseKey } from "./template-renames.ts";
 import {
@@ -35,6 +35,36 @@ export const changelogBetween = ({
 		.trim();
 };
 
+const renderEntry = "scripts/template-render.ts";
+
+// The relative modules a file imports or re-exports.
+const importsRelative = (text: string): string[] =>
+	[...text.matchAll(/^(?:import|export)\b[^;]*?from "(\.[^"]+)";/gms)]
+		.map((match) => match[1])
+		.filter((specifier): specifier is string => specifier !== undefined);
+
+// The release's render files the entry point reaches by following relative imports, so a release
+// that splits its render code (template-render-blocks.ts and the like) ships every module it needs.
+export const modulesFindRender = (files: TemplateFile[]): TemplateFile[] => {
+	const byPath = new Map(files.map((file) => [file.path, file] as const));
+	const reach = (path: string, found: string[]): string[] => {
+		if (found.includes(path)) return found;
+		const file = byPath.get(path);
+		if (file === undefined) {
+			throw new Error(
+				`${path} is imported by the render but not in the release`,
+			);
+		}
+		return importsRelative(file.text).reduce(
+			(paths, specifier) =>
+				reach(posix.join(posix.dirname(path), specifier), paths),
+			[...found, path],
+		);
+	};
+	const paths = reach(renderEntry, []);
+	return files.filter((file) => paths.includes(file.path));
+};
+
 // Renders a release with that release's own render code, so a Project's older scripts never
 // misread a newer Template. app@1.0.0, the one release without scripts/, uses this file's;
 // delete that fallback once no Project upgrades from app@1.0.0.
@@ -42,17 +72,13 @@ export const releaseRender = async (
 	files: TemplateFile[],
 	answers: TemplateAnswers,
 ): Promise<TemplateFile[]> => {
-	const own = files.find((f) => f.path === "scripts/template-render.ts");
+	const own = files.find((f) => f.path === renderEntry);
 	if (own === undefined) return templateFilesRender(files, answers);
 	using work = mkdtempDisposableSync(join(tmpdir(), "template-render-code-"));
-	const path = join(work.path, "template-render.ts");
-	// A release that split its render code keeps the modules beside the entry point.
-	for (const file of files.filter((f) =>
-		/^scripts\/template-render-[a-z]+\.ts$/.test(f.path),
-	)) {
+	for (const file of modulesFindRender(files)) {
 		writeFileSync(join(work.path, basename(file.path)), file.text);
 	}
-	writeFileSync(path, own.text);
+	const path = join(work.path, basename(renderEntry));
 	const module = (await import(pathToFileURL(path).href)) as {
 		templateFilesRender: typeof templateFilesRender;
 	};
