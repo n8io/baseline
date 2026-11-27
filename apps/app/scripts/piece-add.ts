@@ -1,6 +1,6 @@
 // pnpm piece-add <name>: adds a Piece to the stack in one step. It appends the Piece's entry to
 // piece-manifest.ts, its row to the piece matrix of app-ci.yml, a section to docs/agents/pieces.md,
-// and its scaffold, src/<name>-open.ts, the Piece's own file. It never commits. The Piece's
+// and its own file, src/<name>-open.ts, where the Piece's code goes. It never commits. The Piece's
 // package, code and docs are still to write; docs/agents/pieces.md ("Adding a piece") says how.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -68,7 +68,7 @@ const workflowPath = (directory: string) =>
 		join(directory, "../../.github/workflows/app-ci.yml"),
 	].find(existsSync);
 
-// Adds the Piece to the manifest, the matrix, the docs and the scaffold under `directory` (the app,
+// Adds the Piece to the manifest, the matrix, the docs and the own file under `directory` (the app,
 // apps/app in the Template). Every edit is computed before any file is written, so a refusal
 // leaves the tree as it was. Returns the problem, or the files written.
 export const pieceAdd = ({

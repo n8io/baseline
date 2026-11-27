@@ -85,7 +85,7 @@ describe("piece-add", () => {
 		expect(missing).toEqual([]);
 	});
 
-	it("writes the manifest, matrix, docs and scaffold for a new piece", () => {
+	it("writes the manifest, matrix, docs and own file for a new piece", () => {
 		const directory = caseDirectory("writes");
 		const result = pieceAdd({ directory, name: "live" });
 		expect("written" in result).toBe(true);

@@ -1,6 +1,6 @@
 // The Pieces of the stack, one entry each: a Piece's name, packages, order and removal list are
 // written here and nowhere else. `pnpm piece-add <name>` (scripts/piece-add.ts) writes an entry
-// and its scaffold. Pure data: it imports nothing, so every script can read it without a cycle.
+// and its own file. Pure data: it imports nothing, so every script can read it without a cycle.
 
 // Env lines a removal deletes from env files, which carry no piece markers. Each regex matches a
 // line with the comment above it and its decorators.

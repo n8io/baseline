@@ -40,7 +40,7 @@ A Project's own file that belongs to a piece, such as a test of the pages under 
 - the piece's entry in `scripts/piece-manifest.ts`: its name, the packages it adds (`@n8io/baseline-<name>`), its open file and its use-case tests. The manifest is the one list of the Pieces: `pieceNames`, `pieces` and `pieceRemovals` read it, `test/app-ci-pieces.test.ts` holds the matrix to it, and model-create reads each piece's `template` files from it;
 - its row at the end of the `piece` matrix of `.github/workflows/app-ci.yml`, so it gets its own `piece (<name>)` job;
 - its section at the end of this file, with its `pnpm piece-remove` line and a placeholder sentence to replace;
-- its scaffold, `src/<name>-open.ts`, an empty module the piece's own code goes into.
+- its own file, `src/<name>-open.ts`, an empty module the piece's own code goes into.
 
 It refuses a name that is taken, or a file it cannot find, before writing anything. It never commits.
 
