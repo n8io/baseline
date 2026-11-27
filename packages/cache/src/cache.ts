@@ -122,7 +122,7 @@ const cacheByIdCreate = <T>(
 ): Cache<T> => {
 	const { prefix, schema } = options;
 	const now = options.now ?? Date.now;
-	const log = options.logger ?? logger;
+	const log = options.logger ?? logger();
 	const onStoreError = options.onStoreError ?? "miss";
 	const ttlMs = options.ttlMs ?? cacheTtlMsDefault;
 	if (prefix === "") {

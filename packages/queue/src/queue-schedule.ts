@@ -91,7 +91,10 @@ export const queueSchedulesSync = async (
 		supervise: false,
 	});
 	boss.on("error", (error) => {
-		logger.error({ err: queueErrorWrap(error) }, "Queue schedules sync error");
+		logger().error(
+			{ err: queueErrorWrap(error) },
+			"Queue schedules sync error",
+		);
 	});
 	try {
 		await boss.start();
@@ -161,7 +164,7 @@ export const queueSchedulesStart = async ({
 		}
 		const held = await boss.getSchedules(schedule.name);
 		if (held.length === 0) {
-			logger.warn(
+			logger().warn(
 				{ schedule: schedule.name },
 				"Schedule is not in the database, so it will not run: run migrate",
 			);

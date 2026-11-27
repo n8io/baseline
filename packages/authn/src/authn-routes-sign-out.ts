@@ -20,7 +20,7 @@ const refreshTokenRevoke = async (
 			token_type_hint: "refresh_token",
 		});
 	} catch (error) {
-		logger.warn(
+		logger().warn(
 			{ err: error, route: "/auth/sign-out" },
 			"Refresh token not revoked; signed out locally",
 		);

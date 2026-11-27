@@ -14,8 +14,8 @@ export const queueLoggerTestRecord = (
 	{ callThrough = false }: { callThrough?: boolean } = {},
 ): { calls: readonly LoggerTestCall[]; [Symbol.dispose]: () => void } => {
 	const calls: LoggerTestCall[] = [];
-	const original = logger[method];
-	logger[method] = ((...args: LoggerTestCall) => {
+	const original = logger()[method];
+	logger()[method] = ((...args: LoggerTestCall) => {
 		calls.push(args);
 		if (callThrough) {
 			(original as (...rest: LoggerTestCall) => void)(...args);
@@ -24,7 +24,7 @@ export const queueLoggerTestRecord = (
 	return {
 		calls,
 		[Symbol.dispose]: () => {
-			logger[method] = original;
+			logger()[method] = original;
 		},
 	};
 };

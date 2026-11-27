@@ -255,14 +255,14 @@ export const queueOrderedBlockedKeysWatch = (
 			const fields = { deleteAt, key, queue: consumer, since };
 			if (now - entry.loggedAt >= remindMs) {
 				entry.loggedAt = now;
-				logger.error(
+				logger().error(
 					{ ...fields, err: new QueueBlockedKeyError(consumer) },
 					"Event key is blocked until released",
 				);
 			}
 			if (!entry.warned && deleteAt.getTime() - now <= remindMs) {
 				entry.warned = true;
-				logger.warn(
+				logger().warn(
 					fields,
 					"Event key is blocked, and the queue deletes its failed Event from deleteAt unless it is released first",
 				);
@@ -285,7 +285,7 @@ export const queueOrderedBlockedKeysWatch = (
 			if (row.rows.length === 0) {
 				// Counted first, so a failing log call cannot lose the count.
 				expired.add(1, { "messaging.destination.name": entry.consumer });
-				logger.error(
+				logger().error(
 					{
 						deleteAt: entry.deleteAt,
 						err: new QueueBlockedKeyExpiredError(),
