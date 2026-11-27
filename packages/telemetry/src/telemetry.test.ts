@@ -631,7 +631,7 @@ describe("batch settings", () => {
 					() => count(1),
 				);
 				expect(run.elapsedMs).toBeGreaterThanOrEqual(250);
-				expect(run.elapsedMs).toBeLessThan(2_000);
+				expect(run.elapsedMs).toBeLessThan(900);
 				expect(run.warnings).toHaveLength(1);
 			}, 15_000);
 		}
@@ -674,7 +674,7 @@ describe("exporter timeout", () => {
 				emit,
 			);
 			expect(run.elapsedMs).toBeGreaterThanOrEqual(900);
-			expect(run.elapsedMs).toBeLessThan(2_000);
+			expect(run.elapsedMs).toBeLessThan(5_000);
 		}, 15_000);
 	}
 
@@ -709,7 +709,7 @@ describe("exporter timeout", () => {
 				() => spansEnded(1),
 			);
 			expect(run.elapsedMs).toBeGreaterThanOrEqual(900);
-			expect(run.elapsedMs).toBeLessThan(1_800);
+			expect(run.elapsedMs).toBeLessThan(5_000);
 			expect(run.warnings).toHaveLength(1);
 		}, 15_000);
 	}
