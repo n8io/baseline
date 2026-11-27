@@ -51,7 +51,7 @@ export type HttpErrorHandleOptions = {
 export const httpErrorHandleCreate = (
 	options: HttpErrorHandleOptions = {},
 ): ErrorHandler => {
-	const log = options.logger ?? logger;
+	const log = options.logger ?? logger();
 	return (error, c) => {
 		if (httpStatusErrorIs(error)) {
 			return c.json(
