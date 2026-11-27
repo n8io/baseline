@@ -11,3 +11,4 @@ export {
 	sharedTimerMaxMs,
 	sharedTimeTimer,
 } from "./shared-time.ts";
+export { sharedVendorKeyRefused } from "./shared-vendor-key.ts";

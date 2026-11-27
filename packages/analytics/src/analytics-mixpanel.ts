@@ -1,3 +1,4 @@
+import { sharedVendorKeyRefused } from "@n8io/baseline-shared";
 import type { Analytics } from "./analytics.ts";
 import { analyticsLoggerDefault as logger } from "./analytics-logger-default.ts";
 
@@ -15,7 +16,7 @@ type AnalyticsMixpanelVendorOptions = {
 	host?: string | null;
 };
 
-const vendorKeys = new Set(["host"]);
+const vendorKeys = ["host"] as const;
 
 /** What `analyticsMixpanelCreate` takes. */
 export type AnalyticsMixpanelOptions = {
@@ -41,12 +42,11 @@ export const analyticsMixpanelCreate = ({
 	if (token === "") {
 		throw new TypeError("analyticsMixpanelCreate: token must not be empty");
 	}
-	for (const key of Object.keys(vendor ?? {})) {
-		if (!vendorKeys.has(key)) {
-			throw new TypeError(
-				`analyticsMixpanelCreate: vendor.${key} is not allowed: only ${[...vendorKeys].join(", ")} reaches Mixpanel`,
-			);
-		}
+	const refused = sharedVendorKeyRefused({ allowed: vendorKeys, vendor });
+	if (refused !== undefined) {
+		throw new TypeError(
+			`analyticsMixpanelCreate: vendor.${refused} is not allowed: only ${vendorKeys.join(", ")} reaches Mixpanel`,
+		);
 	}
 	const host = vendor?.host ?? trackHost;
 	// A host with a scheme, a path or nothing in it would send the token somewhere else.

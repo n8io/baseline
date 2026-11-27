@@ -413,6 +413,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
     devDependencies:
       '@stryker-mutator/core':
         specifier: ^10.1.1
@@ -510,6 +513,9 @@ importers:
       '@n8io/baseline-logger':
         specifier: workspace:^
         version: link:../logger
+      '@n8io/baseline-shared':
+        specifier: workspace:^
+        version: link:../shared
       '@sentry/core':
         specifier: ^11.14.0
         version: 11.14.0

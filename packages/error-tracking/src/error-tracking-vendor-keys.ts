@@ -1,3 +1,5 @@
+import { sharedVendorKeyRefused } from "@n8io/baseline-shared";
+
 const vendorKeys = ["dist", "release", "sampleRate"] as const;
 
 /** The vendor option keys that reach the error tracker. */
@@ -7,4 +9,4 @@ export const errorTrackingVendorKeys: readonly string[] = vendorKeys;
 export const errorTrackingVendorKeyRefused = (
 	vendor: object | null | undefined,
 ): string | undefined =>
-	Object.keys(vendor ?? {}).find((key) => !vendorKeys.includes(key as never));
+	sharedVendorKeyRefused({ allowed: vendorKeys, vendor });
