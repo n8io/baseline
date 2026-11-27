@@ -32,11 +32,11 @@ import type { FeatureFlagsLaunchDarklyOptions } from "./feature-flags-launch-dar
 const closeTimeoutMs = 2000;
 
 const fallbackLog = ({ flag, key, reason }: FeatureFlagFallback): void => {
-	logger.warn({ flag, key, reason }, "Feature flag fell back to its default");
+	logger().warn({ flag, key, reason }, "Feature flag fell back to its default");
 };
 
 const recoveredLog = (): void => {
-	logger.info("Feature flag service answers again");
+	logger().info("Feature flag service answers again");
 };
 
 const statusAfter = async ({
