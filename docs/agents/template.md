@@ -38,14 +38,11 @@ Each one is a test; raise a limit only on purpose, in the same pull request, and
 
 Here, unlike in a Project, you edit the shared `apps/app/CONTEXT.md` and the Template's own scripts, still after asking. A change to foo reaches a Project's existing contexts only by hand, so its changeset says what a Project applies to each one.
 
-A new piece (each Package wired into the Template comes as one) is named by hand in:
+A new piece (each Package wired into the Template comes as one) starts with `pnpm piece-add <name>` from `apps/app`. It writes the piece's entry in `apps/app/scripts/piece-manifest.ts` (its name, packages, paths and any `template` files), its row in the `piece` matrix of `.github/workflows/app-ci.yml` (`test/app-ci-pieces.test.ts` keeps it equal to the manifest), its section in `apps/app/docs/agents/pieces.md` and its own file `apps/app/src/<name>-open.ts`. Then it is named by hand in:
 
-- `apps/app/scripts/pieces.ts` (`pieceNames` and `pieces`, then `pieceRemovals`: its files, lines and packages; type-checking asks for the rest) and its test, and `piece-check.test.ts`;
-- `apps/app/scripts/model-create-options.ts` (`piecesTemplate`) and its test;
-- the `piece` matrix in `.github/workflows/app-ci.yml` (`test/app-ci-pieces.test.ts` keeps it equal to `pieceNames`; each entry costs one CI job on every code change that touches a piece);
-- `test/render/api-only.ts`;
 - the **Piece** entry in `apps/app/CONTEXT.md`, the pieces sentence in `apps/app/README.md`, the root README's pieces table and `scripts/readme-svg/root-pieces.ts`;
-- its own section in `apps/app/docs/agents/pieces.md`, and a `(<piece>)` reason in `apps/app/dependencies-allowed.json` for each runtime dependency only it uses.
+- a `(<piece>)` reason in `apps/app/dependencies-allowed.json` for each runtime dependency only it uses;
+- `apps/app/docs/agents/pieces.md`, where the new section still says what the piece is.
 
 Its code sits in whole files named for it, or in `piece-start:` blocks within the budget above.
 

@@ -30,6 +30,7 @@
 		"format": "biome check --write .",
 		"glossary-check": "node --import ./scripts/node-version-require.ts scripts/glossary-check.ts",
 		"migrate": "node --import ./scripts/node-version-require.ts --import ./src/preload.ts src/migrate.ts",
+		"piece-add": "node --import ./scripts/node-version-require.ts scripts/piece-add.ts",
 		"piece-check": "node --import ./scripts/node-version-require.ts scripts/piece-check.ts",
 		"piece-remove": "node --import ./scripts/node-version-require.ts scripts/piece-remove.ts",
 		"sdk-generate": "node --import ./scripts/node-version-require.ts scripts/sdk-generate.ts",
