@@ -1,4 +1,8 @@
-import type { EvaluationContext } from "@openfeature/web-sdk";
+import {
+	ErrorCode,
+	type EvaluationContext,
+	type ResolutionDetails,
+} from "@openfeature/web-sdk";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { featureFlagsClientContractRun } from "../core/feature-flags-client.contract.ts";
@@ -10,7 +14,10 @@ import {
 	featureFlagsTestDefs,
 	featureFlagsTestKinds,
 } from "../core/feature-flags-test-fixtures.ts";
-import { featureFlagsLaunchDarklyClientProviderCreate } from "./feature-flags-launch-darkly-client.ts";
+import {
+	featureFlagsLaunchDarklyClientCreate,
+	featureFlagsLaunchDarklyClientProviderCreate,
+} from "./feature-flags-launch-darkly-client.ts";
 import { featureFlagsLaunchDarklyClientContextTranslate } from "./feature-flags-launch-darkly-client-context.ts";
 import { featureFlagsLaunchDarklyClientSourceCreate } from "./feature-flags-launch-darkly-client-source.ts";
 import { FakeProvider } from "./feature-flags-launch-darkly-client-test-provider.ts";
@@ -258,5 +265,157 @@ describe("the LaunchDarkly browser source", () => {
 		await expect.poll(() => first.flags.get("itemLimit")).toBe(9);
 		expect(second.flags.get("itemLimit")).toBe(3);
 		await Promise.all([first.close(), second.close()]);
+	});
+});
+
+// A provider that answers every number read with the details it was given.
+class DetailsProvider extends FakeProvider {
+	private readonly details: Omit<ResolutionDetails<number>, "value">;
+
+	constructor(details: Omit<ResolutionDetails<number>, "value">) {
+		super({ values: () => ({}) });
+		this.details = details;
+	}
+
+	override resolveNumberEvaluation(
+		_key: string,
+		fallback: number,
+	): ResolutionDetails<number> {
+		return { ...this.details, value: fallback };
+	}
+}
+
+describe("the LaunchDarkly browser source's reads", () => {
+	const readOf = async ({
+		fallback,
+		provider,
+	}: {
+		fallback: unknown;
+		provider: FakeProvider;
+	}) => {
+		const source = sourceOf({ provider });
+		await source.ready;
+		return source.read({ fallback, key: "k" });
+	};
+
+	it("reads a value of each type the fallback names", async () => {
+		const provider = new FakeProvider({
+			values: () => ({ b: true, n: 3, o: { mode: "dark" }, s: "x" }),
+		});
+		const source = sourceOf({ provider });
+		await expect(source.ready).resolves.toBe("connected");
+		expect(source.read({ fallback: false, key: "b" })).toMatchObject({
+			found: true,
+			value: true,
+		});
+		expect(source.read({ fallback: 0, key: "n" })).toMatchObject({
+			found: true,
+			value: 3,
+		});
+		expect(source.read({ fallback: "", key: "s" })).toMatchObject({
+			found: true,
+			value: "x",
+		});
+		expect(source.read({ fallback: {}, key: "o" })).toMatchObject({
+			found: true,
+			value: { mode: "dark" },
+		});
+	});
+
+	it("keeps an array as an object flag when its fallback is an array", async () => {
+		const provider = new FakeProvider({ values: () => ({ k: [1, 2] }) });
+		expect(await readOf({ fallback: [], provider })).toMatchObject({
+			found: true,
+			value: [1, 2],
+		});
+	});
+
+	it("reads a missing key as notFound, and a value of the wrong type as wrongType", async () => {
+		const provider = new FakeProvider({ values: () => ({ k: "text" }) });
+		const source = sourceOf({ provider });
+		await source.ready;
+		expect(source.read({ fallback: 0, key: "k" })).toStrictEqual({
+			found: false,
+			reason: "wrongType",
+		});
+		expect(source.read({ fallback: 0, key: "gone" })).toStrictEqual({
+			found: false,
+			reason: "notFound",
+		});
+	});
+
+	it("reads an ERROR reason with no error code as a vendor error", async () => {
+		expect(
+			await readOf({
+				fallback: 0,
+				provider: new DetailsProvider({ reason: "ERROR" }),
+			}),
+		).toStrictEqual({ found: false, reason: "vendorError" });
+	});
+
+	it("reads any other error code as a vendor error", async () => {
+		expect(
+			await readOf({
+				fallback: 0,
+				provider: new DetailsProvider({
+					errorCode: ErrorCode.GENERAL,
+					reason: "ERROR",
+				}),
+			}),
+		).toStrictEqual({ found: false, reason: "vendorError" });
+	});
+
+	it("reads a vendor error until the provider is ready, even when it says it is", async () => {
+		const provider = new FakeProvider({
+			initialize: "hang",
+			values: () => ({ k: 3 }),
+		});
+		const source = sourceOf({ provider, readyTimeoutMs: 20 });
+		await expect(source.ready).resolves.toBe("timeout");
+		expect(source.read({ fallback: 0, key: "k" })).toStrictEqual({
+			found: false,
+			reason: "vendorError",
+		});
+	});
+
+	it("stops calling a listener once it unsubscribes", async () => {
+		const provider = new FakeProvider({ values: () => ({ k: 3 }) });
+		const source = sourceOf({ provider });
+		await source.ready;
+		const calls: string[] = [];
+		const unsubscribe = source.subscribe(() => calls.push("changed"));
+		provider.valuesSet(() => ({ k: 4 }));
+		await expect.poll(() => calls.length).toBeGreaterThan(0);
+		const heard = calls.length;
+		unsubscribe();
+		provider.valuesSet(() => ({ k: 5 }));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(calls).toHaveLength(heard);
+	});
+});
+
+describe("featureFlagsLaunchDarklyClientCreate", () => {
+	it("opens a client that settles without LaunchDarkly answering, and reads fallbacks through onFallback", async () => {
+		const fallbacks: FeatureFlagFallback[] = [];
+		const client = featureFlagsLaunchDarklyClientCreate({
+			clientSideId: "client-side-id",
+			context: { actor: { id: "a1" } },
+			flags: featureFlagsTestDefs,
+			kinds: featureFlagsTestKinds,
+			onFallback: (fallback) => fallbacks.push(fallback),
+			readyTimeoutMs: 100,
+			vendor: {
+				baseUri: "http://127.0.0.1:1",
+				eventsUri: "http://127.0.0.1:1",
+				sendEvents: false,
+				streamUri: "http://127.0.0.1:1",
+			},
+		});
+		expect(["failed", "timeout"]).toContain(await client.ready);
+		expect(client.flags.get("itemLimit")).toBe(10);
+		expect(fallbacks).toEqual([
+			{ flag: "itemLimit", key: "item-limit", reason: "vendorError" },
+		]);
+		await client.close();
 	});
 });

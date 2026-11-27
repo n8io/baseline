@@ -11,6 +11,10 @@ describe("featureFlagsValueIsEqual", () => {
 		expect(featureFlagsValueIsEqual([1], [1, 2])).toBe(false);
 		expect(featureFlagsValueIsEqual([], {})).toBe(false);
 		expect(featureFlagsValueIsEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+		expect(featureFlagsValueIsEqual({}, 1)).toBe(false);
+		expect(featureFlagsValueIsEqual(1, {})).toBe(false);
+		expect(featureFlagsValueIsEqual([], { length: 0 })).toBe(false);
+		expect(featureFlagsValueIsEqual({ length: 0 }, [])).toBe(false);
 		expect(featureFlagsValueIsEqual({ a: undefined }, { b: undefined })).toBe(
 			false,
 		);

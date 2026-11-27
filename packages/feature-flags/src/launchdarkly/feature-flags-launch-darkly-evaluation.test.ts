@@ -4,15 +4,20 @@ import { featureFlagsLaunchDarklyEvaluationRecord } from "./feature-flags-launch
 
 // A global logger provider that keeps every record, as the telemetry preload would export them.
 const records: LogRecord[] = [];
+const scopes: string[] = [];
 logs.setGlobalLoggerProvider({
-	getLogger: () => ({
-		emit: (record: LogRecord) => records.push(record),
-		enabled: () => true,
-	}),
+	getLogger: (scope: string) => {
+		scopes.push(scope);
+		return {
+			emit: (record: LogRecord) => records.push(record),
+			enabled: () => true,
+		};
+	},
 });
 
 beforeEach(() => {
 	records.length = 0;
+	scopes.length = 0;
 });
 
 describe("featureFlagsLaunchDarklyEvaluationRecord", () => {
@@ -23,6 +28,7 @@ describe("featureFlagsLaunchDarklyEvaluationRecord", () => {
 			reason: "targeting_match",
 			value: true,
 		});
+		expect(scopes).toEqual(["@n8io/baseline-feature-flags"]);
 		expect(records[0]?.eventName).toBe("feature_flag.evaluation");
 		expect(records[0]?.attributes).toEqual({
 			"feature_flag.key": "checkout-redesign",
@@ -35,12 +41,20 @@ describe("featureFlagsLaunchDarklyEvaluationRecord", () => {
 	it("records the variant and not the value when the service gave a variant", () => {
 		featureFlagsLaunchDarklyEvaluationRecord({
 			key: "hero-copy",
-			value: "long copy",
+			value: true,
 			variant: "b",
 		});
 		expect(records[0]?.attributes).toEqual({
 			"feature_flag.key": "hero-copy",
 			"feature_flag.result.variant": "b",
+		});
+	});
+
+	it("records a number as the value, when the service gave no variant", () => {
+		featureFlagsLaunchDarklyEvaluationRecord({ key: "item-limit", value: 3 });
+		expect(records[0]?.attributes).toEqual({
+			"feature_flag.key": "item-limit",
+			"feature_flag.result.value": 3,
 		});
 	});
 

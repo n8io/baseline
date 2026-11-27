@@ -1,8 +1,11 @@
+import { spawnSync } from "node:child_process";
 import { TestData } from "@launchdarkly/node-server-sdk/integrations";
 import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { OpenFeature } from "@openfeature/server-sdk";
 import { type LogRecord, logs } from "@opentelemetry/api";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
+import { featureFlagsDefine } from "../core/feature-flags-define.ts";
 import { featureFlagsServerContractRun } from "../core/feature-flags-server.contract.ts";
 import {
 	featureFlagsTestDefs,
@@ -102,6 +105,95 @@ describe("featureFlagsLaunchDarklyCreate", () => {
 		expect(await featureFlags.context(actor).get("itemLimit")).toBe(10);
 		expect(fallbacks).toEqual([
 			{ flag: "itemLimit", key: "item-limit", reason: "vendorError" },
+		]);
+		await featureFlags.close();
+	});
+
+	it("settles ready as failed when LaunchDarkly cannot start, and reads fall back", async () => {
+		const fallbacks: unknown[] = [];
+		const featureFlags = featureFlagsLaunchDarklyCreate({
+			flags: featureFlagsTestDefs,
+			kinds: featureFlagsTestKinds,
+			onFallback: (fallback) => fallbacks.push(fallback),
+			sdkKey: "sdk-test",
+			vendor: {
+				sendEvents: false,
+				updateProcessor: (_context, _updates, _ok, errorHandler) => ({
+					close: () => undefined,
+					start: () => errorHandler?.(new Error("no connection")),
+				}),
+			},
+		});
+		expect(await featureFlags.ready).toBe("failed");
+		expect(await featureFlags.context(actor).get("itemLimit")).toBe(10);
+		expect(fallbacks).toEqual([
+			{ flag: "itemLimit", key: "item-limit", reason: "vendorError" },
+		]);
+		await featureFlags.close();
+	});
+
+	it("logs a fallback as a warning by default, with the flag, key and reason", () => {
+		const moduleUrl = new URL(
+			"./feature-flags-launch-darkly.ts",
+			import.meta.url,
+		).href;
+		const defsUrl = new URL(
+			"../core/feature-flags-test-fixtures.ts",
+			import.meta.url,
+		).href;
+		// A fresh Node process, since the logger writes to the process's own stdout.
+		const result = spawnSync(
+			process.execPath,
+			[
+				"--input-type=module",
+				"-e",
+				`const { featureFlagsLaunchDarklyCreate } = await import(${JSON.stringify(moduleUrl)});
+const { featureFlagsTestDefs } = await import(${JSON.stringify(defsUrl)});
+const featureFlags = featureFlagsLaunchDarklyCreate({
+	flags: featureFlagsTestDefs,
+	sdkKey: "sdk-test",
+	vendor: {
+		sendEvents: false,
+		updateProcessor: (_context, _updates, _ok, errorHandler) => ({
+			close: () => undefined,
+			start: () => errorHandler?.(new Error("no connection")),
+		}),
+	},
+});
+await featureFlags.ready;
+await featureFlags.context({}).get("itemLimit");
+await featureFlags.close();`,
+			],
+			{ encoding: "utf8", env: { ...process.env, LOG_LEVEL: "info" } },
+		);
+		const lines = result.stdout
+			.split("\n")
+			.filter((line) => line.startsWith("{"))
+			.map((line) => JSON.parse(line) as Record<string, unknown>);
+		expect(lines).toHaveLength(1);
+		expect(lines[0]).toMatchObject({
+			flag: "itemLimit",
+			key: "item-limit",
+			level: 40,
+			msg: "Feature flag fell back to its default",
+			reason: "vendorError",
+		});
+	});
+
+	it("reads a flag whose fallback is not a JSON type as the fallback, reporting wrongType", async () => {
+		const fallbacks: unknown[] = [];
+		const featureFlags = featureFlagsLaunchDarklyCreate({
+			flags: featureFlagsDefine({
+				unset: { fallback: undefined, key: "unset", schema: z.undefined() },
+			}),
+			onFallback: (fallback) => fallbacks.push(fallback),
+			sdkKey: "sdk-test",
+			vendor: vendorOf(testDataCreate({ unset: "x" })),
+		});
+		await featureFlags.ready;
+		expect(await featureFlags.context({}).get("unset")).toBeUndefined();
+		expect(fallbacks).toEqual([
+			{ flag: "unset", key: "unset", reason: "wrongType" },
 		]);
 		await featureFlags.close();
 	});

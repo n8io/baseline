@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { featureFlagsClientCreate } from "./feature-flags-client.ts";
+import type { FeatureFlagsClientSource } from "./feature-flags-client-types.ts";
 import { featureFlagsMemorySourceClientCreate } from "./feature-flags-memory-source.ts";
 import type {
 	FeatureFlagEvaluation,
@@ -23,8 +24,10 @@ const clientOpen = () => {
 
 describe("featureFlagsServerCreate with a misbehaving source", () => {
 	it("returns the fallback when read throws before it returns a Promise", async () => {
+		const fallbacks: unknown[] = [];
 		const featureFlags = featureFlagsServerCreate({
 			flags: featureFlagsTestDefs,
+			onFallback: (fallback) => fallbacks.push(fallback),
 			source: {
 				close: () => {
 					throw new Error("close");
@@ -37,7 +40,23 @@ describe("featureFlagsServerCreate with a misbehaving source", () => {
 		});
 		await featureFlags.ready;
 		expect(await featureFlags.context({}).get("itemLimit")).toBe(10);
+		expect(fallbacks).toEqual([
+			{ flag: "itemLimit", key: "item-limit", reason: "vendorError" },
+		]);
 		await expect(featureFlags.close()).resolves.toBeUndefined();
+	});
+
+	it("settles ready as failed when the source's ready rejects, and still reads", async () => {
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			source: {
+				close: () => Promise.resolve(),
+				read: () => Promise.resolve({ found: true, value: 3 }),
+				ready: Promise.reject(new Error("ready")),
+			},
+		});
+		expect(await featureFlags.ready).toBe("failed");
+		expect(await featureFlags.context({}).get("itemLimit")).toBe(3);
 	});
 
 	it("never waits on a source whose ready does not settle", async () => {
@@ -261,8 +280,10 @@ describe("featureFlagsClientCreate with misbehaving subscribers and sources", ()
 	});
 
 	it("returns the fallback when the source throws, and keeps going", async () => {
+		const fallbacks: unknown[] = [];
 		const client = featureFlagsClientCreate({
 			flags: featureFlagsTestDefs,
+			onFallback: (fallback) => fallbacks.push(fallback),
 			source: {
 				close: () => {
 					throw new Error("close");
@@ -279,6 +300,9 @@ describe("featureFlagsClientCreate with misbehaving subscribers and sources", ()
 		});
 		await client.ready;
 		expect(client.flags.get("itemLimit")).toBe(10);
+		expect(fallbacks).toEqual([
+			{ flag: "itemLimit", key: "item-limit", reason: "vendorError" },
+		]);
 		await expect(client.contextSet({})).resolves.toBeUndefined();
 		await expect(client.close()).resolves.toBeUndefined();
 	});
@@ -301,5 +325,211 @@ describe("featureFlagsClientCreate with misbehaving subscribers and sources", ()
 		await client.contextSet({});
 		expect(logged).toEqual(["wrongType"]);
 		await client.close();
+	});
+});
+
+describe("featureFlagsServerCreate recovery", () => {
+	const down: FeatureFlagRead = { found: false, reason: "vendorError" };
+
+	it("counts an answer that is not a vendor error as the end of an outage", async () => {
+		const events: string[] = [];
+		const reads: FeatureFlagRead[] = [
+			down,
+			{ found: false, reason: "notFound" },
+		];
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			onFallback: ({ reason }) => events.push(reason),
+			onRecovered: () => events.push("recovered"),
+			source: {
+				close: () => Promise.resolve(),
+				read: () => Promise.resolve(reads.shift() ?? down),
+				ready: Promise.resolve("connected"),
+			},
+		});
+		await featureFlags.ready;
+		const handle = featureFlags.context({});
+		await handle.get("itemLimit");
+		await handle.get("itemLimit");
+		expect(events).toEqual(["vendorError", "recovered", "notFound"]);
+	});
+
+	it("does not end an outage with a read that began before it started", async () => {
+		const events: string[] = [];
+		let answerSlow: (read: FeatureFlagRead) => void = () => undefined;
+		const reads: Array<() => Promise<FeatureFlagRead>> = [
+			() => new Promise((resolve) => (answerSlow = resolve)),
+			() => Promise.resolve(down),
+		];
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			onFallback: ({ reason }) => events.push(reason),
+			onRecovered: () => events.push("recovered"),
+			source: {
+				close: () => Promise.resolve(),
+				read: () =>
+					reads.shift()?.() ?? Promise.resolve({ found: true, value: 3 }),
+				ready: Promise.resolve("connected"),
+			},
+		});
+		await featureFlags.ready;
+		const handle = featureFlags.context({});
+		const slow = handle.get("itemLimit");
+		await handle.get("itemLimit");
+		answerSlow({ found: true, value: 4 });
+		expect(await slow).toBe(4);
+		expect(events).toEqual(["vendorError"]);
+		expect(await handle.get("itemLimit")).toBe(3);
+		expect(events).toEqual(["vendorError", "recovered"]);
+	});
+
+	it("does not report a recovery that finishes after close", async () => {
+		const events: string[] = [];
+		let answerSlow: (read: FeatureFlagRead) => void = () => undefined;
+		const reads: Array<() => Promise<FeatureFlagRead>> = [
+			() => Promise.resolve(down),
+			() => new Promise((resolve) => (answerSlow = resolve)),
+		];
+		const featureFlags = featureFlagsServerCreate({
+			flags: featureFlagsTestDefs,
+			onFallback: ({ reason }) => events.push(reason),
+			onRecovered: () => events.push("recovered"),
+			source: {
+				close: () => Promise.resolve(),
+				read: () => reads.shift()?.() ?? Promise.resolve(down),
+				ready: Promise.resolve("connected"),
+			},
+		});
+		await featureFlags.ready;
+		const handle = featureFlags.context({});
+		await handle.get("itemLimit");
+		const slow = handle.get("itemLimit");
+		await featureFlags.close();
+		answerSlow({ found: true, value: 4 });
+		await slow;
+		expect(events).toEqual(["vendorError"]);
+	});
+});
+
+describe("featureFlagsClientCreate lifecycle", () => {
+	type Spy = {
+		readonly calls: string[];
+		readonly emit: () => void;
+		readonly set: (value: number) => void;
+		readonly source: FeatureFlagsClientSource;
+	};
+	const spyOpen = (ready: Promise<"connected">): Spy => {
+		const calls: string[] = [];
+		let value = 3;
+		let listener: () => void = () => undefined;
+		return {
+			calls,
+			emit: () => listener(),
+			set: (next) => {
+				value = next;
+			},
+			source: {
+				close: () => {
+					calls.push("close");
+					return Promise.resolve();
+				},
+				contextSet: () => {
+					calls.push("contextSet");
+					return Promise.resolve();
+				},
+				read: () => ({ found: true, value }),
+				ready,
+				subscribe: (next) => {
+					listener = next;
+					return () => {
+						calls.push("unsubscribe");
+					};
+				},
+			},
+		};
+	};
+
+	it("settles ready as failed when the source's ready rejects, and then reads and notifies", async () => {
+		let value = 3;
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			source: {
+				close: () => Promise.resolve(),
+				contextSet: () => Promise.resolve(),
+				read: () => ({ found: true, value }),
+				ready: Promise.reject(new Error("ready")),
+				subscribe: () => () => undefined,
+			},
+		});
+		const heard: string[] = [];
+		expect(client.flags.get("itemLimit")).toBe(10);
+		client.flags.subscribe("itemLimit", () => heard.push("changed"));
+		value = 4;
+		expect(await client.ready).toBe("failed");
+		expect(client.flags.get("itemLimit")).toBe(4);
+		expect(heard).toEqual(["changed"]);
+	});
+
+	it("tells subscribers when ready settles and the value turns out to differ", async () => {
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			source: spyOpen(Promise.resolve("connected")).source,
+		});
+		const heard: string[] = [];
+		expect(client.flags.get("itemLimit")).toBe(10);
+		client.flags.subscribe("itemLimit", () => heard.push("changed"));
+		await client.ready;
+		expect(client.flags.get("itemLimit")).toBe(3);
+		expect(heard).toEqual(["changed"]);
+	});
+
+	it("refreshes after contextSet even when the source does not emit", async () => {
+		const spy = spyOpen(Promise.resolve("connected"));
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			source: spy.source,
+		});
+		await client.ready;
+		expect(client.flags.get("itemLimit")).toBe(3);
+		spy.set(8);
+		await client.contextSet({});
+		expect(client.flags.get("itemLimit")).toBe(8);
+	});
+
+	it("closes once: unsubscribes from the source, closes it, and ignores later events and contextSet", async () => {
+		const spy = spyOpen(Promise.resolve("connected"));
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			source: spy.source,
+		});
+		await client.ready;
+		const heard: string[] = [];
+		expect(client.flags.get("itemLimit")).toBe(3);
+		client.flags.subscribe("itemLimit", () => heard.push("changed"));
+		await client.close();
+		await client.close();
+		expect(spy.calls).toEqual(["unsubscribe", "close"]);
+		spy.set(9);
+		spy.emit();
+		await client.contextSet({});
+		expect(spy.calls).toEqual(["unsubscribe", "close"]);
+		expect(client.flags.get("itemLimit")).toBe(3);
+		expect(heard).toEqual([]);
+		expect(
+			client.flags.subscribe("itemLimit", () => heard.push("late")),
+		).toBeTypeOf("function");
+	});
+
+	it("reads a flag that is not defined as undefined, and reports it as notFound with no key", async () => {
+		const fallbacks: unknown[] = [];
+		const client = featureFlagsClientCreate({
+			flags: featureFlagsTestDefs,
+			onFallback: (fallback) => fallbacks.push(fallback),
+			source: spyOpen(Promise.resolve("connected")).source,
+		});
+		await client.ready;
+		// boundary: a flag name that the definitions do not hold
+		expect(client.flags.get("nope" as "itemLimit")).toBeUndefined();
+		expect(fallbacks).toEqual([{ flag: "nope", key: "", reason: "notFound" }]);
 	});
 });

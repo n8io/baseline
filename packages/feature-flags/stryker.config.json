@@ -1,6 +1,12 @@
 {
 	"$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
-	"mutate": ["src/**/*.ts", "!src/**/*.test.ts"],
+	"mutate": [
+		"src/**/*.ts",
+		"!src/**/*.test.ts",
+		"!src/**/*.contract.ts",
+		"!src/**/*-test-*.ts",
+		"!src/testing.ts"
+	],
 	"plugins": ["@stryker-mutator/vitest-runner"],
 	"testRunner": "vitest",
 	"inPlace": true,

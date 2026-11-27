@@ -2,7 +2,6 @@ import { LaunchDarklyProvider } from "@launchdarkly/openfeature-node-server";
 import { sharedTimeRace } from "@n8io/baseline-shared";
 import {
 	type EvaluationContext,
-	type EvaluationDetails,
 	type JsonValue,
 	NOOP_PROVIDER,
 	OpenFeature,
@@ -15,9 +14,7 @@ import {
 	featureFlagsOptionsTimeoutMsResolve,
 } from "../core/feature-flags-options.ts";
 import type {
-	FeatureFlagEvaluation,
 	FeatureFlagFallback,
-	FeatureFlagRead,
 	FeatureFlagsReadyStatus,
 } from "../core/feature-flags-resolve-types.ts";
 import { featureFlagsServerCreate } from "../core/feature-flags-server.ts";
@@ -27,7 +24,6 @@ import type {
 } from "../core/feature-flags-server-types.ts";
 import { featureFlagsLoggerDefault as logger } from "../feature-flags-logger-default.ts";
 import { featureFlagsLaunchDarklyContext } from "./feature-flags-launch-darkly-context.ts";
-import { featureFlagsLaunchDarklyEvaluationRecord } from "./feature-flags-launch-darkly-evaluation.ts";
 import { featureFlagsLaunchDarklyEvaluationReport } from "./feature-flags-launch-darkly-evaluation-report.ts";
 import { featureFlagsLaunchDarklyRead } from "./feature-flags-launch-darkly-read.ts";
 import type { FeatureFlagsLaunchDarklyOptions } from "./feature-flags-launch-darkly-types.ts";
@@ -41,83 +37,6 @@ const fallbackLog = ({ flag, key, reason }: FeatureFlagFallback): void => {
 
 const recoveredLog = (): void => {
 	logger.info("Feature flag service answers again");
-};
-
-// LaunchDarkly's reason kinds, and OpenFeature's, as the convention names them.
-const reasonsConvention: Readonly<Record<string, string>> = {
-	CACHED: "cached",
-	DEFAULT: "default",
-	DISABLED: "disabled",
-	ERROR: "error",
-	FALLTHROUGH: "default",
-	OFF: "disabled",
-	RULE_MATCH: "targeting_match",
-	SPLIT: "split",
-	STALE: "stale",
-	STATIC: "static",
-	TARGET_MATCH: "targeting_match",
-	TARGETING_MATCH: "targeting_match",
-};
-
-// The convention's error.type for each fallback. A read that failed is reason "error".
-const errorTypes: Readonly<Record<string, string>> = {
-	closed: "general",
-	notFound: "flag_not_found",
-	notInValues: "parse_error",
-	notReady: "provider_not_ready",
-	schemaFailed: "parse_error",
-	vendorError: "general",
-	wrongType: "type_mismatch",
-};
-
-// Records each evaluation as the OpenTelemetry `feature_flag.evaluation` event. Never the context.
-const _evaluationRecord = ({
-	fallbackReason,
-	key,
-	reason,
-	value,
-	variant,
-}: FeatureFlagEvaluation): void => {
-	featureFlagsLaunchDarklyEvaluationRecord({
-		errorType:
-			fallbackReason === null ? null : (errorTypes[fallbackReason] ?? null),
-		key,
-		providerName: "launchdarkly",
-		reason:
-			fallbackReason === null
-				? (reasonsConvention[reason ?? ""] ?? "unknown")
-				: "error",
-		value,
-		variant,
-	});
-};
-
-const _readOf = ({
-	errorCode,
-	reason,
-	value,
-	variant,
-}: {
-	readonly errorCode?: EvaluationDetails<JsonValue>["errorCode"];
-	readonly reason?: string;
-	readonly value: unknown;
-	readonly variant?: string;
-}): FeatureFlagRead => {
-	switch (errorCode) {
-		case undefined:
-			return {
-				found: true,
-				reason: reason ?? null,
-				value,
-				variant: variant ?? null,
-			};
-		case "FLAG_NOT_FOUND":
-			return { found: false, reason: "notFound" };
-		case "TYPE_MISMATCH":
-			return { found: false, reason: "wrongType" };
-		default:
-			return { found: false, reason: "vendorError" };
-	}
 };
 
 const statusAfter = async ({
