@@ -310,6 +310,7 @@ jobs:
             cache,
             cli,
             error-tracking,
+            feature-flags,
             health,
             http,
             id,
