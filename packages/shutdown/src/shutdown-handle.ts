@@ -111,7 +111,7 @@ export const shutdownHandleCreate = ({
 			`shutdownHandleCreate: drainDelayMs must be under deadlineMs minus ${resourceReserveMs} (${deadlineMs - resourceReserveMs}), found ${drainDelayMs}`,
 		);
 	}
-	const out = host?.logger ?? logger;
+	const out = host?.logger ?? logger();
 	const exit = host?.exit ?? ((code: number) => process.exit(code));
 	const on =
 		host?.on ??
