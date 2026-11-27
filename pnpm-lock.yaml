@@ -442,6 +442,12 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       hono:
         specifier: ^4.13.19
         version: 4.13.19
@@ -491,6 +497,13 @@ importers:
       commander:
         specifier: ^15.1.0
         version: 15.1.0
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/error-tracking:
     dependencies:
@@ -547,6 +560,12 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -774,7 +793,14 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
-  packages/result: {}
+  packages/result:
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
 
   packages/sdk:
     dependencies:
@@ -874,6 +900,12 @@ importers:
       '@opentelemetry/context-async-hooks':
         specifier: 3.1.1
         version: 3.1.1(@opentelemetry/api@1.10.0)
+      '@stryker-mutator/core':
+        specifier: ^10.1.1
+        version: 10.1.1(@types/node@26.6.6)
+      '@stryker-mutator/vitest-runner':
+        specifier: ^10.1.1
+        version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@26.6.6))(vitest@5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       import-in-the-middle:
         specifier: ^3.6.0
         version: 3.6.0

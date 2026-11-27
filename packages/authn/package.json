@@ -50,6 +50,7 @@
 		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
 		"prepack": "tsdown",
 		"test": "vitest run",
+		"test:mutation": "stryker run",
 		"test:unit": "vitest run"
 	},
 	"dependencies": {
@@ -61,6 +62,8 @@
 	"devDependencies": {
 		"@n8io/baseline-http": "workspace:^",
 		"@opentelemetry/api": "^1.10.0",
+		"@stryker-mutator/core": "^10.1.1",
+		"@stryker-mutator/vitest-runner": "^10.1.1",
 		"hono": "^4.13.19",
 		"react": "^19.3.1",
 		"react-router": "^8.5.2"
