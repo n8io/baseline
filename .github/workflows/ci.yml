@@ -294,7 +294,7 @@ jobs:
 
   # Each Package's Stryker floor (break 90 in its stryker.config.json), one case per Package, side by side.
   # The changes job has no per-Package output, so a pull request runs every floor. Blocking: no continue-on-error.
-  # authn, cli, feature-flags, result and telemetry have no Stryker config yet, so they are not here.
+  # cli, feature-flags, result and telemetry have no Stryker config yet, so they are not here.
   mutation:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
@@ -306,6 +306,7 @@ jobs:
         package:
           [
             analytics,
+            authn,
             cache,
             error-tracking,
             health,

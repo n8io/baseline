@@ -19,7 +19,15 @@ export type AuthnTestOidcProvider = {
 		accessAudience: string;
 		down: boolean;
 		jwksFails: boolean;
+		/** Leaves `end_session_endpoint` out of the discovery document. */
+		noEndSession: boolean;
+		/** Answers the code exchange without an ID token. */
+		noIdToken: boolean;
+		/** Leaves `jwks_uri` out of the discovery document. */
+		noJwksUri: boolean;
 		noRefreshToken: boolean;
+		/** Leaves `revocation_endpoint` out of the discovery document. */
+		noRevocation: boolean;
 		revokeFails: boolean;
 		rotate: boolean;
 	};
@@ -41,7 +49,11 @@ export const authnTestOidcProviderCreate = async (
 		accessTtl: "10m",
 		down: false,
 		jwksFails: false,
+		noEndSession: false,
+		noIdToken: false,
+		noJwksUri: false,
 		noRefreshToken: false,
+		noRevocation: false,
 		revokeFails: false,
 		rotate: true,
 	};
@@ -97,10 +109,14 @@ export const authnTestOidcProviderCreate = async (
 	app.get("/.well-known/openid-configuration", (c) =>
 		c.json({
 			authorization_endpoint: `${authnTestIdpOrigin}/authorize`,
-			end_session_endpoint: `${authnTestIdpOrigin}/logout`,
+			...(options.noEndSession
+				? {}
+				: { end_session_endpoint: `${authnTestIdpOrigin}/logout` }),
 			issuer: authnTestIdpOrigin,
-			jwks_uri: `${authnTestIdpOrigin}/jwks`,
-			revocation_endpoint: `${authnTestIdpOrigin}/revoke`,
+			...(options.noJwksUri ? {} : { jwks_uri: `${authnTestIdpOrigin}/jwks` }),
+			...(options.noRevocation
+				? {}
+				: { revocation_endpoint: `${authnTestIdpOrigin}/revoke` }),
 			token_endpoint: `${authnTestIdpOrigin}/token`,
 		}),
 	);
@@ -120,7 +136,7 @@ export const authnTestOidcProviderCreate = async (
 			if (grant === undefined || grant.challenge !== challenge) {
 				return c.json({ error: "invalid_grant" }, 400);
 			}
-			const issued = await tokens(grant, true);
+			const issued = await tokens(grant, !options.noIdToken);
 			if (!options.noRefreshToken) return c.json(issued);
 			refreshTokens.delete(issued.refresh_token);
 			const { refresh_token: _, ...withoutRefresh } = issued;
