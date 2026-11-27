@@ -1,5 +1,14 @@
 # @n8io/baseline-http
 
+## 4.0.1
+
+### Patch Changes
+
+- Updated dependencies [0202e13]
+- Updated dependencies [f89d502]
+  - @n8io/baseline-shared@0.1.1
+  - @n8io/baseline-logger@4.0.0
+
 ## 4.0.0
 
 ### Major Changes

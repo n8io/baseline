@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-analytics",
-	"version": "2.1.1",
+	"version": "3.0.0",
 	"description": "Analytics events that never slow or fail a request: what an Actor did, sent after the change commits.",
 	"license": "MIT",
 	"type": "module",

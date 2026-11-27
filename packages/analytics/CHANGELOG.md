@@ -1,5 +1,20 @@
 # @n8io/baseline-analytics
 
+## 3.0.0
+
+### Major Changes
+
+- ad5e91a: `ErrorTrackingSentryVendorOptions`, `AnalyticsMixpanelVendorOptions`, `FeatureFlagsLaunchDarklyVendorOptions` and `FeatureFlagsLaunchDarklyClientVendorOptions` are no longer exported, so no public type names a Sentry, Mixpanel or LaunchDarkly type. The `vendor` option of `errorTrackingSentryCreate`, `analyticsMixpanelCreate`, `featureFlagsLaunchDarklyCreate` and `featureFlagsLaunchDarklyClientCreate` takes the same keys as before: write the object inline in the Project's wiring file (`src/error-tracking-open.ts`, `src/analytics-open.ts`, `src/feature-flags-open.ts`), or take `NonNullable<FeatureFlagsLaunchDarklyOptions<D, K>["vendor"]>` and its like. A test now fails when an exported signature of these Packages names a Sentry, LaunchDarkly, OpenFeature or Mixpanel type.
+
+### Minor Changes
+
+- 0202e13: `sharedTimeRace` and `sharedTimeLimit` now wait the full duration for a delay over 2147483647 ms (they fired after about 1 ms), and `sharedTimeTimer` is new. Shutdown clears its default timers when a run ends. `queueMigrate` still waits as long as pg-boss's index builds take; a new optional `indexesDeadlineMs` makes it throw after that many ms, and sets no limit by default. `analyticsLoggerCreate` takes a `logger` option.
+
+### Patch Changes
+
+- Updated dependencies [f89d502]
+  - @n8io/baseline-logger@4.0.0
+
 ## 2.1.1
 
 ### Patch Changes

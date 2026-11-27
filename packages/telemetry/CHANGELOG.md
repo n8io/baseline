@@ -1,5 +1,12 @@
 # @n8io/baseline-telemetry
 
+## 2.1.1
+
+### Patch Changes
+
+- Updated dependencies [f89d502]
+  - @n8io/baseline-logger@4.0.0
+
 ## 2.1.0
 
 ### Minor Changes
