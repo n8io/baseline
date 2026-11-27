@@ -454,3 +454,71 @@ describe("POST /auth/token, client credentials", () => {
 		});
 	});
 });
+
+describe("memory token endpoint, request edges", () => {
+	const tokenPost = async (
+		app: Awaited<ReturnType<typeof authnTestAppCreate>>["app"],
+		body: Record<string, string>,
+	) =>
+		app.request(`${authnTestOrigin}/auth/token`, {
+			body: new URLSearchParams(body),
+			headers: { Origin: authnTestOrigin },
+			method: "POST",
+		});
+
+	it("answers invalid_request when the form lacks a grant_type", async () => {
+		const { app } = await authnTestAppCreate();
+		const res = await tokenPost(app, { client_id: "feed" });
+
+		expect(res.status).toBe(400);
+		expect(await res.json()).toStrictEqual({ error: "invalid_request" });
+	});
+
+	it("reads scopes split on runs of spaces", async () => {
+		const { app } = await authnTestAppCreate();
+		const res = await tokenPost(app, {
+			client_id: "feed",
+			grant_type: "client_credentials",
+			scope: "foo:read  foo:update",
+		});
+
+		expect(res.status).toBe(200);
+	});
+
+	it("issues a token with no scopes for an empty scope", async () => {
+		const { app } = await authnTestAppCreate();
+		const res = await tokenPost(app, {
+			client_id: "feed",
+			grant_type: "client_credentials",
+			scope: "",
+		});
+		const { access_token } = (await res.json()) as { access_token: string };
+		const whoami = await app.request(`${authnTestOrigin}/api/v1/whoami`, {
+			headers: { Authorization: `Bearer ${access_token}` },
+		});
+
+		expect(res.status).toBe(200);
+		expect(
+			((await whoami.json()) as { actor: { scopes: string[] } }).actor.scopes,
+		).toStrictEqual([]);
+	});
+});
+
+describe("memory sign-in when the Project's mapping refuses the user", () => {
+	it("answers 500 rather than signing in", async () => {
+		const logged: unknown[][] = [];
+		const { app } = await authnTestAppCreate(
+			{ ...authnTestMemoryOptions, actorFromClaims: () => ({}) as never },
+			{ error: (...args: unknown[]) => void logged.push(args) },
+		);
+		const res = await app.request(`${authnTestOrigin}/auth/sign-in`, {
+			body: new URLSearchParams({ who: "dev-user" }),
+			headers: { Origin: authnTestOrigin },
+			method: "POST",
+		});
+
+		expect(res.status).toBe(500);
+		expect(logged).toHaveLength(1);
+		expect(authnTestSetCookieLine(res, "__Host-authn")).toBeUndefined();
+	});
+});

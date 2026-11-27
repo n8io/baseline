@@ -83,3 +83,44 @@ describe("authnMemoryTokenFetch", () => {
 		).rejects.toThrow('answered 401 {"error":"invalid_client"}');
 	});
 });
+
+describe("authnMemoryTokenFetch answers it cannot use", () => {
+	const fetchOf = (body: unknown) => async (): Promise<Response> =>
+		Response.json(body);
+
+	it.each([
+		["no access_token", { expires_in: 900 }],
+		["no expires_in", { access_token: "t" }],
+		["a numeric access_token", { access_token: 5, expires_in: 900 }],
+		["a textual expires_in", { access_token: "t", expires_in: "900" }],
+		["neither", {}],
+		["null", null],
+	])("rejects %s", async (_, body) => {
+		await expect(
+			authnMemoryTokenFetch({
+				baseUrl: authnTestOrigin,
+				clientId: "feed",
+				fetch: fetchOf(body),
+			}),
+		).rejects.toThrow(
+			"authnMemoryTokenFetch: the token response has no access_token",
+		);
+	});
+
+	it("asks for the scopes joined by a space", async () => {
+		const sent: string[] = [];
+		await authnMemoryTokenFetch({
+			baseUrl: authnTestOrigin,
+			clientId: "feed",
+			fetch: async (input, init) => {
+				sent.push(await new Request(input, init).text());
+				return Response.json({ access_token: "t", expires_in: 900 });
+			},
+			scopes: ["foo:read", "foo:update"],
+		});
+
+		expect(new URLSearchParams(sent[0]).get("scope")).toBe(
+			"foo:read foo:update",
+		);
+	});
+});

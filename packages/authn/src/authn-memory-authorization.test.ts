@@ -174,3 +174,51 @@ describe("authnMemoryAuthorizationCreate", () => {
 		}
 	});
 });
+
+describe("authnMemoryAuthorizationCreate details", () => {
+	it("accepts a renewMs of 0", () => {
+		expect(() =>
+			authnMemoryAuthorizationCreate({
+				baseUrl: authnTestOrigin,
+				clientId: "feed",
+				renewMs: 0,
+			}),
+		).not.toThrow();
+	});
+
+	it("asks only for the scopes it was given", async () => {
+		const { fetchApp, whoami } = await appServe();
+		const authorization = authnMemoryAuthorizationCreate({
+			baseUrl: authnTestOrigin,
+			clientId: "feed",
+			fetch: fetchApp,
+			scopes: ["foo:read"],
+		});
+
+		expect(
+			((await whoami(await authorization())) as { actor: { scopes: string[] } })
+				.actor.scopes,
+		).toStrictEqual(["foo:read"]);
+	});
+
+	it("answers a call made during a fetch with that fetch's token, not the held one", async () => {
+		let issued = 0;
+		const authorization = authnMemoryAuthorizationCreate({
+			baseUrl: authnTestOrigin,
+			clientId: "feed",
+			fetch: async () => {
+				issued += 1;
+				return Response.json({ access_token: `t${issued}`, expires_in: 900 });
+			},
+		});
+		const held = await authorization();
+		const renewing = authorization({ renew: true });
+		const meanwhile = authorization();
+
+		expect([held, await renewing, await meanwhile]).toStrictEqual([
+			"Bearer t1",
+			"Bearer t2",
+			"Bearer t2",
+		]);
+	});
+});

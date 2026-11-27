@@ -1,6 +1,7 @@
-import { generateKeyPair, SignJWT } from "jose";
+import { decodeJwt, generateKeyPair, SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 import { authnCookieKey, authnCookieOpen } from "./authn-cookie.ts";
+import { authnMemoryIssuerCreate } from "./authn-memory-issuer.ts";
 import { authnTestAppCreate } from "./authn-test-app.ts";
 import { authnTestCookieForge } from "./authn-test-forge.ts";
 import {
@@ -11,6 +12,7 @@ import {
 	authnTestSecret,
 	authnTestSetCookieLine,
 } from "./authn-test-helpers.ts";
+import type { AuthnOptions } from "./authn-types.ts";
 import { type Actor, type AuthnMemoryUser, authnCreate } from "./index.ts";
 import { authnTestSignIn, authnTestTokenCreate } from "./testing.ts";
 
@@ -159,5 +161,119 @@ describe("the memory issuer's key", () => {
 				],
 			}),
 		).rejects.toThrow('memoryUsers lists the id "dev-user" twice');
+	});
+});
+
+const optionsWith = (overrides: Partial<AuthnOptions>): AuthnOptions => ({
+	...authnTestMemoryOptions,
+	...overrides,
+});
+
+describe("the memory issuer's defaults", () => {
+	it.each([
+		["no memoryUsers", {}],
+		["an empty memoryUsers", { memoryUsers: [] }],
+	])("offers one Dev user with no scopes for %s", (_, overrides) => {
+		const { memoryUsers: _users, ...withoutUsers } = authnTestMemoryOptions;
+		const { issuer } = authnMemoryIssuerCreate({
+			...withoutUsers,
+			...overrides,
+		});
+
+		expect(issuer.users).toStrictEqual([
+			{ id: "dev-user", name: "Dev user", scopes: [] },
+		]);
+	});
+
+	it("has no clients unless memoryClients lists some", () => {
+		const { memoryClients: _clients, ...withoutClients } =
+			authnTestMemoryOptions;
+		const { issuer } = authnMemoryIssuerCreate(withoutClients);
+
+		expect(issuer.clients).toStrictEqual([]);
+	});
+
+	it("names the field when memoryClients repeats an id", () => {
+		expect(() =>
+			authnMemoryIssuerCreate(
+				optionsWith({
+					memoryClients: [
+						{ id: "feed", scopes: [] },
+						{ id: "feed", scopes: [] },
+					],
+				}),
+			),
+		).toThrow('authnCreate: memoryClients lists the id "feed" twice');
+	});
+
+	it("names the field when memoryUsers repeats an id", () => {
+		expect(() =>
+			authnMemoryIssuerCreate(
+				optionsWith({
+					memoryUsers: [
+						{ id: "a", name: "A", scopes: [] },
+						{ id: "a", name: "A", scopes: [] },
+					],
+				}),
+			),
+		).toThrow('authnCreate: memoryUsers lists the id "a" twice');
+	});
+});
+
+describe("the memory issuer's refresh tokens", () => {
+	const user = {
+		id: "dev-admin",
+		kind: "user",
+		scopes: ["foo:update"],
+	} as const;
+
+	it("carry the subject and the refresh audience, and no scope", async () => {
+		const { issuer } = authnMemoryIssuerCreate(authnTestMemoryOptions);
+		const { refreshToken } = await issuer.tokensCreate(user);
+		const claims = decodeJwt(refreshToken ?? "");
+
+		expect(claims.aud).toBe("baseline-authn-memory-refresh");
+		expect(claims.iss).toBe("memory://");
+		expect(claims.sub).toBe("dev-admin");
+		expect(claims["scope"]).toBeUndefined();
+	});
+
+	it("are exchanged for new tokens with the user's scopes", async () => {
+		const { issuer } = authnMemoryIssuerCreate(authnTestMemoryOptions);
+		const { refreshToken } = await issuer.tokensCreate(user);
+		const refreshed = await issuer.tokensRefresh(refreshToken ?? "");
+
+		expect(decodeJwt(refreshed?.accessToken ?? "")["scope"]).toBe(
+			"foo:delete foo:update",
+		);
+		expect(decodeJwt(refreshed?.accessToken ?? "")["gty"]).toBeUndefined();
+	});
+
+	it("are not accepted when they are access tokens", async () => {
+		const { issuer } = authnMemoryIssuerCreate(authnTestMemoryOptions);
+		const { accessToken } = await issuer.tokensCreate(user);
+
+		expect(await issuer.tokensRefresh(accessToken)).toBeUndefined();
+	});
+
+	it.each([
+		["garbage", "not-a-token"],
+		["empty", ""],
+	])("are refused, not thrown at, when %s", async (_, token) => {
+		const { issuer } = authnMemoryIssuerCreate(authnTestMemoryOptions);
+
+		expect(await issuer.tokensRefresh(token)).toBeUndefined();
+	});
+
+	it("are refused once the user is gone", async () => {
+		const { issuer } = authnMemoryIssuerCreate(authnTestMemoryOptions);
+		const { refreshToken } = await issuer.tokensCreate(user);
+		const { issuer: other } = authnMemoryIssuerCreate(
+			optionsWith({
+				memoryUsers: [{ id: "dev-user", name: "Dev", scopes: [] }],
+			}),
+		);
+
+		expect(await other.tokensRefresh(refreshToken ?? "")).toBeUndefined();
 	});
 });
