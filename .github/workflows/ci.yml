@@ -175,6 +175,41 @@ jobs:
           exit "$status"
         working-directory: apps/app
 
+  # The UI tests of apps/app: Playwright, axe and the Lighthouse budget, in a real Chromium against the
+  # production build on memory adapters, so no Postgres or Redis. Blocking, like every job here.
+  # ui-shot's screenshots go up as an artifact for a reviewer; nothing is committed.
+  e2e:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      # No browser cache: ci.yml's only cache is the Turborepo one on main (test/ci-concurrency.test.ts), and
+      # Chromium downloads in seconds.
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/app
+      - run: pnpm test:e2e
+        working-directory: apps/app
+      # Shoots the sign-in page, desktop and phone, to a folder outside the repository.
+      - run: pnpm ui-shot --label ci --out "$RUNNER_TEMP/ui-shots"
+        working-directory: apps/app
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          if-no-files-found: ignore
+          name: ui-shots
+          path: ${{ runner.temp }}/ui-shots
+          retention-days: 7
+
   # Renders apps/app as a project would hold it: origin/main is the previous release,
   # HEAD upgrades it to this change and adds contexts, an Event handler and an ACL.
   render:
@@ -266,6 +301,7 @@ jobs:
         api-only,
         api-only-case,
         changes,
+        e2e,
         integration,
         packages,
         render,
