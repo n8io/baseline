@@ -1,6 +1,10 @@
 import { logs, SpanStatusCode, trace } from "@opentelemetry/api";
 import { beforeEach, describe, expect, it } from "vitest";
-import { telemetryCleanupQueryRedact } from "./telemetry-cleanup.ts";
+import {
+	telemetryCleanupLogRecordProcessorCreate,
+	telemetryCleanupQueryRedact,
+	telemetryCleanupSpanProcessorCreate,
+} from "./telemetry-cleanup.ts";
 import {
 	telemetryTestLogRecords,
 	telemetryTestSpans,
@@ -97,6 +101,103 @@ describe("span cleanup", () => {
 	});
 });
 
+describe("span cleanup edge cases", () => {
+	it("keeps a url.full without a query, and one whose query has no fragment", () => {
+		const tracer = trace.getTracer("test");
+		const plain = tracer.startSpan("a");
+		plain.setAttribute("url.full", "https://api.example.com/a=b/foos#top");
+		plain.end();
+		const queried = tracer.startSpan("b");
+		queried.setAttribute("url.full", "https://api.example.com/foos?page=2");
+		queried.end();
+		expect(
+			telemetryTestSpans
+				.getFinishedSpans()
+				.map((span) => span.attributes["url.full"]),
+		).toEqual([
+			"https://api.example.com/a=b/foos#top",
+			"https://api.example.com/foos?page=REDACTED",
+		]);
+	});
+
+	it("keeps an empty stack when the exception has no frames", () => {
+		const span = trace.getTracer("test").startSpan("a");
+		span.addEvent("exception", {
+			"exception.message": "boom",
+			"exception.stacktrace": "Error: boom",
+		});
+		span.end();
+		expect(
+			telemetryTestSpans.getFinishedSpans()[0]?.events[0]?.attributes,
+		).toEqual({ "exception.stacktrace": "" });
+	});
+
+	it("leaves an OK status as it is", () => {
+		const span = trace.getTracer("test").startSpan("ok");
+		span.setStatus({ code: SpanStatusCode.OK });
+		span.end();
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.status).toEqual({
+			code: SpanStatusCode.OK,
+		});
+	});
+
+	it("leaves events other than exception as they are", () => {
+		const span = trace.getTracer("test").startSpan("a");
+		span.addEvent("note", { "exception.message": canary });
+		span.end();
+		expect(
+			telemetryTestSpans.getFinishedSpans()[0]?.events[0]?.attributes,
+		).toEqual({ "exception.message": canary });
+	});
+
+	it("does not fail on an exception event without attributes", () => {
+		const span = trace.getTracer("test").startSpan("a");
+		span.addEvent("exception");
+		expect(() => span.end()).not.toThrow();
+		expect(telemetryTestSpans.getFinishedSpans()[0]?.events[0]?.name).toBe(
+			"exception",
+		);
+	});
+
+	it("cuts a frame-shaped line out of the message, and keeps a frame that holds the message's digits", () => {
+		const tracer = trace.getTracer("test");
+		const leaked = tracer.startSpan("a");
+		leaked.addEvent("exception", {
+			"exception.message": "boom\n    at leaked (secret.ts:1:1)",
+			"exception.stacktrace": [
+				"Error: boom",
+				"    at leaked (secret.ts:1:1)",
+				"    at real (app.ts:2:2)",
+			].join("\n"),
+		});
+		leaked.end();
+		const numeric = tracer.startSpan("b");
+		numeric.addEvent("exception", {
+			"exception.message": 42,
+			"exception.stacktrace": "Error\n    at fn42 (app.ts:3:3)",
+		});
+		numeric.end();
+		const [first, second] = telemetryTestSpans.getFinishedSpans();
+		expect(first?.events[0]?.attributes).toEqual({
+			"exception.stacktrace": "at real (app.ts:2:2)",
+		});
+		expect(second?.events[0]?.attributes).toEqual({
+			"exception.stacktrace": "at fn42 (app.ts:3:3)",
+		});
+	});
+});
+
+describe("processor lifecycle", () => {
+	it("resolves forceFlush and shutdown on both processors", async () => {
+		const spans = telemetryCleanupSpanProcessorCreate();
+		const records = telemetryCleanupLogRecordProcessorCreate();
+		await expect(spans.forceFlush()).resolves.toBeUndefined();
+		await expect(spans.shutdown()).resolves.toBeUndefined();
+		await expect(records.forceFlush()).resolves.toBeUndefined();
+		await expect(records.shutdown()).resolves.toBeUndefined();
+	});
+});
+
 describe("log record cleanup", () => {
 	it("keeps only type and stack frames on exception log records", () => {
 		const error = new Error(message);
@@ -109,6 +210,31 @@ describe("log record cleanup", () => {
 			"exception.type": "DrizzleQueryError",
 		});
 		expect(record?.body).toBe("DrizzleQueryError");
+	});
+
+	it("names the body Error when the exception has no type", () => {
+		logs
+			.getLogger("test")
+			.emit({ attributes: { "exception.message": canary }, body: canary });
+		const [record] = telemetryTestLogRecords.getFinishedLogRecords();
+		expect(record?.body).toBe("Error");
+		expect(record?.attributes).toEqual({});
+	});
+
+	it("keeps a body that is not the exception message", () => {
+		logs.getLogger("test").emit({
+			attributes: { "exception.message": canary },
+			body: "request failed",
+		});
+		const [record] = telemetryTestLogRecords.getFinishedLogRecords();
+		expect(record?.body).toBe("request failed");
+		expect(record?.attributes).toEqual({});
+	});
+
+	it("leaves a record with no body and no exception without a body", () => {
+		logs.getLogger("test").emit({ attributes: { route: "/foos" } });
+		const [record] = telemetryTestLogRecords.getFinishedLogRecords();
+		expect(record?.body).toBeUndefined();
 	});
 
 	it("leaves a record without an exception as it is", () => {

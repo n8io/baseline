@@ -55,6 +55,36 @@ describe("telemetryFeatureFlagEvaluationRecord", () => {
 		]);
 	});
 
+	it("records a number as the value, and a boolean as the value when there is no variant", () => {
+		telemetryFeatureFlagEvaluationRecord({ key: "limit", value: 0 });
+		telemetryFeatureFlagEvaluationRecord({ key: "rate", value: 2.5 });
+		telemetryFeatureFlagEvaluationRecord({ key: "on", value: false });
+		expect(recordsGet().map((record) => record.attributes)).toEqual([
+			{ "feature_flag.key": "limit", "feature_flag.result.value": 0 },
+			{ "feature_flag.key": "rate", "feature_flag.result.value": 2.5 },
+			{ "feature_flag.key": "on", "feature_flag.result.value": false },
+		]);
+	});
+
+	it("leaves out a boolean value when the service gave a variant", () => {
+		telemetryFeatureFlagEvaluationRecord({
+			key: "on",
+			value: true,
+			variant: "enabled",
+		});
+		expect(recordsGet()[0]?.attributes).toEqual({
+			"feature_flag.key": "on",
+			"feature_flag.result.variant": "enabled",
+		});
+	});
+
+	it("names the evaluation's scope", () => {
+		telemetryFeatureFlagEvaluationRecord({ key: "a" });
+		expect(recordsGet()[0]?.instrumentationScope.name).toBe(
+			"@n8io/baseline-telemetry",
+		);
+	});
+
 	it("sets error.type on a failure", () => {
 		telemetryFeatureFlagEvaluationRecord({
 			errorType: "flag_not_found",
