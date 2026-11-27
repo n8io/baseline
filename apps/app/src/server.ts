@@ -231,50 +231,56 @@ const serverCreate = async () => {
 	};
 };
 
-const booted = await serverCreate();
-export const { app } = booted;
-const { serverListening, serverServe } = booted;
-
 // piece-start: ui
-const {
-	health,
-	// wiring: contexts-start
-	contexts,
-	// wiring: contexts-end
-} = booted;
 // React Router serves the pages and hosts app: Vite in development, its build in production.
-export default await createHonoServer({
-	app,
-	// Mid-rollout, a page from another version's pod asks this one for hashed files it lacks. A
-	// bare 404 nothing may cache, so a retry can reach a pod that has the file.
-	configure: (server) => {
-		server.all("/assets/*", (c) =>
-			c.text("Not Found", 404, { "cache-control": "no-store" }),
-		);
-	},
-	// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
-	defaultLogger: false,
-	getLoadContext: (c) => {
-		const loadContext = uiLoadContextCreate(
-			c,
-			// wiring: contexts-start
-			contexts,
-			// wiring: contexts-end
-		);
-		// piece-start: feature-flags
-		loadContext.set(
-			featureFlagsClientSideIdContext,
-			ENV.LAUNCHDARKLY_CLIENT_SIDE_ID || null,
-		);
-		// piece-end: feature-flags
-		return loadContext;
-	},
-	listeningListener: serverListening,
-	onServe: (node) => {
-		// Development: Vite owns the server and Ctrl-C.
-		if (!import.meta.env.PROD) return health.ready();
-		serverServe(node as Server);
-	},
-	port: ENV.PORT,
-});
+// serverStart boots the server and hands the Hono app to React Router's server; the entry point
+// calls it, and its promise is the default export, which react-router-hono-server awaits.
+const serverStart = async () => {
+	const booted = await serverCreate();
+	const {
+		app,
+		health,
+		// wiring: contexts-start
+		contexts,
+		// wiring: contexts-end
+		serverListening,
+		serverServe,
+	} = booted;
+	return createHonoServer({
+		app,
+		// Mid-rollout, a page from another version's pod asks this one for hashed files it lacks. A
+		// bare 404 nothing may cache, so a retry can reach a pod that has the file.
+		configure: (server) => {
+			server.all("/assets/*", (c) =>
+				c.text("Not Found", 404, { "cache-control": "no-store" }),
+			);
+		},
+		// hono/logger would log every path and query; the HTTP spans and httpErrorHandle cover requests.
+		defaultLogger: false,
+		getLoadContext: (c) => {
+			const loadContext = uiLoadContextCreate(
+				c,
+				// wiring: contexts-start
+				contexts,
+				// wiring: contexts-end
+			);
+			// piece-start: feature-flags
+			loadContext.set(
+				featureFlagsClientSideIdContext,
+				ENV.LAUNCHDARKLY_CLIENT_SIDE_ID || null,
+			);
+			// piece-end: feature-flags
+			return loadContext;
+		},
+		listeningListener: serverListening,
+		onServe: (node) => {
+			// Development: Vite owns the server and Ctrl-C.
+			if (!import.meta.env.PROD) return health.ready();
+			serverServe(node as Server);
+		},
+		port: ENV.PORT,
+	});
+};
+
+export default serverStart();
 // piece-end: ui
