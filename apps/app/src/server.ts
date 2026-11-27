@@ -136,9 +136,17 @@ const appCreate = ({
 	return app;
 };
 
+type ServerBoot = {
+	app: ReturnType<typeof appCreate>;
+	contextsByName: ReturnType<typeof contextsCreate>;
+	health: ReturnType<typeof healthServerCreate>;
+	serverListening: (listening: { port: number }) => void;
+	serverServe: (server: Server) => void;
+};
+
 // The startup check, the connections, the health port and the app, wired. Nothing runs until it
 // is called, so importing this file opens nothing.
-const serverCreate = async () => {
+const serverCreate = async (): Promise<ServerBoot> => {
 	// piece-start: ui
 	// Development: the dev server re-runs this file after an edit, and import.meta.hot is
 	// undefined there, so each run first closes what the last one opened.
@@ -229,7 +237,7 @@ const serverCreate = async () => {
 	};
 };
 
-const booted = await serverCreate();
+const booted: ServerBoot = await serverCreate();
 export const { app } = booted;
 const { serverListening, serverServe } = booted;
 
