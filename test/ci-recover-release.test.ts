@@ -116,6 +116,19 @@ describe("ci-recover.yml records a rerun", () => {
 		);
 	});
 
+	it("tracks each rerun job as a flake issue before rerunning it", () => {
+		const step =
+			/- if: env\.ATTEMPT == '1'\n {8}run: \|\n((?: {10}.*\n)+)/.exec(
+				recover,
+			)?.[1] ?? "";
+		expect(step).toContain("--label flake");
+		expect(step).toContain("gh issue create");
+		expect(step).toContain("gh issue comment");
+		expect(step.indexOf("--label flake")).toBeLessThan(
+			step.indexOf("gh run rerun"),
+		);
+	});
+
 	it("keeps the permissions it had", () => {
 		expect(recover).toContain(
 			"\npermissions:\n  actions: write\n  contents: read\n  issues: write\n\njobs:",
