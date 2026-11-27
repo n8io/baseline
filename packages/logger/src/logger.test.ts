@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { pino } from "pino";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { loggerCreate } from "./logger.ts";
 import { loggerOptionsCreate } from "./logger-options.ts";
 
@@ -39,7 +39,29 @@ const loggerImport = (level: string | undefined) => {
 	};
 };
 
+const levelOriginal = process.env["LOG_LEVEL"];
+
+const levelSet = (level: string | undefined): void => {
+	if (level === undefined) delete process.env["LOG_LEVEL"];
+	else process.env["LOG_LEVEL"] = level;
+};
+
+afterEach(() => {
+	levelSet(levelOriginal);
+});
+
 describe("logger", () => {
+	it("loggerCreate reads LOG_LEVEL when no level is given, else info", () => {
+		levelSet("warn");
+		expect(loggerCreate().level).toBe("warn");
+
+		levelSet("");
+		expect(loggerCreate().level).toBe("info");
+
+		levelSet(undefined);
+		expect(loggerCreate().level).toBe("info");
+	});
+
 	it("reads its level from LOG_LEVEL", () => {
 		expect(loggerImport("silent").stdout).toBe("silent");
 	});
@@ -106,6 +128,37 @@ describe("logger", () => {
 			req: { headers: { authorization: "[Redacted]", cookie: "[Redacted]" } },
 			res: { headers: { "set-cookie": "[Redacted]" } },
 			session: { refresh_token: "[Redacted]" },
+		});
+		expect(JSON.stringify(lines)).not.toContain(canary);
+	});
+
+	it.each([
+		"accessToken",
+		"access_token",
+		"apiKey",
+		"authorization",
+		"cookie",
+		"idToken",
+		"id_token",
+		"password",
+		"refreshToken",
+		"refresh_token",
+		"set-cookie",
+		"token",
+	])("redacts %s at the top level, one level down and in headers", (field) => {
+		const { lines, logger } = loggerCapture();
+		logger.info({
+			[field]: canary,
+			one: { [field]: canary },
+			two: { headers: { [field]: canary } },
+			three: { deep: { headers: { [field]: canary } } },
+		});
+
+		expect(lines[0]).toMatchObject({
+			[field]: "[Redacted]",
+			one: { [field]: "[Redacted]" },
+			two: { headers: { [field]: "[Redacted]" } },
+			three: { deep: { headers: { [field]: "[Redacted]" } } },
 		});
 		expect(JSON.stringify(lines)).not.toContain(canary);
 	});

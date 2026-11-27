@@ -65,4 +65,10 @@ Test it the way a probe sees it: pick a free port, pass it, and `fetch` `/livez`
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/health-server.ts` with the Package's tests and fails below a **floor of 90%**. The score today is 97.5% (39 killed, 1 survived of 40 mutants). The survivor is the `?.` on `request.url`: a request that reaches a `node:http` server always has a URL, so it never meets `undefined`. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** nothing: no peers and no env. The Template's convention is `HEALTH_PORT` (default 9000).

@@ -69,4 +69,30 @@ describe("loggerErrorListen", () => {
 
 		expect(heard).toEqual([first]);
 	});
+
+	it("registers on the shared global key, so another copy of the Package hears it too", () => {
+		const registry = globalThis as {
+			[key: symbol]: Set<unknown> | undefined;
+		};
+		const listener = () => undefined;
+		const stop = loggerErrorListen(listener);
+
+		expect(
+			registry[Symbol.for("@n8io/baseline-logger.errorListeners")]?.has(
+				listener,
+			),
+		).toBe(true);
+		stop();
+	});
+
+	it("logs a null first argument without hearing anything", () => {
+		const logger = loggerSilentCreate();
+		const heard: unknown[] = [];
+		const stop = loggerErrorListen((error) => heard.push(error));
+
+		expect(() => logger.error(null as never)).not.toThrow();
+		stop();
+
+		expect(heard).toEqual([]);
+	});
 });

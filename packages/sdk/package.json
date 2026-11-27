@@ -35,6 +35,7 @@
 		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
 		"prepack": "tsdown",
 		"test": "vitest run",
+		"test:mutation": "stryker run",
 		"test:unit": "vitest run"
 	},
 	"dependencies": {
@@ -42,6 +43,8 @@
 		"ky": "2.2.0"
 	},
 	"devDependencies": {
-		"@n8io/baseline-telemetry": "workspace:^"
+		"@n8io/baseline-telemetry": "workspace:^",
+		"@stryker-mutator/core": "^10.1.1",
+		"@stryker-mutator/vitest-runner": "^10.1.1"
 	}
 }

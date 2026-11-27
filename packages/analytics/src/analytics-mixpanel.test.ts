@@ -69,6 +69,9 @@ describe("analyticsMixpanelCreate", () => {
 			},
 		]);
 		expect(requests[0]?.init.signal).toBeInstanceOf(AbortSignal);
+		expect(requests[0]?.init.headers).toEqual({
+			"content-type": "application/json",
+		});
 		requests[0]?.answer(new Response("{}"));
 	});
 
@@ -210,5 +213,34 @@ describe("analyticsMixpanelCreate", () => {
 				"Dropped an analytics event",
 			],
 		]);
+	});
+
+	it("carries the status of an error answer in the warning", async () => {
+		const requests = requestsCatch();
+		const warn = loggerRecord("warn");
+		const analytics = analyticsMixpanelCreate({ token: "token" });
+
+		analytics.track({ actorId: "user-1", name: "foo.created" });
+		requests[0]?.answer(new Response("{}", { status: 400 }));
+		await analytics.close();
+
+		expect(((warn[0]?.[0] ?? {}) as { err?: Error }).err?.message).toBe(
+			"Mixpanel answered 400",
+		);
+	});
+
+	it.each([
+		["a body", new Response("{}")],
+		["no body", new Response(null, { status: 204 })],
+	])("logs nothing when Mixpanel answers ok with %s", async (_, answer) => {
+		const requests = requestsCatch();
+		const warn = loggerRecord("warn");
+		const analytics = analyticsMixpanelCreate({ token: "token" });
+
+		analytics.track({ actorId: "user-1", name: "foo.created" });
+		requests[0]?.answer(answer);
+		await analytics.close();
+
+		expect(warn).toEqual([]);
 	});
 });

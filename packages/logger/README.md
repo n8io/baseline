@@ -47,4 +47,10 @@ Nothing to configure in tests. Assert on what the code returns, not on log lines
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/logger*.ts` (the logger, its options, the error serializer and listeners, and the level check) with the Package's tests and fails below a **floor of 90%**. The score today is 95.98% (187 killed, 4 timed out, 8 survived of 199 mutants). The survivors are equivalent: in `loggerErrSerialize`, an empty message makes `indexOf("")` return 0, which slices the same text as the `-1` branch; in `logger-options`, the `^\w+$` test and the empty-prefix check only choose between dot and bracket path syntax, and no logged record differs between them. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `LOG_LEVEL` (`fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`; default `info`; read when `loggerCreate` is called, and by `logger` on import, where a bad value falls back to `info`). Runs on [pino](https://getpino.io); nothing in the API names it.

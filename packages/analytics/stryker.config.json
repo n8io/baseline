@@ -1,0 +1,15 @@
+{
+	"$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+	"mutate": [
+		"src/analytics*.ts",
+		"!src/**/*.test.ts",
+		"!src/analytics-logger-default.ts"
+	],
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"testRunner": "vitest",
+	"inPlace": true,
+	"coverageAnalysis": "perTest",
+	"reporters": ["clear-text"],
+	"clearTextReporter": { "allowColor": false, "logTests": false },
+	"thresholds": { "high": 95, "low": 90, "break": 90 }
+}

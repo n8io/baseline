@@ -204,7 +204,43 @@ describe("sdkFetchCreate", () => {
 
 		expect(error).toBeInstanceOf(DOMException);
 		expect(error).toHaveProperty("name", "TimeoutError");
+		expect(error).toHaveProperty("message", "The SDK call timed out");
 		expect(api.requests).toHaveLength(2);
+	});
+
+	it("retries a call that names no method as a GET", async () => {
+		await using api = await apiStart(
+			empty(503, { "retry-after": "0" }),
+			empty(204),
+		);
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl });
+
+		const answered = await sdkFetch<Answered>("/api/v1/foos", {});
+
+		expect(answered.status).toBe(204);
+		expect(api.requests).toHaveLength(2);
+	});
+
+	it("reads a body with no content-type as text", async () => {
+		await using api = await apiStart((_request, response) => {
+			response.writeHead(200).end("raw");
+		});
+		const { sdkFetch } = overrideCreate({ baseUrl: api.baseUrl });
+
+		const answered = await sdkFetch<Answered>("/api/v1/foos", {
+			method: "GET",
+		});
+
+		expect(answered.data).toBe("raw");
+	});
+
+	it("drops every trailing slash of the base URL", async () => {
+		await using api = await apiStart(empty(204));
+		const { sdkFetch } = overrideCreate({ baseUrl: `${api.baseUrl}///` });
+
+		await sdkFetch("/api/v1/foos", { method: "GET" });
+
+		expect(api.requests[0]?.url).toBe("/api/v1/foos");
 	});
 
 	it("stops retrying at totalTimeoutMs", async () => {
