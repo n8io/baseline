@@ -532,6 +532,17 @@ describe("sdkFetchCreate options", () => {
 		);
 	});
 
+	it.each(["timeoutMs", "totalTimeoutMs"])(
+		"accepts %s at the timer cap and 1, and refuses one past the cap",
+		(option) => {
+			expect(() => overrideCreate({ [option]: 2 ** 31 - 1 })).not.toThrow();
+			expect(() => overrideCreate({ [option]: 1 })).not.toThrow();
+			expect(() => overrideCreate({ [option]: 2 ** 31 })).toThrow(
+				`found ${2 ** 31}`,
+			);
+		},
+	);
+
 	it("reads a null timeout or baseUrl as the configured one", async () => {
 		await using api = await apiStart(silent);
 		const { sdkFetch } = overrideCreate({
