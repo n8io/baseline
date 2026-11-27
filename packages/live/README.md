@@ -137,4 +137,10 @@ expect(await sse.until("invoice.updated")).toContain(
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/live-hub.ts`, `live-hub-memory.ts`, `live-stream.ts` and `live-updates-open.ts` with the unit tests only (`vitest.mutation.config.ts` leaves out `*.redis.test.ts`, which need Docker), and fails below a **floor of 90%**. `live-hub-redis.ts` is not mutated: it runs against a real Redis, and the Docker tests were not run when the floor was set. `client.ts` is not mutated either: it is the React hook, and no unit test renders it. The score today is 95.63% (216 killed, 3 timed out, 10 survived of 229 mutants, and 2 more that errored and are not scored). The survivors are equivalent: in `liveUpdateParse`, a `null` or non-object message falls through to the destructuring, which throws into the `catch` or finds no `type` and `id`, so the early return and the `catch` body give the same `undefined`; in the unlisten of `liveHubCreate`, deleting the emptied set from `listeners` only frees memory, and nothing reads it back; and `closed = true` after a stream ends guards a write that nothing makes once the stream has been unlistened. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `@opentelemetry/api` as a peer, for the counter (it does nothing until your Project registers a meter provider); for the Redis hub, a connected node-redis client you pass in (such as `@n8io/baseline-redis`'s), so the Package needs no `redis` of its own, and `CACHE_URL` by the Template's convention (the hub shares the cache's connection); `react` and `react-router` only for `@n8io/baseline-live/client`, so a service that only sends or streams updates installs neither. Runs on Redis pub/sub and Server-Sent Events.

@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { ok } from "@n8io/baseline-result";
+import { err, ok } from "@n8io/baseline-result";
 import type pg from "pg";
 import { describe, expect, it } from "vitest";
 import {
@@ -48,6 +48,57 @@ describe("postgresTransactionRun client handling", () => {
 			"COMMIT",
 		]);
 		expect(releases).toEqual([undefined]);
+	});
+
+	it("rolls back an err Result and returns it", async () => {
+		const { pgPool, queries } = fakePoolCreate();
+
+		const result = await postgresTransactionRun({
+			pgPool,
+			work: async () => err("nope"),
+		});
+
+		expect(result).toEqual(err("nope"));
+		expect(queries.at(-1)).toBe("ROLLBACK");
+		expect(queries).not.toContain("COMMIT");
+	});
+
+	it("runs the callback's queries on the client, and refuses any use after the transaction", async () => {
+		const { pgPool, queries } = fakePoolCreate();
+		let leaked: PostgresClient | undefined;
+
+		await postgresTransactionRun({
+			pgPool,
+			work: async (pgClient) => {
+				leaked = pgClient;
+				await pgClient.query("SELECT 1");
+				return ok(undefined);
+			},
+		});
+
+		expect(queries).toContain("SELECT 1");
+		expect(() => leaked?.query("SELECT 2")).toThrow(
+			"Postgres client used after its transaction ended",
+		);
+		expect(
+			() => (leaked as unknown as { processID: unknown }).processID,
+		).toThrow("Postgres client used after its transaction ended");
+	});
+
+	it("hands the callback the client's own properties", async () => {
+		const { pgClient, pgPool } = fakePoolCreate();
+		Object.assign(pgClient, { processID: 42 });
+		let seen: unknown;
+
+		await postgresTransactionRun({
+			pgPool,
+			work: async (guarded) => {
+				seen = (guarded as unknown as { processID: number }).processID;
+				return ok(undefined);
+			},
+		});
+
+		expect(seen).toBe(42);
 	});
 
 	it("discards a client whose ROLLBACK fails", async () => {

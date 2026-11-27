@@ -60,4 +60,10 @@ Unit tests need no Redis: build them on `cacheStoreMemoryCreate()` and `liveHubM
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/redis-client.ts` with the unit tests only (`vitest.mutation.config.ts` leaves out `*.redis.test.ts`, which need Docker), and fails below a **floor of 90%**. The unit tests talk to a small fake Redis on a local port, so the score covers connecting, the vendor settings, the reconnect backoff, the 1 s command wait and the error log, but not a real server's answers, which only the Docker tests see; they were not run here. The score today is 98.41% (62 killed, 1 survived of 63 mutants). The survivor is equivalent: `if (redisClient.isOpen)` before `destroy()` only skips a call that does nothing on a client that is already closed. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** a Redis URL (`redis://` or `rediss://`; the Template reads it from `CACHE_URL`). Runs on node-redis.
