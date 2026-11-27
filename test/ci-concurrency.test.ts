@@ -31,7 +31,8 @@ describe("ci.yml runs", () => {
 		expect(ci).toMatch(
 			/- if: github\.ref == 'refs\/heads\/main'\n {8}uses: actions\/cache\/save@/,
 		);
-		expect(ci.match(/uses: actions\/cache\/save@/g)).toHaveLength(1);
+		// One save for the Turborepo cache, one for the mutation job's Stryker incremental file.
+		expect(ci.match(/uses: actions\/cache\/save@/g)).toHaveLength(2);
 		// main restores the cache too, and prunes entries older than a week before it saves.
 		expect(ci).toMatch(/- uses: actions\/cache\/restore@/);
 		expect(ci).toContain("find .turbo/cache -type f -mtime +7 -delete");
