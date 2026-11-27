@@ -553,7 +553,8 @@ describe("shutdownHandleCreate on the real process and clock", () => {
 
 			open.resolve();
 			await expect.poll(() => exitCodes).toEqual([0]);
-			expect(timersOpen()).toBe(baseline);
+			// Ambient timers from other tests may come and go, so only a leak above the baseline counts.
+			expect(timersOpen()).toBeLessThanOrEqual(baseline);
 		} finally {
 			events.forEach((event, index) => {
 				for (const listener of own[index] ?? []) {
