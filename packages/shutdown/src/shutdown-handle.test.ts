@@ -276,6 +276,56 @@ describe("shutdownHandleCreate", () => {
 		expect(exits).toEqual([1]);
 	});
 
+	it("exits 1 when only an intake failed to close", async () => {
+		shutdownHandleCreate({
+			host,
+			drainDelayMs: 0,
+			intakes: [failing("http")],
+			resources: [step("telemetry")],
+		});
+
+		emit("SIGTERM");
+		await clock.runAll();
+
+		expect(logs.error).toEqual([
+			[{ err: expect.any(Error) }, "Intake http failed to close"],
+		]);
+		expect(exits).toEqual([1]);
+	});
+
+	it("logs only the resource that hung and those after it at the deadline", async () => {
+		shutdownHandleCreate({
+			host,
+			drainDelayMs: 0,
+			intakes: [],
+			resources: [step("postgres"), hanging("health"), step("telemetry")],
+		});
+
+		emit("SIGTERM");
+		await clock.runAll();
+
+		expect(logs.error).toEqual([
+			["Resource health still open at the deadline"],
+			["Resource telemetry still open at the deadline"],
+		]);
+		expect(events).toEqual(["postgres:start", "postgres:done", "health:start"]);
+		expect(exits).toEqual([1]);
+	});
+
+	it("logs the exit code when it finishes", async () => {
+		shutdownHandleCreate({
+			host,
+			drainDelayMs: 0,
+			intakes: [step("http")],
+			resources: [],
+		});
+
+		emit("SIGTERM");
+		await clock.runAll();
+
+		expect(logs.info).toContainEqual([{ code: 0 }, "Shutdown finished"]);
+	});
+
 	it("logs a step that throws instead of rejecting", async () => {
 		shutdownHandleCreate({
 			host,
@@ -435,6 +485,10 @@ describe("shutdownHandleCreate", () => {
 			{ deadlineMs: 8000 },
 			"shutdownHandleCreate: drainDelayMs must be under deadlineMs minus 5000 (3000), found 5000",
 		],
+		[
+			{ deadlineMs: 8000, drainDelayMs: 3000 },
+			"shutdownHandleCreate: drainDelayMs must be under deadlineMs minus 5000 (3000), found 3000",
+		],
 	])(
 		"throws a TypeError on %o, before owning any signal",
 		(options, message) => {
@@ -446,4 +500,81 @@ describe("shutdownHandleCreate", () => {
 			expect(listeners.size).toBe(0);
 		},
 	);
+});
+
+describe("shutdownHandleCreate on the real process and clock", () => {
+	const events = [
+		"SIGINT",
+		"SIGTERM",
+		"uncaughtException",
+		"unhandledRejection",
+	] as const;
+	const timersOpen = (): number =>
+		process.getActiveResourcesInfo().filter((name) => name === "Timeout")
+			.length;
+	// The listeners a handle added: whatever is on the process now that was not before.
+	const added = (before: readonly (readonly Listener[])[]) =>
+		events.map((event, index) =>
+			process
+				.listeners(event)
+				.filter((listener) => !before[index]?.includes(listener as Listener)),
+		);
+
+	it("owns the four process events by default and runs on the real clock", async () => {
+		const before = events.map((event) => [
+			...process.listeners(event),
+		]) as Listener[][];
+		const exitCodes: number[] = [];
+		const open = Promise.withResolvers<void>();
+		const baseline = timersOpen();
+		shutdownHandleCreate({
+			deadlineMs: 6000,
+			drainDelayMs: 0,
+			host: {
+				exit: (code) => {
+					exitCodes.push(code);
+				},
+				logger: loggerDouble,
+			},
+			intakes: [{ close: () => open.promise, name: "http" }],
+			resources: [],
+		});
+		const own = added(before);
+		try {
+			expect(own.map((listeners) => listeners.length)).toEqual([1, 1, 1, 1]);
+
+			const [termListener] = own[1] ?? [];
+			if (!termListener) throw new Error("no SIGTERM listener");
+			(termListener as Listener)("SIGTERM");
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			// The cutoff and the deadline hold the process open while the intake closes.
+			expect(timersOpen()).toBeGreaterThan(baseline);
+			expect(exitCodes).toEqual([]);
+
+			open.resolve();
+			await expect.poll(() => exitCodes).toEqual([0]);
+			expect(timersOpen()).toBe(baseline);
+		} finally {
+			events.forEach((event, index) => {
+				for (const listener of own[index] ?? []) {
+					process.off(event, listener as Listener);
+				}
+			});
+		}
+	});
+
+	it("takes the process and logger when no host is given", () => {
+		const before = events.map((event) => [
+			...process.listeners(event),
+		]) as Listener[][];
+		shutdownHandleCreate({ intakes: [], resources: [] });
+		const own = added(before);
+		for (const [index, event] of events.entries()) {
+			for (const listener of own[index] ?? []) {
+				process.off(event, listener as Listener);
+			}
+		}
+
+		expect(own.map((listeners) => listeners.length)).toEqual([1, 1, 1, 1]);
+	});
 });

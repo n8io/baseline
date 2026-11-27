@@ -39,6 +39,7 @@
 		"check": "tsc --noEmit && pnpm pack --out dist/package.tgz && publint dist/package.tgz --strict && attw dist/package.tgz --profile esm-only",
 		"prepack": "tsdown",
 		"test": "vitest run",
+		"test:mutation": "stryker run",
 		"test:unit": "vitest run --project unit"
 	},
 	"dependencies": {
@@ -54,6 +55,8 @@
 		"@opentelemetry/api": "^1.10.0",
 		"@opentelemetry/context-async-hooks": "3.1.1",
 		"@opentelemetry/sdk-trace": "3.1.1",
+		"@stryker-mutator/core": "^10.1.1",
+		"@stryker-mutator/vitest-runner": "^10.1.1",
 		"@types/pg": "^8.23.1",
 		"fast-check": "^4.10.3",
 		"pg": "^8.23.1",

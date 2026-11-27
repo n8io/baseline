@@ -243,4 +243,10 @@ The queue reports a failed poll as a plain object; the Package logs it as an `Er
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/queue-job-run.ts`, `queue-migrate-indexes-wait.ts` and `queue-slots.ts` with the unit tests only (`vitest.mutation.config.ts` leaves out `*.postgres.test.ts`, which need Docker), and fails below a **floor of 90%**. The rest of the Package (`queue.ts`, `queue-consumer.ts`, `queue-ordered.ts`, `queue-schedule.ts`, `queue-events.ts`, `queue-inbox.ts`, `queue-migrate.ts` and `queue-with-dead-letter.ts`) is not mutated: its logic runs against a live Postgres, so no unit test reaches it, and the Docker tests were not run when the floor was set. The score today is 99.24% (128 killed, 3 timed out, 1 survived of 132 mutants). The survivor is equivalent: `>=` against `>` in the deadline of `queueMigrateIndexesWait` differs only when a poll lands on the exact millisecond of the deadline. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `@opentelemetry/api` as a peer; `DATABASE_URL` and an optional `SCHEDULE_<NAME>` per Schedule, by the Template's convention; a pool you pass to `queueCreate` (pg-boss brings its own `pg` for `queueMigrate`); and your schema library (the Template uses Zod; the Package imports none). Runs on [pg-boss](https://github.com/timgit/pg-boss), in the Project's own Postgres.

@@ -212,4 +212,10 @@ By the Template's convention: `DATABASE_URL` (`postgres://` or `postgresql://`),
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/postgres-database.ts`, `postgres-keyset.ts`, `postgres-pool.ts`, `postgres-transaction-run.ts` and `postgres-unique-violation.ts` with the unit tests only (`vitest.mutation.config.ts` leaves out `*.postgres.test.ts`, which need Docker), and fails below a **floor of 90%**. `postgres-migrate.ts`, `postgres-advisory-lock-take.ts` and `postgres-id-column.ts` are not mutated: their logic runs against a live Postgres, so no unit test reaches it, and they would only score as not covered. The Docker tests were not run when the floor was set. The score today is 97.43% (301 killed, 2 timed out, 8 survived of 311 mutants). The survivors are equivalent: the `^` and `$` of the instant pattern and the `typeof value === "number"` check in `postgres-keyset.ts` only repeat what `Date.parse` and `Number.isFinite` already refuse; the `typeof value === "function"` bind in `clientGuard` changes nothing for the plain-object client the unit tests use (the Docker tests use a real `pg` client); and in `postgres-unique-violation.ts` the `?.` and the `[]` fallbacks of `columns` and `values` end in the same empty result. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** peers `pg`, `drizzle-orm` (`1.0.0-rc.5`, pinned until 1.0 is out) and, for types, `@types/pg`; `DATABASE_URL` by the Template's convention; Postgres 17 or newer. Runs on [pg](https://node-postgres.com) and [Drizzle](https://orm.drizzle.team).

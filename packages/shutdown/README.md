@@ -66,4 +66,10 @@ The steps, counted from the signal:
 
 </details>
 
+<details><summary><b>Mutation score</b></summary>
+
+`pnpm test:mutation` runs [Stryker](https://stryker-mutator.io) over `src/shutdown-handle.ts` with the Package's tests (none needs Docker) and fails below a **floor of 90%**. The score today is 97.58% (121 killed, 3 survived of 124 mutants). All three are equivalent or cannot be reached from a test: `process.exit` is the default `exit`, and a test that ran it would end its own runner; with no `host`, no signal can be sent to the real process, so `host?.sleep` and `host.sleep` read alike; and `.catch(() => false)` becomes `.catch(() => undefined)`, which `clean && !crashed ? 0 : 1` reads as false all the same. Raise the floor as tests allow; never lower it to pass. It is not in CI yet.
+
+</details>
+
 **Needs** `SHUTDOWN_DRAIN_DELAY_MS` by the Template's convention (read by the caller, not this Package); no peers.

@@ -33,6 +33,16 @@ describe("postgresErrorIsUniqueViolation", () => {
 		expect(postgresErrorIsUniqueViolation("23505", "foo_name_key")).toBe(false);
 	});
 
+	it("answers false for null and for a constraint that is not a string", () => {
+		expect(postgresErrorIsUniqueViolation(null, "foo_name_key")).toBe(false);
+		expect(
+			postgresErrorIsUniqueViolation(
+				{ code: "23505", constraint: 5 },
+				"foo_name_key",
+			),
+		).toBe(false);
+	});
+
 	it("stops on a cause cycle", () => {
 		const first: { cause?: unknown } = {};
 		first.cause = { cause: first };
@@ -76,11 +86,31 @@ describe("postgresUniqueViolationRead", () => {
 		).toEqual({ ...empty, columns: ["name"], values: ["Eagles, Inc"] });
 	});
 
+	it("reads only a detail that is a string, whole", () => {
+		const empty = { columns: [], constraint: "foo_name_key", values: [] };
+		const read = (detail: unknown) =>
+			postgresUniqueViolationRead({ ...violation, detail });
+
+		expect(
+			read({ toString: () => "Key (name)=(Eagles) already exists." }),
+		).toEqual(empty);
+		expect(read("The Key (name)=(Eagles) already exists.")).toEqual(empty);
+		expect(read("Key (name)=(Eagles) already exists. See log.")).toEqual(empty);
+		expect(read("Key (name)=(Eagles) already exists.")).toEqual({
+			columns: ["name"],
+			constraint: "foo_name_key",
+			values: ["Eagles"],
+		});
+	});
+
 	it("answers undefined for anything that is not a unique violation", () => {
 		expect(postgresUniqueViolationRead(new Error("other"))).toBeUndefined();
 		expect(
 			postgresUniqueViolationRead({ code: "23503", constraint: "x" }),
 		).toBeUndefined();
 		expect(postgresUniqueViolationRead(undefined)).toBeUndefined();
+		expect(
+			postgresUniqueViolationRead({ code: "23505", constraint: 5 }),
+		).toBeUndefined();
 	});
 });

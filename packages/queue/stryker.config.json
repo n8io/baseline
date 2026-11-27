@@ -1,0 +1,17 @@
+{
+	"$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+	"mutate": [
+		"src/queue-job-run.ts",
+		"src/queue-migrate-indexes-wait.ts",
+		"src/queue-slots.ts",
+		"!src/**/*.test.ts"
+	],
+	"plugins": ["@stryker-mutator/vitest-runner"],
+	"testRunner": "vitest",
+	"vitest": { "configFile": "vitest.mutation.config.ts" },
+	"inPlace": true,
+	"coverageAnalysis": "perTest",
+	"reporters": ["clear-text"],
+	"clearTextReporter": { "allowColor": false, "logTests": false },
+	"thresholds": { "high": 95, "low": 90, "break": 90 }
+}

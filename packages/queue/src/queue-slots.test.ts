@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { describe, expect, it } from "vitest";
 import type { Queue } from "./queue.ts";
 import { queueSlotsGet } from "./queue-slots.ts";
@@ -117,5 +118,81 @@ describe("queueSlotsGet", () => {
 		expect(started).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
 		for (const job of waiting) job.end();
 		expect(await Promise.all(runs)).toEqual(Array(5).fill(true));
+	});
+
+	it("gives a slot back once when a job ends after it was given up", async () => {
+		const slots = slotsOfFour();
+		const started: string[] = [];
+		const givenUp = new AbortController();
+		const hung = ["a", "b", "c", "d"].map((name) => jobCreate(started, name));
+		const hungRuns = hung.map((job) => slots.run(givenUp.signal, job.work));
+		await turn();
+
+		givenUp.abort();
+		for (const job of hung) job.end();
+		await Promise.all(hungRuns);
+		const next = ["e", "f", "g", "h", "i"].map((name) =>
+			jobCreate(started, name),
+		);
+		const runs = next.map((job) => slots.run(never, job.work));
+		await turn();
+
+		// Four slots, not five: each job gave its slot back once.
+		expect(started).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
+		for (const job of next) job.end();
+		await Promise.all(runs);
+	});
+
+	it("leaves no abort listener on the signal, whether the job ends or is given up", async () => {
+		const slots = slotsOfFour();
+		const started: string[] = [];
+		const signal = new AbortController();
+		const job = jobCreate(started, "a");
+		const run = slots.run(signal.signal, job.work);
+		await turn();
+		expect(getEventListeners(signal.signal, "abort")).toHaveLength(1);
+
+		job.end();
+		await run;
+		expect(getEventListeners(signal.signal, "abort")).toHaveLength(0);
+
+		// A job given up while it runs: its listener goes at the abort, not only when the job ends.
+		const given = new AbortController();
+		const hung = jobCreate(started, "b");
+		const hungRun = slots.run(given.signal, hung.work);
+		await turn();
+		given.abort();
+		expect(getEventListeners(given.signal, "abort")).toHaveLength(0);
+		hung.end();
+		await hungRun;
+
+		// A job given up while it waits for a slot.
+		const full = ["c", "d", "e", "f"].map((name) => jobCreate(started, name));
+		const fullRuns = full.map((one) => slots.run(never, one.work));
+		const waitingSignal = new AbortController();
+		const waiting = slots.run(
+			waitingSignal.signal,
+			jobCreate(started, "g").work,
+		);
+		await turn();
+		expect(getEventListeners(waitingSignal.signal, "abort")).toHaveLength(1);
+		waitingSignal.abort();
+		expect(getEventListeners(waitingSignal.signal, "abort")).toHaveLength(0);
+		expect(await waiting).toBe(false);
+
+		// A job that waited and got its slot leaves none either.
+		const late = new AbortController();
+		const lateJob = jobCreate(started, "h");
+		const lateRun = slots.run(late.signal, lateJob.work);
+		await turn();
+		expect(getEventListeners(late.signal, "abort")).toHaveLength(1);
+		full[0]?.end();
+		await turn();
+		expect(getEventListeners(late.signal, "abort")).toHaveLength(1);
+		lateJob.end();
+		await lateRun;
+		expect(getEventListeners(late.signal, "abort")).toHaveLength(0);
+		for (const one of full) one.end();
+		await Promise.all(fullRuns);
 	});
 });

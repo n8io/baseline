@@ -11,6 +11,7 @@ describe("postgresDatabaseCreate", () => {
 		const db = postgresDatabaseCreate(pgPool);
 
 		expect(typeof db.select).toBe("function");
+		expect((db as unknown as { $client: unknown }).$client).toBe(pgPool);
 	});
 
 	it("refuses a client this Package did not create", async () => {
