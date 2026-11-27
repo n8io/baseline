@@ -307,6 +307,7 @@ jobs:
           [
             analytics,
             cache,
+            cli,
             error-tracking,
             health,
             http,
