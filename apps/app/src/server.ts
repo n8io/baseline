@@ -42,7 +42,11 @@ import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
 import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
-import { type ContextMounts, contextsCreate } from "./contexts.ts";
+import {
+	type ContextMounts,
+	type Contexts,
+	contextsCreate,
+} from "./contexts.ts";
 import { seedsRun } from "./seed.ts";
 
 const logger = loggerCreate();
@@ -138,7 +142,7 @@ const appCreate = ({
 
 type ServerBoot = {
 	app: ReturnType<typeof appCreate>;
-	contextsByName: ReturnType<typeof contextsCreate>;
+	contextsByName: Contexts;
 	health: ReturnType<typeof healthServerCreate>;
 	serverListening: (listening: { port: number }) => void;
 	serverServe: (server: Server) => void;
