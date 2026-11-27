@@ -99,6 +99,24 @@ describe("telemetryRouterInstrumentation", () => {
 		expect(redirected?.status.code).toBe(SpanStatusCode.UNSET);
 	});
 
+	it("keeps the leading slash of a pattern that has one", async () => {
+		const { loader } = routeInstruments();
+		await loader?.(async () => success, { pattern: "/foos" });
+		const [span] = telemetryTestSpans.getFinishedSpans();
+		expect(span?.attributes["http.route"]).toBe("/foos");
+		expect(span?.instrumentationScope.name).toBe("@n8io/baseline-telemetry");
+	});
+
+	it("does nothing to a request that runs outside any span", async () => {
+		const { request } = handlerInstruments();
+		await expect(
+			request?.(async () => ({ ...success, meta: { pattern: "foos" } }), {
+				request: { method: "GET" },
+			}),
+		).resolves.toBeUndefined();
+		expect(telemetryTestSpans.getFinishedSpans()).toEqual([]);
+	});
+
 	it("sets http.route and the server span name from the matched pattern", async () => {
 		const { request } = handlerInstruments();
 		const server = trace

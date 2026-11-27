@@ -63,6 +63,7 @@ describe("telemetryUseCasesTrace", () => {
 		expect(span?.kind).toBe(SpanKind.INTERNAL);
 		expect(span?.attributes).toEqual({ "code.function.name": "fooCreate" });
 		expect(span?.status.code).toBe(SpanStatusCode.UNSET);
+		expect(span?.instrumentationScope.name).toBe("@n8io/baseline-telemetry");
 	});
 
 	it("puts an err result's type on error.type and leaves status Unset", async () => {
@@ -101,6 +102,10 @@ describe("telemetryUseCasesTrace", () => {
 		await traced.fooDelete({ fooId: "foo_1" }).catch(() => undefined);
 		const metric = await durationPoints();
 		expect(metric?.descriptor.unit).toBe("s");
+		expect(metric?.descriptor.description).toBe("Duration of Use case calls");
+		expect(metric?.dataPoints[0]?.value.buckets.boundaries).toEqual([
+			0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10,
+		]);
 		const points = metric?.dataPoints.map((point) => ({
 			attributes: point.attributes,
 			count: point.value.count,
