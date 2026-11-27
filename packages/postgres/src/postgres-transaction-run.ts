@@ -59,7 +59,7 @@ export const postgresTransactionRun = async <T, E>({
 	let open = true;
 	const onError = (error: Error): void => {
 		broken = true;
-		logger.error({ err: error }, "Postgres transaction client error");
+		logger().error({ err: error }, "Postgres transaction client error");
 	};
 	pgClient.on("error", onError);
 	try {

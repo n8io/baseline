@@ -130,7 +130,7 @@ export const postgresPoolCreate = (
 	});
 	// pg re-emits idle-client errors on the pool; without a listener Node exits.
 	pgPool.on("error", (error) => {
-		logger.error({ err: error }, "Postgres idle client error");
+		logger().error({ err: error }, "Postgres idle client error");
 	});
 	return Object.assign(pgPool, {
 		[Symbol.asyncDispose]: () => pgPool.end(),
