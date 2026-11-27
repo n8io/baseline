@@ -9,4 +9,5 @@ node_modules/
 
 # Stryker (mutation testing) leftovers
 .stryker-tmp/
+.stryker-incremental.json
 stryker-setup-*.js

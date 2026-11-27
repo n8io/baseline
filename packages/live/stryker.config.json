@@ -12,6 +12,8 @@
 	"vitest": { "configFile": "vitest.mutation.config.ts" },
 	"inPlace": true,
 	"coverageAnalysis": "perTest",
+	"incremental": true,
+	"incrementalFile": ".stryker-incremental.json",
 	"reporters": ["clear-text"],
 	"clearTextReporter": { "allowColor": false, "logTests": false },
 	"thresholds": { "high": 95, "low": 90, "break": 90 }

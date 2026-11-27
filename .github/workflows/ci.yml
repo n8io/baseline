@@ -334,8 +334,22 @@ jobs:
       - env:
           PACKAGE: ${{ matrix.package }}
         run: pnpm turbo run build --filter="./packages/${PACKAGE}^..."
-      - run: pnpm test:mutation
+      # Incremental mode re-runs only the mutants whose code or tests changed; the floor still reads the whole score.
+      # Only main saves the file: one saved on a pull request is readable by that pull request alone.
+      # A reused result can go stale when a built upstream Package or a dependency changes, so the key holds
+      # the lockfile and the nightly run ignores the file (--force) and saves a fresh one.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: stryker-${{ matrix.package }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: packages/${{ matrix.package }}/.stryker-incremental.json
+          restore-keys: stryker-${{ matrix.package }}-${{ hashFiles('pnpm-lock.yaml') }}-
+      - run: pnpm test:mutation ${{ github.event_name == 'schedule' && '--force' || '' }}
         working-directory: packages/${{ matrix.package }}
+      - if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: stryker-${{ matrix.package }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          path: packages/${{ matrix.package }}/.stryker-incremental.json
 
   automerge:
     if: github.event_name == 'pull_request'
