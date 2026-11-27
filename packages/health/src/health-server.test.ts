@@ -210,7 +210,17 @@ describe("healthServerCreate", () => {
 		await expect(fetch(`http://127.0.0.1:${port}/livez`)).rejects.toThrow();
 	});
 
-	it.each([-1, 65_536, 1.5, Number.NaN])(
+	it("accepts port 0, the low edge of its range, and an OS-chosen port", async () => {
+		await using server = healthServerCreate({
+			isAlive: () => true,
+			isShuttingDown: () => false,
+			port: 0,
+		});
+
+		expect(typeof server.close).toBe("function");
+	});
+
+	it.each([-1, 65_536, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
 		"throws a TypeError for port %s",
 		(port) => {
 			expect(() =>

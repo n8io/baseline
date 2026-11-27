@@ -140,6 +140,26 @@ describe("sharedIntegerAssert", () => {
 		},
 	);
 
+	it("accepts both ends of its range, and the largest safe integer without a maximum", () => {
+		expect(() => check(1, 5)).not.toThrow();
+		expect(() => check(5, 5)).not.toThrow();
+		expect(() => check(Number.MAX_SAFE_INTEGER)).not.toThrow();
+	});
+
+	it.each([
+		Number.MAX_SAFE_INTEGER + 1,
+		2 ** 53,
+		Number.NEGATIVE_INFINITY,
+		Number.MIN_SAFE_INTEGER,
+	])("refuses %s, which is no safe integer from 1", (value) => {
+		expect(() => check(value)).toThrow(TypeError);
+	});
+
+	it("refuses one past the maximum and one under the minimum", () => {
+		expect(() => check(6, 5)).toThrow("from 1 to 5, found 6");
+		expect(() => check(0, 5)).toThrow("from 1 to 5, found 0");
+	});
+
 	it("names the range when there is a maximum", () => {
 		expect(() => check(sharedTimerMaxMs + 1, sharedTimerMaxMs)).toThrow(
 			new TypeError(
@@ -316,6 +336,61 @@ describe("sharedTimeTimer on a hand-written clock", () => {
 		timers[1]?.fire();
 		await flush();
 		expect(settled).toBe(true);
+	});
+
+	it("takes a wait of exactly the cap in one timer", async () => {
+		const timers = clockInstall();
+		const timer = sharedTimeTimer({ ms: sharedTimerMaxMs, value: "up" });
+
+		expect(timers.map((step) => step.ms)).toEqual([sharedTimerMaxMs]);
+		timers[0]?.fire();
+		await expect(timer.promise).resolves.toBe("up");
+		expect(timers).toHaveLength(1);
+	});
+
+	it("takes a wait of one over the cap in the cap and 1 ms", async () => {
+		const timers = clockInstall();
+		const timer = sharedTimeTimer({ ms: sharedTimerMaxMs + 1, value: "up" });
+
+		timers[0]?.fire();
+		await flush();
+		expect(timers.map((step) => step.ms)).toEqual([sharedTimerMaxMs, 1]);
+		timers[1]?.fire();
+		await expect(timer.promise).resolves.toBe("up");
+	});
+
+	it("takes a wait of several caps in whole steps that add up to it", async () => {
+		const timers = clockInstall();
+		const timer = sharedTimeTimer({
+			ms: sharedTimerMaxMs * 3 + 7,
+			value: "up",
+		});
+		let fired = 0;
+		while (fired < timers.length) {
+			timers[fired]?.fire();
+			fired += 1;
+			await flush();
+		}
+		await expect(timer.promise).resolves.toBe("up");
+
+		const total = timers.reduce((sum, step) => sum + step.ms, 0);
+		expect(total).toBe(sharedTimerMaxMs * 3 + 7);
+		expect(timers).toHaveLength(4);
+		expect(Math.max(...timers.map((step) => step.ms))).toBe(sharedTimerMaxMs);
+		expect(timers.every((step) => step.ms > 0)).toBe(true);
+	});
+
+	it("clears the step in flight when a long wait is cleared", async () => {
+		const timers = clockInstall();
+		const timer = sharedTimeTimer({
+			ms: sharedTimerMaxMs * 2 + 5,
+			value: "up",
+		});
+		timers[0]?.fire();
+		await flush();
+		timer.clear();
+
+		expect(timers.map((step) => step.cleared)).toEqual([false, true]);
 	});
 
 	it("unrefs its timer unless ref is true", () => {
