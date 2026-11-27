@@ -71,7 +71,7 @@ const requestsCatch = (
 			url,
 		});
 		return new Response(answer.body === undefined ? "{}" : answer.body, {
-			headers: answer.headers,
+			...(answer.headers === undefined ? {} : { headers: answer.headers }),
 			status,
 		});
 	}) as typeof fetch;
