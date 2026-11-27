@@ -202,6 +202,30 @@ jobs:
           sh "$RUNNER_TEMP/rules.sh" "$RUNNER_TEMP/rules.txt" "$RUNNER_TEMP/semgrep-rules"
       - run: semgrep scan --error --metrics=off --no-rewrite-rule-ids --config "$RUNNER_TEMP/semgrep-rules"
 
+  # The browser tests (test/e2e): the click-through flows, the per-piece smoke tests and axe, in a real
+  # Chromium against the production build on memory adapters, so no Postgres or Redis. `pnpm test:e2e`
+  # builds first. Blocking, like every job here; its check is `ci / browser`.
+  browser:
+    needs: changes
+    if: ${{ !cancelled() && !inputs.skip && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - *checkout
+      - *download
+      - *extract
+      - *pnpm
+      - *node
+      - *install
+      # No browser cache: Chromium downloads in seconds, and the only cache is the Turborepo one.
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Browser tests against the production build
+        run: |
+          status=0
+          timeout 8m pnpm test:e2e || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:e2e went over its 8 min budget. Make it faster or set a new budget deliberately."; fi
+          exit "$status"
+
   unit:
     if: ${{ !inputs.skip }}
     runs-on: ubuntu-latest

@@ -474,7 +474,7 @@ describe("app-create", () => {
 			});
 
 			expect(rulesetReconcile({ gh, repository: "n8io/x" })).toBe(
-				"Updated the ci ruleset on n8io/x: changed bypass_actors, changed rule required_status_checks (added ci / image, ci / integration, ci / pieces, ci / sast, ci / unit), added rule deletion, added rule non_fast_forward, added rule pull_request",
+				"Updated the ci ruleset on n8io/x: changed bypass_actors, changed rule required_status_checks (added ci / browser, ci / image, ci / integration, ci / pieces, ci / sast, ci / unit), added rule deletion, added rule non_fast_forward, added rule pull_request",
 			);
 			expect(calls.at(-1)).toEqual({
 				args: [
@@ -526,7 +526,7 @@ describe("app-create", () => {
 			expect(
 				rulesetChangesFind({ current, wanted: rulesetBodyCreate() }),
 			).toEqual([
-				"changed rule required_status_checks (removed ci / migrations, ci / oasdiff)",
+				"changed rule required_status_checks (added ci / browser; removed ci / migrations, ci / oasdiff)",
 			]);
 		});
 

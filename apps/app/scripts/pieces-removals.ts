@@ -63,6 +63,7 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 		paths: [
 			"src/api-reference.ts",
 			"src/api-reference.test.ts",
+			"test/e2e/api-reference-smoke.test.ts",
 			"test/integration/api-reference.test.ts",
 		],
 	},
@@ -109,11 +110,12 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			"src/ui/feature-flags-client-config.test.ts",
 			"src/ui/feature-flags-client-config.ts",
 			"src/ui/feature-flags.ts",
+			"test/e2e/feature-flags-smoke.test.ts",
 			"test/integration/feature-flags-config.test.ts",
 		],
 	},
 	live: {
-		paths: ["src/live-hub-open.ts"],
+		paths: ["src/live-hub-open.ts", "test/e2e/live-smoke.test.ts"],
 		srcFiles: /-live(-routes)?(\.test)?\.ts$/,
 	},
 	queue: {
@@ -218,6 +220,8 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			"test/integration/feature-flags-config.test.ts",
 			"test/integration/csp-nonce.ts",
 			"test/integration/rollout-build.ts",
+			"test/e2e/ui-flows.test.ts",
+			"test/e2e/ui-smoke.test.ts",
 			"test/integration/rollout.test.ts",
 		],
 	},
