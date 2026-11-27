@@ -1,0 +1,26 @@
+name: sast
+
+# The Semgrep scan of ci.yml, in a reusable workflow so the Semgrep image is pinned once here. app-ci.yml
+# keeps its own copy for Projects; test/ci-shared-blocks.test.ts fails when the two copies drift.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container: semgrep/semgrep:1.182.1@sha256:451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6
+    env:
+      SEMGREP_ENABLE_VERSION_CHECK: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pinned Semgrep rules
+        run: sh .github/semgrep/rules.sh .github/semgrep/rules.txt "$RUNNER_TEMP/semgrep-rules"
+      - run: >-
+          semgrep scan --error --metrics=off --no-rewrite-rule-ids --config "$RUNNER_TEMP/semgrep-rules"
+          packages scripts test

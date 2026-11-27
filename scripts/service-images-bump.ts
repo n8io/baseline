@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const serviceWorkflows = [
-	".github/workflows/ci.yml",
+	".github/workflows/integration.yml",
 	".github/workflows/app-ci.yml",
 ] as const;
 

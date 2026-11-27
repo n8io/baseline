@@ -1,0 +1,60 @@
+name: integration
+
+# The template-as-is integration job of ci.yml, in a reusable workflow: the Postgres and Redis service
+# blocks live here once. app-ci.yml keeps its own copy, since a Project calls it by tag and cannot reach
+# this file; test/ci-shared-blocks.test.ts fails when the two copies drift.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    services:
+      postgres:
+        image: postgres:18@sha256:64c8b0d31e4ab6ea665e8426ea406a94bf52de3c05b3a4a8bf713704eefa9328
+        env:
+          POSTGRES_DB: baseline
+          POSTGRES_PASSWORD: baseline
+          POSTGRES_USER: baseline
+        # psql over TCP, not pg_isready: Postgres answers on its socket before the post-initdb restart.
+        options: >-
+          --health-cmd "psql -h 127.0.0.1 -U baseline -c 'select 1'"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["5432:5432"]
+      redis:
+        image: redis:8@sha256:ca1cb6df9313d0186b68f19b60fc2802e0c76e8542b2c05650b560e7bbb3cc8f
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - run: pnpm install --frozen-lockfile
+      # app-ci's check runs this on each render, which has no foo; this checks foo's SDK.
+      - name: The SDK matches the OpenAPI document
+        run: |
+          pnpm sdk-generate
+          if [ -n "$(git status --porcelain -- clients/sdk)" ]; then
+            git status --porcelain -- clients/sdk
+            echo "::error::apps/app/clients/sdk differs from what pnpm sdk-generate writes. Run it in apps/app and commit clients/sdk/."
+            exit 1
+          fi
+        working-directory: apps/app
+      # CI enforces the budget on the command, the job limit is only a backstop.
+      - run: |
+          status=0
+          timeout 4m pnpm test:integration || status=$?
+          if [ "$status" -eq 124 ]; then echo "::error::pnpm test:integration went over its 4 min budget (apps/app/AGENTS.md ## Verify). Make it faster or set a new budget deliberately."; fi
+          exit "$status"
+        working-directory: apps/app
