@@ -153,9 +153,10 @@ const queueOwnedKeys: Record<QueueOwnedKey, string> = {
 /**
  * pg-boss's own settings, passed through as they are: its intervals, warnings and retention.
  * Outside this Package's contract: nothing here is tested, and moving off pg-boss deletes it.
- * Connection settings and the keys queueCreate sets are refused.
+ * Connection settings and the keys queueCreate sets are refused. Not exported from the Package:
+ * write the object inline in `src/queue-open.ts`, where `queueCreate` takes it.
  */
-export type QueueVendorOptions = Omit<ConstructorOptions, QueueOwnedKey>;
+type QueueVendorOptions = Omit<ConstructorOptions, QueueOwnedKey>;
 
 /** What `queueCreate` takes. */
 export type QueueOptions = {

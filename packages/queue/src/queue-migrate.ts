@@ -10,9 +10,10 @@ import { queueOrderedName } from "./queue-ordered.ts";
 /**
  * Settings for the connection pg-boss opens to migrate or sync Schedules, passed through as they
  * are: `ssl`, `application_name` and `options` only; any other key is refused. Outside this
- * Package's contract, like `QueueVendorOptions`.
+ * Package's contract, like `QueueVendorOptions`. Not exported from the Package: write the object
+ * inline in `src/migrate.ts`.
  */
-export type QueueMigrateVendorOptions = Pick<
+type QueueMigrateVendorOptions = Pick<
 	ConstructorOptions,
 	"application_name" | "options" | "ssl"
 >;

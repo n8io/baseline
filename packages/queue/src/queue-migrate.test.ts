@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { type QueueMigrateVendorOptions, queueMigrate } from "./index.ts";
+import { type QueueMigrateOptions, queueMigrate } from "./index.ts";
+
+type QueueMigrateVendorOptions = NonNullable<QueueMigrateOptions["vendor"]>;
 
 // Each refusal comes before pg-boss opens its connection, so no Postgres is needed.
 describe("queueMigrate", () => {

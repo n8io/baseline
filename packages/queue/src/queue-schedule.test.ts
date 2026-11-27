@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type QueueMigrateVendorOptions, queueSchedulesSync } from "./index.ts";
+import { type QueueSchedulesSyncOptions, queueSchedulesSync } from "./index.ts";
 import { queueScheduleEnvName } from "./queue-schedule.ts";
 
 // Each refusal comes before pg-boss opens its connection, so no Postgres is needed.
@@ -20,7 +20,7 @@ describe("queueSchedulesSync", () => {
 				databaseUrl: "postgres://localhost/db",
 				env: {},
 				schedules: [],
-				vendor: { max: 1 } as QueueMigrateVendorOptions,
+				vendor: { max: 1 } as NonNullable<QueueSchedulesSyncOptions["vendor"]>,
 			}),
 		).rejects.toThrow(
 			new TypeError(
