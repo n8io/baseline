@@ -25,6 +25,12 @@ export type Logger = {
 	trace: LoggerMethod;
 };
 
+/** What `loggerCreateFromConfig` takes: every option explicit, so the factory reads no environment. */
+export type LoggerConfig = {
+	/** One of fatal, error, warn, info, debug, trace or silent. */
+	level: string;
+};
+
 /** What `loggerCreate` takes. */
 export type LoggerCreateOptions = {
 	/** One of fatal, error, warn, info, debug, trace or silent. Defaults to `LOG_LEVEL`, then `info`. */
@@ -32,13 +38,18 @@ export type LoggerCreateOptions = {
 };
 
 /**
+ * Creates a logger from `config` alone: JSON to stdout, credentials redacted. It reads no
+ * environment. A level that is not one throws a `TypeError` naming the valid levels, at the call.
+ */
+export const loggerCreateFromConfig = (config: LoggerConfig): Logger =>
+	pino(loggerOptionsCreate(loggerLevelAssert(config.level)));
+
+/**
  * Creates a logger: JSON to stdout, credentials redacted. The level is `options.level`, else
  * `LOG_LEVEL` read now, else `info`. A level that is not one throws a `TypeError` naming the valid
  * levels, at the call.
  */
 export const loggerCreate = (options: LoggerCreateOptions = {}): Logger =>
-	pino(
-		loggerOptionsCreate(
-			loggerLevelAssert(options.level || process.env["LOG_LEVEL"] || "info"),
-		),
-	);
+	loggerCreateFromConfig({
+		level: options.level || process.env["LOG_LEVEL"] || "info",
+	});

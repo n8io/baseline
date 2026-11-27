@@ -1,8 +1,10 @@
 export {
 	type Logger,
+	type LoggerConfig,
 	type LoggerCreateOptions,
 	type LoggerMethod,
 	loggerCreate,
+	loggerCreateFromConfig,
 } from "./logger.ts";
 export {
 	type LoggerErrorListener,
