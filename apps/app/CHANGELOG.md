@@ -1,5 +1,43 @@
 # app
 
+## 18.0.0
+
+### Major Changes
+
+- c38b1ad: `pnpm glossary-check` exits 1 on any hit in the lines a branch adds, and on a crash, instead of warning. `app-ci.yml`'s `check` job runs it in a Project without `continue-on-error`, so a glossary alias or another context's term in an added line fails `check`. It does not run when `app-ci.yml` is called with an `artifact` (the Template's `render-and-test`), which has no git base; baseline's own `ci.yml` checks the Template. To upgrade a Project: run `pnpm glossary-check` and rename each hit before the first PR after this release.
+
+### Patch Changes
+
+- ad5e91a: `featureFlagsOpen` types its `vendor` option from `FeatureFlagsLaunchDarklyOptions["vendor"]`, since the feature-flags Package no longer exports `FeatureFlagsLaunchDarklyVendorOptions`.
+- d1b6987: The Foo context builds its Drizzle databases with `postgresDatabaseCreate` and types its repositories with `PostgresDatabase`, since `PostgresPool` and `PostgresClient` no longer are pg's types.
+- 97010d3: `pnpm test:e2e` builds the app and runs `test/e2e/` in one headless Chromium against the production build on memory adapters (no Docker): the sign-in page renders, logs no console errors and has no serious or critical axe violations. It adds `playwright` (pinned exactly, to match the installed browser) and `axe-core` as dev dependencies; run `pnpm exec playwright install chromium` once where no Chromium is installed. A Project's tests may now sit in `test/e2e/`.
+- b46d324: `pnpm test:e2e` also holds a Lighthouse performance budget for the sign-in page (score, LCP, TBT, CLS, bytes and requests, set from a measured baseline) and a cold-start check that the production build serves the sign-in page within 10 s. It adds `lighthouse` (pinned exactly) as a dev dependency; it drives the Chromium Playwright launches.
+- f733044: `scripts/app-create.ts` is split into `app-create-*.ts` modules, one per concern (args, release, npm, ruleset, github, render, run). `pnpm app-create` and the names `app-create.ts` exports are unchanged.
+- fb7d317: `scripts/model-create.ts` is split into `model-create-*.ts` modules, one per concern (foo names, options, wiring, reads, names, build, run). `pnpm model-create` and the names `model-create.ts` exports are unchanged.
+- f093ec1: `scripts/template-render.ts` is split into `template-render-*.ts` modules, one per concern (scan, names, blocks, files, tree, release). The names `template-render.ts` exports are unchanged, and `pnpm template-upgrade` now also loads a release's `template-render-*.ts` modules when it renders with that release's own code.
+- 2c6caa5: Several rendered app instances run at once, one per worktree, with nothing shared: the e2e Server (now `scripts/ui-server.ts`) takes two ports the kernel picks together and boots again on a port another instance took. `pnpm ui-up` boots the built app on memory adapters (`--check` is the fast spin-up check: it prints the seconds to the first 200 and stops). `pnpm ui-shot` takes before and after screenshots at a device scale factor of 2 into a folder outside the repository, for a PR description. `docs/agents/ui.md` has the steps.
+- Updated dependencies [0202e13]
+- Updated dependencies [f89d502]
+- Updated dependencies [c38b1ad]
+- Updated dependencies [9371630]
+- Updated dependencies [d1b6987]
+- Updated dependencies [bf298ac]
+- Updated dependencies [0a1b36a]
+- Updated dependencies [ad5e91a]
+  - @n8io/baseline-shutdown@3.4.0
+  - @n8io/baseline-queue@9.1.2
+  - @n8io/baseline-analytics@3.0.0
+  - @n8io/baseline-logger@4.0.0
+  - @n8io/baseline-error-tracking@2.0.0
+  - @n8io/baseline-postgres@7.0.0
+  - @n8io/baseline-feature-flags@2.0.0
+  - @n8io/baseline-redis@1.2.0
+  - @n8io/baseline-authn@7.2.1
+  - @n8io/baseline-cache@6.4.1
+  - @n8io/baseline-http@4.0.1
+  - @n8io/baseline-live@7.4.1
+  - @n8io/baseline-telemetry@2.1.1
+
 ## 17.0.2
 
 ### Patch Changes

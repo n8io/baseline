@@ -1,5 +1,19 @@
 # @n8io/baseline-feature-flags
 
+## 2.0.0
+
+### Major Changes
+
+- ad5e91a: `ErrorTrackingSentryVendorOptions`, `AnalyticsMixpanelVendorOptions`, `FeatureFlagsLaunchDarklyVendorOptions` and `FeatureFlagsLaunchDarklyClientVendorOptions` are no longer exported, so no public type names a Sentry, Mixpanel or LaunchDarkly type. The `vendor` option of `errorTrackingSentryCreate`, `analyticsMixpanelCreate`, `featureFlagsLaunchDarklyCreate` and `featureFlagsLaunchDarklyClientCreate` takes the same keys as before: write the object inline in the Project's wiring file (`src/error-tracking-open.ts`, `src/analytics-open.ts`, `src/feature-flags-open.ts`), or take `NonNullable<FeatureFlagsLaunchDarklyOptions<D, K>["vendor"]>` and its like. A test now fails when an exported signature of these Packages names a Sentry, LaunchDarkly, OpenFeature or Mixpanel type.
+
+### Patch Changes
+
+- bf298ac: Split the oversized feature-flags modules into one module per concern: resolve types, schema validation and the fallback, evaluation and recovery reports leave `feature-flags-resolve.ts`; the definition, server and client types leave their factories; the LaunchDarkly adapter's options, evaluation report and read mapping get their own modules. The public exports and behavior are unchanged, so this is a patch.
+- Updated dependencies [0202e13]
+- Updated dependencies [f89d502]
+  - @n8io/baseline-shared@0.1.1
+  - @n8io/baseline-logger@4.0.0
+
 ## 1.1.0
 
 ### Minor Changes

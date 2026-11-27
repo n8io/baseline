@@ -1,5 +1,27 @@
 # @n8io/baseline-postgres
 
+## 7.0.0
+
+### Major Changes
+
+- d1b6987: `PostgresPool` and `PostgresClient` are no longer pg's `Pool` and `PoolClient`. `PostgresClient` is a Package-owned type with `query(text, values?)`; `PostgresPool` adds `connect()`, `end()` and `[Symbol.asyncDispose]`. Code that read the driver's own state (`options`, `idleCount`, `emit`) or called other pg methods on them moves to an adapter that builds its own pool. `postgresTransactionRun`'s `work` receives a `PostgresClient`, and `PostgresTransactionRunPool.connect()` returns the new `PostgresTransactionRunConnection`.
+
+  New: `postgresDatabaseCreate(pgClient)` returns a Drizzle `PostgresDatabase` on a pool or a transaction's client. Replace `drizzle({ client: pgPool })` and `drizzle({ client: pgClient })` from `drizzle-orm/node-postgres` with it, and `NodePgDatabase` in signatures with `PostgresDatabase`. The `vendor` option keys are unchanged.
+
+### Minor Changes
+
+- 9371630: `postgresTransactionRun` takes any `pgPool` with `connect()` that returns a `PostgresClient`, named `PostgresTransactionRunPool`, instead of requiring a full `PostgresPool`. A `PostgresPool` still fits.
+- 0a1b36a: `@n8io/baseline-redis`: `RedisClient` is now a Package-owned type, `RedisConnection` plus `AsyncDisposable`, that lists only the commands the cache store and the live hub send and the lifecycle calls; it is no longer node-redis's `RedisClientType`. Code that ran another command on it (`ping`, `clientList`) moves to an adapter that builds its own client. `RedisClientVendorOptions` is no longer exported; write the `vendor` object inline in `src/redis-open.ts`.
+
+  `@n8io/baseline-postgres`: `PostgresPoolVendorOptions` and `PostgresMigrateVendorOptions` are no longer exported; write the `vendor` object inline in `src/connections.ts` and `src/migrate.ts`, or take `NonNullable<PostgresPoolOptions["vendor"]>`. `PostgresPool` and `PostgresClient` still are pg's types, because Drizzle's `drizzle({ client })` takes only those.
+
+### Patch Changes
+
+- Updated dependencies [0202e13]
+- Updated dependencies [f89d502]
+  - @n8io/baseline-shared@0.1.1
+  - @n8io/baseline-logger@4.0.0
+
 ## 6.0.1
 
 ### Patch Changes
