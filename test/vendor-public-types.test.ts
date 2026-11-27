@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 // change vendor without changing callers. This test reads what `src/index.ts` of the Packages in
 // `packagesChecked` exports, on every subpath of the Package, and fails when an exported signature
 // names a type imported from the vendor's module (`pg`, `pg-boss`, `redis`, `@sentry/*`, `@launchdarkly/*`,
-// `@openfeature/*`, `mixpanel`), or when an index exports a `*VendorOptions` type: the `vendor`
+// `@openfeature/*`, `mixpanel`, `pino`, `drizzle-orm`), or when an index exports a `*VendorOptions` type: the `vendor`
 // option's type stays inside the Package, and a Project writes the object inline in its `*-open.ts`
 // or `connections.ts`.
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -16,16 +16,28 @@ const packagesChecked = [
 	"analytics",
 	"error-tracking",
 	"feature-flags",
+	"logger",
 	"postgres",
 	"queue",
 	"redis",
 ] as const;
 const vendorModule =
-	/^(?:pg|pg-boss|redis|mixpanel|@redis\/.+|@sentry\/.+|@launchdarkly\/.+|@openfeature\/.+)$/;
+	/^(?:pg|pg-boss|redis|mixpanel|pino|drizzle-orm(?:\/.+)?|@redis\/.+|@sentry\/.+|@launchdarkly\/.+|@openfeature\/.+)$/;
 
 // Exports that still name a vendor, each with the reason and the change that removes it. The test
 // fails on a new one, and on an entry that no longer names a vendor, so the list only shrinks.
 const knownLeaks: Readonly<Record<string, string>> = {};
+
+// Documented exceptions (docs/agents/packages.md#vendors): the export is the vendor's own type on
+// purpose. The test fails on an entry that stops naming a vendor, so the list stays honest.
+const documentedExceptions: Readonly<Record<string, string>> = {
+	"postgres:PostgresDatabase":
+		"the Drizzle query builder is the API a Project writes queries with; drizzle needs pg.Pool underneath",
+	"postgres:PostgresExecutor":
+		"takes the Drizzle database or transaction a Project already holds, and runs a Drizzle SQL value",
+	"postgres:PostgresKeysetOptions":
+		"names the Drizzle column a Project sorts by, and returns Drizzle SQL for its query",
+};
 
 const blank = (text: string) => text.replace(/[^\n]/g, " ");
 
@@ -172,11 +184,12 @@ describe("vendor-neutral public types", () => {
 
 	it("exports no signature that names a vendor's type, beyond the known leaks", () => {
 		const found = exportsLeaking().map(({ key }) => key);
-		expect(found.filter((key) => !(key in knownLeaks))).toEqual([]);
+		const allowed = { ...knownLeaks, ...documentedExceptions };
+		expect(found.filter((key) => !(key in allowed))).toEqual([]);
 		// A leak that was fixed leaves the list.
-		expect(
-			Object.keys(knownLeaks).filter((key) => !found.includes(key)),
-		).toEqual([]);
+		expect(Object.keys(allowed).filter((key) => !found.includes(key))).toEqual(
+			[],
+		);
 	});
 
 	it("keeps each vendor option's type out of the Package index", () => {
