@@ -194,6 +194,8 @@ export const pieceRemovals: Record<Piece, PieceRemoval> = {
 			".github/workflows/clients-release.yml",
 			"clients/environments.json",
 			"clients/sdk",
+			"scripts/clients-release-files.ts",
+			"scripts/clients-release-npm.ts",
 			"scripts/clients-release.test.ts",
 			"scripts/clients-release.ts",
 			"scripts/sdk-generate.ts",

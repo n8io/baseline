@@ -12,16 +12,7 @@ const scriptLimit = 300;
 
 // A file that cannot reasonably be split, by its path from the repository root, with the reason.
 // Keep it empty unless splitting the file would make it worse.
-const exemptions: readonly { path: string; reason: string }[] = [
-	{
-		path: "apps/app/scripts/clients-release.ts",
-		reason: "still to split into modules (n8io/baseline#655)",
-	},
-	{
-		path: "apps/app/scripts/model-create-reads.ts",
-		reason: "still to split into modules (n8io/baseline#655)",
-	},
-];
+const exemptions: readonly { path: string; reason: string }[] = [];
 
 type Limited = { limit: number; path: string };
 

@@ -7,226 +7,33 @@
 // the environments) publishes the next minor, any other change (hand-written code, a dependency) the next patch, and
 // no change publishes nothing. With none published yet the version is <major>.0.0. --dry-run is
 // passed on to npm publish.
-import { spawnSync } from "node:child_process";
 import {
 	cpSync,
 	existsSync,
-	mkdirSync,
 	mkdtempDisposableSync,
 	readdirSync,
 	readFileSync,
-	rmSync,
-	statSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { argsParse } from "./args.ts";
+import {
+	clients,
+	clientsFilesRead,
+	clientsManifestPublish,
+	clientsVersionNext,
+	jsonImportsTyped,
+	manifestRead,
+	unscoped,
+} from "./clients-release-files.ts";
+import {
+	npm,
+	registryWait,
+	tarballUnpack,
+	versionLatest,
+} from "./clients-release-npm.ts";
 import { processRun } from "./process-run.ts";
-
-// A package's path ("sdk/sdk.ts") to the text that decides its version.
-type Files = Readonly<Record<string, string>>;
-type Manifest = {
-	bin?: Record<string, string>;
-	dependencies?: Record<string, string>;
-	exports?: Record<string, string>;
-	name: string;
-	[field: string]: unknown;
-};
-
-// The order they publish in: the CLI depends on the SDK.
-const clients = ["sdk", "cli"] as const;
-const callable = new Set([
-	"sdk/environments.json",
-	"sdk/openapi.json",
-	"sdk/sdk.ts",
-]);
-const registry = "https://npm.pkg.github.com";
-
-const manifestRead = (folder: string): Manifest =>
-	JSON.parse(readFileSync(join(folder, "package.json"), "utf8")) as Manifest;
-
-const unscoped = (name: string): string => name.replace(/^@[^/]+\//, "");
-
-// The source files of each package in `directory` (clients/ or an unpacked release), and the
-// dependencies each installs. The CLI's dependency on the SDK is left out: it is the version itself.
-// clients/environments.json counts as the SDK's: it is published inside it.
-// Every file counts, so a file npm leaves out of a tarball (.npmrc, package-lock.json) must not
-// sit in clients/: it would differ on every run and publish a patch each time.
-export const clientsFilesRead = (directory: string): Files => {
-	const files: Record<string, string> = {};
-	for (const client of clients) {
-		const folder = join(directory, client);
-		if (!existsSync(join(folder, "package.json"))) continue;
-		for (const path of readdirSync(folder, { recursive: true }) as string[]) {
-			if (/^(dist|node_modules)(\/|$)/.test(path) || path === "package.json")
-				continue;
-			const file = join(folder, path);
-			if (statSync(file).isFile())
-				files[`${client}/${path}`] = readFileSync(file, "utf8");
-		}
-		const sdk = existsSync(join(directory, "sdk/package.json"))
-			? unscoped(manifestRead(join(directory, "sdk")).name)
-			: "";
-		const { [sdk]: _, ...dependencies } =
-			manifestRead(folder).dependencies ?? {};
-		files[`${client}/package.json`] = JSON.stringify(dependencies);
-	}
-	const environments = join(directory, "environments.json");
-	if (existsSync(environments))
-		files["sdk/environments.json"] = readFileSync(environments, "utf8");
-	return files;
-};
-
-// The version to publish, or undefined when the published one is current.
-export const clientsVersionNext = ({
-	current,
-	major,
-	published,
-}: {
-	current: Files;
-	major: number;
-	published?: { files: Files; version: string } | null;
-}): string | undefined => {
-	if (published == null) return `${major}.0.0`;
-	const paths = new Set([
-		...Object.keys(current),
-		...Object.keys(published.files),
-	]);
-	const changed = [...paths].filter((p) => current[p] !== published.files[p]);
-	if (changed.length === 0) return undefined;
-	const [, minor = 0, patch = 0] = published.version.split(".").map(Number);
-	return changed.some((path) => callable.has(path))
-		? `${major}.${minor + 1}.0`
-		: `${major}.${minor}.${patch + 1}`;
-};
-
-export const jsonImportsTyped = (declarations: string): string =>
-	declarations.replaceAll(
-		/^(import .* from "[^"]+\.json");$/gm,
-		'$1 with { type: "json" };',
-	);
-
-// Status and output are the answer (a 404 means not published), so this runs through spawnSync,
-// not processRun.
-const npm = (args: string[], cwd?: string | null) =>
-	spawnSync("npm", [...args, "--registry", registry], {
-		cwd: cwd ?? undefined,
-		encoding: "utf8",
-	});
-
-const npmMissingIs = ({ stderr, stdout }: { stderr: string; stdout: string }) =>
-	/E404|ETARGET/.test(`${stdout}${stderr}`);
-
-// The newest version of `name` in `major`, or undefined when npm has none.
-const versionLatest = (name: string, major: number): string | undefined => {
-	const view = npm(["view", `${name}@^${major}`, "version", "--json"]);
-	if (view.status !== 0) {
-		if (npmMissingIs(view)) return undefined;
-		throw new Error(`npm view ${name} failed:\n${view.stderr}`);
-	}
-	const versions = [
-		JSON.parse(view.stdout || "[]") as string | string[],
-	].flat();
-	return versions
-		.sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
-		.at(-1);
-};
-
-// Waits, up to 3 minutes, until npm shows each new version: npm lists one about a minute after
-// the publish, and the next run (runs go one at a time) would otherwise pick the same version.
-const registryWait = (specs: string[]): void => {
-	for (const spec of specs) {
-		for (
-			let tries = 0;
-			npm(["view", spec, "version"]).stdout.trim() === "";
-			tries++
-		) {
-			if (tries === 18)
-				throw new Error(`npm does not show ${spec} after 3 minutes`);
-			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
-		}
-	}
-};
-
-// Unpacks the published `spec` into `folder`; leaves no folder when npm has no such version.
-const tarballUnpack = (spec: string, folder: string): void => {
-	const pack = npm(["pack", spec, "--json"], tmpdir());
-	if (pack.status !== 0) {
-		if (npmMissingIs(pack)) return;
-		throw new Error(`npm pack ${spec} failed:\n${pack.stderr}`);
-	}
-	const [{ filename } = { filename: "" }] = JSON.parse(pack.stdout) as {
-		filename: string;
-	}[];
-	const tarball = join(tmpdir(), filename);
-	mkdirSync(folder, { recursive: true });
-	processRun({
-		command: "tar",
-		args: ["-xzf", tarball, "-C", folder, "--strip-components=1"],
-		options: { inherit: true },
-	});
-	rmSync(tarball);
-};
-
-// npm wants a bin path without the leading ./ that exports need.
-const distJs = (path: string): string =>
-	path.replace(/^(\.\/)?(.+)\.ts$/, "dist/$2.js");
-
-const recordMap = <T>(
-	record: Record<string, string>,
-	map: (value: string, key: string) => T,
-): Record<string, T> =>
-	Object.fromEntries(
-		Object.entries(record).map(([key, value]) => [key, map(value, key)]),
-	);
-
-// The manifest npm gets: scoped and versioned, pointing at the built JavaScript, with the
-// SDK dependency as an npm alias of the SDK published beside it.
-export const clientsManifestPublish = ({
-	client,
-	manifest,
-	scope,
-	sdk,
-	version,
-}: {
-	client: string;
-	manifest: Manifest;
-	scope: string;
-	sdk: string;
-	version: string;
-}): Record<string, unknown> => {
-	const { private: _, scripts: __, ...rest } = manifest;
-	const repository = process.env["GITHUB_REPOSITORY"];
-	return {
-		...rest,
-		name: `${scope}/${manifest.name}`,
-		version,
-		...(manifest.bin && { bin: recordMap(manifest.bin, distJs) }),
-		...(manifest.exports && {
-			exports: recordMap(manifest.exports, (path) =>
-				path.endsWith(".ts")
-					? {
-							// Conditions are read in order: types before default.
-							types: `./${distJs(path).replace(/js$/, "d.ts")}`,
-							default: `./${distJs(path)}`,
-						}
-					: path,
-			),
-		}),
-		dependencies: recordMap(manifest.dependencies ?? {}, (range, name) =>
-			name === sdk ? `npm:${scope}/${sdk}@${version}` : range,
-		),
-		// GitHub Packages links the package to the repository it names, which grants its access.
-		...(repository && {
-			repository: {
-				directory: `clients/${client}`,
-				type: "git",
-				url: `git+https://github.com/${repository}.git`,
-			},
-		}),
-	};
-};
 
 export const clientsRelease = ({
 	directory,

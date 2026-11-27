@@ -133,7 +133,7 @@ Add the API reference back: `git revert` the "Remove api-reference" commit.
 
 The typed TypeScript SDK in `clients/sdk`, a package of its own (`<project>-sdk`) beside the app in the pnpm workspace. How to call it, add an Environment, regenerate it and publish it is in [clients.md](clients.md). The CLI runs on it, so remove `cli` first. The command:
 
-- deletes `clients/sdk`, `clients/environments.json`, `scripts/sdk-generate.ts`, and `.github/workflows/clients-release.yml` and `scripts/clients-release.ts` (with its test), which publish the SDK and the CLI;
+- deletes `clients/sdk`, `clients/environments.json`, `scripts/sdk-generate.ts`, and `.github/workflows/clients-release.yml` and `scripts/clients-release.ts` (with its test and the two modules it imports, `scripts/clients-release-files.ts` and `scripts/clients-release-npm.ts`), which publish the SDK and the CLI;
 - drops the `sdk-generate` entry from `package.json`'s scripts, the `orval` dependency, and the workspace `packages:` block from `pnpm-workspace.yaml`;
 - leaves `pnpm-workspace.yaml`'s `esbuild: false`, `tsconfig.json`'s `clients` include, `biome.json`'s override for the generated `sdk.ts` and `.dockerignore`'s `clients` line: they match nothing without it.
 

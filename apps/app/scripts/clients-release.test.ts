@@ -8,7 +8,7 @@ import {
 	clientsManifestPublish,
 	clientsVersionNext,
 	jsonImportsTyped,
-} from "./clients-release.ts";
+} from "./clients-release-files.ts";
 
 // Writes an sdk and a cli folder as clients/ holds them, or as a published version unpacks.
 const clientsWrite = ({

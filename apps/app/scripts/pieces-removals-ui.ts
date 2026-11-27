@@ -39,7 +39,9 @@ export default defineConfig({
 const apiServeLines = `
 // Node runs this file in development and its build in production; tests only import it.
 if (import.meta.main) {
-	serverServe(serve({ fetch: app.fetch, port: ENV.PORT }, serverListening) as Server);
+	void serverCreate().then(({ app, serverListening, serverServe }) =>
+		serverServe(serve({ fetch: app.fetch, port: ENV.PORT }, serverListening) as Server),
+	);
 }
 `;
 const nodeServerImport = 'import { serve } from "@hono/node-server";\n';
