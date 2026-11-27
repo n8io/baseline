@@ -225,7 +225,7 @@ export const queueCreate = async (options: QueueOptions): Promise<Queue> => {
 	// crash the process.
 	boss.on("error", queueErrorHandleCreate(boss));
 	boss.on("warning", (warning) => {
-		logger.warn({ queueWarning: warning.data }, warning.message);
+		logger().warn({ queueWarning: warning.data }, warning.message);
 	});
 	try {
 		await boss.start();
@@ -292,7 +292,7 @@ const queueErrorHandleCreate = (boss: PgBoss) => {
 		const { code, queue } = (error ?? {}) as Record<string, unknown>;
 		const name = typeof queue === "string" ? queue : undefined;
 		if (code === queueGoneCode && name !== undefined) {
-			logger.warn(
+			logger().warn(
 				{ queue: name },
 				"Queue was removed; this worker stops polling it",
 			);
@@ -307,7 +307,7 @@ const queueErrorHandleCreate = (boss: PgBoss) => {
 			return;
 		}
 		loggedAt.set(name ?? "", now);
-		logger.error(
+		logger().error(
 			{
 				err: queueErrorWrap(error),
 				...(name !== undefined && { queue: name }),

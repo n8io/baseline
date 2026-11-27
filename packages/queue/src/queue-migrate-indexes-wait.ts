@@ -54,7 +54,7 @@ export const queueMigrateIndexesWait = async ({
 		if (!busy && !boss.isBamWorking()) {
 			const failed = status.find((row) => row.status === "failed");
 			if (failed) {
-				logger.warn(
+				logger().warn(
 					{ queueIndexBuildsFailed: failed.count },
 					"Queue index builds failed; the next migrate retries them",
 				);

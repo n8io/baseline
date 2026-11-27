@@ -39,7 +39,7 @@ export const queueJobRun = async ({
 	} catch (error) {
 		const last = job.retryCount >= queueRetryLimit;
 		const blocked = last && job.key != null;
-		logger.error(
+		logger().error(
 			{
 				err: error,
 				queue: queueName,
