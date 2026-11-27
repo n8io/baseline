@@ -1,4 +1,12 @@
 import { type Logger, loggerCreate } from "@n8io/baseline-logger";
 
-/** The Package's one logger, built from `LOG_LEVEL` when the Package loads: a bad value stops startup with `loggerCreate`'s TypeError. */
-export const errorTrackingLoggerDefault: Logger = loggerCreate();
+let logger: Logger | undefined;
+
+/**
+ * The Package's one logger, built from `LOG_LEVEL` on the first call, not at import: a bad value
+ * throws `loggerCreate`'s TypeError there. Later calls return the same logger.
+ */
+export const errorTrackingLoggerDefault = (): Logger => {
+	logger ??= loggerCreate();
+	return logger;
+};
