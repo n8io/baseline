@@ -23,7 +23,7 @@ const keysKeep = <T extends object>(value: T, keys: Set<string>): T =>
 		Object.entries(value).filter(([key]) => keys.has(key)),
 	) as T;
 
-export const errorTrackingEventAllowlist = (event: ErrorEvent): ErrorEvent => ({
+export const errorTrackingAllowlist = (event: ErrorEvent): ErrorEvent => ({
 	...keysKeep(event, eventKeys),
 	contexts: keysKeep(event.contexts ?? {}, contextKeys),
 });

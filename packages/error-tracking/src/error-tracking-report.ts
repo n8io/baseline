@@ -5,7 +5,7 @@ import { errorTrackingExceptionsCreate } from "./error-tracking-exceptions.ts";
 type SpanContext = { spanId: string; traceId: string };
 
 /** The tags an error's code and constraint become. */
-export const errorTrackingTagsCreate = (
+export const errorTrackingReportTagsCreate = (
 	err: LoggerErr,
 ): NonNullable<Event["tags"]> => ({
 	...(err.code === undefined ? {} : { "error.code": err.code }),
@@ -15,14 +15,14 @@ export const errorTrackingTagsCreate = (
 });
 
 /** The Error report for a serialized error: exceptions innermost cause first, level and tags. */
-export const errorTrackingEventCreate = (err: LoggerErr): Event => ({
-	exception: { values: errorTrackingExceptionsCreate(err) },
+export const errorTrackingReportEventCreate = (err: LoggerErr): Event => ({
+	exception: { values: [...errorTrackingExceptionsCreate(err)] },
 	level: "error",
-	tags: errorTrackingTagsCreate(err),
+	tags: errorTrackingReportTagsCreate(err),
 });
 
 /** Links a scope's next report to the trace it happened in; leaves the scope alone without one. */
-export const errorTrackingScopeTrace = (
+export const errorTrackingReportScopeTrace = (
 	scope: Scope,
 	spanContext: SpanContext | undefined,
 ): void => {

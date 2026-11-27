@@ -2,15 +2,15 @@ import type { LoggerErr } from "@n8io/baseline-logger/err-serialize";
 import { Scope } from "@sentry/core";
 import { describe, expect, it } from "vitest";
 import {
-	errorTrackingEventCreate,
-	errorTrackingScopeTrace,
-	errorTrackingTagsCreate,
+	errorTrackingReportEventCreate,
+	errorTrackingReportScopeTrace,
+	errorTrackingReportTagsCreate,
 } from "./error-tracking-report.ts";
 
 const errOf = (fields: Record<string, unknown>) =>
 	({ type: "Error", ...fields }) as LoggerErr;
 
-describe("errorTrackingTagsCreate", () => {
+describe("errorTrackingReportTagsCreate", () => {
 	it.each([
 		[{}, {}],
 		[{ code: "23505" }, { "error.code": "23505" }],
@@ -20,13 +20,13 @@ describe("errorTrackingTagsCreate", () => {
 			{ "error.code": "1", "error.constraint": "k" },
 		],
 	])("tags %j as %j", (fields, tags) => {
-		expect(errorTrackingTagsCreate(errOf(fields))).toStrictEqual(tags);
+		expect(errorTrackingReportTagsCreate(errOf(fields))).toStrictEqual(tags);
 	});
 });
 
-describe("errorTrackingEventCreate", () => {
+describe("errorTrackingReportEventCreate", () => {
 	it("builds an error-level event with exceptions and tags", () => {
-		const event = errorTrackingEventCreate(errOf({ code: "1" }));
+		const event = errorTrackingReportEventCreate(errOf({ code: "1" }));
 
 		expect(event.level).toBe("error");
 		expect(event.tags).toEqual({ "error.code": "1" });
@@ -34,11 +34,11 @@ describe("errorTrackingEventCreate", () => {
 	});
 });
 
-describe("errorTrackingScopeTrace", () => {
+describe("errorTrackingReportScopeTrace", () => {
 	it("sets the trace id tag and propagation context", () => {
 		const scope = new Scope();
 
-		errorTrackingScopeTrace(scope, {
+		errorTrackingReportScopeTrace(scope, {
 			spanId: "b".repeat(16),
 			traceId: "a".repeat(32),
 		});
@@ -54,7 +54,7 @@ describe("errorTrackingScopeTrace", () => {
 		const scope = new Scope();
 		const before = scope.getPropagationContext();
 
-		errorTrackingScopeTrace(scope, undefined);
+		errorTrackingReportScopeTrace(scope, undefined);
 
 		expect(scope.getScopeData().tags).toEqual({});
 		expect(scope.getPropagationContext()).toBe(before);

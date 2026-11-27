@@ -1,11 +1,11 @@
 import type { ErrorEvent } from "@sentry/core";
 import { describe, expect, it } from "vitest";
-import { errorTrackingEventAllowlist } from "./error-tracking-allowlist.ts";
+import { errorTrackingAllowlist } from "./error-tracking-allowlist.ts";
 
 const eventOf = (fields: Record<string, unknown>): ErrorEvent =>
 	({ type: undefined, ...fields }) as ErrorEvent;
 
-describe("errorTrackingEventAllowlist", () => {
+describe("errorTrackingAllowlist", () => {
 	it("keeps each allowed field and drops every other", () => {
 		const allowed = {
 			dist: "1",
@@ -21,7 +21,7 @@ describe("errorTrackingEventAllowlist", () => {
 			timestamp: 1,
 			type: undefined,
 		};
-		const out = errorTrackingEventAllowlist(
+		const out = errorTrackingAllowlist(
 			eventOf({ ...allowed, extra: 1, request: {}, server_name: "host" }),
 		);
 
@@ -31,7 +31,7 @@ describe("errorTrackingEventAllowlist", () => {
 	});
 
 	it("keeps contexts runtime and trace only, and always sets contexts", () => {
-		const out = errorTrackingEventAllowlist(
+		const out = errorTrackingAllowlist(
 			eventOf({
 				contexts: {
 					device: { a: 1 },
@@ -45,13 +45,13 @@ describe("errorTrackingEventAllowlist", () => {
 			runtime: { name: "node" },
 			trace: { a: 1 },
 		});
-		expect(errorTrackingEventAllowlist(eventOf({})).contexts).toEqual({});
+		expect(errorTrackingAllowlist(eventOf({})).contexts).toEqual({});
 	});
 
 	it("does not change the event it is given", () => {
 		const event = eventOf({ extra: 1 });
 
-		errorTrackingEventAllowlist(event);
+		errorTrackingAllowlist(event);
 
 		expect(event).toHaveProperty("extra", 1);
 	});

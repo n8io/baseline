@@ -7,12 +7,12 @@ import {
 	type ServerRuntimeClientOptions,
 } from "@sentry/core/server";
 import type { ErrorTracking } from "./error-tracking.ts";
-import { errorTrackingEventAllowlist } from "./error-tracking-allowlist.ts";
+import { errorTrackingAllowlist } from "./error-tracking-allowlist.ts";
 import { errorTrackingStackParser } from "./error-tracking-exceptions.ts";
 import { errorTrackingLoggerDefault as logger } from "./error-tracking-logger-default.ts";
 import {
-	errorTrackingEventCreate,
-	errorTrackingScopeTrace,
+	errorTrackingReportEventCreate,
+	errorTrackingReportScopeTrace,
 } from "./error-tracking-report.ts";
 import { errorTrackingSend } from "./error-tracking-send.ts";
 import {
@@ -70,7 +70,7 @@ export const errorTrackingSentryCreate = ({
 	}
 	const client = new ServerRuntimeClient({
 		...(vendor ?? {}),
-		beforeSend: errorTrackingEventAllowlist,
+		beforeSend: errorTrackingAllowlist,
 		dsn,
 		environment,
 		integrations: [],
@@ -101,11 +101,11 @@ export const errorTrackingSentryCreate = ({
 			try {
 				const err = loggerErrSerialize(error);
 				const reportScope = scope.clone();
-				errorTrackingScopeTrace(
+				errorTrackingReportScopeTrace(
 					reportScope,
 					trace.getActiveSpan()?.spanContext(),
 				);
-				reportScope.captureEvent(errorTrackingEventCreate(err));
+				reportScope.captureEvent(errorTrackingReportEventCreate(err));
 			} catch (reportError) {
 				out.warn({ err: reportError }, "Dropped an error report");
 			}
