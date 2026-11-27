@@ -3,9 +3,9 @@ import {
 	eachConcurrently,
 	jobEndRead,
 	pieceCheckFailureReport,
-	pieceCheckPlanCreate,
-	pieceCheckRun,
-} from "./piece-check.ts";
+} from "./piece-check-jobs.ts";
+import { pieceCheckPlanCreate } from "./piece-check-plan.ts";
+import { pieceCheckRun } from "./piece-check-run.ts";
 
 const all = new Set([
 	"@n8io/baseline-analytics",
