@@ -42,11 +42,7 @@ import { serverDevCloseCreate } from "#ui/server-dev-close.ts";
 import packageJson from "../package.json" with { type: "json" };
 import { apiReferenceRoutesCreate } from "./api-reference.ts";
 import { connectionsOpen } from "./connections.ts";
-import {
-	type ContextMounts,
-	type Contexts,
-	contextsCreate,
-} from "./contexts.ts";
+import { type ContextMounts, contextsCreate } from "./contexts.ts";
 import { seedsRun } from "./seed.ts";
 
 const logger = loggerCreate();
@@ -140,17 +136,9 @@ const appCreate = ({
 	return app;
 };
 
-type ServerBoot = {
-	app: ReturnType<typeof appCreate>;
-	contextsByName: Contexts;
-	health: ReturnType<typeof healthServerCreate>;
-	serverListening: (listening: { port: number }) => void;
-	serverServe: (server: Server) => void;
-};
-
 // The startup check, the connections, the health port and the app, wired. Nothing runs until it
 // is called, so importing this file opens nothing.
-const serverCreate = async (): Promise<ServerBoot> => {
+const serverCreate = async () => {
 	// piece-start: ui
 	// Development: the dev server re-runs this file after an edit, and import.meta.hot is
 	// undefined there, so each run first closes what the last one opened.
@@ -213,8 +201,10 @@ const serverCreate = async (): Promise<ServerBoot> => {
 	});
 	return {
 		app: appCreate({ authn, mounts }),
-		contextsByName: contexts,
 		health,
+		// wiring: contexts-start
+		contexts,
+		// wiring: contexts-end
 		// Ready only once PORT is bound. A listen error such as EADDRINUSE never gets here: it
 		// reaches the shutdown handle's uncaughtException handler, which logs it and exits 1.
 		serverListening: ({ port }: { port: number }) => {
@@ -241,12 +231,17 @@ const serverCreate = async (): Promise<ServerBoot> => {
 	};
 };
 
-const booted: ServerBoot = await serverCreate();
+const booted = await serverCreate();
 export const { app } = booted;
 const { serverListening, serverServe } = booted;
 
 // piece-start: ui
-const { contextsByName: contexts, health } = booted;
+const {
+	health,
+	// wiring: contexts-start
+	contexts,
+	// wiring: contexts-end
+} = booted;
 // React Router serves the pages and hosts app: Vite in development, its build in production.
 export default await createHonoServer({
 	app,
