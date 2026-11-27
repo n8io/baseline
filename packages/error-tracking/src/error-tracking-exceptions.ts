@@ -14,7 +14,9 @@ export const errorTrackingStackParser: StackParser = createStackParser(
 // The report is built from loggerErrSerialize's safe shape, the one definition of what may leave
 // the process: class names, codes, constraints and stack frames, innermost cause first, as Sentry
 // orders them. The error itself never reaches Sentry, so no message can.
-export const errorTrackingExceptionsCreate = (err: LoggerErr): readonly Exception[] => {
+export const errorTrackingExceptionsCreate = (
+	err: LoggerErr,
+): readonly Exception[] => {
 	const exceptions: Exception[] = [];
 	for (let at: LoggerErr | undefined = err; at; at = at.cause) {
 		exceptions.unshift({
