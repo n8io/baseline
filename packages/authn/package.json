@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-authn",
-	"version": "7.2.1",
+	"version": "7.2.2",
 	"description": "One Actor on every request: pages sign in through any OIDC provider, the API checks bearer tokens, and Use cases get the same Actor from both.",
 	"license": "MIT",
 	"type": "module",

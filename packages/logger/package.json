@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-logger",
-	"version": "4.0.0",
+	"version": "4.1.0",
 	"description": "One JSON logger for a Project and its Packages that keeps credentials and error messages out of every line.",
 	"license": "MIT",
 	"type": "module",

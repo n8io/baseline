@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-http",
-	"version": "4.0.1",
+	"version": "4.0.2",
 	"description": "One shape for every API error: problem bodies with the trace id, OpenAPI error responses checked against the Use cases' errors, and secure defaults.",
 	"license": "MIT",
 	"type": "module",

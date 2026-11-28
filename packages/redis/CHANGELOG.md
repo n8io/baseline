@@ -1,5 +1,18 @@
 # @n8io/baseline-redis
 
+## 1.2.1
+
+### Patch Changes
+
+- 126f764: The package's logger is now built on its first use, not when the module loads, so a bad `LOG_LEVEL` no longer throws at import. The same `TypeError` is thrown by the first call that needs the logger.
+- 6b596a6: The package's default logger now comes from `@n8io/baseline-logger`'s `loggerDefaultCreate`. Behaviour is unchanged: the logger is built on its first use, and a bad `LOG_LEVEL` throws the same `TypeError` there.
+- Updated dependencies [8a03afb]
+- Updated dependencies [b3a3a95]
+- Updated dependencies [6b596a6]
+- Updated dependencies [39c8e87]
+  - @n8io/baseline-shared@0.1.2
+  - @n8io/baseline-logger@4.1.0
+
 ## 1.2.0
 
 ### Minor Changes
