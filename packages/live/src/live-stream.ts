@@ -125,7 +125,7 @@ export const liveStreamBuild = (
 			ready();
 			await stop.promise;
 		} catch (err) {
-			logger.error({ err }, "Live stream failed to subscribe");
+			logger().error({ err }, "Live stream failed to subscribe");
 		} finally {
 			unlisten();
 			clearTimeout(resyncTimer);

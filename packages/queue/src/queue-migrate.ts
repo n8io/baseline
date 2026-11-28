@@ -74,7 +74,7 @@ export const queueMigrate = async (
 		supervise: false,
 	});
 	boss.on("error", (error) => {
-		logger.error({ err: error }, "Queue migrate error");
+		logger().error({ err: error }, "Queue migrate error");
 	});
 	try {
 		await boss.start();

@@ -61,7 +61,7 @@ export const errorTrackingSentryCreate = ({
 	logger: loggerGiven,
 	vendor,
 }: ErrorTrackingSentryOptions): ErrorTracking => {
-	const out = loggerGiven ?? logger;
+	const out = loggerGiven ?? logger();
 	const refused = errorTrackingVendorKeyRefused(vendor);
 	if (refused !== undefined) {
 		throw new TypeError(

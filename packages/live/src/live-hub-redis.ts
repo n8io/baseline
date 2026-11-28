@@ -46,7 +46,7 @@ export const liveHubRedisCreate = ({
 		const connection: LiveRedisClient = redisClient.duplicate();
 		// node-redis exits the process on an unlistened error event.
 		connection.on("error", (err: unknown) => {
-			logger.error({ err }, "Redis live subscriber error");
+			logger().error({ err }, "Redis live subscriber error");
 		});
 		try {
 			await sharedTimeLimit({

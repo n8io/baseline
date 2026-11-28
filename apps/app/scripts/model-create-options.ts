@@ -1,4 +1,4 @@
-import { type Piece, pieceBlocksRemove, pieceScheduleLines } from "./pieces.ts";
+import { type Piece, pieceBlocksRemove, pieces } from "./pieces.ts";
 import type { TemplateFile } from "./template-render.ts";
 
 // Pieces and options
@@ -15,40 +15,6 @@ export const homePaths = new Set([
 	"src/ui/routes/home.test.ts",
 ]);
 
-// What each Piece of the stack (scripts/pieces.ts) owns in the Template's foo files: the files a
-// new context or Model leaves out once the Piece is removed, and the env lines. A Piece's
-// `piece-start:` blocks stay out of them too. A new Piece fails type-checking until it is listed.
-const piecesTemplate: Record<Piece, { lines?: RegExp; paths: RegExp[] }> = {
-	analytics: { paths: [/^src\/contexts\/foo\/.*-analytics\.test\.ts$/] },
-	// Owns no context file; listed so its blocks stay out once it is removed.
-	"api-reference": { paths: [] },
-	cache: { paths: [/^src\/contexts\/foo\/.*-cache(d|\.test)?\.ts$/] },
-	// Owns no context file.
-	cli: { paths: [] },
-	// Owns no context file; listed so its blocks stay out once it is removed.
-	"error-tracking": { paths: [] },
-	// Owns no context file; listed so its blocks stay out once it is removed.
-	"feature-flags": { paths: [] },
-	live: {
-		paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
-	},
-	queue: {
-		// Env files carry no markers; this is the line pieces.ts drops from .env.schema.
-		lines: pieceScheduleLines,
-		paths: [
-			/^src\/worker\.ts$/,
-			/^src\/contexts\/foo\/adapters\/inbound\/foo-schedule(\.test)?\.ts$/,
-			/^src\/contexts\/foo\/adapters\/outbound\/foo-transaction\.postgres\.test\.ts$/,
-			/^src\/contexts\/foo\/.*-queue\.test\.ts$/,
-		],
-	},
-	// Owns no context file (src/redis-open.ts is not a context's).
-	redis: { paths: [] },
-	// Owns no context file; modelChecksRun regenerates the SDK.
-	sdk: { paths: [] },
-	ui: { paths: [/^src\/ui\//] },
-};
-
 // The template as a Project that removed those pieces would have it.
 export const templateWithoutPieces = (
 	template: TemplateFile[],
@@ -58,13 +24,13 @@ export const templateWithoutPieces = (
 		.filter(
 			(file) =>
 				!removed.some((piece) =>
-					piecesTemplate[piece].paths.some((r) => r.test(file.path)),
+					(pieces[piece].template?.paths ?? []).some((r) => r.test(file.path)),
 				),
 		)
 		.map((file) => ({
 			path: file.path,
 			text: removed.reduce((text, piece) => {
-				const { lines } = piecesTemplate[piece];
+				const lines = pieces[piece].template?.lines;
 				return pieceBlocksRemove(
 					lines === undefined ? text : text.replace(lines, ""),
 					piece,

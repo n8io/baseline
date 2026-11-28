@@ -41,6 +41,7 @@ await sharedTimeLimit({
 | `sharedKeepAlive(server)`                                    | Sets a server's keep-alive timeout to 65 s and its headers timeout above it.                                                               |
 | `sharedConnectionUrlAssert(databaseUrl, caller)`             | Throws unless the URL starts with `postgres://` or `postgresql://`.                                                                        |
 | `sharedConnectionSslAssert({ caller, databaseUrl, vendor })` | Throws on `vendor.ssl` beside an `ssl*` URL parameter, or on a URL that does not parse.                                                    |
+| `sharedVendorKeyRefused({ allowed, vendor })`                | Returns the first key of `vendor` that `allowed` does not list, or undefined when all are listed. The caller words the error.              |
 
 </details>
 

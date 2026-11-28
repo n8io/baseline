@@ -39,6 +39,7 @@
 	},
 	"dependencies": {
 		"@n8io/baseline-logger": "workspace:^",
+		"@n8io/baseline-shared": "workspace:^",
 		"@sentry/core": "^11.14.0"
 	},
 	"devDependencies": {

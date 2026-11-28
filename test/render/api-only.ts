@@ -24,6 +24,7 @@ import {
 	modelFilesCreate,
 	modelRefusal,
 } from "../../apps/app/scripts/model-create.ts";
+import type { Piece } from "../../apps/app/scripts/pieces.ts";
 import { gitRun, processRun } from "../../apps/app/scripts/process-run.ts";
 import { filesWrite } from "../../apps/app/scripts/template-render.ts";
 import {
@@ -51,18 +52,6 @@ const invoiceLine = {
 	kebab: "invoice-line",
 	plural: "invoice-lines",
 };
-type Piece =
-	| "analytics"
-	| "api-reference"
-	| "cache"
-	| "cli"
-	| "error-tracking"
-	| "feature-flags"
-	| "live"
-	| "queue"
-	| "redis"
-	| "sdk"
-	| "ui";
 
 const contextAdd = ({
 	directory,

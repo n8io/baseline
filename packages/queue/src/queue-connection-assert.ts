@@ -1,15 +1,16 @@
 import {
 	sharedConnectionSslAssert,
 	sharedConnectionUrlAssert,
+	sharedVendorKeyRefused,
 } from "@n8io/baseline-shared";
 
 // The `vendor` keys queueMigrate and queueSchedulesSync pass to the connection pg-boss opens.
 // Every other key either sets what `databaseUrl` and the queue already set or does nothing.
-const queueConnectionVendorKeys = new Set([
+const queueConnectionVendorKeys = [
 	"application_name",
 	"options",
 	"ssl",
-]);
+] as const;
 
 /**
  * Checks what queueMigrate and queueSchedulesSync are handed before pg-boss opens its own
@@ -27,12 +28,14 @@ export const queueConnectionAssert = ({
 	vendor: object;
 }): void => {
 	sharedConnectionUrlAssert(databaseUrl, caller);
-	for (const key of Object.keys(vendor)) {
-		if (!queueConnectionVendorKeys.has(key)) {
-			throw new TypeError(
-				`${caller}: vendor.${key} is not allowed: only ${[...queueConnectionVendorKeys].join(", ")} reach the connection`,
-			);
-		}
+	const refused = sharedVendorKeyRefused({
+		allowed: queueConnectionVendorKeys,
+		vendor,
+	});
+	if (refused !== undefined) {
+		throw new TypeError(
+			`${caller}: vendor.${refused} is not allowed: only ${queueConnectionVendorKeys.join(", ")} reach the connection`,
+		);
 	}
 	sharedConnectionSslAssert({ caller, databaseUrl, vendor });
 };
