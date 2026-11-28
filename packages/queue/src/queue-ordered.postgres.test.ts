@@ -617,8 +617,20 @@ describe("queueOrderedBlockedKeysWatch", () => {
 		const consumer = "audit.foo-watched";
 		const name = `${consumer}.ordered`;
 		await boss.createQueue(name, { policy: "key_strict_fifo" });
+		// The watch reads this clock, not the wall's: the test moves time on by `elapsed` instead of
+		// waiting for it, and the deletion times below are far enough off that the real time the
+		// test takes, and the queue's own sweep of failed Events, never reach them.
+		let elapsed = 0;
+		const clock = async (): Promise<number> => {
+			const { rows } = await pgPool.query<{ now: Date }>("SELECT now() AS now");
+			return (rows[0]?.now.getTime() ?? 0) + elapsed;
+		};
+		const elapse = (seconds: number) => {
+			elapsed += seconds * 1000;
+		};
 		// An Event the queue failed by itself, so no Consumer has logged it, with a deletion time of
-		// its own: foo_held has an hour and an Event waiting behind it, the others seconds.
+		// its own: foo_held has a lot of time and an Event waiting behind it, the others a fraction
+		// of the 3000 s remindMs (the warning's lead) past it.
 		const blockedCreate = async (key: string, deletionSeconds: number) => {
 			const id = await boss.send(name, {}, { singletonKey: key });
 			await pgPool.query(
@@ -626,11 +638,11 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				[id, deletionSeconds],
 			);
 		};
-		await blockedCreate("foo_held", 3600);
+		await blockedCreate("foo_held", 3_600_000);
 		await boss.send(name, {}, { singletonKey: "foo_held" });
-		await blockedCreate("foo_retried_late", 1);
-		await blockedCreate("foo_expiring", 4);
-		await blockedCreate("foo_given_up", 7);
+		await blockedCreate("foo_retried_late", 1000);
+		await blockedCreate("foo_expiring", 4000);
+		await blockedCreate("foo_given_up", 7000);
 		const logs = (
 			spy: typeof error | typeof warn,
 			message: string,
@@ -659,7 +671,8 @@ describe("queueOrderedBlockedKeysWatch", () => {
 
 		const stop = queueOrderedBlockedKeysWatch(boss, {
 			checkMs: 100,
-			remindMs: 3000,
+			clock,
+			remindMs: 3_000_000,
 		});
 		try {
 			await queueWaitFor(
@@ -689,19 +702,21 @@ describe("queueOrderedBlockedKeysWatch", () => {
 				attributes,
 			]);
 			// Retried after its deleteAt but before the queue's sweep: no expiry, since its row stays.
-			await sleep(1200);
+			elapse(1200);
 			expect(
 				await queueOrderedBlockedKeyRetry(boss, {
 					consumer,
 					key: "foo_retried_late",
 				}),
 			).toBe(true);
-			// The ones with seconds left are warned about, the one with an hour is not.
+			// The ones with a remindMs or less left are warned about, the one with far more is not.
 			await queueWaitFor(
-				() => {
-					expect(logs(warn, warnMessage, "foo_expiring")).toHaveLength(1);
-					expect(logs(warn, warnMessage, "foo_given_up")).toHaveLength(1);
-				},
+				() => expect(logs(warn, warnMessage, "foo_expiring")).toHaveLength(1),
+				{ interval: 50, timeout: 10_000 },
+			);
+			elapse(2900);
+			await queueWaitFor(
+				() => expect(logs(warn, warnMessage, "foo_given_up")).toHaveLength(1),
 				{ interval: 50, timeout: 10_000 },
 			);
 			expect(logs(warn, warnMessage, "foo_held")).toHaveLength(0);

@@ -184,14 +184,26 @@ const dayMs = 86_400_000;
  * them, and a check that is still running skips the next. Per Consumer, gauges carry
  * the count, the oldest one's age and the Events waiting behind them until they are back at 0. A
  * check that fails is skipped: the poll loops already report a database that is down. `remindMs`
- * (a day) is both the repeat and the warning's lead; tests shorten it. Returns what stops the checks.
+ * (a day) is both the repeat and the warning's lead; tests shorten it. `clock` reads the time the
+ * checks compare against (ms since the epoch), the database's by default; a test passes its own
+ * to move time on without waiting for it. Returns what stops the checks.
  */
 export const queueOrderedBlockedKeysWatch = (
 	boss: PgBoss,
-	timing?: { checkMs?: number | null; remindMs?: number | null } | null,
+	timing?: {
+		checkMs?: number | null;
+		clock?: (() => Promise<number>) | null;
+		remindMs?: number | null;
+	} | null,
 ): (() => void) => {
 	const checkMs = timing?.checkMs ?? 60_000;
 	const remindMs = timing?.remindMs ?? dayMs;
+	const clock =
+		timing?.clock ??
+		(async (): Promise<number> => {
+			const { rows } = await boss.getDb().executeSql("SELECT now() AS now");
+			return (rows[0] as { now: Date }).now.getTime();
+		});
 	const tracked = new Map<
 		string,
 		{
@@ -207,8 +219,7 @@ export const queueOrderedBlockedKeysWatch = (
 	const consumers = new Set<string>();
 	const check = async (): Promise<void> => {
 		const db = boss.getDb();
-		const clock = await db.executeSql("SELECT now() AS now");
-		const now = (clock.rows[0] as { now: Date }).now.getTime();
+		const now = await clock();
 		const blocked = await queueOrderedBlockedKeysRead(boss);
 		const totals = new Map<
 			string,
