@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { it as base, expect } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -63,39 +63,41 @@ const childStart = async (baseUrl: string) => {
 	return { child, exited };
 };
 
-// The API and the ready child are set up once per file, outside the test's own timeout.
-const it = base.extend<{ started: Awaited<ReturnType<typeof setup>> }>({
-	started: [
-		// biome-ignore lint/correctness/noEmptyPattern: Vitest requires a destructured first argument
-		async ({}, use) => {
-			const started = await setup();
-			await use(started);
-			// Stops the child with the test, so a failure never leaves it calling a closed server.
-			started.child.kill();
-			await new Promise<void>((resolve) => {
-				started.server.close(() => resolve());
-			});
-		},
-		{ scope: "file" },
-	],
-});
-
 const setup = async () => {
 	const api = await apiStart();
 	const { child, exited } = await childStart(api.baseUrl);
 	return { ...api, child, exited };
 };
 
+// Vitest counts a file-scoped fixture's setup inside the first test's timeout, so the child's cold
+// start has to run in beforeAll, which has its own hook timeout. The test then waits on the
+// started child and measures only the request.
+const started = Promise.withResolvers<Awaited<ReturnType<typeof setup>>>();
+
+beforeAll(async () => {
+	const running = await setup().catch((error: unknown) => {
+		started.reject(error);
+		throw error;
+	});
+	started.resolve(running);
+	// Stops the child after the test, so a failure never leaves it calling a closed server.
+	return async () => {
+		running.child.kill();
+		await new Promise<void>((resolve) => {
+			running.server.close(() => resolve());
+		});
+	};
+}, 60_000);
+
 // The SDK has no trace code: telemetry's fetch instrumentation adds the header. This proves it
 // does for a call made through sdkFetch inside a span.
-it("sends traceparent when telemetry is started and a span is active", async ({
-	started,
-}) => {
-	started.child.stdin.end("go\n");
+it("sends traceparent when telemetry is started and a span is active", async () => {
+	const running = await started.promise;
+	running.child.stdin.end("go\n");
 
-	const code = await started.exited;
+	const code = await running.exited;
 
 	expect(code).toBe(0);
-	expect(started.headers).toHaveLength(1);
-	expect(started.headers[0]).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/);
+	expect(running.headers).toHaveLength(1);
+	expect(running.headers[0]).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/);
 });
