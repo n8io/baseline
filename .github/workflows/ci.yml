@@ -112,11 +112,15 @@ jobs:
     uses: ./.github/workflows/sast.yml
 
   # The template as is, foo included: render drops foo's integration tests, so only this runs them.
-  # integration.yml holds the job and its Postgres and Redis services.
+  # integration.yml holds the job and its Postgres and Redis services. This caller always runs, so the
+  # reusable job always reports `integration / integration`: it is skipped (which satisfies the check)
+  # on a Markdown-only diff. A skipped caller reports no nested check at all, so the gate lives inside.
   integration:
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/integration.yml
+    with:
+      code: ${{ needs.changes.outputs.code }}
 
   # The UI tests of apps/app: Playwright, axe and the Lighthouse budget, in a real Chromium against the
   # production build on memory adapters, so no Postgres or Redis. Blocking, like every job here.

@@ -5,12 +5,18 @@ name: integration
 # this file; test/ci-shared-blocks.test.ts fails when the two copies drift.
 on:
   workflow_call:
+    inputs:
+      code:
+        description: "false on a Markdown-only pull request, which skips the job and still reports it."
+        default: "true"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   integration:
+    if: ${{ inputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     services:
