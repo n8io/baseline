@@ -116,7 +116,7 @@ export const pieceManifest = {
 	},
 	live: {
 		packages: ["@n8io/baseline-live"],
-		paths: ["src/live-hub-open.ts", "test/e2e/live-smoke.test.ts"],
+		paths: ["src/live-hub-open.ts", "test/e2e/foo-live-smoke.test.ts"],
 		srcFiles: /-live(-routes)?(\.test)?\.ts$/,
 		template: {
 			paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],

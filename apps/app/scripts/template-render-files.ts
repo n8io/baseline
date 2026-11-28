@@ -14,6 +14,8 @@ const templateFooPaths = [
 	/^src\/ui\/routes\/(foo-[^/]+|home)(\.test)?\.tsx?$/,
 	// Integration tests that drive foo are named foo-*.test.ts.
 	/^test\/integration\/foo-[^/]+\.test\.ts$/,
+	// Browser tests that drive foo's live stream: the first Model of a Project may have no live updates.
+	/^test\/e2e\/foo-[^/]+\.test\.ts$/,
 	/^migrations\/[^/]*foo[^/]*\//,
 ];
 

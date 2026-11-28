@@ -110,7 +110,7 @@ const setup = (actor: Actor | null = owner) => {
 `test/e2e/` holds the browser tests. `pnpm test:e2e` builds, then runs them in Playwright's Chromium against the production build on memory adapters; app-ci.yml's `browser` job runs the same command in every Project.
 
 - `ui-flows.test.ts` clicks through sign-in, the home redirect, a Model's list and detail, and one create and one edit.
-- Each UI Piece has a smoke test that proves its page renders: `ui-smoke.test.ts` (ui), `api-reference-smoke.test.ts` (api-reference), `live-smoke.test.ts` (live) and `feature-flags-smoke.test.ts` (feature-flags). A new page with a Piece's behaviour gets a smoke test in that Piece's file, and the file is listed under the Piece in `scripts/pieces-removals.ts`, so `pnpm piece-remove` deletes it with the Piece.
+- Each UI Piece has a smoke test that proves its page renders: `ui-smoke.test.ts` (ui), `api-reference-smoke.test.ts` (api-reference), `foo-live-smoke.test.ts` (live, foo-owned: a Project's first Model may have no live updates) and `feature-flags-smoke.test.ts` (feature-flags). A new page with a Piece's behaviour gets a smoke test in that Piece's file, and the file is listed under the Piece in `scripts/piece-manifest.ts`, so `pnpm piece-remove` deletes it with the Piece.
 - Visual comparison (`toHaveScreenshot`) is not used: its baselines would be screenshots in the repository, and screenshots are never committed (above).
 
 ## Removing a page
