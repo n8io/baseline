@@ -3,13 +3,13 @@
 // those lists have a hook here.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { type Piece, pieceNames, pieces } from "./pieces-names.ts";
 import {
 	type Manifest,
 	manifestEdit,
 	recordOmit,
 	textEdit,
-} from "./pieces-manifest.ts";
-import { type Piece, pieceNames, pieces } from "./pieces-names.ts";
+} from "./pieces-package-edit.ts";
 import { uiEdit } from "./pieces-removals-ui.ts";
 import { piecesRemovedFind, trackedFiles } from "./pieces-signs.ts";
 

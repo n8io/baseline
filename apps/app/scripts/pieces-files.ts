@@ -1,13 +1,13 @@
 // Deleting a Piece's files, blocks and edits from a Project or a rendered tree.
 import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { pieceBlocksRemove, pieceMarkersProblems } from "./pieces-markers.ts";
+import { type Piece, pieces } from "./pieces-names.ts";
 import {
 	dependenciesAllowedPieceRemove,
 	manifestEdit,
 	recordOmit,
-} from "./pieces-manifest.ts";
-import { pieceBlocksRemove, pieceMarkersProblems } from "./pieces-markers.ts";
-import { type Piece, pieces } from "./pieces-names.ts";
+} from "./pieces-package-edit.ts";
 import { pieceRemovals } from "./pieces-removals.ts";
 import { pieceSettingsRead } from "./pieces-settings.ts";
 import { trackedFiles } from "./pieces-signs.ts";

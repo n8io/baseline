@@ -1,11 +1,11 @@
 // Running a Piece removal: pnpm steps, the check, and the undo when it fails.
 import { spawnSync } from "node:child_process";
 import { pieceFilesRemove } from "./pieces-files.ts";
+import { type Piece, pieces } from "./pieces-names.ts";
 import {
 	dependenciesAllowedPieceRemove,
 	packagesInstalled,
-} from "./pieces-manifest.ts";
-import { type Piece, pieces } from "./pieces-names.ts";
+} from "./pieces-package-edit.ts";
 import { gitRun } from "./process-run.ts";
 
 // What a failed removal tells the person.

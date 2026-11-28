@@ -7,7 +7,7 @@ import {
 	objectParse,
 	recordOmit,
 	textEdit,
-} from "./pieces-manifest.ts";
+} from "./pieces-package-edit.ts";
 
 const biomeSchema = z.looseObject({
 	css: z.unknown().optional(),
