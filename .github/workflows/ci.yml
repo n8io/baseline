@@ -146,8 +146,8 @@ jobs:
         working-directory: apps/app
       - run: pnpm test:e2e
         working-directory: apps/app
-      # Shoots the sign-in page, desktop and phone, to a folder outside the repository.
-      - run: pnpm ui-shot --label ci --out "$RUNNER_TEMP/ui-shots"
+      # Shoots the sign-in, list and detail pages, desktop and phone, to a folder outside the repository.
+      - run: pnpm ui-shot --label ci --entry --out "$RUNNER_TEMP/ui-shots"
         working-directory: apps/app
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
