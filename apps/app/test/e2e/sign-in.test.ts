@@ -1,12 +1,10 @@
-import { type AxeResults, source as axeSource } from "axe-core";
 import { type Browser, chromium, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
+import { axeBlocking } from "./axe-blocking.ts";
 
 // The sign-in page is the memory issuer's, in development and test. One Server and one browser serve
 // every test here; Playwright records no trace unless a test starts one.
-type Axe = { run: () => Promise<AxeResults> };
-
 let server: UiServer;
 let browser: Browser;
 let page: Page;
@@ -54,15 +52,6 @@ describe("sign-in page", () => {
 	});
 
 	it("has no serious or critical axe violations", async () => {
-		await page.evaluate(axeSource);
-		const { passes, violations } = await page.evaluate(() =>
-			(globalThis as unknown as { axe: Axe }).axe.run(),
-		);
-		// Axe ran: it checked rules, it did not just return nothing.
-		expect(passes.length).toBeGreaterThan(0);
-		const blocking = violations.filter(
-			({ impact }) => impact === "serious" || impact === "critical",
-		);
-		expect(blocking.map(({ id, impact }) => `${id} (${impact})`)).toEqual([]);
+		expect(await axeBlocking(page)).toEqual([]);
 	});
 });

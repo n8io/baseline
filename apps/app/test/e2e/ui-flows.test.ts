@@ -6,6 +6,7 @@ import {
 } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
+import { axeBlocking } from "./axe-blocking.ts";
 
 // Click-through flows of the UI pieces: sign-in, the home redirect, the list and detail pages, and one
 // create and one edit. One Server and one browser serve every flow; each flow signs in in a context of
@@ -71,7 +72,9 @@ describe("sign-in flow", () => {
 			await signIn(page);
 			expect(pathOf(page)).not.toMatch(/^\/auth\//);
 			await page.getByLabel("Name").waitFor();
+			await expect.poll(() => page.title()).toBe("Foos");
 			expect(consoleErrors).toEqual([]);
+			expect(await axeBlocking(page)).toEqual([]);
 		} finally {
 			await context.close();
 		}
@@ -115,7 +118,9 @@ describe("create and edit", () => {
 			await page.getByRole("button", { name: "Create" }).click();
 			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await page.getByText(name, { exact: true }).waitFor();
+			await expect.poll(() => page.title()).toBe(name);
 			expect(consoleErrors).toEqual([]);
+			expect(await axeBlocking(page)).toEqual([]);
 		} finally {
 			await context.close();
 		}
@@ -130,9 +135,11 @@ describe("create and edit", () => {
 			await page.getByRole("button", { name: "Create" }).click();
 			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await listOpen(page);
+			expect(await axeBlocking(page)).toEqual([]);
 			await page.getByRole("link", { name }).click();
 			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await page.getByText(name, { exact: true }).waitFor();
+			expect(await axeBlocking(page)).toEqual([]);
 		} finally {
 			await context.close();
 		}
@@ -151,6 +158,7 @@ describe("create and edit", () => {
 			await page.getByRole("button", { name: "Save" }).click();
 			await page.getByText(renamed, { exact: true }).waitFor();
 			expect(consoleErrors).toEqual([]);
+			expect(await axeBlocking(page)).toEqual([]);
 		} finally {
 			await context.close();
 		}

@@ -57,6 +57,11 @@ const fooIdParse = (params: { fooId?: string | undefined }) => {
 	return parsed.data;
 };
 
+// The page needs a title: a screen reader announces it first, and axe requires one.
+export const meta: Route.MetaFunction = ({ loaderData }) => [
+	{ title: loaderData?.foo.name ?? "Foo" },
+];
+
 export const loader = async (args: Route.LoaderArgs) => {
 	const actor = authnPageActorRequire(args);
 	const fooId = fooIdParse(args.params);

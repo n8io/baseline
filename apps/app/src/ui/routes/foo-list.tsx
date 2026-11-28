@@ -26,6 +26,9 @@ import {
 import { fooUseCasesContext } from "#ui/context.ts";
 import type { Route } from "./+types/foo-list.ts";
 
+// The page needs a title: a screen reader announces it first, and axe requires one.
+export const meta: Route.MetaFunction = () => [{ title: "Foos" }];
+
 export const loader = async (args: Route.LoaderArgs) => {
 	const actor = authnPageActorRequire(args);
 	const cursor = new URL(args.request.url).searchParams.get("cursor");
