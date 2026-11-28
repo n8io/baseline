@@ -7,7 +7,6 @@ export {
 	pieceFilesRemove,
 	piecesRemoveFromTree,
 } from "./pieces-files.ts";
-export { packagesInstalled } from "./pieces-manifest.ts";
 export { pieceBlocksRemove, pieceMarkersProblems } from "./pieces-markers.ts";
 export {
 	type Piece,
@@ -16,6 +15,7 @@ export {
 	pieceSign,
 	pieces,
 } from "./pieces-names.ts";
+export { packagesInstalled } from "./pieces-package-edit.ts";
 export {
 	pieceDevWorker,
 	pieceRemovals,
