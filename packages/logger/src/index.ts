@@ -6,6 +6,7 @@ export {
 	loggerCreate,
 	loggerCreateFromConfig,
 } from "./logger.ts";
+export { loggerDefaultCreate } from "./logger-default.ts";
 export {
 	type LoggerErrorListener,
 	loggerErrorListen,
