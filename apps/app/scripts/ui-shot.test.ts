@@ -1,6 +1,10 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { uiShotDirDefault, uiShotFileNameCreate } from "./ui-shot.ts";
+import {
+	uiShotDirDefault,
+	uiShotEntryFileNameCreate,
+	uiShotFileNameCreate,
+} from "./ui-shot.ts";
 
 // Reads and runs no file of the app
 
@@ -23,6 +27,25 @@ describe("uiShotFileNameCreate", () => {
 				viewport: "desktop",
 			}),
 		).toBe("after-home-desktop.png");
+	});
+});
+
+describe("uiShotEntryFileNameCreate", () => {
+	it("names the list and detail pages by label and viewport", () => {
+		expect(
+			uiShotEntryFileNameCreate({
+				label: "ci",
+				page: "list",
+				viewport: "phone",
+			}),
+		).toBe("ci-list-phone.png");
+		expect(
+			uiShotEntryFileNameCreate({
+				label: "ci",
+				page: "detail",
+				viewport: "desktop",
+			}),
+		).toBe("ci-detail-desktop.png");
 	});
 });
 
