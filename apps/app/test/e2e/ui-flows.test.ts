@@ -7,9 +7,11 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
 
-// Click-through flows of the UI pieces: sign-in, the home redirect, the foo list and detail, and one
+// Click-through flows of the UI pieces: sign-in, the home redirect, the list and detail pages, and one
 // create and one edit. One Server and one browser serve every flow; each flow signs in in a context of
 // its own, so cookies never leak between them. Memory adapters: nothing persists between runs.
+// This file names no Model: the render keeps only lines without the Template's Model name, so the
+// paths come from the home redirect and the page's form, and the detail page is matched by its shape.
 let server: UiServer;
 let browser: Browser;
 
@@ -48,6 +50,17 @@ const signIn = async (page: Page) => {
 	await page.waitForURL((url) => !url.pathname.startsWith("/auth/"));
 };
 
+// The home page redirects to the list, whose form is the Name field and a Create button.
+const listOpen = async (page: Page) => {
+	await page.goto(`${server.url}/`);
+	await page.getByLabel("Name").waitFor();
+};
+
+const pathOf = (page: Page) => new URL(page.url()).pathname;
+
+// The detail page's path: one segment for the list, two for an entry.
+const detailPath = /^\/[^/]+\/[^/]+$/;
+
 // A name no other flow has used on this Server.
 const nameCreate = () => `flow${Math.random().toString(36).slice(2, 10)}`;
 
@@ -56,8 +69,8 @@ describe("sign-in flow", () => {
 		const { consoleErrors, context, page } = await pageOpen();
 		try {
 			await signIn(page);
-			expect(new URL(page.url()).pathname).toBe("/foos");
-			await page.getByRole("heading", { name: "Foos" }).waitFor();
+			expect(pathOf(page)).not.toMatch(/^\/auth\//);
+			await page.getByLabel("Name").waitFor();
 			expect(consoleErrors).toEqual([]);
 		} finally {
 			await context.close();
@@ -67,12 +80,11 @@ describe("sign-in flow", () => {
 	it("returns a signed-out visit to the page it asked for after sign-in", async () => {
 		const { context, page } = await pageOpen();
 		try {
-			await page.goto(`${server.url}/foos`);
-			await expect
-				.poll(() => new URL(page.url()).pathname)
-				.toBe("/auth/sign-in");
+			await page.goto(`${server.url}/`);
+			await expect.poll(() => pathOf(page)).toBe("/auth/sign-in");
 			await page.getByRole("button", { name: "Dev user" }).click();
-			await expect.poll(() => new URL(page.url()).pathname).toBe("/foos");
+			await expect.poll(() => pathOf(page)).not.toMatch(/^\/auth\//);
+			await page.getByLabel("Name").waitFor();
 		} finally {
 			await context.close();
 		}
@@ -85,8 +97,8 @@ describe("home and list", () => {
 		try {
 			await signIn(page);
 			await page.goto(`${server.url}/`);
-			expect(new URL(page.url()).pathname).toBe("/foos");
-			await page.getByRole("heading", { name: "Foos" }).waitFor();
+			expect(pathOf(page)).not.toBe("/");
+			await page.getByLabel("Name").waitFor();
 		} finally {
 			await context.close();
 		}
@@ -101,9 +113,7 @@ describe("create and edit", () => {
 			await signIn(page);
 			await page.getByLabel("Name").fill(name);
 			await page.getByRole("button", { name: "Create" }).click();
-			await expect
-				.poll(() => new URL(page.url()).pathname)
-				.toMatch(/^\/foos\/.+/);
+			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await page.getByText(name, { exact: true }).waitFor();
 			expect(consoleErrors).toEqual([]);
 		} finally {
@@ -118,14 +128,10 @@ describe("create and edit", () => {
 			await signIn(page);
 			await page.getByLabel("Name").fill(name);
 			await page.getByRole("button", { name: "Create" }).click();
-			await expect
-				.poll(() => new URL(page.url()).pathname)
-				.toMatch(/^\/foos\/.+/);
-			await page.goto(`${server.url}/foos`);
+			await expect.poll(() => pathOf(page)).toMatch(detailPath);
+			await listOpen(page);
 			await page.getByRole("link", { name }).click();
-			await expect
-				.poll(() => new URL(page.url()).pathname)
-				.toMatch(/^\/foos\/.+/);
+			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await page.getByText(name, { exact: true }).waitFor();
 		} finally {
 			await context.close();
@@ -140,9 +146,7 @@ describe("create and edit", () => {
 			await signIn(page);
 			await page.getByLabel("Name").fill(name);
 			await page.getByRole("button", { name: "Create" }).click();
-			await expect
-				.poll(() => new URL(page.url()).pathname)
-				.toMatch(/^\/foos\/.+/);
+			await expect.poll(() => pathOf(page)).toMatch(detailPath);
 			await page.getByLabel("Name").fill(renamed);
 			await page.getByRole("button", { name: "Save" }).click();
 			await page.getByText(renamed, { exact: true }).waitFor();

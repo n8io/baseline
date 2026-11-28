@@ -32,14 +32,14 @@ describe("ui pages render", () => {
 			await page.waitForURL((url) => !url.pathname.startsWith("/auth/"));
 
 			await page.goto(`${server.url}/`);
-			expect(new URL(page.url()).pathname).toBe("/foos");
-			await page.getByRole("heading", { name: "Foos" }).waitFor();
+			expect(new URL(page.url()).pathname).not.toBe("/");
+			await page.getByLabel("Name").waitFor();
 
 			const name = `smoke${Math.random().toString(36).slice(2, 10)}`;
 			await page.getByLabel("Name").fill(name);
 			await page.getByRole("button", { name: "Create" }).click();
 			await page.getByText(name, { exact: true }).waitFor();
-			expect(new URL(page.url()).pathname).toMatch(/^\/foos\/.+/);
+			expect(new URL(page.url()).pathname).toMatch(/^\/[^/]+\/[^/]+$/);
 
 			expect(consoleErrors).toEqual([]);
 		} finally {

@@ -32,7 +32,7 @@ describe("feature flags on the page", () => {
 			await page.goto(`${server.url}/auth/sign-in`);
 			await page.getByRole("button", { name: "Dev user" }).click();
 			await page.waitForURL((url) => !url.pathname.startsWith("/auth/"));
-			await page.getByRole("heading", { name: "Foos" }).waitFor();
+			await page.getByLabel("Name").waitFor();
 
 			const name = `flags${Math.random().toString(36).slice(2, 10)}`;
 			await page.evaluate(() => {
