@@ -1,4 +1,3 @@
-import { globSync } from "node:fs";
 import { type Browser, chromium } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
@@ -7,7 +6,9 @@ import { type UiServer, uiServerStart } from "../../scripts/ui-server.ts";
 // the stream answers 200. `pnpm piece-remove live` deletes this file and the hook's lines in the page.
 // A Project whose Models have no live routes (none of its Models was made with live updates) has no
 // stream to open, so the test runs only where a live route exists.
-const liveRoutes = globSync("src/contexts/*/adapters/inbound/*-live-routes.ts");
+const liveRoutes = import.meta.glob(
+	"../../src/contexts/*/adapters/inbound/*-live-routes.ts",
+);
 
 let server: UiServer;
 let browser: Browser;
@@ -22,7 +23,7 @@ afterAll(async () => {
 	await server?.[Symbol.asyncDispose]();
 });
 
-describe.runIf(liveRoutes.length > 0)(
+describe.runIf(Object.keys(liveRoutes).length > 0)(
 	"live updates on an entry's detail page",
 	() => {
 		it("opens the entry's live stream once the page renders", async () => {
