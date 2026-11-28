@@ -1,5 +1,25 @@
 # @n8io/baseline-queue
 
+## 10.0.0
+
+### Major Changes
+
+- 3d252a0: `QueueVendorOptions`, `QueueMigrateVendorOptions` and `QueueSchedulesSyncVendorOptions` are no longer exported, so no public type names a pg-boss type. The `vendor` option of `queueCreate`, `queueMigrate` and `queueSchedulesSync` takes the same keys as before: write the object inline in the Project's wiring file (`src/queue-open.ts`, `src/migrate.ts`), or take `NonNullable<QueueOptions["vendor"]>` and its like. The vendor-public-types test now covers this Package.
+
+### Patch Changes
+
+- 8a03afb: The `vendor` key check in `queueMigrate` and `queueSchedulesSync` now calls `sharedVendorKeyRefused` from `@n8io/baseline-shared`. Behaviour is unchanged: the same `TypeError` for a `vendor` key other than `application_name`, `options` and `ssl`.
+- 126f764: The package's logger is now built on its first use, not when the module loads, so a bad `LOG_LEVEL` no longer throws at import. The same `TypeError` is thrown by the first call that needs the logger.
+- 6b596a6: The package's default logger now comes from `@n8io/baseline-logger`'s `loggerDefaultCreate`. Behaviour is unchanged: the logger is built on its first use, and a bad `LOG_LEVEL` throws the same `TypeError` there.
+- 39c8e87: `queueOrderedBlockedKeysWatch` takes an optional `clock` in its timing argument: the time, in ms since the epoch, that its checks compare each blocked Event's deletion time and last report against. It defaults to the database's `now()`, so behaviour is unchanged unless a caller passes one; tests use it to move time on without waiting.
+- 6dedf6c: `queueMigrate` now gives up on pg-boss's index builds after 10 minutes by default (`indexesDeadlineMs` defaults to 600000) instead of waiting with no deadline. Pass a larger `indexesDeadlineMs` to wait longer; there is no unlimited value.
+- Updated dependencies [8a03afb]
+- Updated dependencies [b3a3a95]
+- Updated dependencies [6b596a6]
+- Updated dependencies [39c8e87]
+  - @n8io/baseline-shared@0.1.2
+  - @n8io/baseline-logger@4.1.0
+
 ## 9.1.2
 
 ### Patch Changes

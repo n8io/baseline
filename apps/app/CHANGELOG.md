@@ -1,5 +1,59 @@
 # app
 
+## 19.0.0
+
+### Major Changes
+
+- d7967f9: The Template's `app-ci.yml` runs its browser tests in a new `browser` job (`ci / browser`, a required check): the click-through flows of sign-in, the home redirect, the foo list and detail and a create and an edit, plus one smoke test per UI Piece that proves its page renders. A Project's ruleset needs `ci / browser` added; `requiredJobs` in `scripts/app-create-ruleset.ts` lists it for new Projects. A Project that removes a UI Piece also removes that Piece's smoke test (`pnpm piece-remove` deletes it).
+
+### Patch Changes
+
+- c6e17b9: `template-upgrade` loads every render module a release imports, found by following the entry point's imports, instead of copying only `template-render.ts` and a fixed name pattern. A release that splits its render code (app@18.0.0) no longer fails with `Cannot find module template-render-blocks.ts`.
+- 21c8b0c: `pnpm ui-shot --entry` also shoots the list page and a new entry's detail page, desktop and phone. CI runs it, so the `ui-shots` artifact covers all three pages.
+- Updated dependencies [8a03afb]
+- Updated dependencies [8a03afb]
+- Updated dependencies [8a03afb]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [126f764]
+- Updated dependencies [b3a3a95]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [6b596a6]
+- Updated dependencies [39c8e87]
+- Updated dependencies [39c8e87]
+- Updated dependencies [6dedf6c]
+- Updated dependencies [3d252a0]
+  - @n8io/baseline-analytics@3.0.1
+  - @n8io/baseline-error-tracking@2.0.1
+  - @n8io/baseline-queue@10.0.0
+  - @n8io/baseline-authn@7.2.2
+  - @n8io/baseline-cache@6.4.2
+  - @n8io/baseline-feature-flags@2.0.1
+  - @n8io/baseline-http@4.0.2
+  - @n8io/baseline-live@7.4.2
+  - @n8io/baseline-postgres@7.0.1
+  - @n8io/baseline-redis@1.2.1
+  - @n8io/baseline-shutdown@3.4.1
+  - @n8io/baseline-logger@4.1.0
+
 ## 18.0.0
 
 ### Major Changes

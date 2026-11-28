@@ -1,5 +1,11 @@
 # @n8io/baseline-shared
 
+## 0.1.2
+
+### Patch Changes
+
+- 8a03afb: Adds `sharedVendorKeyRefused({ allowed, vendor })`, the one check that a `vendor` object holds only the keys a Package allows. It returns the first refused key, so each caller keeps its own error message and names no vendor.
+
 ## 0.1.1
 
 ### Patch Changes

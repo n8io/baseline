@@ -1,6 +1,6 @@
 {
 	"name": "@n8io/baseline-shutdown",
-	"version": "3.4.0",
+	"version": "3.4.1",
 	"description": "Graceful shutdown on SIGTERM: stop taking work, let running work finish, then close resources in order inside a deadline.",
 	"license": "MIT",
 	"type": "module",

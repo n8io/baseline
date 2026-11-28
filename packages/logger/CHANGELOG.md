@@ -1,5 +1,16 @@
 # @n8io/baseline-logger
 
+## 4.1.0
+
+### Minor Changes
+
+- b3a3a95: Adds `loggerCreateFromConfig({ level })`, which builds a logger from an explicit config object and reads no environment. `loggerCreate` is unchanged for current callers: it still takes `LOG_LEVEL` when called, not at import.
+- 39c8e87: Add `loggerDefaultCreate`, which builds a lazy, memoised default logger on first call.
+
+### Patch Changes
+
+- 6b596a6: Adds `loggerDefaultCreate()`, which returns a getter for one logger built by `loggerCreate` on its first call, not at import, and the same logger after. A Package makes one at module level so a bad `LOG_LEVEL` throws at first use, never at import.
+
 ## 4.0.0
 
 ### Major Changes
