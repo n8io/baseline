@@ -38,6 +38,7 @@
 		"template-upgrade": "node --import ./scripts/node-version-require.ts scripts/template-upgrade.ts",
 		"test": "vitest run --project unit --project unit-contexts",
 		"test:e2e": "pnpm build && vitest run --project e2e",
+		"test:e2e:install": "playwright install --with-deps chromium",
 		"test:integration": "node --import ./scripts/node-version-require.ts scripts/dev-instance.ts && pnpm build && vitest run --project integration",
 		"ui-shot": "node --import ./scripts/node-version-require.ts scripts/ui-shot.ts",
 		"ui-up": "node --import ./scripts/node-version-require.ts scripts/ui-up.ts"

@@ -105,6 +105,14 @@ const setup = (actor: Actor | null = owner) => {
 - A UI PR shows before and after. In a worktree of `main` (its `pnpm build` first) run `pnpm ui-shot --label before`; on the branch, `pnpm build` and `pnpm ui-shot --label after`. Add `--path /route` (repeat it) for other pages and `--sign-in` for pages behind the sign-in. It shoots a desktop (1280x800) and a phone (390x844) viewport at device scale factor 2, full page, and prints each file's path. The files go to `<temp folder>/ui-shots/<worktree folder>/` (`--out` changes it), outside the repository.
 - Put the images in the PR description by dragging each file into the description's editor on GitHub, under a "Before" and an "After" heading. Never commit a screenshot or push it to a branch, and never add one to the repository.
 
+## Browser tests
+
+`test/e2e/` holds the browser tests. `pnpm test:e2e` builds, then runs them in Playwright's Chromium against the production build on memory adapters; app-ci.yml's `browser` job runs the same command in every Project.
+
+- `ui-flows.test.ts` clicks through sign-in, the home redirect, a Model's list and detail, and one create and one edit.
+- Each UI Piece has a smoke test that proves its page renders: `ui-smoke.test.ts` (ui), `api-reference-smoke.test.ts` (api-reference) and `feature-flags-smoke.test.ts` (feature-flags). Live's smoke test is the Template's first Model's, so a Project does not get it: its first Model may have no live updates. A new page with a Piece's behaviour gets a smoke test in that Piece's file, and the file is listed under the Piece in `scripts/piece-manifest.ts`, so `pnpm piece-remove` deletes it with the Piece.
+- Visual comparison (`toHaveScreenshot`) is not used: its baselines would be screenshots in the repository, and screenshots are never committed (above).
+
 ## Removing a page
 
 Delete its route module and test, and its line in `src/ui/routes.ts`, then run `pnpm check`: `react-router typegen` deletes the page's generated route types, which otherwise break `tsc`.

@@ -63,6 +63,7 @@ export const pieceManifest = {
 		paths: [
 			"src/api-reference.ts",
 			"src/api-reference.test.ts",
+			"test/e2e/api-reference-smoke.test.ts",
 			"test/integration/api-reference.test.ts",
 		],
 	},
@@ -109,12 +110,13 @@ export const pieceManifest = {
 			"src/ui/feature-flags-client-config.test.ts",
 			"src/ui/feature-flags-client-config.ts",
 			"src/ui/feature-flags.ts",
+			"test/e2e/feature-flags-smoke.test.ts",
 			"test/integration/feature-flags-config.test.ts",
 		],
 	},
 	live: {
 		packages: ["@n8io/baseline-live"],
-		paths: ["src/live-hub-open.ts"],
+		paths: ["src/live-hub-open.ts", "test/e2e/foo-live-smoke.test.ts"],
 		srcFiles: /-live(-routes)?(\.test)?\.ts$/,
 		template: {
 			paths: [/^src\/contexts\/foo\/.*-live(-routes)?(\.test)?\.ts$/],
@@ -204,6 +206,8 @@ export const pieceManifest = {
 			"public",
 			"components.json",
 			"react-router.config.ts",
+			"test/e2e/ui-flows.test.ts",
+			"test/e2e/ui-smoke.test.ts",
 			"test/integration/feature-flags-config.test.ts",
 			"test/integration/csp-nonce.ts",
 			"test/integration/rollout-build.ts",

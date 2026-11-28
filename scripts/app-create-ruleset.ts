@@ -5,6 +5,7 @@ export const requiredJobs = [
 	"check",
 	"unit",
 	"integration",
+	"browser",
 	"pieces",
 	"image",
 	"sast",
